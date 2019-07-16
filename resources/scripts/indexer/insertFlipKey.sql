@@ -1,0 +1,2 @@
+INSERT INTO FLIP_KEYS (TX_ID, "key")
+VALUES ($1, $2)

@@ -1,0 +1,2 @@
+INSERT INTO TRANSACTIONS (HASH, BLOCK_ID, "type", "from", "to", AMOUNT, FEE)
+VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id

@@ -1,0 +1,6 @@
+# IdeaIDE
+.idea
+
+# executables
+/*.exe
+*.exe~
