@@ -3,6 +3,7 @@ package indexer
 import (
 	"encoding/hex"
 	"github.com/idena-network/idena-go/blockchain"
+	"github.com/idena-network/idena-go/common"
 
 	//"encoding/hex"
 	"fmt"
@@ -53,6 +54,13 @@ var (
 		ceremony.NotQualified:    "NotQualified",
 		ceremony.Qualified:       "Qualified",
 		ceremony.WeaklyQualified: "WeaklyQualified",
+	}
+
+	answers = map[types.Answer]string{
+		0: "None",
+		1: "Left",
+		2: "Right",
+		3: "Inappropriate",
 	}
 )
 
@@ -149,7 +157,7 @@ func convertBlock(incomingBlock *types.Block, appState *appstate.AppState, chain
 	txs := convertTransactions(incomingBlock.Body.Transactions, appState, chain, ctx)
 	return db.Block{
 		Height:       incomingBlock.Height(),
-		Hash:         incomingBlock.Hash().Hex(),
+		Hash:         convertHash(incomingBlock.Hash()),
 		Time:         *incomingBlock.Header.Time(),
 		Transactions: txs,
 	}
@@ -171,10 +179,10 @@ func convertTransaction(incomingTx *types.Transaction, appState *appstate.AppSta
 	convertShortAnswers(incomingTx, ctx)
 
 	sender, _ := types.Sender(incomingTx)
-	from := sender.Hex()
+	from := convertAddress(sender)
 	var to string
 	if incomingTx.To != nil {
-		to = incomingTx.To.Hex()
+		to = convertAddress(*incomingTx.To)
 	}
 
 	fee, err := chain.ApplyTxOnState(appState, incomingTx)
@@ -185,7 +193,7 @@ func convertTransaction(incomingTx *types.Transaction, appState *appstate.AppSta
 	tx := db.Transaction{
 		Type:    convertTxType(incomingTx.Type),
 		Payload: incomingTx.Payload,
-		Hash:    incomingTx.Hash().Hex(),
+		Hash:    convertHash(incomingTx.Hash()),
 		From:    from,
 		To:      to,
 		Amount:  incomingTx.Amount,
@@ -215,6 +223,36 @@ func convertFlipStatus(status ceremony.FlipStatus) string {
 	return fmt.Sprintf("Unknown status %d", status)
 }
 
+func convertAnswer(answer types.Answer) string {
+	if res, ok := answers[answer]; ok {
+		return res
+	}
+	return fmt.Sprintf("Unknown answer %d", answer)
+}
+
+func convertStatsAnswers(incomingAnswers []ceremony.FlipAnswerStats) []db.Answer {
+	var answers []db.Answer
+	for _, answer := range incomingAnswers {
+		answers = append(answers, convertStatsAnswer(answer))
+	}
+	return answers
+}
+
+func convertStatsAnswer(incomingAnswer ceremony.FlipAnswerStats) db.Answer {
+	return db.Answer{
+		Address: convertAddress(incomingAnswer.Respondent),
+		Answer:  convertAnswer(incomingAnswer.Answer),
+	}
+}
+
+func convertAddress(address common.Address) string {
+	return address.Hex()
+}
+
+func convertHash(hash common.Hash) string {
+	return hash.Hex()
+}
+
 func determineEpochResult(block *types.Block, appState *appstate.AppState, c *ceremony.ValidationCeremony) ([]db.EpochIdentity, []db.FlipStats) {
 	if !block.Header.Flags().HasFlag(types.ValidationFinished) {
 		return nil, nil
@@ -224,9 +262,8 @@ func determineEpochResult(block *types.Block, appState *appstate.AppState, c *ce
 	validationStats := c.GetValidationStats()
 
 	for addr, stats := range validationStats.IdentitiesPerAddr {
-		addrHex := addr.Hex()
 		identity := db.EpochIdentity{
-			Address:    addrHex,
+			Address:    convertAddress(addr),
 			ShortPoint: stats.ShortPoint,
 			ShortFlips: stats.ShortFlips,
 			LongPoint:  stats.LongPoint,
@@ -245,10 +282,10 @@ func determineEpochResult(block *types.Block, appState *appstate.AppState, c *ce
 		}
 		flipStats := db.FlipStats{
 			Cid:          flipCid.String(),
-			ShortAnswers: stats.ShortAnswers,
-			LongAnswers:  stats.LongAnswers,
+			ShortAnswers: convertStatsAnswers(stats.ShortAnswers),
+			LongAnswers:  convertStatsAnswers(stats.LongAnswers),
 			Status:       convertFlipStatus(stats.Status),
-			Answer:       stats.Answer,
+			Answer:       convertAnswer(stats.Answer),
 		}
 		flipsStats = append(flipsStats, flipStats)
 	}
@@ -266,7 +303,7 @@ func determineSubmittedFlip(tx *types.Transaction) *db.Flip {
 		return nil
 	}
 	flip := &db.Flip{
-		TxHash: tx.Hash().Hex(),
+		TxHash: convertHash(tx.Hash()),
 		Cid:    flipCid.String(),
 	}
 	return flip
@@ -283,7 +320,7 @@ func convertShortAnswers(tx *types.Transaction, ctx *conversionContext) {
 	}
 	if len(answer.Key) > 0 {
 		ctx.flipKeys = append(ctx.flipKeys, db.FlipKey{
-			TxHash: tx.Hash().Hex(),
+			TxHash: convertHash(tx.Hash()),
 			Key:    hex.EncodeToString(answer.Key),
 		})
 	}

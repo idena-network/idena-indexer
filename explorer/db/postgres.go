@@ -17,15 +17,22 @@ type postgresAccessor struct {
 }
 
 const (
-	epochsQuery            = "epochs.sql"
-	epochQuery             = "epoch.sql"
-	epochBlocksQuery       = "epochBlocks.sql"
-	epochTxsQuery          = "epochTxs.sql"
-	blockTxsQuery          = "blockTxs.sql"
-	epochFlipsWithKeyQuery = "epochFlipsWithKey.sql"
-	epochFlipsQuery        = "epochFlips.sql"
-	epochInvitesQuery      = "epochInvites.sql"
-	epochIdentitiesQuery   = "epochIdentities.sql"
+	epochsQuery               = "epochs.sql"
+	epochQuery                = "epoch.sql"
+	epochBlocksQuery          = "epochBlocks.sql"
+	epochTxsQuery             = "epochTxs.sql"
+	blockTxsQuery             = "blockTxs.sql"
+	epochFlipsWithKeyQuery    = "epochFlipsWithKey.sql"
+	epochFlipsQuery           = "epochFlips.sql"
+	epochInvitesQuery         = "epochInvites.sql"
+	epochIdentitiesQuery      = "epochIdentities.sql"
+	flipQuery                 = "flip.sql"
+	flipAnswersQuery          = "flipAnswers.sql"
+	identityQuery             = "identity.sql"
+	identityAnswersQuery      = "identityAnswers.sql"
+	identityFlipsQuery        = "identityFlips.sql"
+	identityEpochsQuery       = "identityEpochs.sql"
+	identityCurrentFlipsQuery = "identityCurrentFlips.sql"
 )
 
 type flipWithKey struct {
@@ -51,7 +58,7 @@ func (a *postgresAccessor) Epochs() ([]types.EpochSummary, error) {
 	var epochs []types.EpochSummary
 	for rows.Next() {
 		epoch := types.EpochSummary{}
-		err = rows.Scan(&epoch.Epoch, &epoch.VerifiedCount, &epoch.BlockCount, &epoch.FlipsCount)
+		err = rows.Scan(&epoch.Epoch, &epoch.VerifiedCount, &epoch.BlockCount, &epoch.FlipCount)
 		if err != nil {
 			return nil, err
 		}
@@ -63,7 +70,7 @@ func (a *postgresAccessor) Epochs() ([]types.EpochSummary, error) {
 func (a *postgresAccessor) Epoch(epoch uint64) (types.EpochDetail, error) {
 	epochInfo := types.EpochDetail{}
 	err := a.db.QueryRow(a.getQuery(epochQuery), epoch).Scan(&epochInfo.Epoch, &epochInfo.VerifiedCount, &epochInfo.BlockCount,
-		&epochInfo.FlipsCount, &epochInfo.QualifiedFlipsCount, &epochInfo.WeaklyQualifiedFlipsCount)
+		&epochInfo.FlipCount, &epochInfo.QualifiedFlipCount, &epochInfo.WeaklyQualifiedFlipCount)
 	if err == sql.ErrNoRows {
 		err = NoDataFound
 	}
@@ -217,6 +224,164 @@ func (a *postgresAccessor) EpochIdentities(epoch uint64) ([]types.EpochIdentity,
 		res = append(res, item)
 	}
 	return res, nil
+}
+
+func (a *postgresAccessor) Flip(hash string) (types.Flip, error) {
+	rows, err := a.db.Query(a.getQuery(flipQuery), hash)
+	if err != nil {
+		return types.Flip{}, err
+	}
+	defer rows.Close()
+	if !rows.Next() {
+		return types.Flip{}, errors.New(fmt.Sprintf("Flip %s not found", hash))
+	}
+	flip := types.Flip{}
+	var id uint64
+	err = rows.Scan(&id, &flip.Answer, &flip.Status)
+	if err != nil {
+		return types.Flip{}, err
+	}
+
+	answerRows, err := a.db.Query(a.getQuery(flipAnswersQuery), id)
+	if err != nil {
+		return types.Flip{}, err
+	}
+	defer answerRows.Close()
+
+	for answerRows.Next() {
+		item := types.Answer{}
+		var isShort bool
+		err = answerRows.Scan(&item.Address, &item.Answer, &isShort)
+		if err != nil {
+			return types.Flip{}, err
+		}
+		if isShort {
+			flip.ShortAnswers = append(flip.ShortAnswers, item)
+		} else {
+			flip.LongAnswers = append(flip.LongAnswers, item)
+		}
+	}
+	return flip, nil
+}
+
+func (a *postgresAccessor) Identity(address string) (types.Identity, error) {
+	rows, err := a.db.Query(a.getQuery(identityQuery), address)
+	if err != nil {
+		return types.Identity{}, err
+	}
+	defer rows.Close()
+	if !rows.Next() {
+		return types.Identity{}, errors.New(fmt.Sprintf("Identity %s not found", address))
+	}
+	identity := types.Identity{}
+	var id int64
+	err = rows.Scan(&id, &identity.Address, &identity.State)
+	if err != nil {
+		return types.Identity{}, err
+	}
+
+	if identity.ShortAnswers, identity.LongAnswers, err = a.identityAnswerSummary(id); err != nil {
+		return types.Identity{}, err
+	}
+
+	if identity.SubmittedFlipCount, identity.QualifiedFlipCount, identity.WeaklyQualifiedFlipCount,
+		identity.AuthorScore, err = a.identityFlipsSummary(id); err != nil {
+		return types.Identity{}, err
+	}
+
+	if identity.Epochs, err = a.identityEpochs(id); err != nil {
+		return types.Identity{}, err
+	}
+
+	if identity.Txs, err = a.identityTxs(id); err != nil {
+		return types.Identity{}, err
+	}
+
+	if identity.CurrentFlipCids, err = a.identityCurrentFlipCids(id); err != nil {
+		return types.Identity{}, err
+	}
+
+	if identity.Invites, err = a.identityInvites(id); err != nil {
+		return types.Identity{}, err
+	}
+
+	return identity, nil
+}
+
+func (a *postgresAccessor) identityAnswerSummary(identityId int64) (short, long types.IdentityAnswerSummary, err error) {
+	rows, err := a.db.Query(a.getQuery(identityAnswersQuery), identityId)
+	if err != nil {
+		return types.IdentityAnswerSummary{}, types.IdentityAnswerSummary{}, err
+	}
+	defer rows.Close()
+	if !rows.Next() {
+		return types.IdentityAnswerSummary{}, types.IdentityAnswerSummary{}, nil
+	}
+	err = rows.Scan(&short.RightAnswerCount, &short.AnswerCount, &short.RespScore, &long.RightAnswerCount, &long.AnswerCount, &long.RespScore)
+	if err != nil {
+		return types.IdentityAnswerSummary{}, types.IdentityAnswerSummary{}, err
+	}
+	return short, long, nil
+}
+
+func (a *postgresAccessor) identityFlipsSummary(identityId int64) (count, qualifiedCount, weaklyQualifiedCount uint32, score float32, err error) {
+	rows, err := a.db.Query(a.getQuery(identityFlipsQuery), identityId)
+	if err != nil {
+		return
+	}
+	if !rows.Next() {
+		return
+	}
+	if err = rows.Scan(&count, &qualifiedCount, &weaklyQualifiedCount, &score); err != nil {
+		return
+	}
+	return
+}
+
+func (a *postgresAccessor) identityEpochs(identityId int64) ([]types.IdentityEpoch, error) {
+	rows, err := a.db.Query(a.getQuery(identityEpochsQuery), identityId)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var res []types.IdentityEpoch
+	for rows.Next() {
+		item := types.IdentityEpoch{}
+		err = rows.Scan(&item.Epoch, &item.State, &item.RespScore, &item.AuthorScore)
+		if err != nil {
+			return nil, err
+		}
+		res = append(res, item)
+	}
+	return res, nil
+}
+
+func (a *postgresAccessor) identityTxs(identityId int64) ([]types.Transaction, error) {
+	// todo
+	return nil, nil
+}
+
+func (a *postgresAccessor) identityCurrentFlipCids(identityId int64) ([]string, error) {
+	rows, err := a.db.Query(a.getQuery(identityCurrentFlipsQuery), identityId)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var res []string
+	for rows.Next() {
+		var item string
+		err = rows.Scan(&item)
+		if err != nil {
+			return nil, err
+		}
+		res = append(res, item)
+	}
+	return res, nil
+}
+
+func (a *postgresAccessor) identityInvites(identityId int64) ([]types.Invite, error) {
+	// todo
+	return nil, nil
 }
 
 func (a *postgresAccessor) Destroy() {

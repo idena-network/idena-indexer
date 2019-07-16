@@ -1,8 +1,6 @@
 package db
 
 import (
-	"github.com/idena-network/idena-go/blockchain/types"
-	"github.com/idena-network/idena-go/core/ceremony"
 	"math/big"
 )
 
@@ -50,10 +48,15 @@ type Flip struct {
 
 type FlipStats struct {
 	Cid          string
-	ShortAnswers []ceremony.FlipAnswerStats
-	LongAnswers  []ceremony.FlipAnswerStats
+	ShortAnswers []Answer
+	LongAnswers  []Answer
 	Status       string
-	Answer       types.Answer
+	Answer       string
+}
+
+type Answer struct {
+	Address string
+	Answer  string
 }
 
 type FlipKey struct {

@@ -17,12 +17,12 @@ func NewPostgresAccessor(connStr string, scriptsDirPath string, logger log.Logge
 
 	return &postgresAccessor{
 		db:      db,
-		queries: readQueries(scriptsDirPath),
+		queries: readQueries(scriptsDirPath, logger),
 		log:     logger,
 	}
 }
 
-func readQueries(scriptsDirPath string) map[string]string {
+func readQueries(scriptsDirPath string, log log.Logger) map[string]string {
 	files, err := ioutil.ReadDir(scriptsDirPath)
 	if err != nil {
 		panic(err)

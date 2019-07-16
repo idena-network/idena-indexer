@@ -210,7 +210,7 @@ CREATE TABLE IF NOT EXISTS public.flips
     id     integer                                             NOT NULL DEFAULT nextval('flips_id_seq'::regclass),
     tx_id  integer                                             NOT NULL,
     cid    character varying(100) COLLATE pg_catalog."default" NOT NULL,
-    answer smallint,
+    answer character varying(20) COLLATE pg_catalog."default",
     status character varying(20) COLLATE pg_catalog."default",
     CONSTRAINT flips_pkey PRIMARY KEY (id),
     CONSTRAINT flips_cid_key UNIQUE (cid)
@@ -277,11 +277,11 @@ ALTER SEQUENCE public.answers_id_seq
 
 CREATE TABLE IF NOT EXISTS public.answers
 (
-    id          integer  NOT NULL DEFAULT nextval('answers_id_seq'::regclass),
-    flip_id     integer  NOT NULL,
-    identity_id integer  NOT NULL,
-    is_short    boolean  NOT NULL,
-    answer      smallint NOT NULL,
+    id          integer                                            NOT NULL DEFAULT nextval('answers_id_seq'::regclass),
+    flip_id     integer                                            NOT NULL,
+    identity_id integer                                            NOT NULL,
+    is_short    boolean                                            NOT NULL,
+    answer      character varying(20) COLLATE pg_catalog."default" NOT NULL,
     CONSTRAINT answers_pkey PRIMARY KEY (id)
 )
     WITH (

@@ -3,7 +3,6 @@ package db
 import (
 	"database/sql"
 	"fmt"
-	"github.com/idena-network/idena-go/core/ceremony"
 	"github.com/idena-network/idena-indexer/log"
 	_ "github.com/lib/pq"
 	"github.com/pkg/errors"
@@ -137,7 +136,7 @@ func (a *postgresAccessor) saveFlipStats(tx *sql.Tx, ctx *context, flipStats Fli
 	return nil
 }
 
-func (a *postgresAccessor) saveAnswers(tx *sql.Tx, ctx *context, cid string, answers []ceremony.FlipAnswerStats,
+func (a *postgresAccessor) saveAnswers(tx *sql.Tx, ctx *context, cid string, answers []Answer,
 	isShort bool) error {
 	for _, answer := range answers {
 		if _, err := a.saveAnswer(tx, ctx, cid, answer, isShort); err != nil {
@@ -147,14 +146,14 @@ func (a *postgresAccessor) saveAnswers(tx *sql.Tx, ctx *context, cid string, ans
 	return nil
 }
 
-func (a *postgresAccessor) saveAnswer(tx *sql.Tx, ctx *context, cid string, answer ceremony.FlipAnswerStats,
+func (a *postgresAccessor) saveAnswer(tx *sql.Tx, ctx *context, cid string, answer Answer,
 	isShort bool) (int64, error) {
 	var id int64
 	flipId, err := ctx.flipId(tx, cid)
 	if err != nil {
 		return 0, err
 	}
-	identityId, err := ctx.identityId(tx, answer.Respondent.Hex())
+	identityId, err := ctx.identityId(tx, answer.Address)
 	if err != nil {
 		return 0, err
 	}

@@ -13,5 +13,7 @@ type Accessor interface {
 	EpochFlips(epoch uint64) ([]types.FlipSummary, error)
 	EpochInvites(epoch uint64) ([]types.Invite, error)
 	EpochIdentities(epoch uint64) ([]types.EpochIdentity, error)
+	Flip(hash string) (types.Flip, error)
+	Identity(address string) (types.Identity, error)
 	Destroy()
 }
