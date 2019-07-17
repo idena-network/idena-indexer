@@ -3,25 +3,30 @@ package db
 import "database/sql"
 
 type context struct {
-	epochId            int64
-	identityIdsPerAddr map[string]int64
-	flipIdsPerCid      map[string]int64
-	txIdsPerHash       map[string]int64
-	a                  *postgresAccessor
+	epochId                       int64
+	identityIdsPerAddr            map[string]int64
+	flipIdsPerCid                 map[string]int64
+	txIdsPerHash                  map[string]int64
+	epochIdentityIdsPerIdentityId map[int64]int64
+	a                             *postgresAccessor
+	tx                            *sql.Tx
 }
 
-func newContext(a *postgresAccessor) *context {
-	return &context{a: a}
+func newContext(a *postgresAccessor, tx *sql.Tx) *context {
+	return &context{
+		a:  a,
+		tx: tx,
+	}
 }
 
-func (c *context) identityId(tx *sql.Tx, addr string) (int64, error) {
+func (c *context) identityId(addr string) (int64, error) {
 	if c.identityIdsPerAddr == nil {
 		c.identityIdsPerAddr = make(map[string]int64)
 	}
 	if id, present := c.identityIdsPerAddr[addr]; present {
 		return id, nil
 	}
-	id, err := c.a.getIdentityId(tx, addr)
+	id, err := c.a.getIdentityId(c.tx, addr)
 	if err != nil {
 		return 0, err
 	}
@@ -29,14 +34,22 @@ func (c *context) identityId(tx *sql.Tx, addr string) (int64, error) {
 	return id, nil
 }
 
-func (c *context) flipId(tx *sql.Tx, cid string) (int64, error) {
+func (c *context) epochIdentityId(addr string) (int64, error) {
+	identityId, err := c.identityId(addr)
+	if err != nil {
+		return 0, err
+	}
+	return c.epochIdentityIdsPerIdentityId[identityId], nil
+}
+
+func (c *context) flipId(cid string) (int64, error) {
 	if c.flipIdsPerCid == nil {
 		c.flipIdsPerCid = make(map[string]int64)
 	}
 	if id, present := c.flipIdsPerCid[cid]; present {
 		return id, nil
 	}
-	id, err := c.a.getFlipId(tx, cid)
+	id, err := c.a.getFlipId(c.tx, cid)
 	if err != nil {
 		return 0, err
 	}

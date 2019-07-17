@@ -33,12 +33,16 @@ type Transaction struct {
 }
 
 type EpochIdentity struct {
-	Address    string
-	State      string
-	ShortPoint float32
-	ShortFlips uint32
-	LongPoint  float32
-	LongFlips  uint32
+	Address              string
+	State                string
+	ShortPoint           float32
+	ShortFlips           uint32
+	LongPoint            float32
+	LongFlips            uint32
+	Approved             bool
+	Missed               bool
+	ShortFlipCidsToSolve []string
+	LongFlipCidsToSolve  []string
 }
 
 type Flip struct {

@@ -43,7 +43,7 @@ func (a *api) epochInvites(epoch uint64) ([]types.Invite, error) {
 	return a.db.EpochInvites(epoch)
 }
 
-func (a *api) epochIdentities(epoch uint64) ([]types.EpochIdentity, error) {
+func (a *api) epochIdentities(epoch uint64) ([]types.EpochIdentitySummary, error) {
 	return a.db.EpochIdentities(epoch)
 }
 
@@ -53,4 +53,8 @@ func (a *api) flip(hash string) (types.Flip, error) {
 
 func (a *api) identity(address string) (types.Identity, error) {
 	return a.db.Identity(address)
+}
+
+func (a *api) epochIdentity(epoch uint64, address string) (types.EpochIdentity, error) {
+	return a.db.EpochIdentity(epoch, address)
 }

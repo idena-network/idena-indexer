@@ -17,22 +17,25 @@ type postgresAccessor struct {
 }
 
 const (
-	epochsQuery               = "epochs.sql"
-	epochQuery                = "epoch.sql"
-	epochBlocksQuery          = "epochBlocks.sql"
-	epochTxsQuery             = "epochTxs.sql"
-	blockTxsQuery             = "blockTxs.sql"
-	epochFlipsWithKeyQuery    = "epochFlipsWithKey.sql"
-	epochFlipsQuery           = "epochFlips.sql"
-	epochInvitesQuery         = "epochInvites.sql"
-	epochIdentitiesQuery      = "epochIdentities.sql"
-	flipQuery                 = "flip.sql"
-	flipAnswersQuery          = "flipAnswers.sql"
-	identityQuery             = "identity.sql"
-	identityAnswersQuery      = "identityAnswers.sql"
-	identityFlipsQuery        = "identityFlips.sql"
-	identityEpochsQuery       = "identityEpochs.sql"
-	identityCurrentFlipsQuery = "identityCurrentFlips.sql"
+	epochsQuery                    = "epochs.sql"
+	epochQuery                     = "epoch.sql"
+	epochBlocksQuery               = "epochBlocks.sql"
+	epochTxsQuery                  = "epochTxs.sql"
+	blockTxsQuery                  = "blockTxs.sql"
+	epochFlipsWithKeyQuery         = "epochFlipsWithKey.sql"
+	epochFlipsQuery                = "epochFlips.sql"
+	epochInvitesQuery              = "epochInvites.sql"
+	epochIdentitiesQuery           = "epochIdentities.sql"
+	flipQuery                      = "flip.sql"
+	flipAnswersQuery               = "flipAnswers.sql"
+	identityQuery                  = "identity.sql"
+	identityAnswersQuery           = "identityAnswers.sql"
+	identityFlipsQuery             = "identityFlips.sql"
+	identityEpochsQuery            = "identityEpochs.sql"
+	identityCurrentFlipsQuery      = "identityCurrentFlips.sql"
+	epochIdentityQuery             = "epochIdentity.sql"
+	epochIdentityFlipsToSolveQuery = "epochIdentityFlipsToSolve.sql"
+	epochIdentityAnswersQuery      = "epochIdentityAnswers.sql"
 )
 
 type flipWithKey struct {
@@ -208,16 +211,16 @@ func (a *postgresAccessor) EpochInvites(epoch uint64) ([]types.Invite, error) {
 	return res, nil
 }
 
-func (a *postgresAccessor) EpochIdentities(epoch uint64) ([]types.EpochIdentity, error) {
+func (a *postgresAccessor) EpochIdentities(epoch uint64) ([]types.EpochIdentitySummary, error) {
 	rows, err := a.db.Query(a.getQuery(epochIdentitiesQuery), epoch)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var res []types.EpochIdentity
+	var res []types.EpochIdentitySummary
 	for rows.Next() {
-		item := types.EpochIdentity{}
-		err = rows.Scan(&item.Address, &item.State, &item.RespScore, &item.AuthorScore)
+		item := types.EpochIdentitySummary{}
+		err = rows.Scan(&item.Address, &item.State, &item.Approved, &item.Missed, &item.RespScore, &item.AuthorScore)
 		if err != nil {
 			return nil, err
 		}
@@ -347,7 +350,7 @@ func (a *postgresAccessor) identityEpochs(identityId int64) ([]types.IdentityEpo
 	var res []types.IdentityEpoch
 	for rows.Next() {
 		item := types.IdentityEpoch{}
-		err = rows.Scan(&item.Epoch, &item.State, &item.RespScore, &item.AuthorScore)
+		err = rows.Scan(&item.Epoch, &item.State, &item.Approved, &item.Missed, &item.RespScore, &item.AuthorScore)
 		if err != nil {
 			return nil, err
 		}
@@ -382,6 +385,77 @@ func (a *postgresAccessor) identityCurrentFlipCids(identityId int64) ([]string, 
 func (a *postgresAccessor) identityInvites(identityId int64) ([]types.Invite, error) {
 	// todo
 	return nil, nil
+}
+
+func (a *postgresAccessor) EpochIdentity(epoch uint64, address string) (types.EpochIdentity, error) {
+	rows, err := a.db.Query(a.getQuery(epochIdentityQuery), epoch, address)
+	if err != nil {
+		return types.EpochIdentity{}, err
+	}
+	defer rows.Close()
+	if !rows.Next() {
+		return types.EpochIdentity{}, errors.New(fmt.Sprintf("Identity %s not found in epoch %d", address, epoch))
+	}
+	epochIdentity := types.EpochIdentity{}
+	var id int64
+	if err = rows.Scan(&id); err != nil {
+		return types.EpochIdentity{}, err
+	}
+	if epochIdentity.ShortFlipsToSolve, epochIdentity.LongFlipsToSolve, err = a.epochIdentityFlipsToSolve(id); err != nil {
+		return types.EpochIdentity{}, err
+	}
+
+	if epochIdentity.ShortAnswers, epochIdentity.LongAnswers, err = a.epochIdentityAnswers(id); err != nil {
+		return types.EpochIdentity{}, err
+	}
+
+	return epochIdentity, nil
+}
+
+func (a *postgresAccessor) epochIdentityFlipsToSolve(epochIdentityId int64) (short, long []string, err error) {
+	rows, err := a.db.Query(a.getQuery(epochIdentityFlipsToSolveQuery), epochIdentityId)
+	if err != nil {
+		return
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var isShort bool
+		var item string
+		err = rows.Scan(&item, &isShort)
+		if err != nil {
+			return nil, nil, err
+		}
+		if isShort {
+			short = append(short, item)
+		} else {
+			long = append(long, item)
+		}
+	}
+	return
+}
+
+func (a *postgresAccessor) epochIdentityAnswers(epochIdentityId int64) (short, long []types.Answer, err error) {
+	rows, err := a.db.Query(a.getQuery(epochIdentityAnswersQuery), epochIdentityId)
+	if err != nil {
+		return
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		item := types.Answer{}
+		var isShort bool
+		err = rows.Scan(&item.Cid, &item.Answer, &isShort)
+		if err != nil {
+			return nil, nil, err
+		}
+		if isShort {
+			short = append(short, item)
+		} else {
+			long = append(long, item)
+		}
+	}
+	return
 }
 
 func (a *postgresAccessor) Destroy() {

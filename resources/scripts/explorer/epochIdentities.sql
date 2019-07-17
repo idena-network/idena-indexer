@@ -1,5 +1,7 @@
 select i.address,
        ei.state,
+       ei.approved,
+       ei.missed,
        (case
             when ei.short_flips != 0 then ei.short_point / ei.short_flips
             else 0

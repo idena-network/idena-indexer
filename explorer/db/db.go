@@ -12,8 +12,9 @@ type Accessor interface {
 	BlockTxs(height uint64) ([]types.Transaction, error)
 	EpochFlips(epoch uint64) ([]types.FlipSummary, error)
 	EpochInvites(epoch uint64) ([]types.Invite, error)
-	EpochIdentities(epoch uint64) ([]types.EpochIdentity, error)
+	EpochIdentities(epoch uint64) ([]types.EpochIdentitySummary, error)
 	Flip(hash string) (types.Flip, error)
 	Identity(address string) (types.Identity, error)
+	EpochIdentity(epoch uint64, address string) (types.EpochIdentity, error)
 	Destroy()
 }

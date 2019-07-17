@@ -253,6 +253,10 @@ func convertHash(hash common.Hash) string {
 	return hash.Hex()
 }
 
+func convertCid(cid cid.Cid) string {
+	return cid.String()
+}
+
 func determineEpochResult(block *types.Block, appState *appstate.AppState, c *ceremony.ValidationCeremony) ([]db.EpochIdentity, []db.FlipStats) {
 	if !block.Header.Flags().HasFlag(types.ValidationFinished) {
 		return nil, nil
@@ -263,12 +267,16 @@ func determineEpochResult(block *types.Block, appState *appstate.AppState, c *ce
 
 	for addr, stats := range validationStats.IdentitiesPerAddr {
 		identity := db.EpochIdentity{
-			Address:    convertAddress(addr),
-			ShortPoint: stats.ShortPoint,
-			ShortFlips: stats.ShortFlips,
-			LongPoint:  stats.LongPoint,
-			LongFlips:  stats.LongFlips,
-			State:      convertIdentityState(stats.State),
+			Address:              convertAddress(addr),
+			ShortPoint:           stats.ShortPoint,
+			ShortFlips:           stats.ShortFlips,
+			LongPoint:            stats.LongPoint,
+			LongFlips:            stats.LongFlips,
+			State:                convertIdentityState(stats.State),
+			Approved:             stats.Approved,
+			Missed:               stats.Missed,
+			ShortFlipCidsToSolve: convertCids(stats.ShortFlipsToSolve, validationStats.FlipCids, block),
+			LongFlipCidsToSolve:  convertCids(stats.LongFlipsToSolve, validationStats.FlipCids, block),
 		}
 		identities = append(identities, identity)
 	}
@@ -281,7 +289,7 @@ func determineEpochResult(block *types.Block, appState *appstate.AppState, c *ce
 			continue
 		}
 		flipStats := db.FlipStats{
-			Cid:          flipCid.String(),
+			Cid:          convertCid(flipCid),
 			ShortAnswers: convertStatsAnswers(stats.ShortAnswers),
 			LongAnswers:  convertStatsAnswers(stats.LongAnswers),
 			Status:       convertFlipStatus(stats.Status),
@@ -304,7 +312,7 @@ func determineSubmittedFlip(tx *types.Transaction) *db.Flip {
 	}
 	flip := &db.Flip{
 		TxHash: convertHash(tx.Hash()),
-		Cid:    flipCid.String(),
+		Cid:    convertCid(flipCid),
 	}
 	return flip
 }
@@ -324,6 +332,19 @@ func convertShortAnswers(tx *types.Transaction, ctx *conversionContext) {
 			Key:    hex.EncodeToString(answer.Key),
 		})
 	}
+}
+
+func convertCids(idxs []int, cids [][]byte, block *types.Block) []string {
+	var res []string
+	for _, idx := range idxs {
+		c, err := cid.Parse(cids[idx])
+		if err != nil {
+			log.Error("Unable to parse cid. Skipped.", "b", block.Height(), "idx", idx, "err", err)
+			continue
+		}
+		res = append(res, convertCid(c))
+	}
+	return res
 }
 
 func (indexer *Indexer) saveData(data *db.Data) {

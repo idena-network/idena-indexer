@@ -32,6 +32,7 @@ func NewServer(port int, db db.Accessor, logger log.Logger) Server {
 	server.handlers[strings.ToLower("/api/EpochIdentities")] = server.epochIdentities
 	server.handlers[strings.ToLower("/api/Flip")] = server.flip
 	server.handlers[strings.ToLower("/api/Identity")] = server.identity
+	server.handlers[strings.ToLower("/api/EpochIdentity")] = server.epochIdentity
 	return server
 }
 
@@ -170,6 +171,18 @@ func (s *httpServer) identity(r *http.Request) Response {
 		return getErrorResponse(err)
 	}
 	return getResponse(s.api.identity(address))
+}
+
+func (s *httpServer) epochIdentity(r *http.Request) Response {
+	epoch, err := readUintParameter(r, "epoch")
+	if err != nil {
+		return getErrorResponse(err)
+	}
+	address, err := readStrParameter(r, "address")
+	if err != nil {
+		return getErrorResponse(err)
+	}
+	return getResponse(s.api.epochIdentity(epoch, address))
 }
 
 func getErrorMsgResponse(errMsg string) Response {

@@ -52,11 +52,20 @@ type Invite struct {
 	Status string `json:"status"`
 }
 
-type EpochIdentity struct {
+type EpochIdentitySummary struct {
 	Address     string  `json:"address"`
 	State       string  `json:"state"`
 	RespScore   float32 `json:"respScore"`
 	AuthorScore float32 `json:"authorScore"`
+	Approved    bool    `json:"approved"`
+	Missed      bool    `json:"missed"`
+}
+
+type EpochIdentity struct {
+	ShortFlipsToSolve []string `json:"shortFlipToSolve"`
+	LongFlipsToSolve  []string `json:"longFlipToSolve"`
+	ShortAnswers      []Answer `json:"shortAnswers"`
+	LongAnswers       []Answer `json:"longAnswers"`
 }
 
 type Flip struct {
@@ -68,7 +77,8 @@ type Flip struct {
 }
 
 type Answer struct {
-	Address string `json:"address"`
+	Cid     string `json:"cid,omitempty"`
+	Address string `json:"address,omitempty"`
 	Answer  string `json:"answer"`
 }
 
@@ -102,5 +112,7 @@ type IdentityEpoch struct {
 	Epoch       uint64  `json:"epoch"`
 	RespScore   float32 `json:"respScore"`
 	AuthorScore float32 `json:"authorScore"`
-	State       string  `json:"string"`
+	State       string  `json:"state"`
+	Approved    bool    `json:"approved"`
+	Missed      bool    `json:"missed"`
 }
