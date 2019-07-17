@@ -6,7 +6,7 @@ replace github.com/tendermint/iavl => github.com/idena-network/iavl v0.0.0-20190
 
 require (
 	github.com/go-stack/stack v1.8.0
-	github.com/idena-network/idena-go v0.0.0-20190716051740-fd7f7c531f24
+	github.com/idena-network/idena-go v0.3.2-0.20190717113723-f18f3d93da16
 	github.com/ipsn/go-ipfs v0.0.0-20190407150747-8b9b72514244
 	github.com/lib/pq v1.1.1
 	github.com/pkg/errors v0.8.1
