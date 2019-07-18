@@ -5,27 +5,27 @@ select *,
 from (select (select count(*)
               from flips f,
                    transactions t,
-                   identities i
+                   addresses s
               where f.tx_id = t.id
-                and t.from = i.address
-                and i.id = $1
+                and t.from = s.id
+                and s.id = $1
                 and f.status is not null) flips,
 
              (select count(*)
               from flips f,
                    transactions t,
-                   identities i
+                   addresses s
               where f.status = 'Qualified'
                 and f.tx_id = t.id
-                and t.from = i.address
-                and i.id = $1)            qualified,
+                and t.from = s.id
+                and s.id = $1)            qualified,
 
              (select count(*)
               from flips f,
                    transactions t,
-                   identities i
+                   addresses s
               where f.status = 'WeaklyQualified'
                 and f.tx_id = t.id
-                and t.from = i.address
-                and i.id = $1)            weakly_qualified
+                and t.from = s.id
+                and s.id = $1)            weakly_qualified
      ) f

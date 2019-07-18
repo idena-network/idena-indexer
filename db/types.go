@@ -6,12 +6,13 @@ import (
 
 type Data struct {
 	Epoch          uint64
+	ValidationTime big.Int
 	Block          Block
 	Identities     []EpochIdentity
 	SubmittedFlips []Flip
 	FlipKeys       []FlipKey
 	FlipStats      []FlipStats
-	//Answers        []*Answer
+	Addresses      []Address
 }
 
 type Block struct {
@@ -66,4 +67,9 @@ type Answer struct {
 type FlipKey struct {
 	TxHash string
 	Key    string
+}
+
+type Address struct {
+	Address  string
+	NewState string
 }

@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"github.com/idena-network/idena-go/blockchain"
 	"github.com/idena-network/idena-go/common"
+	"math/big"
 
 	//"encoding/hex"
 	"fmt"
@@ -92,7 +93,9 @@ func (indexer *Indexer) indexBlock(block *types.Block) {
 		if !indexer.checkBlock(block, heightToIndex) {
 			return
 		}
-		data := convertIncomingData(block, indexer.listener.Node().AppStateReadonly(block.Height()-1),
+		prevState := indexer.listener.Node().AppStateReadonly(block.Height() - 1)
+		newState := indexer.listener.Node().AppStateReadonly(block.Height())
+		data := convertIncomingData(block, prevState, newState,
 			indexer.listener.Node().Blockchain(), indexer.listener.Node().Ceremony())
 		indexer.saveData(data)
 		indexer.lastHeight = data.Block.Height
@@ -133,28 +136,41 @@ func (indexer *Indexer) checkBlock(block *types.Block, fromHeight uint64) bool {
 type conversionContext struct {
 	submittedFlips []db.Flip
 	flipKeys       []db.FlipKey
+	addresses      []db.Address
+	prevState      *appstate.AppState
+	newState       *appstate.AppState
+	chain          *blockchain.Blockchain
+	c              *ceremony.ValidationCeremony
 }
 
-func convertIncomingData(incomingBlock *types.Block, appState *appstate.AppState, chain *blockchain.Blockchain, c *ceremony.ValidationCeremony) *db.Data {
+func convertIncomingData(incomingBlock *types.Block, prevState *appstate.AppState, newState *appstate.AppState,
+	chain *blockchain.Blockchain, c *ceremony.ValidationCeremony) *db.Data {
 
-	ctx := conversionContext{}
-	epoch := uint64(appState.State.Epoch())
+	ctx := conversionContext{
+		prevState: prevState,
+		newState:  newState,
+		chain:     chain,
+		c:         c,
+	}
+	epoch := uint64(prevState.State.Epoch())
 
-	block := convertBlock(incomingBlock, appState, chain, &ctx)
-	identities, flipStats := determineEpochResult(incomingBlock, appState, c)
+	block := convertBlock(incomingBlock, &ctx)
+	identities, flipStats := determineEpochResult(incomingBlock, &ctx)
 
 	return &db.Data{
 		Epoch:          epoch,
+		ValidationTime: *big.NewInt(ctx.newState.State.NextValidationTime().Unix()),
 		Block:          block,
 		Identities:     identities,
 		SubmittedFlips: ctx.submittedFlips,
 		FlipKeys:       ctx.flipKeys,
 		FlipStats:      flipStats,
+		Addresses:      ctx.addresses,
 	}
 }
 
-func convertBlock(incomingBlock *types.Block, appState *appstate.AppState, chain *blockchain.Blockchain, ctx *conversionContext) db.Block {
-	txs := convertTransactions(incomingBlock.Body.Transactions, appState, chain, ctx)
+func convertBlock(incomingBlock *types.Block, ctx *conversionContext) db.Block {
+	txs := convertTransactions(incomingBlock.Body.Transactions, ctx)
 	return db.Block{
 		Height:       incomingBlock.Height(),
 		Hash:         convertHash(incomingBlock.Hash()),
@@ -163,29 +179,35 @@ func convertBlock(incomingBlock *types.Block, appState *appstate.AppState, chain
 	}
 }
 
-func convertTransactions(incomingTxs []*types.Transaction, appState *appstate.AppState, chain *blockchain.Blockchain, ctx *conversionContext) []db.Transaction {
+func convertTransactions(incomingTxs []*types.Transaction, ctx *conversionContext) []db.Transaction {
 	var txs []db.Transaction
 	for _, incomingTx := range incomingTxs {
-		txs = append(txs, convertTransaction(incomingTx, appState, chain, ctx))
+		txs = append(txs, convertTransaction(incomingTx, ctx))
 	}
 	return txs
 }
 
-func convertTransaction(incomingTx *types.Transaction, appState *appstate.AppState, chain *blockchain.Blockchain, ctx *conversionContext) db.Transaction {
+func convertTransaction(incomingTx *types.Transaction, ctx *conversionContext) db.Transaction {
 	if flip := determineSubmittedFlip(incomingTx); flip != nil {
 		ctx.submittedFlips = append(ctx.submittedFlips, *flip)
 	}
 
 	convertShortAnswers(incomingTx, ctx)
+	txHash := convertHash(incomingTx.Hash())
 
 	sender, _ := types.Sender(incomingTx)
 	from := convertAddress(sender)
+	ctx.addresses = append(ctx.addresses, convertTxAddress(sender, ctx))
+
 	var to string
 	if incomingTx.To != nil {
 		to = convertAddress(*incomingTx.To)
+		if to != from {
+			ctx.addresses = append(ctx.addresses, convertTxAddress(*incomingTx.To, ctx))
+		}
 	}
 
-	fee, err := chain.ApplyTxOnState(appState, incomingTx)
+	fee, err := ctx.chain.ApplyTxOnState(ctx.prevState, incomingTx)
 	if err != nil {
 		log.Error("Unable to calculate tx fee", "tx", incomingTx.Hash(), "err", err)
 	}
@@ -193,13 +215,27 @@ func convertTransaction(incomingTx *types.Transaction, appState *appstate.AppSta
 	tx := db.Transaction{
 		Type:    convertTxType(incomingTx.Type),
 		Payload: incomingTx.Payload,
-		Hash:    convertHash(incomingTx.Hash()),
+		Hash:    txHash,
 		From:    from,
 		To:      to,
 		Amount:  incomingTx.Amount,
 		Fee:     fee,
 	}
 	return tx
+}
+
+func convertTxAddress(address common.Address, ctx *conversionContext) db.Address {
+	prevAddrState := ctx.prevState.State.GetIdentityState(address)
+	curAddrState := ctx.newState.State.GetIdentityState(address)
+	var newAddrState string
+	if curAddrState != prevAddrState {
+		newAddrState = convertIdentityState(curAddrState)
+	}
+
+	return db.Address{
+		Address:  convertAddress(address),
+		NewState: newAddrState,
+	}
 }
 
 func convertTxType(txType types.TxType) string {
@@ -257,29 +293,33 @@ func convertCid(cid cid.Cid) string {
 	return cid.String()
 }
 
-func determineEpochResult(block *types.Block, appState *appstate.AppState, c *ceremony.ValidationCeremony) ([]db.EpochIdentity, []db.FlipStats) {
+func determineEpochResult(block *types.Block, ctx *conversionContext) ([]db.EpochIdentity, []db.FlipStats) {
 	if !block.Header.Flags().HasFlag(types.ValidationFinished) {
 		return nil, nil
 	}
 
 	var identities []db.EpochIdentity
-	validationStats := c.GetValidationStats()
+	validationStats := ctx.c.GetValidationStats()
 
-	for addr, stats := range validationStats.IdentitiesPerAddr {
-		identity := db.EpochIdentity{
-			Address:              convertAddress(addr),
-			ShortPoint:           stats.ShortPoint,
-			ShortFlips:           stats.ShortFlips,
-			LongPoint:            stats.LongPoint,
-			LongFlips:            stats.LongFlips,
-			State:                convertIdentityState(stats.State),
-			Approved:             stats.Approved,
-			Missed:               stats.Missed,
-			ShortFlipCidsToSolve: convertCids(stats.ShortFlipsToSolve, validationStats.FlipCids, block),
-			LongFlipCidsToSolve:  convertCids(stats.LongFlipsToSolve, validationStats.FlipCids, block),
+	ctx.prevState.State.IterateOverIdentities(func(addr common.Address, _ state.Identity) {
+		convertedIdentity := db.EpochIdentity{}
+		convertedIdentity.Address = convertAddress(addr)
+		convertedIdentity.State = convertIdentityState(ctx.newState.State.GetIdentityState(addr))
+		if stats, present := validationStats.IdentitiesPerAddr[addr]; present {
+			convertedIdentity.ShortPoint = stats.ShortPoint
+			convertedIdentity.ShortFlips = stats.ShortFlips
+			convertedIdentity.LongPoint = stats.LongPoint
+			convertedIdentity.LongFlips = stats.LongFlips
+			convertedIdentity.Approved = stats.Approved
+			convertedIdentity.Missed = stats.Missed
+			convertedIdentity.ShortFlipCidsToSolve = convertCids(stats.ShortFlipsToSolve, validationStats.FlipCids, block)
+			convertedIdentity.LongFlipCidsToSolve = convertCids(stats.LongFlipsToSolve, validationStats.FlipCids, block)
+		} else {
+			convertedIdentity.Approved = false
+			convertedIdentity.Missed = true
 		}
-		identities = append(identities, identity)
-	}
+		identities = append(identities, convertedIdentity)
+	})
 
 	var flipsStats []db.FlipStats
 	for flipIdx, stats := range validationStats.FlipsPerIdx {

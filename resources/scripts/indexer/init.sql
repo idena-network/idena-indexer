@@ -18,8 +18,9 @@ ALTER SEQUENCE public.epochs_id_seq
 
 CREATE TABLE IF NOT EXISTS public.epochs
 (
-    id    integer NOT NULL DEFAULT nextval('epochs_id_seq'::regclass),
-    epoch integer,
+    id              integer NOT NULL DEFAULT nextval('epochs_id_seq'::regclass),
+    epoch           integer NOT NULL,
+    validation_time bigint  NOT NULL,
     CONSTRAINT epochs_pkey PRIMARY KEY (id),
     CONSTRAINT epochs_epoch_key UNIQUE (epoch)
 
@@ -97,8 +98,8 @@ CREATE TABLE IF NOT EXISTS public.transactions
     hash     character(66) COLLATE pg_catalog."default"         NOT NULL,
     block_id integer                                            NOT NULL,
     type     character varying(20) COLLATE pg_catalog."default" NOT NULL,
-    "from"   character(42) COLLATE pg_catalog."default"         NOT NULL,
-    "to"     character(42) COLLATE pg_catalog."default",
+    "from"   integer                                            NOT NULL,
+    "to"     integer,
     amount   bigint                                             NOT NULL,
     fee      bigint                                             NOT NULL,
     CONSTRAINT transactions_pkey PRIMARY KEY (id),
@@ -113,38 +114,70 @@ CREATE TABLE IF NOT EXISTS public.transactions
 ALTER TABLE public.transactions
     OWNER to postgres;
 
--- SEQUENCE: public.identities_id_seq
+-- SEQUENCE: public.addresses_id_seq
 
--- DROP SEQUENCE public.identities_id_seq;
+-- DROP SEQUENCE public.addresses_id_seq;
 
-CREATE SEQUENCE IF NOT EXISTS public.identities_id_seq
+CREATE SEQUENCE IF NOT EXISTS public.addresses_id_seq
     INCREMENT 1
     START 1
     MINVALUE 1
     MAXVALUE 2147483647
     CACHE 1;
 
-ALTER SEQUENCE public.identities_id_seq
+ALTER SEQUENCE public.addresses_id_seq
     OWNER TO postgres;
 
--- Table: public.identities
+-- Table: public.addresses
 
--- DROP TABLE public.identities;
+-- DROP TABLE public.addresses;
 
-CREATE TABLE IF NOT EXISTS public.identities
+CREATE TABLE IF NOT EXISTS public.addresses
 (
-    id      integer                                    NOT NULL DEFAULT nextval('identities_id_seq'::regclass),
+    id      integer                                    NOT NULL DEFAULT nextval('addresses_id_seq'::regclass),
     address character(42) COLLATE pg_catalog."default" NOT NULL,
-    CONSTRAINT identities_pkey PRIMARY KEY (id),
-    CONSTRAINT identities_address_key UNIQUE (address)
-
+    CONSTRAINT addresses_pkey PRIMARY KEY (id)
 )
     WITH (
         OIDS = FALSE
     )
     TABLESPACE pg_default;
 
-ALTER TABLE public.identities
+ALTER TABLE public.addresses
+    OWNER to postgres;
+
+-- SEQUENCE: public.address_states_id_seq
+
+-- DROP SEQUENCE public.address_states_id_seq;
+
+CREATE SEQUENCE IF NOT EXISTS public.address_states_id_seq
+    INCREMENT 1
+    START 1
+    MINVALUE 1
+    MAXVALUE 2147483647
+    CACHE 1;
+
+ALTER SEQUENCE public.address_states_id_seq
+    OWNER TO postgres;
+
+-- Table: public.address_states
+
+-- DROP TABLE public.address_states;
+
+CREATE TABLE IF NOT EXISTS public.address_states
+(
+    id         integer                                            NOT NULL DEFAULT nextval('address_states_id_seq'::regclass),
+    address_id integer                                            NOT NULL,
+    state      character varying(20) COLLATE pg_catalog."default" NOT NULL,
+    is_actual  boolean                                            NOT NULL,
+    CONSTRAINT address_states_pkey PRIMARY KEY (id)
+)
+    WITH (
+        OIDS = FALSE
+    )
+    TABLESPACE pg_default;
+
+ALTER TABLE public.address_states
     OWNER to postgres;
 
 -- SEQUENCE: public.epoch_identities_id_seq
@@ -167,18 +200,17 @@ ALTER SEQUENCE public.epoch_identities_id_seq
 
 CREATE TABLE IF NOT EXISTS public.epoch_identities
 (
-    id          integer                                            NOT NULL DEFAULT nextval('epoch_identities_id_seq'::regclass),
-    epoch_id    integer                                            NOT NULL,
-    identity_id integer                                            NOT NULL,
-    state       character varying(20) COLLATE pg_catalog."default" NOT NULL,
-    short_point real                                               NOT NULL,
-    short_flips integer                                            NOT NULL,
-    long_point  real                                               NOT NULL,
-    long_flips  integer                                            NOT NULL,
-    approved    boolean                                            NOT NULL,
-    missed      boolean                                            NOT NULL,
+    id               integer NOT NULL DEFAULT nextval('epoch_identities_id_seq'::regclass),
+    epoch_id         integer NOT NULL,
+    address_state_id integer NOT NULL,
+    short_point      real    NOT NULL,
+    short_flips      integer NOT NULL,
+    long_point       real    NOT NULL,
+    long_flips       integer NOT NULL,
+    approved         boolean NOT NULL,
+    missed           boolean NOT NULL,
     CONSTRAINT epoch_identities_pkey PRIMARY KEY (id),
-    CONSTRAINT epoch_identities_epoch_id_identity_id_key UNIQUE (epoch_id, identity_id)
+    CONSTRAINT epoch_identities_epoch_id_identity_id_key UNIQUE (epoch_id, address_state_id)
 
 )
     WITH (

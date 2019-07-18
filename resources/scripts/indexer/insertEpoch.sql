@@ -1,2 +1,2 @@
-insert into epochs (epoch)
-values ($1) RETURNING id
+insert into epochs (epoch, validation_time)
+values ($1, $2) RETURNING id

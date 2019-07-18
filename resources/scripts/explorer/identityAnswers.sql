@@ -9,5 +9,6 @@ from (select sum(ei.short_point) short_point,
              sum(ei.long_point)  long_point,
              sum(ei.long_flips)  long_flips
       from epoch_identities ei
-      where ei.identity_id = $1
-      group by ei.identity_id) a
+               join address_states s on s.id = ei.address_state_id
+      where s.address_id = $1
+      group by s.address_id) a

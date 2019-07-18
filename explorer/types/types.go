@@ -7,9 +7,9 @@ import (
 
 type EpochSummary struct {
 	Epoch         uint64 `json:"epoch"`
-	VerifiedCount uint32 `json:"verifiedCount"`
-	BlockCount    uint32 `json:"blockCount"`
-	FlipCount     uint32 `json:"flipCount"`
+	VerifiedCount uint32 `json:"verified"`
+	BlockCount    uint32 `json:"blocks"`
+	FlipCount     uint32 `json:"flips"`
 }
 
 type EpochDetail struct {
@@ -115,4 +115,37 @@ type IdentityEpoch struct {
 	State       string  `json:"state"`
 	Approved    bool    `json:"approved"`
 	Missed      bool    `json:"missed"`
+}
+
+type Summary struct {
+	Identities       IdentitiesSummary          `json:"identities"`
+	LatestValidation CompletedValidationSummary `json:"latestValidation"`
+	NextValidation   NewValidationSummary       `json:"nextValidation"`
+}
+
+type IdentitiesSummary struct {
+	States []StateCount `json:"States"`
+}
+
+type StateCount struct {
+	State string `json:"state"`
+	Count uint32 `json:"count"`
+}
+
+type CompletedValidationSummary struct {
+	Verified             uint32 `json:"verified"`
+	NotVerified          uint32 `json:"notVerified"`
+	SubmittedFlips       uint32 `json:"submittedFlips"`
+	SolvedFlips          uint32 `json:"solvedFlips"`
+	QualifiedFlips       uint32 `json:"qualifiedFlips"`
+	WeaklyQualifiedFlips uint32 `json:"weaklyQualifiedFlips"`
+	NotQualifiedFlips    uint32 `json:"notQualifiedFlips"`
+	InappropriateFlips   uint32 `json:"inappropriateFlips"`
+}
+
+type NewValidationSummary struct {
+	Time       time.Time `json:"time"`
+	Invites    uint32    `json:"invites"`
+	Candidates uint32    `json:"candidates"`
+	Flips      uint32    `json:"flips"`
 }

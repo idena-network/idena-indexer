@@ -7,7 +7,8 @@ select e.epoch,
 from epochs e
          left join (select ei.epoch_id, count(*) verifiedCount
                     from epoch_identities ei
-                    where ei.state = 'Verified'
+                             join address_states s on s.id = ei.address_state_id
+                    where s.state = 'Verified'
                     group by ei.epoch_id) ei on ei.epoch_id = e.id
          left join (select b.epoch_id, count(*) blockCount from blocks b group by b.epoch_id) b on b.epoch_id = e.id
          left join (select b.epoch_id, count(*) flipsCount

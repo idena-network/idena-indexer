@@ -6,6 +6,7 @@ import (
 	"github.com/idena-network/idena-indexer/log"
 	_ "github.com/lib/pq"
 	"github.com/pkg/errors"
+	"math/big"
 )
 
 type postgresAccessor struct {
@@ -14,21 +15,26 @@ type postgresAccessor struct {
 }
 
 const (
-	initQuery                = "init.sql"
-	maxHeightQuery           = "maxHeight.sql"
-	updateFlipsQuery         = "updateFlips.sql"
-	insertAnswersQuery       = "insertAnswers.sql"
-	insertBlockQuery         = "insertBlock.sql"
-	selectIdentityQuery      = "selectIdentity.sql"
-	selectFlipQuery          = "selectFlip.sql"
-	insertIdentityQuery      = "insertIdentity.sql"
-	insertEpochIdentityQuery = "insertEpochIdentity.sql"
-	insertTransactionQuery   = "insertTransaction.sql"
-	insertSubmittedFlipQuery = "insertSubmittedFlip.sql"
-	insertFlipKeyQuery       = "insertFlipKey.sql"
-	selectEpochQuery         = "selectEpoch.sql"
-	insertEpochQuery         = "insertEpoch.sql"
-	insertFlipsToSolveQuery  = "insertFlipsToSolve.sql"
+	initQuery                 = "init.sql"
+	maxHeightQuery            = "maxHeight.sql"
+	updateFlipsQuery          = "updateFlips.sql"
+	insertAnswersQuery        = "insertAnswers.sql"
+	insertBlockQuery          = "insertBlock.sql"
+	selectIdentityQuery       = "selectIdentity.sql"
+	selectFlipQuery           = "selectFlip.sql"
+	insertEpochIdentityQuery  = "insertEpochIdentity.sql"
+	insertTransactionQuery    = "insertTransaction.sql"
+	insertSubmittedFlipQuery  = "insertSubmittedFlip.sql"
+	insertFlipKeyQuery        = "insertFlipKey.sql"
+	selectEpochQuery          = "selectEpoch.sql"
+	insertEpochQuery          = "insertEpoch.sql"
+	insertFlipsToSolveQuery   = "insertFlipsToSolve.sql"
+	selectAddressQuery        = "selectAddress.sql"
+	insertAddressQuery        = "insertAddress.sql"
+	archiveAddressStateQuery  = "archiveAddressState.sql"
+	insertAddressStateQuery   = "insertAddressState.sql"
+	archiveIdentityStateQuery = "archiveIdentityState.sql"
+	insertIdentityStateQuery  = "insertIdentityState.sql"
 )
 
 func (a *postgresAccessor) getQuery(name string) string {
@@ -74,8 +80,12 @@ func (a *postgresAccessor) Save(data *Data) error {
 
 	ctx := newContext(a, tx)
 
-	ctx.epochId, err = a.saveEpoch(ctx, data.Epoch)
+	ctx.epochId, err = a.saveEpoch(ctx, data.Epoch, data.ValidationTime)
 	if err != nil {
+		return err
+	}
+
+	if ctx.addrIdsPerAddr, err = a.saveAddresses(ctx, data.Addresses); err != nil {
 		return err
 	}
 
@@ -162,7 +172,7 @@ func (a *postgresAccessor) saveAnswer(ctx *context, cid string, answer Answer,
 	return id, err
 }
 
-func (a *postgresAccessor) saveEpoch(ctx *context, epoch uint64) (int64, error) {
+func (a *postgresAccessor) saveEpoch(ctx *context, epoch uint64, validationTime big.Int) (int64, error) {
 	var id int64
 	err := ctx.tx.QueryRow(a.getQuery(selectEpochQuery), epoch).Scan(&id)
 	if err == nil {
@@ -171,7 +181,7 @@ func (a *postgresAccessor) saveEpoch(ctx *context, epoch uint64) (int64, error) 
 	if err != sql.ErrNoRows {
 		return 0, err
 	}
-	err = ctx.tx.QueryRow(a.getQuery(insertEpochQuery), epoch).Scan(&id)
+	err = ctx.tx.QueryRow(a.getQuery(insertEpochQuery), epoch, validationTime.Int64()).Scan(&id)
 	return id, err
 }
 
@@ -186,47 +196,87 @@ func (a *postgresAccessor) saveBlock(ctx *context, block Block) (id int64, txIds
 	return
 }
 
-func (a *postgresAccessor) saveIdentities(ctx *context, identities []EpochIdentity) error {
-	if len(identities) == 0 {
-		return nil
+func (a *postgresAccessor) saveAddresses(ctx *context, addresses []Address) (map[string]int64, error) {
+	if len(addresses) == 0 {
+		return nil, nil
 	}
-	for _, identity := range identities {
-		identityId, err := a.saveIdentity(ctx, identity)
+	addrIdsPerAddr := make(map[string]int64)
+	for _, address := range addresses {
+		addressId, err := a.saveAddress(ctx, address)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		if _, err = a.saveEpochIdentity(ctx, identityId, identity); err != nil {
-			return err
+		addrIdsPerAddr[address.Address] = addressId
+		if len(address.NewState) > 0 {
+			if _, err = a.saveAddressState(ctx, addressId, address); err != nil {
+				return nil, err
+			}
 		}
 	}
-	return nil
+	return addrIdsPerAddr, nil
 }
 
-func (a *postgresAccessor) saveIdentity(ctx *context, identity EpochIdentity) (int64, error) {
+func (a *postgresAccessor) saveAddress(ctx *context, address Address) (int64, error) {
 	var id int64
-	err := ctx.tx.QueryRow(a.getQuery(selectIdentityQuery), identity.Address).Scan(&id)
+	err := ctx.tx.QueryRow(a.getQuery(selectAddressQuery), address.Address).Scan(&id)
 	if err == nil {
 		return id, nil
 	}
 	if err != sql.ErrNoRows {
 		return 0, err
 	}
-	err = ctx.tx.QueryRow(a.getQuery(insertIdentityQuery), identity.Address).Scan(&id)
+	err = ctx.tx.QueryRow(a.getQuery(insertAddressQuery), address.Address).Scan(&id)
 	return id, err
 }
 
-func (a *postgresAccessor) saveEpochIdentity(ctx *context, identityId int64, identity EpochIdentity) (int64, error) {
+func (a *postgresAccessor) saveAddressState(ctx *context, addressId int64, address Address) (int64, error) {
+	_, err := ctx.tx.Exec(a.getQuery(archiveAddressStateQuery), addressId)
+	if err != nil {
+		return 0, err
+	}
+	var id int64
+	err = ctx.tx.QueryRow(a.getQuery(insertAddressStateQuery), addressId, address.NewState).Scan(&id)
+	return id, err
+}
+
+func (a *postgresAccessor) saveIdentities(ctx *context, identities []EpochIdentity) error {
+	if len(identities) == 0 {
+		return nil
+	}
+	for _, identity := range identities {
+		identityStateId, err := a.saveIdentityState(ctx, identity)
+		if err != nil {
+			return err
+		}
+		if _, err = a.saveEpochIdentity(ctx, identityStateId, identity); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (a *postgresAccessor) saveIdentityState(ctx *context, identity EpochIdentity) (int64, error) {
+	_, err := ctx.tx.Exec(a.getQuery(archiveIdentityStateQuery), identity.Address)
+	if err != nil {
+		return 0, err
+	}
+	var id int64
+	err = ctx.tx.QueryRow(a.getQuery(insertIdentityStateQuery), identity.Address, identity.State).Scan(&id)
+	return id, err
+}
+
+func (a *postgresAccessor) saveEpochIdentity(ctx *context, identityStateId int64, identity EpochIdentity) (int64, error) {
 	var id int64
 
-	if err := ctx.tx.QueryRow(a.getQuery(insertEpochIdentityQuery), ctx.epochId, identityId, identity.State, identity.ShortPoint,
+	if err := ctx.tx.QueryRow(a.getQuery(insertEpochIdentityQuery), ctx.epochId, identityStateId, identity.ShortPoint,
 		identity.ShortFlips, identity.LongPoint, identity.LongFlips, identity.Approved, identity.Missed).Scan(&id); err != nil {
 		return 0, err
 	}
 
-	if ctx.epochIdentityIdsPerIdentityId == nil {
-		ctx.epochIdentityIdsPerIdentityId = make(map[int64]int64)
+	if ctx.epochIdentityIdsPerAddr == nil {
+		ctx.epochIdentityIdsPerAddr = make(map[string]int64)
 	}
-	ctx.epochIdentityIdsPerIdentityId[identityId] = id
+	ctx.epochIdentityIdsPerAddr[identity.Address] = id
 
 	if err := a.saveFlipsToSolve(ctx, id, identity.ShortFlipCidsToSolve, true); err != nil {
 		return 0, err
@@ -277,11 +327,11 @@ func (a *postgresAccessor) saveTransaction(ctx *context, blockId int64, idenaTx 
 	var id int64
 	var to interface{}
 	if len(idenaTx.To) > 0 {
-		to = idenaTx.To
+		to = ctx.addrIdsPerAddr[idenaTx.To]
 	} else {
 		to = nil
 	}
-	err := ctx.tx.QueryRow(a.getQuery(insertTransactionQuery), idenaTx.Hash, blockId, idenaTx.Type, idenaTx.From, to,
+	err := ctx.tx.QueryRow(a.getQuery(insertTransactionQuery), idenaTx.Hash, blockId, idenaTx.Type, ctx.addrIdsPerAddr[idenaTx.From], to,
 		idenaTx.Amount.Int64(), idenaTx.Fee.Int64()).Scan(&id)
 	return id, err
 }

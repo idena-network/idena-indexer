@@ -1,5 +1,5 @@
-select i.address,
-       ei.state,
+select a.address,
+       s.state,
        ei.approved,
        ei.missed,
        (case
@@ -14,32 +14,33 @@ select i.address,
 
 from epoch_identities ei
          join epochs e on e.id = ei.epoch_id
-         join identities i on i.id = ei.identity_id
+         join address_states s on s.id = ei.address_state_id
+         join addresses a on a.id = s.address_id
 
-         left join (select e.id e_id, i.id i_id, count(*) fCount
+         left join (select e.id e_id, a.id a_id, count(*) fCount
                     from flips f
                              join transactions t on t.id = f.tx_id
                              join blocks b on b.id = t.block_id
                              join epochs e on e.id = b.epoch_id
-                             join identities i on i.address = t.from
+                             join addresses a on a.id = t.from
                     where f.status = 'Qualified'
-                    group by i.id, e.id) qf on qf.i_id = i.id and qf.e_id = e.id
+                    group by a.id, e.id) qf on qf.a_id = a.id and qf.e_id = e.id
 
-         left join (select e.id e_id, i.id i_id, count(*) fCount
+         left join (select e.id e_id, a.id a_id, count(*) fCount
                     from flips f
                              join transactions t on t.id = f.tx_id
                              join blocks b on b.id = t.block_id
                              join epochs e on e.id = b.epoch_id
-                             join identities i on i.address = t.from
+                             join addresses a on a.id = t.from
                     where f.status = 'WeaklyQualified'
-                    group by i.id, e.id) wqf on wqf.i_id = i.id and wqf.e_id = e.id
+                    group by a.id, e.id) wqf on wqf.a_id = a.id and wqf.e_id = e.id
 
-         left join (select e.id e_id, i.id i_id, count(*) fCount
+         left join (select e.id e_id, a.id a_id, count(*) fCount
                     from flips f
                              join transactions t on t.id = f.tx_id
                              join blocks b on b.id = t.block_id
                              join epochs e on e.id = b.epoch_id
-                             join identities i on i.address = t.from
+                             join addresses a on a.id = t.from
                     where f.status is not NULL
-                    group by i.id, e.id) allf on allf.i_id = i.id and allf.e_id = e.id
-where e.epoch = $1;
+                    group by a.id, e.id) allf on allf.a_id = a.id and allf.e_id = e.id
+where e.epoch = $1

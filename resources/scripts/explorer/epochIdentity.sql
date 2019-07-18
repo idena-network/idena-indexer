@@ -1,6 +1,7 @@
 select ei.id
 from epoch_identities ei
-         join identities i on i.id = ei.identity_id
+         join address_states s on s.id = ei.address_state_id
+         join addresses a on a.id = s.address_id
          join epochs e on e.id = ei.epoch_id
 where e.epoch = $1
-  and LOWER(i.address) = LOWER($2)
+  and LOWER(a.address) = LOWER($2)
