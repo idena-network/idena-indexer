@@ -39,6 +39,8 @@ const (
 	identityStatesSummaryQuery     = "identityStatesSummary.sql"
 	latestValidationSummaryQuery   = "latestValidationSummary.sql"
 	nextValidationSummaryQuery     = "nextValidationSummary.sql"
+	identityTxsQuery               = "identityTxs.sql"
+	identityInvitesQuery           = "identityInvites.sql"
 )
 
 type flipWithKey struct {
@@ -185,22 +187,7 @@ func (a *postgresAccessor) EpochTxs(epoch uint64) ([]types.Transaction, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-	var txs []types.Transaction
-	for rows.Next() {
-		tx := types.Transaction{}
-		var timestamp int64
-		var amount, fee int64
-		err = rows.Scan(&tx.Hash, &tx.Type, &timestamp, &tx.From, &tx.To, &amount, &fee)
-		if err != nil {
-			return nil, err
-		}
-		tx.Timestamp = common.TimestampToTime(big.NewInt(timestamp))
-		tx.Amount = big.NewInt(amount)
-		tx.Fee = big.NewInt(fee)
-		txs = append(txs, tx)
-	}
-	return txs, nil
+	return a.readTxs(rows)
 }
 
 func (a *postgresAccessor) BlockTxs(height uint64) ([]types.Transaction, error) {
@@ -208,14 +195,17 @@ func (a *postgresAccessor) BlockTxs(height uint64) ([]types.Transaction, error) 
 	if err != nil {
 		return nil, err
 	}
+	return a.readTxs(rows)
+}
+
+func (a *postgresAccessor) readTxs(rows *sql.Rows) ([]types.Transaction, error) {
 	defer rows.Close()
 	var txs []types.Transaction
 	for rows.Next() {
 		tx := types.Transaction{}
 		var timestamp int64
 		var amount, fee int64
-		err = rows.Scan(&tx.Hash, &tx.Type, &timestamp, &tx.From, &tx.To, &amount, &fee)
-		if err != nil {
+		if err := rows.Scan(&tx.Hash, &tx.Type, &timestamp, &tx.From, &tx.To, &amount, &fee); err != nil {
 			return nil, err
 		}
 		tx.Timestamp = common.TimestampToTime(big.NewInt(timestamp))
@@ -267,13 +257,16 @@ func (a *postgresAccessor) EpochInvites(epoch uint64) ([]types.Invite, error) {
 	if err != nil {
 		return nil, err
 	}
+	return a.readInvites(rows)
+}
+
+func (a *postgresAccessor) readInvites(rows *sql.Rows) ([]types.Invite, error) {
 	defer rows.Close()
 	var res []types.Invite
 	for rows.Next() {
 		item := types.Invite{}
 		// todo status (Not activated/Candidate)
-		err = rows.Scan(&item.Id, &item.Author)
-		if err != nil {
+		if err := rows.Scan(&item.Id, &item.Author); err != nil {
 			return nil, err
 		}
 		res = append(res, item)
@@ -430,9 +423,12 @@ func (a *postgresAccessor) identityEpochs(identityId int64) ([]types.IdentityEpo
 	return res, nil
 }
 
-func (a *postgresAccessor) identityTxs(identityId int64) ([]types.Transaction, error) {
-	// todo
-	return nil, nil
+func (a *postgresAccessor) identityTxs(addressId int64) ([]types.Transaction, error) {
+	rows, err := a.db.Query(a.getQuery(identityTxsQuery), addressId)
+	if err != nil {
+		return nil, err
+	}
+	return a.readTxs(rows)
 }
 
 func (a *postgresAccessor) identityCurrentFlipCids(identityId int64) ([]string, error) {
@@ -453,9 +449,12 @@ func (a *postgresAccessor) identityCurrentFlipCids(identityId int64) ([]string, 
 	return res, nil
 }
 
-func (a *postgresAccessor) identityInvites(identityId int64) ([]types.Invite, error) {
-	// todo
-	return nil, nil
+func (a *postgresAccessor) identityInvites(addressId int64) ([]types.Invite, error) {
+	rows, err := a.db.Query(a.getQuery(identityInvitesQuery), addressId)
+	if err != nil {
+		return nil, err
+	}
+	return a.readInvites(rows)
 }
 
 func (a *postgresAccessor) EpochIdentity(epoch uint64, address string) (types.EpochIdentity, error) {
