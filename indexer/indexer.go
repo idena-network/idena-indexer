@@ -157,6 +157,8 @@ func convertIncomingData(incomingBlock *types.Block, prevState *appstate.AppStat
 	block := convertBlock(incomingBlock, &ctx)
 	identities, flipStats := determineEpochResult(incomingBlock, &ctx)
 
+	ctx.addresses = append(ctx.addresses, determineFirstAddresses(incomingBlock, &ctx)...)
+
 	return &db.Data{
 		Epoch:          epoch,
 		ValidationTime: *big.NewInt(ctx.newState.State.NextValidationTime().Unix()),
@@ -167,6 +169,24 @@ func convertIncomingData(incomingBlock *types.Block, prevState *appstate.AppStat
 		FlipStats:      flipStats,
 		Addresses:      ctx.addresses,
 	}
+}
+
+func isFirstBlock(incomingBlock *types.Block) bool {
+	return incomingBlock.Height() == 2
+}
+
+func determineFirstAddresses(incomingBlock *types.Block, ctx *conversionContext) []db.Address {
+	if !isFirstBlock(incomingBlock) {
+		return nil
+	}
+	var addresses []db.Address
+	ctx.newState.State.IterateOverIdentities(func(addr common.Address, identity state.Identity) {
+		addresses = append(addresses, db.Address{
+			Address:  convertAddress(addr),
+			NewState: convertIdentityState(identity.State),
+		})
+	})
+	return addresses
 }
 
 func convertBlock(incomingBlock *types.Block, ctx *conversionContext) db.Block {

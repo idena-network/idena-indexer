@@ -258,11 +258,11 @@ func (a *postgresAccessor) saveIdentities(ctx *context, identities []EpochIdenti
 func (a *postgresAccessor) saveIdentityState(ctx *context, identity EpochIdentity) (int64, error) {
 	_, err := ctx.tx.Exec(a.getQuery(archiveIdentityStateQuery), identity.Address)
 	if err != nil {
-		return 0, err
+		return 0, errors.Wrapf(err, "unable to execute query %s", archiveIdentityStateQuery)
 	}
 	var id int64
 	err = ctx.tx.QueryRow(a.getQuery(insertIdentityStateQuery), identity.Address, identity.State).Scan(&id)
-	return id, err
+	return id, errors.Wrapf(err, "unable to execute query %s", insertIdentityStateQuery)
 }
 
 func (a *postgresAccessor) saveEpochIdentity(ctx *context, identityStateId int64, identity EpochIdentity) (int64, error) {
@@ -270,7 +270,7 @@ func (a *postgresAccessor) saveEpochIdentity(ctx *context, identityStateId int64
 
 	if err := ctx.tx.QueryRow(a.getQuery(insertEpochIdentityQuery), ctx.epochId, identityStateId, identity.ShortPoint,
 		identity.ShortFlips, identity.LongPoint, identity.LongFlips, identity.Approved, identity.Missed).Scan(&id); err != nil {
-		return 0, err
+		return 0, errors.Wrapf(err, "unable to execute query %s", insertEpochIdentityQuery)
 	}
 
 	if ctx.epochIdentityIdsPerAddr == nil {
@@ -305,7 +305,7 @@ func (a *postgresAccessor) saveFlipToSolve(ctx *context, epochIdentityId int64, 
 	}
 	var id int64
 	err = ctx.tx.QueryRow(a.getQuery(insertFlipsToSolveQuery), epochIdentityId, flipId, isShort).Scan(&id)
-	return id, err
+	return id, errors.Wrapf(err, "unable to execute query %s", insertFlipsToSolveQuery)
 }
 
 func (a *postgresAccessor) saveTransactions(ctx *context, blockId int64, txs []Transaction) (map[string]int64, error) {
