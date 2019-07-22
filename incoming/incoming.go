@@ -9,7 +9,7 @@ import (
 )
 
 type Listener interface {
-	Listen(handleBlock func(block *types.Block))
+	Listen(handleBlock func(block *types.Block), expectedFirstHeight uint64)
 	Node() *node.Node
 	Destroy()
 }
@@ -26,7 +26,7 @@ func NewListener(nodeConfigFile string) Listener {
 	return l
 }
 
-func (l *listenerImpl) Listen(handleBlock func(block *types.Block)) {
+func (l *listenerImpl) Listen(handleBlock func(block *types.Block), expectedHeight uint64) {
 	cfg, err := config.MakeConfigFromFile(l.nodeConfigFile)
 	if err != nil {
 		panic(err)
@@ -46,16 +46,9 @@ func (l *listenerImpl) Listen(handleBlock func(block *types.Block)) {
 
 	l.n = n
 
-	// todo check if head is saved
-	//log.Info("!!!!! On Start", "GetLongFlipsToSolve",len(n.Ceremony().GetLongFlipsToSolve()))
-
-	n.Start()
+	n.StartWithHeight(expectedHeight)
 	n.WaitForStop()
 }
-
-//func (l *listenerImpl) GetAppState() *appstate.AppState {
-//	return l.appState
-//}
 
 func (l *listenerImpl) Node() *node.Node {
 	return l.n

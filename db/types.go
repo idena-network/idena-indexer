@@ -13,6 +13,7 @@ type Data struct {
 	FlipKeys       []FlipKey
 	FlipStats      []FlipStats
 	Addresses      []Address
+	FlipsData      []FlipData
 }
 
 type Block struct {
@@ -67,6 +68,11 @@ type Answer struct {
 type FlipKey struct {
 	TxHash string
 	Key    string
+}
+
+type FlipData struct {
+	Cid  string
+	Data []byte
 }
 
 type Address struct {

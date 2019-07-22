@@ -17,7 +17,9 @@ type postgresAccessor struct {
 const (
 	initQuery                 = "init.sql"
 	maxHeightQuery            = "maxHeight.sql"
-	updateFlipsQuery          = "updateFlips.sql"
+	currentFlipCidsQuery      = "currentFlipCids.sql"
+	updateFlipStateQuery      = "updateFlipState.sql"
+	updateFlipDataQuery       = "updateFlipData.sql"
 	insertAnswersQuery        = "insertAnswers.sql"
 	insertBlockQuery          = "insertBlock.sql"
 	selectIdentityQuery       = "selectIdentity.sql"
@@ -71,6 +73,24 @@ func (a *postgresAccessor) GetLastHeight() (uint64, error) {
 	return uint64(maxHeight), nil
 }
 
+func (a *postgresAccessor) GetCurrentFlipCids(address string) ([]string, error) {
+	rows, err := a.db.Query(a.getQuery(currentFlipCidsQuery), address)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var res []string
+	for rows.Next() {
+		var item string
+		err = rows.Scan(&item)
+		if err != nil {
+			return nil, err
+		}
+		res = append(res, item)
+	}
+	return res, nil
+}
+
 func (a *postgresAccessor) Save(data *Data) error {
 	tx, err := a.db.Begin()
 	if err != nil {
@@ -102,6 +122,10 @@ func (a *postgresAccessor) Save(data *Data) error {
 		return err
 	}
 
+	if err := a.saveFlipsData(ctx, data.FlipsData); err != nil {
+		return err
+	}
+
 	if err = a.saveIdentities(ctx, data.Identities); err != nil {
 		return err
 	}
@@ -129,20 +153,27 @@ func (a *postgresAccessor) saveFlipStats(ctx *context, flipStats FlipStats) erro
 	if err := a.saveAnswers(ctx, flipStats.Cid, flipStats.LongAnswers, false); err != nil {
 		return err
 	}
-	flipId, err := ctx.flipId(flipStats.Cid)
-	if err != nil {
+	if _, err := ctx.tx.Exec(a.getQuery(updateFlipStateQuery), flipStats.Status, flipStats.Answer, flipStats.Cid); err != nil {
 		return err
 	}
-	res, err := ctx.tx.Exec(a.getQuery(updateFlipsQuery), flipStats.Status, flipStats.Answer, flipId)
-	if err != nil {
-		return err
+	return nil
+}
+
+func (a *postgresAccessor) saveFlipsData(ctx *context, flipsData []FlipData) error {
+	if len(flipsData) == 0 {
+		return nil
 	}
-	rowsAffected, err := res.RowsAffected()
-	if err != nil {
-		return err
+	for _, flipData := range flipsData {
+		if err := a.saveFlipData(ctx, flipData); err != nil {
+			return err
+		}
 	}
-	if rowsAffected != 1 {
-		return errors.New("Wrong flips number for saving status and answer")
+	return nil
+}
+
+func (a *postgresAccessor) saveFlipData(ctx *context, flipData FlipData) error {
+	if _, err := ctx.tx.Exec(a.getQuery(updateFlipDataQuery), flipData.Data, flipData.Cid); err != nil {
+		return err
 	}
 	return nil
 }

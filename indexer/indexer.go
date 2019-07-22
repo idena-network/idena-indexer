@@ -4,14 +4,15 @@ import (
 	"encoding/hex"
 	"github.com/idena-network/idena-go/blockchain"
 	"github.com/idena-network/idena-go/common"
+	"github.com/idena-network/idena-go/core/flip"
+	"github.com/idena-network/idena-go/crypto"
+	"github.com/idena-network/idena-go/crypto/ecies"
 	"math/big"
 
 	//"encoding/hex"
 	"fmt"
 	"github.com/idena-network/idena-go/blockchain/attachments"
 	"github.com/idena-network/idena-go/core/ceremony"
-	"github.com/idena-network/idena-go/rlp"
-
 	//"github.com/idena-network/idena-go/blockchain/attachments"
 	"github.com/idena-network/idena-go/blockchain/types"
 	"github.com/idena-network/idena-go/core/appstate"
@@ -79,7 +80,7 @@ func NewIndexer(listener incoming.Listener, db db.Accessor) *Indexer {
 }
 
 func (indexer *Indexer) Start() {
-	indexer.listener.Listen(indexer.indexBlock)
+	indexer.listener.Listen(indexer.indexBlock, indexer.getHeightToIndex()-1)
 }
 
 func (indexer *Indexer) Destroy() {
@@ -96,7 +97,8 @@ func (indexer *Indexer) indexBlock(block *types.Block) {
 		prevState := indexer.listener.Node().AppStateReadonly(block.Height() - 1)
 		newState := indexer.listener.Node().AppStateReadonly(block.Height())
 		data := convertIncomingData(block, prevState, newState,
-			indexer.listener.Node().Blockchain(), indexer.listener.Node().Ceremony())
+			indexer.listener.Node().Blockchain(), indexer.listener.Node().Ceremony(), indexer.listener.Node().Flipper(),
+			indexer.db.GetCurrentFlipCids)
 		indexer.saveData(data)
 		indexer.lastHeight = data.Block.Height
 		log.Debug(fmt.Sprintf("Processed block %d", data.Block.Height))
@@ -136,21 +138,26 @@ func (indexer *Indexer) checkBlock(block *types.Block, fromHeight uint64) bool {
 type conversionContext struct {
 	submittedFlips []db.Flip
 	flipKeys       []db.FlipKey
+	flipsData      []db.FlipData
 	addresses      []db.Address
 	prevState      *appstate.AppState
 	newState       *appstate.AppState
 	chain          *blockchain.Blockchain
 	c              *ceremony.ValidationCeremony
+	fp             *flip.Flipper
+	getFlips       func(string) ([]string, error)
 }
 
 func convertIncomingData(incomingBlock *types.Block, prevState *appstate.AppState, newState *appstate.AppState,
-	chain *blockchain.Blockchain, c *ceremony.ValidationCeremony) *db.Data {
+	chain *blockchain.Blockchain, c *ceremony.ValidationCeremony, fp *flip.Flipper, getFlips func(string) ([]string, error)) *db.Data {
 
 	ctx := conversionContext{
 		prevState: prevState,
 		newState:  newState,
 		chain:     chain,
 		c:         c,
+		fp:        fp,
+		getFlips:  getFlips,
 	}
 	epoch := uint64(prevState.State.Epoch())
 
@@ -166,6 +173,7 @@ func convertIncomingData(incomingBlock *types.Block, prevState *appstate.AppStat
 		Identities:     identities,
 		SubmittedFlips: ctx.submittedFlips,
 		FlipKeys:       ctx.flipKeys,
+		FlipsData:      ctx.flipsData,
 		FlipStats:      flipStats,
 		Addresses:      ctx.addresses,
 	}
@@ -208,8 +216,8 @@ func convertTransactions(incomingTxs []*types.Transaction, ctx *conversionContex
 }
 
 func convertTransaction(incomingTx *types.Transaction, ctx *conversionContext) db.Transaction {
-	if flip := determineSubmittedFlip(incomingTx); flip != nil {
-		ctx.submittedFlips = append(ctx.submittedFlips, *flip)
+	if f := determineSubmittedFlip(incomingTx); f != nil {
+		ctx.submittedFlips = append(ctx.submittedFlips, *f)
 	}
 
 	convertShortAnswers(incomingTx, ctx)
@@ -370,28 +378,77 @@ func determineSubmittedFlip(tx *types.Transaction) *db.Flip {
 		log.Error("Unable to parse flip cid. Skipped.", "tx", tx.Hash(), "err", err)
 		return nil
 	}
-	flip := &db.Flip{
+	f := &db.Flip{
 		TxHash: convertHash(tx.Hash()),
 		Cid:    convertCid(flipCid),
 	}
-	return flip
+	return f
 }
 
 func convertShortAnswers(tx *types.Transaction, ctx *conversionContext) {
 	if tx.Type != types.SubmitShortAnswersTx {
 		return
 	}
-	answer := attachments.ShortAnswerAttachment{}
-	if err := rlp.DecodeBytes(tx.Payload, &answer); err != nil {
-		log.Error("Unable to parse short answers payload. Skipped.", "tx", tx.Hash(), "err", err)
+	attachment := attachments.ParseShortAnswerAttachment(tx)
+	if attachment == nil {
+		log.Error("Unable to parse short answers payload. Skipped.", "tx", tx.Hash())
 		return
 	}
-	if len(answer.Key) > 0 {
-		ctx.flipKeys = append(ctx.flipKeys, db.FlipKey{
-			TxHash: convertHash(tx.Hash()),
-			Key:    hex.EncodeToString(answer.Key),
+	if len(attachment.Key) == 0 {
+		return
+	}
+
+	flipsData, err := getFlipsData(tx, attachment, ctx)
+	if err != nil {
+		log.Error("Unable to get flips data. Skipped.", "tx", tx.Hash(), "err", err)
+	} else {
+		ctx.flipsData = append(ctx.flipsData, flipsData...)
+	}
+
+	ctx.flipKeys = append(ctx.flipKeys, db.FlipKey{
+		TxHash: convertHash(tx.Hash()),
+		Key:    hex.EncodeToString(attachment.Key),
+	})
+}
+
+func getFlipsData(tx *types.Transaction, attachment *attachments.ShortAnswerAttachment, ctx *conversionContext) ([]db.FlipData, error) {
+	sender, _ := types.Sender(tx)
+	from := convertAddress(sender)
+	keyAuthorFlips, err := ctx.getFlips(from)
+	if err != nil {
+		return nil, err
+	}
+	if len(keyAuthorFlips) == 0 {
+		return nil, nil
+	}
+	var flipsData []db.FlipData
+	for _, flipCidStr := range keyAuthorFlips {
+		flipCid, _ := cid.Decode(flipCidStr)
+		flipData, err := getFlipData(flipCid.Bytes(), attachment.Key, ctx)
+		if err != nil {
+			log.Error("Unable to get flip data. Skipped.", "tx", tx.Hash(), "cid", flipCidStr, "err", err)
+			continue
+		}
+		flipsData = append(flipsData, db.FlipData{
+			Cid:  flipCidStr,
+			Data: flipData,
 		})
 	}
+	return flipsData, nil
+}
+
+func getFlipData(cid []byte, key []byte, ctx *conversionContext) ([]byte, error) {
+	ipfsFlip, err := ctx.fp.GetRawFlip(cid)
+	if err != nil {
+		return nil, err
+	}
+	ecdsaKey, _ := crypto.ToECDSA(key)
+	encryptionKey := ecies.ImportECDSA(ecdsaKey)
+	decryptedFlip, err := encryptionKey.Decrypt(ipfsFlip.Data, nil, nil)
+	if err != nil {
+		return nil, err
+	}
+	return decryptedFlip, nil
 }
 
 func convertCids(idxs []int, cids [][]byte, block *types.Block) []string {

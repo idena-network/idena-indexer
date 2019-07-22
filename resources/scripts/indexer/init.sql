@@ -246,6 +246,7 @@ CREATE TABLE IF NOT EXISTS public.flips
     cid    character varying(100) COLLATE pg_catalog."default" NOT NULL,
     answer character varying(20) COLLATE pg_catalog."default",
     status character varying(20) COLLATE pg_catalog."default",
+    data   bytea,
     CONSTRAINT flips_pkey PRIMARY KEY (id),
     CONSTRAINT flips_cid_key UNIQUE (cid)
 

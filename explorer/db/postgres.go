@@ -303,7 +303,7 @@ func (a *postgresAccessor) Flip(hash string) (types.Flip, error) {
 	}
 	flip := types.Flip{}
 	var id uint64
-	err = rows.Scan(&id, &flip.Answer, &flip.Status)
+	err = rows.Scan(&id, &flip.Answer, &flip.Status, &flip.Data)
 	if err != nil {
 		return types.Flip{}, err
 	}

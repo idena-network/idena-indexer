@@ -1,6 +1,7 @@
 package types
 
 import (
+	"github.com/idena-network/idena-go/common/hexutil"
 	"math/big"
 	"time"
 )
@@ -69,11 +70,11 @@ type EpochIdentity struct {
 }
 
 type Flip struct {
-	// todo images
-	Status       string   `json:"status"`
-	Answer       string   `json:"answer"`
-	ShortAnswers []Answer `json:"shortAnswers"`
-	LongAnswers  []Answer `json:"longAnswers"`
+	Status       string        `json:"status"`
+	Answer       string        `json:"answer"`
+	ShortAnswers []Answer      `json:"shortAnswers"`
+	LongAnswers  []Answer      `json:"longAnswers"`
+	Data         hexutil.Bytes `json:"hex"`
 }
 
 type Answer struct {
