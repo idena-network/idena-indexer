@@ -1,10 +1,14 @@
 package db
 
-import "database/sql"
+import (
+	"database/sql"
+	"fmt"
+	"github.com/pkg/errors"
+)
 
 type context struct {
-	epochId int64
-	//identityIdsPerAddr      map[string]int64
+	epochId                 int64
+	blockId                 int64
 	flipIdsPerCid           map[string]int64
 	txIdsPerHash            map[string]int64
 	addrIdsPerAddr          map[string]int64
@@ -19,21 +23,6 @@ func newContext(a *postgresAccessor, tx *sql.Tx) *context {
 		tx: tx,
 	}
 }
-
-//func (c *context) identityId(addr string) (int64, error) {
-//	if c.identityIdsPerAddr == nil {
-//		c.identityIdsPerAddr = make(map[string]int64)
-//	}
-//	if id, present := c.identityIdsPerAddr[addr]; present {
-//		return id, nil
-//	}
-//	id, err := c.a.getIdentityId(c.tx, addr)
-//	if err != nil {
-//		return 0, err
-//	}
-//	c.identityIdsPerAddr[addr] = id
-//	return id, nil
-//}
 
 func (c *context) epochIdentityId(addr string) (int64, error) {
 	return c.epochIdentityIdsPerAddr[addr], nil
@@ -54,10 +43,18 @@ func (c *context) flipId(cid string) (int64, error) {
 	return id, nil
 }
 
-func (c *context) txId(hash string) int64 {
-	return c.txIdsPerHash[hash]
+func (c *context) txId(hash string) (int64, error) {
+	if txId, present := c.txIdsPerHash[hash]; !present {
+		return 0, errors.New(fmt.Sprintf("Id for tx %s not found", hash))
+	} else {
+		return txId, nil
+	}
 }
 
-func (c *context) addrId(address string) int64 {
-	return c.addrIdsPerAddr[address]
+func (c *context) addrId(address string) (int64, error) {
+	if addrId, present := c.addrIdsPerAddr[address]; !present {
+		return 0, errors.New(fmt.Sprintf("Id for address %s not found", address))
+	} else {
+		return addrId, nil
+	}
 }

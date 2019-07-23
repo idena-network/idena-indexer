@@ -134,8 +134,9 @@ ALTER SEQUENCE public.addresses_id_seq
 
 CREATE TABLE IF NOT EXISTS public.addresses
 (
-    id      integer                                    NOT NULL DEFAULT nextval('addresses_id_seq'::regclass),
-    address character(42) COLLATE pg_catalog."default" NOT NULL,
+    id       integer                                    NOT NULL DEFAULT nextval('addresses_id_seq'::regclass),
+    address  character(42) COLLATE pg_catalog."default" NOT NULL,
+    block_id integer                                    NOT NULL,
     CONSTRAINT addresses_pkey PRIMARY KEY (id)
 )
     WITH (
@@ -170,6 +171,7 @@ CREATE TABLE IF NOT EXISTS public.address_states
     address_id integer                                            NOT NULL,
     state      character varying(20) COLLATE pg_catalog."default" NOT NULL,
     is_actual  boolean                                            NOT NULL,
+    block_id   integer                                            NOT NULL,
     CONSTRAINT address_states_pkey PRIMARY KEY (id)
 )
     WITH (
@@ -241,12 +243,14 @@ ALTER SEQUENCE public.flips_id_seq
 
 CREATE TABLE IF NOT EXISTS public.flips
 (
-    id     integer                                             NOT NULL DEFAULT nextval('flips_id_seq'::regclass),
-    tx_id  integer                                             NOT NULL,
-    cid    character varying(100) COLLATE pg_catalog."default" NOT NULL,
-    answer character varying(20) COLLATE pg_catalog."default",
-    status character varying(20) COLLATE pg_catalog."default",
-    data   bytea,
+    id              integer                                             NOT NULL DEFAULT nextval('flips_id_seq'::regclass),
+    tx_id           integer                                             NOT NULL,
+    cid             character varying(100) COLLATE pg_catalog."default" NOT NULL,
+    status_block_id integer,
+    answer          character varying(20) COLLATE pg_catalog."default",
+    status          character varying(20) COLLATE pg_catalog."default",
+    data_tx_id      integer,
+    data            bytea,
     CONSTRAINT flips_pkey PRIMARY KEY (id),
     CONSTRAINT flips_cid_key UNIQUE (cid)
 

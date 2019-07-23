@@ -5,4 +5,5 @@ type Accessor interface {
 	GetCurrentFlipCids(address string) ([]string, error)
 	Save(data *Data) error
 	Destroy()
+	ResetTo(height uint64) error
 }

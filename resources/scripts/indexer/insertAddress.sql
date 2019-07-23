@@ -1,2 +1,2 @@
-insert into addresses (address)
-values ($1) returning id
+insert into addresses (address, block_id)
+values ($1, $2) returning id

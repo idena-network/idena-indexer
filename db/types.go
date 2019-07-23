@@ -71,8 +71,9 @@ type FlipKey struct {
 }
 
 type FlipData struct {
-	Cid  string
-	Data []byte
+	Cid    string
+	TxHash string
+	Data   []byte
 }
 
 type Address struct {

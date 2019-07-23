@@ -57,7 +57,7 @@ func (a *postgresAccessor) init() error {
 	}
 	defer tx.Rollback()
 
-	_, err = tx.Exec(a.queries[initQuery])
+	_, err = tx.Exec(a.getQuery(initQuery))
 	if err != nil {
 		return err
 	}

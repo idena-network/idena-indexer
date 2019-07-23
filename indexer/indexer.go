@@ -430,8 +430,9 @@ func getFlipsData(tx *types.Transaction, attachment *attachments.ShortAnswerAtta
 			continue
 		}
 		flipsData = append(flipsData, db.FlipData{
-			Cid:  flipCidStr,
-			Data: flipData,
+			Cid:    flipCidStr,
+			TxHash: convertHash(tx.Hash()),
+			Data:   flipData,
 		})
 	}
 	return flipsData, nil

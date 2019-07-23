@@ -7,6 +7,7 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/pkg/errors"
 	"math/big"
+	"strings"
 )
 
 type postgresAccessor struct {
@@ -37,6 +38,7 @@ const (
 	insertAddressStateQuery   = "insertAddressState.sql"
 	archiveIdentityStateQuery = "archiveIdentityState.sql"
 	insertIdentityStateQuery  = "insertIdentityState.sql"
+	resetToBlockQuery         = "resetToBlock.sql"
 )
 
 func (a *postgresAccessor) getQuery(name string) string {
@@ -91,6 +93,28 @@ func (a *postgresAccessor) GetCurrentFlipCids(address string) ([]string, error) 
 	return res, nil
 }
 
+func (a *postgresAccessor) ResetTo(height uint64) error {
+	tx, err := a.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	queries := strings.Split(a.getQuery(resetToBlockQuery), ";")
+	for _, query := range queries {
+		if strings.Contains(query, "$") {
+			_, err = tx.Exec(query, height)
+		} else {
+			_, err = tx.Exec(query)
+		}
+		if err != nil {
+			return err
+		}
+	}
+
+	return tx.Commit()
+}
+
 func (a *postgresAccessor) Save(data *Data) error {
 	tx, err := a.db.Begin()
 	if err != nil {
@@ -105,11 +129,16 @@ func (a *postgresAccessor) Save(data *Data) error {
 		return err
 	}
 
+	ctx.blockId, err = a.saveBlock(ctx, data.Block)
+	if err != nil {
+		return err
+	}
+
 	if ctx.addrIdsPerAddr, err = a.saveAddresses(ctx, data.Addresses); err != nil {
 		return err
 	}
 
-	_, ctx.txIdsPerHash, err = a.saveBlock(ctx, data.Block)
+	ctx.txIdsPerHash, err = a.saveTransactions(ctx, data.Block.Transactions)
 	if err != nil {
 		return err
 	}
@@ -153,7 +182,7 @@ func (a *postgresAccessor) saveFlipStats(ctx *context, flipStats FlipStats) erro
 	if err := a.saveAnswers(ctx, flipStats.Cid, flipStats.LongAnswers, false); err != nil {
 		return err
 	}
-	if _, err := ctx.tx.Exec(a.getQuery(updateFlipStateQuery), flipStats.Status, flipStats.Answer, flipStats.Cid); err != nil {
+	if _, err := ctx.tx.Exec(a.getQuery(updateFlipStateQuery), flipStats.Status, flipStats.Answer, ctx.blockId, flipStats.Cid); err != nil {
 		return err
 	}
 	return nil
@@ -172,7 +201,11 @@ func (a *postgresAccessor) saveFlipsData(ctx *context, flipsData []FlipData) err
 }
 
 func (a *postgresAccessor) saveFlipData(ctx *context, flipData FlipData) error {
-	if _, err := ctx.tx.Exec(a.getQuery(updateFlipDataQuery), flipData.Data, flipData.Cid); err != nil {
+	txId, err := ctx.txId(flipData.TxHash)
+	if err != nil {
+		return err
+	}
+	if _, err := ctx.tx.Exec(a.getQuery(updateFlipDataQuery), flipData.Data, txId, flipData.Cid); err != nil {
 		return err
 	}
 	return nil
@@ -188,8 +221,7 @@ func (a *postgresAccessor) saveAnswers(ctx *context, cid string, answers []Answe
 	return nil
 }
 
-func (a *postgresAccessor) saveAnswer(ctx *context, cid string, answer Answer,
-	isShort bool) (int64, error) {
+func (a *postgresAccessor) saveAnswer(ctx *context, cid string, answer Answer, isShort bool) (int64, error) {
 	var id int64
 	flipId, err := ctx.flipId(cid)
 	if err != nil {
@@ -216,14 +248,8 @@ func (a *postgresAccessor) saveEpoch(ctx *context, epoch uint64, validationTime 
 	return id, err
 }
 
-func (a *postgresAccessor) saveBlock(ctx *context, block Block) (id int64, txIdsPerHash map[string]int64,
-	err error) {
-
+func (a *postgresAccessor) saveBlock(ctx *context, block Block) (id int64, err error) {
 	err = ctx.tx.QueryRow(a.getQuery(insertBlockQuery), block.Height, block.Hash, ctx.epochId, block.Time.Int64()).Scan(&id)
-	if err != nil {
-		return
-	}
-	txIdsPerHash, err = a.saveTransactions(ctx, id, block.Transactions)
 	return
 }
 
@@ -256,7 +282,7 @@ func (a *postgresAccessor) saveAddress(ctx *context, address Address) (int64, er
 	if err != sql.ErrNoRows {
 		return 0, err
 	}
-	err = ctx.tx.QueryRow(a.getQuery(insertAddressQuery), address.Address).Scan(&id)
+	err = ctx.tx.QueryRow(a.getQuery(insertAddressQuery), address.Address, ctx.blockId).Scan(&id)
 	return id, err
 }
 
@@ -266,7 +292,7 @@ func (a *postgresAccessor) saveAddressState(ctx *context, addressId int64, addre
 		return 0, err
 	}
 	var id int64
-	err = ctx.tx.QueryRow(a.getQuery(insertAddressStateQuery), addressId, address.NewState).Scan(&id)
+	err = ctx.tx.QueryRow(a.getQuery(insertAddressStateQuery), addressId, address.NewState, ctx.blockId).Scan(&id)
 	return id, err
 }
 
@@ -292,7 +318,7 @@ func (a *postgresAccessor) saveIdentityState(ctx *context, identity EpochIdentit
 		return 0, errors.Wrapf(err, "unable to execute query %s", archiveIdentityStateQuery)
 	}
 	var id int64
-	err = ctx.tx.QueryRow(a.getQuery(insertIdentityStateQuery), identity.Address, identity.State).Scan(&id)
+	err = ctx.tx.QueryRow(a.getQuery(insertIdentityStateQuery), identity.Address, identity.State, ctx.blockId).Scan(&id)
 	return id, errors.Wrapf(err, "unable to execute query %s", insertIdentityStateQuery)
 }
 
@@ -339,13 +365,13 @@ func (a *postgresAccessor) saveFlipToSolve(ctx *context, epochIdentityId int64, 
 	return id, errors.Wrapf(err, "unable to execute query %s", insertFlipsToSolveQuery)
 }
 
-func (a *postgresAccessor) saveTransactions(ctx *context, blockId int64, txs []Transaction) (map[string]int64, error) {
+func (a *postgresAccessor) saveTransactions(ctx *context, txs []Transaction) (map[string]int64, error) {
 	if len(txs) == 0 {
 		return nil, nil
 	}
 	txIdsPerHash := make(map[string]int64)
 	for _, idenaTx := range txs {
-		id, err := a.saveTransaction(ctx, blockId, idenaTx)
+		id, err := a.saveTransaction(ctx, idenaTx)
 		if err != nil {
 			return nil, err
 		}
@@ -354,15 +380,22 @@ func (a *postgresAccessor) saveTransactions(ctx *context, blockId int64, txs []T
 	return txIdsPerHash, nil
 }
 
-func (a *postgresAccessor) saveTransaction(ctx *context, blockId int64, idenaTx Transaction) (int64, error) {
+func (a *postgresAccessor) saveTransaction(ctx *context, idenaTx Transaction) (int64, error) {
 	var id int64
+	from, err := ctx.addrId(idenaTx.From)
+	if err != nil {
+		return 0, err
+	}
 	var to interface{}
 	if len(idenaTx.To) > 0 {
-		to = ctx.addrIdsPerAddr[idenaTx.To]
+		to, err = ctx.addrId(idenaTx.From)
+		if err != nil {
+			return 0, err
+		}
 	} else {
 		to = nil
 	}
-	err := ctx.tx.QueryRow(a.getQuery(insertTransactionQuery), idenaTx.Hash, blockId, idenaTx.Type, ctx.addrIdsPerAddr[idenaTx.From], to,
+	err = ctx.tx.QueryRow(a.getQuery(insertTransactionQuery), idenaTx.Hash, ctx.blockId, idenaTx.Type, from, to,
 		idenaTx.Amount.Int64(), idenaTx.Fee.Int64()).Scan(&id)
 	return id, err
 }
@@ -373,7 +406,11 @@ func (a *postgresAccessor) saveSubmittedFlips(ctx *context, flips []Flip) (map[s
 	}
 	flipIdsPerCid := make(map[string]int64)
 	for _, flip := range flips {
-		id, err := a.saveSubmittedFlip(ctx, ctx.txId(flip.TxHash), flip)
+		txId, err := ctx.txId(flip.TxHash)
+		if err != nil {
+			return nil, err
+		}
+		id, err := a.saveSubmittedFlip(ctx, txId, flip)
 		if err != nil {
 			return nil, err
 		}
@@ -393,7 +430,11 @@ func (a *postgresAccessor) saveFlipKeys(ctx *context, keys []FlipKey) error {
 		return nil
 	}
 	for _, key := range keys {
-		err := a.saveFlipKey(ctx, ctx.txId(key.TxHash), key)
+		txId, err := ctx.txId(key.TxHash)
+		if err != nil {
+			return err
+		}
+		err = a.saveFlipKey(ctx, txId, key)
 		if err != nil {
 			return err
 		}
