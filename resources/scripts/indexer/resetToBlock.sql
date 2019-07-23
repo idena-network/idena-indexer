@@ -34,7 +34,7 @@ from address_states
 where block_id in (select id from blocks where height > $1);
 -- restore actual states
 update address_states
-set is_actual= true
+set is_actual = true
 where id in
       (select s.id
        from address_states s
@@ -81,7 +81,7 @@ where tx_id in
 delete
 from transactions
 where block_id in
-      (select id from blocks where height > 15);
+      (select id from blocks where height > $1);
 
 -- addresses
 delete

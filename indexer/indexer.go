@@ -91,18 +91,38 @@ func (indexer *Indexer) Destroy() {
 func (indexer *Indexer) indexBlock(block *types.Block) {
 	for {
 		heightToIndex := indexer.getHeightToIndex()
-		if !indexer.checkBlock(block, heightToIndex) {
-			return
+
+		if !isFirstBlock(block) && block.Height() > heightToIndex {
+			panic(fmt.Sprintf("Incoming block height=%d is greater than expected %d", block.Height(), heightToIndex))
 		}
-		prevState := indexer.listener.Node().AppStateReadonly(block.Height() - 1)
-		newState := indexer.listener.Node().AppStateReadonly(block.Height())
-		data := convertIncomingData(block, prevState, newState,
-			indexer.listener.Node().Blockchain(), indexer.listener.Node().Ceremony(), indexer.listener.Node().Flipper(),
-			indexer.db.GetCurrentFlipCids)
+
+		if block.Height() < heightToIndex {
+			height := block.Height() - 1
+			if err := indexer.resetTo(height); err != nil {
+				log.Error(fmt.Sprintf("Unable to reset to height=%d", height), "err", err)
+				indexer.waitForRetry()
+			} else {
+				log.Info(fmt.Sprintf("Indexer db has been reset to height=%d", height))
+			}
+			// retry in any case to ensure incoming height equals to expected height to index after reset
+			continue
+		}
+
+		data := indexer.convertIncomingData(block)
 		indexer.saveData(data)
 		indexer.lastHeight = data.Block.Height
 		log.Debug(fmt.Sprintf("Processed block %d", data.Block.Height))
+		return
 	}
+}
+
+func (indexer *Indexer) resetTo(height uint64) error {
+	err := indexer.db.ResetTo(height)
+	if err != nil {
+		return err
+	}
+	indexer.lastHeight = indexer.loadHeightToIndex()
+	return nil
 }
 
 func (indexer *Indexer) getHeightToIndex() uint64 {
@@ -124,17 +144,6 @@ func (indexer *Indexer) loadHeightToIndex() uint64 {
 	}
 }
 
-func (indexer *Indexer) checkBlock(block *types.Block, fromHeight uint64) bool {
-	if block.Height() < fromHeight {
-		return false
-	}
-
-	if block.Height() > fromHeight {
-		log.Warn(fmt.Sprintf("Incoming block height=%d is greater than expected %d", block.Height(), fromHeight))
-	}
-	return true
-}
-
 type conversionContext struct {
 	submittedFlips []db.Flip
 	flipKeys       []db.FlipKey
@@ -148,16 +157,16 @@ type conversionContext struct {
 	getFlips       func(string) ([]string, error)
 }
 
-func convertIncomingData(incomingBlock *types.Block, prevState *appstate.AppState, newState *appstate.AppState,
-	chain *blockchain.Blockchain, c *ceremony.ValidationCeremony, fp *flip.Flipper, getFlips func(string) ([]string, error)) *db.Data {
-
+func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) *db.Data {
+	prevState := indexer.listener.Node().AppStateReadonly(incomingBlock.Height() - 1)
+	newState := indexer.listener.Node().AppStateReadonly(incomingBlock.Height())
 	ctx := conversionContext{
 		prevState: prevState,
 		newState:  newState,
-		chain:     chain,
-		c:         c,
-		fp:        fp,
-		getFlips:  getFlips,
+		chain:     indexer.listener.Node().Blockchain(),
+		c:         indexer.listener.Node().Ceremony(),
+		fp:        indexer.listener.Node().Flipper(),
+		getFlips:  indexer.db.GetCurrentFlipCids,
 	}
 	epoch := uint64(prevState.State.Epoch())
 

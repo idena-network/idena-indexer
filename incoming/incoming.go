@@ -9,7 +9,7 @@ import (
 )
 
 type Listener interface {
-	Listen(handleBlock func(block *types.Block), expectedFirstHeight uint64)
+	Listen(handleBlock func(block *types.Block), expectedHeadHeight uint64)
 	Node() *node.Node
 	Destroy()
 }
@@ -26,7 +26,7 @@ func NewListener(nodeConfigFile string) Listener {
 	return l
 }
 
-func (l *listenerImpl) Listen(handleBlock func(block *types.Block), expectedHeight uint64) {
+func (l *listenerImpl) Listen(handleBlock func(block *types.Block), expectedHeadHeight uint64) {
 	cfg, err := config.MakeConfigFromFile(l.nodeConfigFile)
 	if err != nil {
 		panic(err)
@@ -46,7 +46,7 @@ func (l *listenerImpl) Listen(handleBlock func(block *types.Block), expectedHeig
 
 	l.n = n
 
-	n.StartWithHeight(expectedHeight)
+	n.StartWithHeight(expectedHeadHeight)
 	n.WaitForStop()
 }
 
