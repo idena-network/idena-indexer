@@ -39,6 +39,7 @@ const (
 	archiveIdentityStateQuery = "archiveIdentityState.sql"
 	insertIdentityStateQuery  = "insertIdentityState.sql"
 	resetToBlockQuery         = "resetToBlock.sql"
+	insertBalanceQuery        = "insertBalance.sql"
 )
 
 func (a *postgresAccessor) getQuery(name string) string {
@@ -140,6 +141,10 @@ func (a *postgresAccessor) Save(data *Data) error {
 
 	ctx.txIdsPerHash, err = a.saveTransactions(ctx, data.Block.Transactions)
 	if err != nil {
+		return err
+	}
+
+	if err := a.saveBalances(ctx, data.Balances); err != nil {
 		return err
 	}
 
@@ -296,6 +301,23 @@ func (a *postgresAccessor) saveAddressState(ctx *context, addressId int64, addre
 	return id, err
 }
 
+func (a *postgresAccessor) saveBalances(ctx *context, balances []Balance) error {
+	if len(balances) == 0 {
+		return nil
+	}
+	for _, balance := range balances {
+		if err := a.saveBalance(ctx, balance); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (a *postgresAccessor) saveBalance(ctx *context, balance Balance) error {
+	_, err := ctx.tx.Exec(a.getQuery(insertBalanceQuery), balance.Address, balance.Balance, balance.Stake, ctx.blockId)
+	return errors.Wrapf(err, "unable to save balance")
+}
+
 func (a *postgresAccessor) saveIdentities(ctx *context, identities []EpochIdentity) error {
 	if len(identities) == 0 {
 		return nil
@@ -396,7 +418,7 @@ func (a *postgresAccessor) saveTransaction(ctx *context, idenaTx Transaction) (i
 		to = nil
 	}
 	err = ctx.tx.QueryRow(a.getQuery(insertTransactionQuery), idenaTx.Hash, ctx.blockId, idenaTx.Type, from, to,
-		idenaTx.Amount.Int64(), idenaTx.Fee.Int64()).Scan(&id)
+		idenaTx.Amount, idenaTx.Fee).Scan(&id)
 	return id, err
 }
 

@@ -1,6 +1,7 @@
 package db
 
 import (
+	"github.com/shopspring/decimal"
 	"math/big"
 )
 
@@ -13,6 +14,7 @@ type Data struct {
 	FlipKeys       []FlipKey
 	FlipStats      []FlipStats
 	Addresses      []Address
+	Balances       []Balance
 	FlipsData      []FlipData
 }
 
@@ -29,8 +31,8 @@ type Transaction struct {
 	Type    string
 	From    string
 	To      string
-	Amount  *big.Int
-	Fee     *big.Int
+	Amount  decimal.Decimal
+	Fee     decimal.Decimal
 	Payload []byte
 }
 
@@ -79,4 +81,10 @@ type FlipData struct {
 type Address struct {
 	Address  string
 	NewState string
+}
+
+type Balance struct {
+	Address string
+	Balance decimal.Decimal
+	Stake   decimal.Decimal
 }

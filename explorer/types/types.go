@@ -2,7 +2,7 @@ package types
 
 import (
 	"github.com/idena-network/idena-go/common/hexutil"
-	"math/big"
+	"github.com/shopspring/decimal"
 	"time"
 )
 
@@ -30,13 +30,13 @@ type Block struct {
 }
 
 type Transaction struct {
-	Hash      string    `json:"hash"`
-	Type      string    `json:"type"`
-	Timestamp time.Time `json:"timestamp"`
-	From      string    `json:"from"`
-	To        string    `json:"to,omitempty"`
-	Amount    *big.Int  `json:"amount"`
-	Fee       *big.Int  `json:"fee"`
+	Hash      string          `json:"hash"`
+	Type      string          `json:"type"`
+	Timestamp time.Time       `json:"timestamp"`
+	From      string          `json:"from"`
+	To        string          `json:"to,omitempty"`
+	Amount    decimal.Decimal `json:"amount"`
+	Fee       decimal.Decimal `json:"fee"`
 }
 
 type FlipSummary struct {

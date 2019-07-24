@@ -204,13 +204,10 @@ func (a *postgresAccessor) readTxs(rows *sql.Rows) ([]types.Transaction, error) 
 	for rows.Next() {
 		tx := types.Transaction{}
 		var timestamp int64
-		var amount, fee int64
-		if err := rows.Scan(&tx.Hash, &tx.Type, &timestamp, &tx.From, &tx.To, &amount, &fee); err != nil {
+		if err := rows.Scan(&tx.Hash, &tx.Type, &timestamp, &tx.From, &tx.To, &tx.Amount, &tx.Fee); err != nil {
 			return nil, err
 		}
 		tx.Timestamp = common.TimestampToTime(big.NewInt(timestamp))
-		tx.Amount = big.NewInt(amount)
-		tx.Fee = big.NewInt(fee)
 		txs = append(txs, tx)
 	}
 	return txs, nil

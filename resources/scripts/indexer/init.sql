@@ -100,8 +100,8 @@ CREATE TABLE IF NOT EXISTS public.transactions
     type     character varying(20) COLLATE pg_catalog."default" NOT NULL,
     "from"   integer                                            NOT NULL,
     "to"     integer,
-    amount   bigint                                             NOT NULL,
-    fee      bigint                                             NOT NULL,
+    amount   character varying(20) COLLATE pg_catalog."default" NOT NULL,
+    fee      character varying(20) COLLATE pg_catalog."default" NOT NULL,
     CONSTRAINT transactions_pkey PRIMARY KEY (id),
     CONSTRAINT transactions_hash_key UNIQUE (hash)
 
@@ -363,4 +363,47 @@ CREATE TABLE IF NOT EXISTS public.flips_to_solve
     TABLESPACE pg_default;
 
 ALTER TABLE public.flips_to_solve
+    OWNER to postgres;
+
+-- SEQUENCE: public.balances_id_seq
+
+-- DROP SEQUENCE public.balances_id_seq;
+
+CREATE SEQUENCE IF NOT EXISTS public.balances_id_seq
+    INCREMENT 1
+    START 1
+    MINVALUE 1
+    MAXVALUE 9223372036854775807
+    CACHE 1;
+
+ALTER SEQUENCE public.balances_id_seq
+    OWNER TO postgres;
+
+-- Table: public.balances
+
+-- DROP TABLE public.balances;
+
+CREATE TABLE IF NOT EXISTS public.balances
+(
+    id         bigint                                             NOT NULL DEFAULT nextval('balances_id_seq'::regclass),
+    address_id integer                                            NOT NULL,
+    balance    character varying(20) COLLATE pg_catalog."default" NOT NULL,
+    stake      character varying(20) COLLATE pg_catalog."default" NOT NULL,
+    block_id   integer                                            NOT NULL,
+    CONSTRAINT balances_pkey PRIMARY KEY (id),
+    CONSTRAINT balances_address_id_fkey FOREIGN KEY (address_id)
+        REFERENCES public.addresses (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT balances_block_id_fkey FOREIGN KEY (block_id)
+        REFERENCES public.blocks (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+)
+    WITH (
+        OIDS = FALSE
+    )
+    TABLESPACE pg_default;
+
+ALTER TABLE public.balances
     OWNER to postgres;

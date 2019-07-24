@@ -1,3 +1,9 @@
+-- balances
+delete
+from balances
+where block_id in
+      (select id from blocks where height > $1);
+
 -- flips_to_solve
 delete
 from flips_to_solve

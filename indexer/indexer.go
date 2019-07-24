@@ -2,30 +2,29 @@ package indexer
 
 import (
 	"encoding/hex"
+	"fmt"
 	"github.com/idena-network/idena-go/blockchain"
+	"github.com/idena-network/idena-go/blockchain/attachments"
+	"github.com/idena-network/idena-go/blockchain/types"
 	"github.com/idena-network/idena-go/common"
+	"github.com/idena-network/idena-go/core/appstate"
+	"github.com/idena-network/idena-go/core/ceremony"
 	"github.com/idena-network/idena-go/core/flip"
+	"github.com/idena-network/idena-go/core/state"
 	"github.com/idena-network/idena-go/crypto"
 	"github.com/idena-network/idena-go/crypto/ecies"
-	"math/big"
-
-	//"encoding/hex"
-	"fmt"
-	"github.com/idena-network/idena-go/blockchain/attachments"
-	"github.com/idena-network/idena-go/core/ceremony"
-	//"github.com/idena-network/idena-go/blockchain/attachments"
-	"github.com/idena-network/idena-go/blockchain/types"
-	"github.com/idena-network/idena-go/core/appstate"
-	"github.com/idena-network/idena-go/core/state"
 	"github.com/idena-network/idena-indexer/db"
 	"github.com/idena-network/idena-indexer/incoming"
 	"github.com/idena-network/idena-indexer/log"
-	//"github.com/idena-network/idena-go/rlp"
 	"github.com/ipsn/go-ipfs/gxlibs/github.com/ipfs/go-cid"
+	"math/big"
 	"time"
 )
 
-const requestRetryInterval = time.Second * 5
+const (
+	requestRetryInterval = time.Second * 5
+	firstBlockHeight     = 2
+)
 
 var (
 	identityStates = map[state.IdentityState]string{
@@ -185,11 +184,12 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) *db.Data
 		FlipsData:      ctx.flipsData,
 		FlipStats:      flipStats,
 		Addresses:      ctx.addresses,
+		Balances:       determineBalanceChanges(&ctx),
 	}
 }
 
 func isFirstBlock(incomingBlock *types.Block) bool {
-	return incomingBlock.Height() == 2
+	return incomingBlock.Height() == firstBlockHeight
 }
 
 func determineFirstAddresses(incomingBlock *types.Block, ctx *conversionContext) []db.Address {
@@ -204,6 +204,24 @@ func determineFirstAddresses(incomingBlock *types.Block, ctx *conversionContext)
 		})
 	})
 	return addresses
+}
+
+func determineBalanceChanges(ctx *conversionContext) []db.Balance {
+	var balances []db.Balance
+	ctx.newState.State.IterateOverIdentities(func(addr common.Address, s state.Identity) {
+		balance := ctx.newState.State.GetBalance(addr)
+		stake := ctx.newState.State.GetStakeBalance(addr)
+		prevBalance := ctx.prevState.State.GetBalance(addr)
+		prevStake := ctx.prevState.State.GetStakeBalance(addr)
+		if balance.Cmp(prevBalance) != 0 || stake.Cmp(prevStake) != 0 {
+			balances = append(balances, db.Balance{
+				Address: convertAddress(addr),
+				Balance: blockchain.ConvertToFloat(balance),
+				Stake:   blockchain.ConvertToFloat(stake),
+			})
+		}
+	})
+	return balances
 }
 
 func convertBlock(incomingBlock *types.Block, ctx *conversionContext) db.Block {
@@ -255,8 +273,8 @@ func convertTransaction(incomingTx *types.Transaction, ctx *conversionContext) d
 		Hash:    txHash,
 		From:    from,
 		To:      to,
-		Amount:  incomingTx.Amount,
-		Fee:     fee,
+		Amount:  blockchain.ConvertToFloat(incomingTx.Amount),
+		Fee:     blockchain.ConvertToFloat(fee),
 	}
 	return tx
 }
