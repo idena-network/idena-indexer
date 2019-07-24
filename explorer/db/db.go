@@ -17,5 +17,6 @@ type Accessor interface {
 	Flip(hash string) (types.Flip, error)
 	Identity(address string) (types.Identity, error)
 	EpochIdentity(epoch uint64, address string) (types.EpochIdentity, error)
+	Address(address string) (types.Address, error)
 	Destroy()
 }

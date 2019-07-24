@@ -407,3 +407,24 @@ CREATE TABLE IF NOT EXISTS public.balances
 
 ALTER TABLE public.balances
     OWNER to postgres;
+
+-- View: public.current_balances
+
+-- DROP VIEW public.current_balances;
+
+CREATE OR REPLACE VIEW public.current_balances AS
+SELECT a.id address_id,
+       a.address,
+       ab.balance,
+       ab.stake
+FROM balances ab
+         JOIN blocks b ON b.id = ab.block_id
+         JOIN addresses a ON a.id = ab.address_id
+WHERE ((ab.address_id, b.height) IN (SELECT bh.address_id,
+                                            max(bh.height) AS max
+                                     FROM (SELECT ab_1.address_id,
+                                                  b_1.height
+                                           FROM balances ab_1
+                                                    JOIN blocks b_1 ON b_1.id = ab_1.block_id) bh
+                                     GROUP BY bh.address_id));
+

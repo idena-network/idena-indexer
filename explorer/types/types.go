@@ -150,3 +150,10 @@ type NewValidationSummary struct {
 	Candidates uint32    `json:"candidates"`
 	Flips      uint32    `json:"flips"`
 }
+
+type Address struct {
+	Address string          `json:"address"`
+	Balance decimal.Decimal `json:"balance"`
+	Stake   decimal.Decimal `json:"stake"`
+	TxCount uint32          `json:"txCount"`
+}

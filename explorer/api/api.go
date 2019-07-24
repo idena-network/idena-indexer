@@ -62,3 +62,7 @@ func (a *api) identity(address string) (types.Identity, error) {
 func (a *api) epochIdentity(epoch uint64, address string) (types.EpochIdentity, error) {
 	return a.db.EpochIdentity(epoch, address)
 }
+
+func (a *api) address(address string) (types.Address, error) {
+	return a.db.Address(address)
+}

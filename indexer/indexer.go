@@ -208,11 +208,12 @@ func determineFirstAddresses(incomingBlock *types.Block, ctx *conversionContext)
 
 func determineBalanceChanges(ctx *conversionContext) []db.Balance {
 	var balances []db.Balance
-	ctx.newState.State.IterateOverIdentities(func(addr common.Address, s state.Identity) {
-		balance := ctx.newState.State.GetBalance(addr)
-		stake := ctx.newState.State.GetStakeBalance(addr)
+
+	callback := func(addr common.Address, s state.Identity) {
 		prevBalance := ctx.prevState.State.GetBalance(addr)
 		prevStake := ctx.prevState.State.GetStakeBalance(addr)
+		balance := ctx.newState.State.GetBalance(addr)
+		stake := ctx.newState.State.GetStakeBalance(addr)
 		if balance.Cmp(prevBalance) != 0 || stake.Cmp(prevStake) != 0 {
 			balances = append(balances, db.Balance{
 				Address: convertAddress(addr),
@@ -220,6 +221,15 @@ func determineBalanceChanges(ctx *conversionContext) []db.Balance {
 				Stake:   blockchain.ConvertToFloat(stake),
 			})
 		}
+	}
+
+	ctx.prevState.State.IterateOverIdentities(callback)
+
+	ctx.newState.State.IterateOverIdentities(func(addr common.Address, s state.Identity) {
+		if ctx.prevState.State.AccountExists(addr) {
+			return
+		}
+		callback(addr, s)
 	})
 	return balances
 }

@@ -41,6 +41,7 @@ const (
 	nextValidationSummaryQuery     = "nextValidationSummary.sql"
 	identityTxsQuery               = "identityTxs.sql"
 	identityInvitesQuery           = "identityInvites.sql"
+	addressQuery                   = "address.sql"
 )
 
 type flipWithKey struct {
@@ -523,6 +524,23 @@ func (a *postgresAccessor) epochIdentityAnswers(epochIdentityId int64) (short, l
 		}
 	}
 	return
+}
+
+func (a *postgresAccessor) Address(address string) (types.Address, error) {
+	rows, err := a.db.Query(a.getQuery(addressQuery), address)
+	if err != nil {
+		return types.Address{}, err
+	}
+	defer rows.Close()
+	if !rows.Next() {
+		return types.Address{}, errors.New(fmt.Sprintf("Address %s not found", address))
+	}
+	res := types.Address{}
+	err = rows.Scan(&res.Address, &res.Balance, &res.Stake, &res.TxCount)
+	if err != nil {
+		return types.Address{}, err
+	}
+	return res, nil
 }
 
 func (a *postgresAccessor) Destroy() {
