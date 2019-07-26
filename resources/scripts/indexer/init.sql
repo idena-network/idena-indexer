@@ -74,6 +74,44 @@ CREATE TABLE IF NOT EXISTS public.blocks
 ALTER TABLE public.blocks
     OWNER to postgres;
 
+-- SEQUENCE: public.addresses_id_seq
+
+-- DROP SEQUENCE public.addresses_id_seq;
+
+CREATE SEQUENCE IF NOT EXISTS public.addresses_id_seq
+    INCREMENT 1
+    START 1
+    MINVALUE 1
+    MAXVALUE 2147483647
+    CACHE 1;
+
+ALTER SEQUENCE public.addresses_id_seq
+    OWNER TO postgres;
+
+-- Table: public.addresses
+
+-- DROP TABLE public.addresses;
+
+CREATE TABLE IF NOT EXISTS public.addresses
+(
+    id       integer                                    NOT NULL DEFAULT nextval('addresses_id_seq'::regclass),
+    address  character(42) COLLATE pg_catalog."default" NOT NULL,
+    block_id integer                                    NOT NULL,
+    CONSTRAINT addresses_pkey PRIMARY KEY (id),
+    CONSTRAINT addresses_address_key UNIQUE (address),
+    CONSTRAINT addresses_block_id_fkey FOREIGN KEY (block_id)
+        REFERENCES public.blocks (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+)
+    WITH (
+        OIDS = FALSE
+    )
+    TABLESPACE pg_default;
+
+ALTER TABLE public.addresses
+    OWNER to postgres;
+
 -- SEQUENCE: public.transactions_id_seq
 
 -- DROP SEQUENCE public.transactions_id_seq;
@@ -103,8 +141,19 @@ CREATE TABLE IF NOT EXISTS public.transactions
     amount   character varying(20) COLLATE pg_catalog."default" NOT NULL,
     fee      character varying(20) COLLATE pg_catalog."default" NOT NULL,
     CONSTRAINT transactions_pkey PRIMARY KEY (id),
-    CONSTRAINT transactions_hash_key UNIQUE (hash)
-
+    CONSTRAINT transactions_hash_key UNIQUE (hash),
+    CONSTRAINT transactions_block_id_fkey FOREIGN KEY (block_id)
+        REFERENCES public.blocks (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT transactions_from_fkey FOREIGN KEY ("from")
+        REFERENCES public.addresses (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT transactions_to_fkey FOREIGN KEY ("to")
+        REFERENCES public.addresses (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
 )
     WITH (
         OIDS = FALSE
@@ -112,39 +161,6 @@ CREATE TABLE IF NOT EXISTS public.transactions
     TABLESPACE pg_default;
 
 ALTER TABLE public.transactions
-    OWNER to postgres;
-
--- SEQUENCE: public.addresses_id_seq
-
--- DROP SEQUENCE public.addresses_id_seq;
-
-CREATE SEQUENCE IF NOT EXISTS public.addresses_id_seq
-    INCREMENT 1
-    START 1
-    MINVALUE 1
-    MAXVALUE 2147483647
-    CACHE 1;
-
-ALTER SEQUENCE public.addresses_id_seq
-    OWNER TO postgres;
-
--- Table: public.addresses
-
--- DROP TABLE public.addresses;
-
-CREATE TABLE IF NOT EXISTS public.addresses
-(
-    id       integer                                    NOT NULL DEFAULT nextval('addresses_id_seq'::regclass),
-    address  character(42) COLLATE pg_catalog."default" NOT NULL,
-    block_id integer                                    NOT NULL,
-    CONSTRAINT addresses_pkey PRIMARY KEY (id)
-)
-    WITH (
-        OIDS = FALSE
-    )
-    TABLESPACE pg_default;
-
-ALTER TABLE public.addresses
     OWNER to postgres;
 
 -- SEQUENCE: public.address_states_id_seq
@@ -172,7 +188,15 @@ CREATE TABLE IF NOT EXISTS public.address_states
     state      character varying(20) COLLATE pg_catalog."default" NOT NULL,
     is_actual  boolean                                            NOT NULL,
     block_id   integer                                            NOT NULL,
-    CONSTRAINT address_states_pkey PRIMARY KEY (id)
+    CONSTRAINT address_states_pkey PRIMARY KEY (id),
+    CONSTRAINT address_states_address_id_fkey FOREIGN KEY (address_id)
+        REFERENCES public.addresses (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT address_states_block_id_fkey FOREIGN KEY (block_id)
+        REFERENCES public.blocks (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
 )
     WITH (
         OIDS = FALSE
@@ -212,8 +236,15 @@ CREATE TABLE IF NOT EXISTS public.epoch_identities
     approved         boolean NOT NULL,
     missed           boolean NOT NULL,
     CONSTRAINT epoch_identities_pkey PRIMARY KEY (id),
-    CONSTRAINT epoch_identities_epoch_id_identity_id_key UNIQUE (epoch_id, address_state_id)
-
+    CONSTRAINT epoch_identities_epoch_id_identity_id_key UNIQUE (epoch_id, address_state_id),
+    CONSTRAINT epoch_identities_address_state_id_fkey FOREIGN KEY (address_state_id)
+        REFERENCES public.address_states (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT epoch_identities_epoch_id_fkey FOREIGN KEY (epoch_id)
+        REFERENCES public.epochs (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
 )
     WITH (
         OIDS = FALSE
@@ -252,8 +283,19 @@ CREATE TABLE IF NOT EXISTS public.flips
     data_tx_id      integer,
     data            bytea,
     CONSTRAINT flips_pkey PRIMARY KEY (id),
-    CONSTRAINT flips_cid_key UNIQUE (cid)
-
+    CONSTRAINT flips_cid_key UNIQUE (cid),
+    CONSTRAINT flips_data_tx_id_fkey FOREIGN KEY (data_tx_id)
+        REFERENCES public.transactions (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT flips_status_block_id_fkey FOREIGN KEY (status_block_id)
+        REFERENCES public.blocks (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT flips_tx_id_fkey FOREIGN KEY (tx_id)
+        REFERENCES public.transactions (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
 )
     WITH (
         OIDS = FALSE
@@ -286,7 +328,11 @@ CREATE TABLE IF NOT EXISTS public.flip_keys
     id    integer                                             NOT NULL DEFAULT nextval('flip_keys_id_seq'::regclass),
     tx_id integer                                             NOT NULL,
     key   character varying(100) COLLATE pg_catalog."default" NOT NULL,
-    CONSTRAINT flip_keys_pkey PRIMARY KEY (id)
+    CONSTRAINT flip_keys_pkey PRIMARY KEY (id),
+    CONSTRAINT flip_keys_tx_id_fkey FOREIGN KEY (tx_id)
+        REFERENCES public.transactions (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
 )
     WITH (
         OIDS = FALSE
@@ -321,7 +367,15 @@ CREATE TABLE IF NOT EXISTS public.answers
     epoch_identity_id integer                                            NOT NULL,
     is_short          boolean                                            NOT NULL,
     answer            character varying(20) COLLATE pg_catalog."default" NOT NULL,
-    CONSTRAINT answers_pkey PRIMARY KEY (id)
+    CONSTRAINT answers_pkey PRIMARY KEY (id),
+    CONSTRAINT answers_epoch_identity_id_fkey FOREIGN KEY (epoch_identity_id)
+        REFERENCES public.epoch_identities (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT answers_flip_id_fkey FOREIGN KEY (flip_id)
+        REFERENCES public.flips (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
 )
     WITH (
         OIDS = FALSE
@@ -355,7 +409,15 @@ CREATE TABLE IF NOT EXISTS public.flips_to_solve
     epoch_identity_id integer NOT NULL,
     flip_id           integer NOT NULL,
     is_short          boolean NOT NULL,
-    CONSTRAINT flips_to_solve_pkey PRIMARY KEY (id)
+    CONSTRAINT flips_to_solve_pkey PRIMARY KEY (id),
+    CONSTRAINT flips_to_solve_epoch_identity_id_fkey FOREIGN KEY (epoch_identity_id)
+        REFERENCES public.epoch_identities (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT flips_to_solve_flip_id_fkey FOREIGN KEY (flip_id)
+        REFERENCES public.flips (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
 )
     WITH (
         OIDS = FALSE
