@@ -206,6 +206,8 @@ github.com/idena-network/idena-go v0.3.2-0.20190724051032-7c8516bd9e12 h1:awUccq
 github.com/idena-network/idena-go v0.3.2-0.20190724051032-7c8516bd9e12/go.mod h1:20Enw3T7Z8Std7givuZrZ2ZXhfj3a4nun++tvvP6L10=
 github.com/idena-network/idena-go v0.4.1-0.20190726045443-36187b8fe733 h1:UVVOfk4ckQ456TYf9hCEu3mKWUON3igqMFVOIsN0nzY=
 github.com/idena-network/idena-go v0.4.1-0.20190726045443-36187b8fe733/go.mod h1:w199o4Il8r+CqE6+yh8WDL2Cg8v+HEN5yW574NjVk7Q=
+github.com/idena-network/idena-go v0.4.1-0.20190726115955-ad21454cb802 h1:yQUuBZLVi0zkAfZU/YUF8v7PDHMP80X9WBkYBPUfv5w=
+github.com/idena-network/idena-go v0.4.1-0.20190726115955-ad21454cb802/go.mod h1:w199o4Il8r+CqE6+yh8WDL2Cg8v+HEN5yW574NjVk7Q=
 github.com/inconshreveable/mousetrap v1.0.0/go.mod h1:PxqpIevigyE2G7u3NXJIT2ANytuPF1OarO4DADm73n8=
 github.com/ipfs/bbloom v0.0.1 h1:s7KkiBPfxCeDVo47KySjK0ACPc5GJRUxFpdyWEuDjhw=
 github.com/ipfs/bbloom v0.0.1/go.mod h1:oqo8CVWsJFMOZqTglBG4wydCE4IQA/G2/SEofB0rjUI=
