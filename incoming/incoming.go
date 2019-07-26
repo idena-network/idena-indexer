@@ -31,6 +31,7 @@ func (l *listenerImpl) Listen(handleBlock func(block *types.Block), expectedHead
 	if err != nil {
 		panic(err)
 	}
+	cfg.Sync.FastSync = false
 
 	bus := eventbus.New()
 	bus.Subscribe(events.AddBlockEventID,
