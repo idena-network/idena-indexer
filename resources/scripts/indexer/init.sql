@@ -112,6 +112,24 @@ CREATE TABLE IF NOT EXISTS public.addresses
 ALTER TABLE public.addresses
     OWNER to postgres;
 
+-- Table: public.proposers
+
+-- DROP TABLE public.proposers;
+
+CREATE TABLE IF NOT EXISTS public.proposers
+(
+    address_id bigint NOT NULL,
+    block_id   bigint NOT NULL,
+    CONSTRAINT proposers_pkey PRIMARY KEY (block_id)
+)
+    WITH (
+        OIDS = FALSE
+    )
+    TABLESPACE pg_default;
+
+ALTER TABLE public.proposers
+    OWNER to postgres;
+
 -- SEQUENCE: public.transactions_id_seq
 
 -- DROP SEQUENCE public.transactions_id_seq;

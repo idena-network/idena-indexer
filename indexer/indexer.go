@@ -241,7 +241,15 @@ func convertBlock(incomingBlock *types.Block, ctx *conversionContext) db.Block {
 		Hash:         convertHash(incomingBlock.Hash()),
 		Time:         *incomingBlock.Header.Time(),
 		Transactions: txs,
+		Proposer:     getProposer(incomingBlock),
 	}
+}
+
+func getProposer(block *types.Block) string {
+	if block.IsEmpty() {
+		return ""
+	}
+	return convertAddress(block.Header.ProposedHeader.Coinbase)
 }
 
 func convertTransactions(incomingTxs []*types.Transaction, ctx *conversionContext) []db.Transaction {

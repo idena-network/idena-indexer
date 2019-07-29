@@ -21,6 +21,7 @@ const (
 	epochQuery                     = "epoch.sql"
 	epochBlocksQuery               = "epochBlocks.sql"
 	epochTxsQuery                  = "epochTxs.sql"
+	blockQuery                     = "block.sql"
 	blockTxsQuery                  = "blockTxs.sql"
 	epochFlipsWithKeyQuery         = "epochFlipsWithKey.sql"
 	epochFlipsQuery                = "epochFlips.sql"
@@ -163,15 +164,15 @@ func (a *postgresAccessor) Epoch(epoch uint64) (types.EpochDetail, error) {
 	return epochInfo, nil
 }
 
-func (a *postgresAccessor) EpochBlocks(epoch uint64) ([]types.Block, error) {
+func (a *postgresAccessor) EpochBlocks(epoch uint64) ([]types.BlockSummary, error) {
 	rows, err := a.db.Query(a.getQuery(epochBlocksQuery), epoch)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var blocks []types.Block
+	var blocks []types.BlockSummary
 	for rows.Next() {
-		block := types.Block{}
+		block := types.BlockSummary{}
 		var timestamp int64
 		err = rows.Scan(&block.Height, &timestamp, &block.TxCount)
 		if err != nil {
@@ -189,6 +190,25 @@ func (a *postgresAccessor) EpochTxs(epoch uint64) ([]types.Transaction, error) {
 		return nil, err
 	}
 	return a.readTxs(rows)
+}
+
+func (a *postgresAccessor) Block(height uint64) (types.BlockDetail, error) {
+	rows, err := a.db.Query(a.getQuery(blockQuery), height)
+	if err != nil {
+		return types.BlockDetail{}, err
+	}
+	defer rows.Close()
+	if !rows.Next() {
+		return types.BlockDetail{}, errors.New(fmt.Sprintf("Block with height=%d not found", height))
+	}
+	res := types.BlockDetail{}
+	var timestamp int64
+	err = rows.Scan(&res.Height, &timestamp, &res.TxCount, &res.Proposer)
+	if err != nil {
+		return types.BlockDetail{}, err
+	}
+	res.Timestamp = common.TimestampToTime(big.NewInt(timestamp))
+	return res, nil
 }
 
 func (a *postgresAccessor) BlockTxs(height uint64) ([]types.Transaction, error) {

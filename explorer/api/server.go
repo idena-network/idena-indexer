@@ -35,6 +35,7 @@ func NewServer(port int, db db.Accessor, logger log.Logger) Server {
 	server.handlers[strings.ToLower("/api/EpochIdentity")] = server.epochIdentity
 	server.handlers[strings.ToLower("/api/Summary")] = server.summary
 	server.handlers[strings.ToLower("/api/Address")] = server.address
+	server.handlers[strings.ToLower("/api/Block")] = server.block
 	return server
 }
 
@@ -197,6 +198,14 @@ func (s *httpServer) address(r *http.Request) Response {
 		return getErrorResponse(err)
 	}
 	return getResponse(s.api.address(address))
+}
+
+func (s *httpServer) block(r *http.Request) Response {
+	height, err := readUintParameter(r, "height")
+	if err != nil {
+		return getErrorResponse(err)
+	}
+	return getResponse(s.api.block(height))
 }
 
 func getErrorMsgResponse(errMsg string) Response {

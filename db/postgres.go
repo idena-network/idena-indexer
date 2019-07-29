@@ -23,6 +23,7 @@ const (
 	updateFlipDataQuery       = "updateFlipData.sql"
 	insertAnswersQuery        = "insertAnswers.sql"
 	insertBlockQuery          = "insertBlock.sql"
+	insertProposerQuery       = "insertProposer.sql"
 	selectIdentityQuery       = "selectIdentity.sql"
 	selectFlipQuery           = "selectFlip.sql"
 	insertEpochIdentityQuery  = "insertEpochIdentity.sql"
@@ -136,6 +137,10 @@ func (a *postgresAccessor) Save(data *Data) error {
 	}
 
 	if ctx.addrIdsPerAddr, err = a.saveAddresses(ctx, data.Addresses); err != nil {
+		return err
+	}
+
+	if err = a.saveProposer(ctx, data.Block); err != nil {
 		return err
 	}
 
@@ -256,6 +261,14 @@ func (a *postgresAccessor) saveEpoch(ctx *context, epoch uint64, validationTime 
 func (a *postgresAccessor) saveBlock(ctx *context, block Block) (id int64, err error) {
 	err = ctx.tx.QueryRow(a.getQuery(insertBlockQuery), block.Height, block.Hash, ctx.epochId, block.Time.Int64()).Scan(&id)
 	return
+}
+
+func (a *postgresAccessor) saveProposer(ctx *context, block Block) error {
+	if len(block.Proposer) == 0 {
+		return nil
+	}
+	_, err := ctx.tx.Exec(a.getQuery(insertProposerQuery), ctx.blockId, block.Proposer)
+	return err
 }
 
 func (a *postgresAccessor) saveAddresses(ctx *context, addresses []Address) (map[string]int64, error) {

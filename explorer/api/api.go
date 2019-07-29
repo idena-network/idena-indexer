@@ -27,12 +27,16 @@ func (a *api) epoch(epoch uint64) (types.EpochDetail, error) {
 	return a.db.Epoch(epoch)
 }
 
-func (a *api) epochBlocks(epoch uint64) ([]types.Block, error) {
+func (a *api) epochBlocks(epoch uint64) ([]types.BlockSummary, error) {
 	return a.db.EpochBlocks(epoch)
 }
 
 func (a *api) epochTxs(epoch uint64) ([]types.Transaction, error) {
 	return a.db.EpochTxs(epoch)
+}
+
+func (a *api) block(height uint64) (types.BlockDetail, error) {
+	return a.db.Block(height)
 }
 
 func (a *api) blockTxs(height uint64) ([]types.Transaction, error) {

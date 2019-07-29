@@ -23,10 +23,18 @@ type EpochDetail struct {
 	WeaklyQualifiedFlipCount uint32 `json:"weaklyQualifiedFlipCount"`
 }
 
-type Block struct {
+type BlockSummary struct {
 	Height    uint64    `json:"height"`
 	Timestamp time.Time `json:"timestamp"`
 	TxCount   uint16    `json:"txCount"`
+}
+
+type BlockDetail struct {
+	Height          uint64    `json:"height"`
+	Timestamp       time.Time `json:"timestamp"`
+	TxCount         uint16    `json:"txCount"`
+	ValidatorsCount uint16    `json:"validatorsCount"`
+	Proposer        string    `json:"proposer"`
 }
 
 type Transaction struct {

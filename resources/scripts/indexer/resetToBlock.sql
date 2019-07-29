@@ -89,6 +89,11 @@ from transactions
 where block_id in
       (select id from blocks where height > $1);
 
+-- proposers
+delete
+from proposers
+where block_id in (select id from blocks where height > $1);
+
 -- addresses
 delete
 from addresses

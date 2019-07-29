@@ -1,6 +1,7 @@
 package main
 
 import (
+	config3 "github.com/idena-network/idena-go/config"
 	nodeLog "github.com/idena-network/idena-go/log"
 	"github.com/idena-network/idena-indexer/config"
 	"github.com/idena-network/idena-indexer/db"
@@ -30,6 +31,9 @@ func main() {
 			Usage: "Indexer config file",
 			Value: "indexerConfig.json",
 		},
+		config3.TcpPortFlag,
+		config3.RpcPortFlag,
+		config3.IpfsPortFlag,
 	}
 
 	app.Action = func(context *cli.Context) error {
@@ -40,7 +44,7 @@ func main() {
 
 		conf := config.LoadConfig(context.String("indexerConfig"))
 		initLog(conf.Verbosity, conf.NodeVerbosity)
-		indexer := initIndexer(conf)
+		indexer := initIndexer(context, conf)
 		defer indexer.Destroy()
 		indexer.Start()
 		return nil
@@ -61,8 +65,8 @@ func initLog(verbosity int, nodeVerbosity int) {
 	}
 }
 
-func initIndexer(config *config.Config) *indexer.Indexer {
-	listener := incoming.NewListener(config.NodeConfigFile)
+func initIndexer(context *cli.Context, config *config.Config) *indexer.Indexer {
+	listener := incoming.NewListener(context)
 	dbAccessor := db.NewPostgresAccessor(config.PostgresConnStr, config.ScriptsDir)
 	return indexer.NewIndexer(listener, dbAccessor)
 }

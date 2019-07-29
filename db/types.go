@@ -24,6 +24,7 @@ type Block struct {
 	Hash               string
 	Transactions       []Transaction
 	Time               big.Int
+	Proposer           string
 }
 
 type Transaction struct {

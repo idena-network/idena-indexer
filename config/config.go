@@ -10,7 +10,6 @@ import (
 
 type Config struct {
 	PostgresConnStr string
-	NodeConfigFile  string
 	Verbosity       int
 	NodeVerbosity   int
 	ScriptsDir      string
