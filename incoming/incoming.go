@@ -6,7 +6,6 @@ import (
 	"github.com/idena-network/idena-go/config"
 	"github.com/idena-network/idena-go/events"
 	"github.com/idena-network/idena-go/node"
-	"gopkg.in/urfave/cli.v1"
 )
 
 type Listener interface {
@@ -16,20 +15,19 @@ type Listener interface {
 }
 
 type listenerImpl struct {
-	//nodeConfigFile string
-	appContext *cli.Context
-	n          *node.Node
+	nodeConfigFile string
+	n              *node.Node
 }
 
-func NewListener(appContext *cli.Context) Listener {
+func NewListener(nodeConfigFile string) Listener {
 	l := &listenerImpl{
-		appContext: appContext,
+		nodeConfigFile: nodeConfigFile,
 	}
 	return l
 }
 
 func (l *listenerImpl) Listen(handleBlock func(block *types.Block), expectedHeadHeight uint64) {
-	cfg, err := config.MakeConfig(l.appContext)
+	cfg, err := config.MakeConfigFromFile(l.nodeConfigFile)
 	if err != nil {
 		panic(err)
 	}

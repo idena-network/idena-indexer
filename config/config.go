@@ -10,6 +10,7 @@ import (
 
 type Config struct {
 	PostgresConnStr string
+	NodeConfigFile  string
 	Verbosity       int
 	NodeVerbosity   int
 	ScriptsDir      string
@@ -34,8 +35,9 @@ func LoadConfig(configPath string) *Config {
 
 func newDefaultConfig() *Config {
 	return &Config{
-		ScriptsDir:    filepath.Join("resources", "scripts", "indexer"),
-		Verbosity:     3,
-		NodeVerbosity: 0,
+		NodeConfigFile: filepath.Join("resources", "conf", "node.json"),
+		ScriptsDir:     filepath.Join("resources", "scripts", "indexer"),
+		Verbosity:      3,
+		NodeVerbosity:  0,
 	}
 }

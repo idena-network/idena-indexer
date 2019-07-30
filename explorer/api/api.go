@@ -31,7 +31,7 @@ func (a *api) epochBlocks(epoch uint64) ([]types.BlockSummary, error) {
 	return a.db.EpochBlocks(epoch)
 }
 
-func (a *api) epochTxs(epoch uint64) ([]types.Transaction, error) {
+func (a *api) epochTxs(epoch uint64) ([]types.TransactionSummary, error) {
 	return a.db.EpochTxs(epoch)
 }
 
@@ -39,7 +39,7 @@ func (a *api) block(height uint64) (types.BlockDetail, error) {
 	return a.db.Block(height)
 }
 
-func (a *api) blockTxs(height uint64) ([]types.Transaction, error) {
+func (a *api) blockTxs(height uint64) ([]types.TransactionSummary, error) {
 	return a.db.BlockTxs(height)
 }
 
@@ -69,4 +69,8 @@ func (a *api) epochIdentity(epoch uint64, address string) (types.EpochIdentity, 
 
 func (a *api) address(address string) (types.Address, error) {
 	return a.db.Address(address)
+}
+
+func (a *api) transaction(hash string) (types.TransactionDetail, error) {
+	return a.db.Transaction(hash)
 }

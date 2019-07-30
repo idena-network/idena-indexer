@@ -423,7 +423,7 @@ func (a *postgresAccessor) saveTransaction(ctx *context, idenaTx Transaction) (i
 	}
 	var to interface{}
 	if len(idenaTx.To) > 0 {
-		to, err = ctx.addrId(idenaTx.From)
+		to, err = ctx.addrId(idenaTx.To)
 		if err != nil {
 			return 0, err
 		}

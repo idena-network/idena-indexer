@@ -43,6 +43,7 @@ const (
 	identityTxsQuery               = "identityTxs.sql"
 	identityInvitesQuery           = "identityInvites.sql"
 	addressQuery                   = "address.sql"
+	transactionQuery               = "transaction.sql"
 )
 
 type flipWithKey struct {
@@ -184,7 +185,7 @@ func (a *postgresAccessor) EpochBlocks(epoch uint64) ([]types.BlockSummary, erro
 	return blocks, nil
 }
 
-func (a *postgresAccessor) EpochTxs(epoch uint64) ([]types.Transaction, error) {
+func (a *postgresAccessor) EpochTxs(epoch uint64) ([]types.TransactionSummary, error) {
 	rows, err := a.db.Query(a.getQuery(epochTxsQuery), epoch)
 	if err != nil {
 		return nil, err
@@ -193,17 +194,12 @@ func (a *postgresAccessor) EpochTxs(epoch uint64) ([]types.Transaction, error) {
 }
 
 func (a *postgresAccessor) Block(height uint64) (types.BlockDetail, error) {
-	rows, err := a.db.Query(a.getQuery(blockQuery), height)
-	if err != nil {
-		return types.BlockDetail{}, err
-	}
-	defer rows.Close()
-	if !rows.Next() {
-		return types.BlockDetail{}, errors.New(fmt.Sprintf("Block with height=%d not found", height))
-	}
 	res := types.BlockDetail{}
 	var timestamp int64
-	err = rows.Scan(&res.Height, &timestamp, &res.TxCount, &res.Proposer)
+	err := a.db.QueryRow(a.getQuery(blockQuery), height).Scan(&res.Height, &timestamp, &res.TxCount, &res.Proposer)
+	if err == sql.ErrNoRows {
+		err = NoDataFound
+	}
 	if err != nil {
 		return types.BlockDetail{}, err
 	}
@@ -211,7 +207,7 @@ func (a *postgresAccessor) Block(height uint64) (types.BlockDetail, error) {
 	return res, nil
 }
 
-func (a *postgresAccessor) BlockTxs(height uint64) ([]types.Transaction, error) {
+func (a *postgresAccessor) BlockTxs(height uint64) ([]types.TransactionSummary, error) {
 	rows, err := a.db.Query(a.getQuery(blockTxsQuery), height)
 	if err != nil {
 		return nil, err
@@ -219,11 +215,11 @@ func (a *postgresAccessor) BlockTxs(height uint64) ([]types.Transaction, error) 
 	return a.readTxs(rows)
 }
 
-func (a *postgresAccessor) readTxs(rows *sql.Rows) ([]types.Transaction, error) {
+func (a *postgresAccessor) readTxs(rows *sql.Rows) ([]types.TransactionSummary, error) {
 	defer rows.Close()
-	var txs []types.Transaction
+	var txs []types.TransactionSummary
 	for rows.Next() {
-		tx := types.Transaction{}
+		tx := types.TransactionSummary{}
 		var timestamp int64
 		if err := rows.Scan(&tx.Hash, &tx.Type, &timestamp, &tx.From, &tx.To, &tx.Amount, &tx.Fee); err != nil {
 			return nil, err
@@ -311,17 +307,12 @@ func (a *postgresAccessor) EpochIdentities(epoch uint64) ([]types.EpochIdentityS
 }
 
 func (a *postgresAccessor) Flip(hash string) (types.Flip, error) {
-	rows, err := a.db.Query(a.getQuery(flipQuery), hash)
-	if err != nil {
-		return types.Flip{}, err
-	}
-	defer rows.Close()
-	if !rows.Next() {
-		return types.Flip{}, errors.New(fmt.Sprintf("Flip %s not found", hash))
-	}
 	flip := types.Flip{}
 	var id uint64
-	err = rows.Scan(&id, &flip.Answer, &flip.Status, &flip.Data)
+	err := a.db.QueryRow(a.getQuery(flipQuery), hash).Scan(&id, &flip.Answer, &flip.Status, &flip.Data)
+	if err == sql.ErrNoRows {
+		err = NoDataFound
+	}
 	if err != nil {
 		return types.Flip{}, err
 	}
@@ -349,17 +340,12 @@ func (a *postgresAccessor) Flip(hash string) (types.Flip, error) {
 }
 
 func (a *postgresAccessor) Identity(address string) (types.Identity, error) {
-	rows, err := a.db.Query(a.getQuery(identityQuery), address)
-	if err != nil {
-		return types.Identity{}, err
-	}
-	defer rows.Close()
-	if !rows.Next() {
-		return types.Identity{}, errors.New(fmt.Sprintf("Identity %s not found", address))
-	}
 	identity := types.Identity{}
 	var addressId int64
-	err = rows.Scan(&addressId, &identity.State)
+	err := a.db.QueryRow(a.getQuery(identityQuery), address).Scan(&addressId, &identity.State)
+	if err == sql.ErrNoRows {
+		err = NoDataFound
+	}
 	if err != nil {
 		return types.Identity{}, err
 	}
@@ -441,7 +427,7 @@ func (a *postgresAccessor) identityEpochs(identityId int64) ([]types.IdentityEpo
 	return res, nil
 }
 
-func (a *postgresAccessor) identityTxs(addressId int64) ([]types.Transaction, error) {
+func (a *postgresAccessor) identityTxs(addressId int64) ([]types.TransactionSummary, error) {
 	rows, err := a.db.Query(a.getQuery(identityTxsQuery), addressId)
 	if err != nil {
 		return nil, err
@@ -476,19 +462,15 @@ func (a *postgresAccessor) identityInvites(addressId int64) ([]types.Invite, err
 }
 
 func (a *postgresAccessor) EpochIdentity(epoch uint64, address string) (types.EpochIdentity, error) {
-	rows, err := a.db.Query(a.getQuery(epochIdentityQuery), epoch, address)
+	var id int64
+	err := a.db.QueryRow(a.getQuery(epochIdentityQuery), epoch, address).Scan(&id)
+	if err == sql.ErrNoRows {
+		err = NoDataFound
+	}
 	if err != nil {
 		return types.EpochIdentity{}, err
 	}
-	defer rows.Close()
-	if !rows.Next() {
-		return types.EpochIdentity{}, errors.New(fmt.Sprintf("Identity %s not found in epoch %d", address, epoch))
-	}
 	epochIdentity := types.EpochIdentity{}
-	var id int64
-	if err = rows.Scan(&id); err != nil {
-		return types.EpochIdentity{}, err
-	}
 	if epochIdentity.ShortFlipsToSolve, epochIdentity.LongFlipsToSolve, err = a.epochIdentityFlipsToSolve(id); err != nil {
 		return types.EpochIdentity{}, err
 	}
@@ -547,19 +529,29 @@ func (a *postgresAccessor) epochIdentityAnswers(epochIdentityId int64) (short, l
 }
 
 func (a *postgresAccessor) Address(address string) (types.Address, error) {
-	rows, err := a.db.Query(a.getQuery(addressQuery), address)
-	if err != nil {
-		return types.Address{}, err
-	}
-	defer rows.Close()
-	if !rows.Next() {
-		return types.Address{}, errors.New(fmt.Sprintf("Address %s not found", address))
-	}
 	res := types.Address{}
-	err = rows.Scan(&res.Address, &res.Balance, &res.Stake, &res.TxCount)
+	err := a.db.QueryRow(a.getQuery(addressQuery), address).Scan(&res.Address, &res.Balance, &res.Stake, &res.TxCount)
+	if err == sql.ErrNoRows {
+		err = NoDataFound
+	}
 	if err != nil {
 		return types.Address{}, err
 	}
+	return res, nil
+}
+
+func (a *postgresAccessor) Transaction(hash string) (types.TransactionDetail, error) {
+	res := types.TransactionDetail{}
+	var timestamp int64
+	err := a.db.QueryRow(a.getQuery(transactionQuery), hash).Scan(&res.Epoch, &res.BlockHeight, &res.BlockHash,
+		&res.Hash, &res.Type, &timestamp, &res.From, &res.To, &res.Amount, &res.Fee)
+	if err == sql.ErrNoRows {
+		err = NoDataFound
+	}
+	if err != nil {
+		return types.TransactionDetail{}, err
+	}
+	res.Timestamp = common.TimestampToTime(big.NewInt(timestamp))
 	return res, nil
 }
 

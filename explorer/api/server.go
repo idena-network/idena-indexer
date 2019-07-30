@@ -36,6 +36,7 @@ func NewServer(port int, db db.Accessor, logger log.Logger) Server {
 	server.handlers[strings.ToLower("/api/Summary")] = server.summary
 	server.handlers[strings.ToLower("/api/Address")] = server.address
 	server.handlers[strings.ToLower("/api/Block")] = server.block
+	server.handlers[strings.ToLower("/api/Transaction")] = server.transaction
 	return server
 }
 
@@ -206,6 +207,14 @@ func (s *httpServer) block(r *http.Request) Response {
 		return getErrorResponse(err)
 	}
 	return getResponse(s.api.block(height))
+}
+
+func (s *httpServer) transaction(r *http.Request) Response {
+	hash, err := readStrParameter(r, "hash")
+	if err != nil {
+		return getErrorResponse(err)
+	}
+	return getResponse(s.api.transaction(hash))
 }
 
 func getErrorMsgResponse(errMsg string) Response {
