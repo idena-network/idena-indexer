@@ -473,7 +473,7 @@ func convertShortAnswers(tx *types.Transaction, ctx *conversionContext) {
 	flipsData, err := getFlipsData(tx, attachment, ctx)
 	if err != nil {
 		log.Error("Unable to get flips data. Skipped.", "tx", tx.Hash(), "err", err)
-	} else {
+	} else if flipsData != nil {
 		ctx.flipsData = append(ctx.flipsData, flipsData...)
 	}
 

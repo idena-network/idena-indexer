@@ -95,7 +95,7 @@ type Flip struct {
 	Answer       string        `json:"answer"`
 	ShortAnswers []Answer      `json:"shortAnswers"`
 	LongAnswers  []Answer      `json:"longAnswers"`
-	Data         hexutil.Bytes `json:"hex"`
+	Data         hexutil.Bytes `json:"hex,omitempty"`
 }
 
 type Answer struct {
