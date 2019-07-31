@@ -3,6 +3,7 @@ package indexer
 import (
 	"encoding/hex"
 	"fmt"
+	mapset "github.com/deckarep/golang-set"
 	"github.com/idena-network/idena-go/blockchain"
 	"github.com/idena-network/idena-go/blockchain/attachments"
 	"github.com/idena-network/idena-go/blockchain/types"
@@ -144,28 +145,30 @@ func (indexer *Indexer) loadHeightToIndex() uint64 {
 }
 
 type conversionContext struct {
-	submittedFlips []db.Flip
-	flipKeys       []db.FlipKey
-	flipsData      []db.FlipData
-	addresses      []db.Address
-	prevState      *appstate.AppState
-	newState       *appstate.AppState
-	chain          *blockchain.Blockchain
-	c              *ceremony.ValidationCeremony
-	fp             *flip.Flipper
-	getFlips       func(string) ([]string, error)
+	blockHeight       uint64
+	submittedFlips    []db.Flip
+	flipKeys          []db.FlipKey
+	flipsData         []db.FlipData
+	addresses         []db.Address
+	prevStateReadOnly *appstate.AppState
+	newStateReadOnly  *appstate.AppState
+	chain             *blockchain.Blockchain
+	c                 *ceremony.ValidationCeremony
+	fp                *flip.Flipper
+	getFlips          func(string) ([]string, error)
 }
 
 func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) *db.Data {
 	prevState := indexer.listener.Node().AppStateReadonly(incomingBlock.Height() - 1)
 	newState := indexer.listener.Node().AppStateReadonly(incomingBlock.Height())
 	ctx := conversionContext{
-		prevState: prevState,
-		newState:  newState,
-		chain:     indexer.listener.Node().Blockchain(),
-		c:         indexer.listener.Node().Ceremony(),
-		fp:        indexer.listener.Node().Flipper(),
-		getFlips:  indexer.db.GetCurrentFlipCids,
+		blockHeight:       incomingBlock.Height(),
+		prevStateReadOnly: prevState,
+		newStateReadOnly:  newState,
+		chain:             indexer.listener.Node().Blockchain(),
+		c:                 indexer.listener.Node().Ceremony(),
+		fp:                indexer.listener.Node().Flipper(),
+		getFlips:          indexer.db.GetCurrentFlipCids,
 	}
 	epoch := uint64(prevState.State.Epoch())
 
@@ -176,7 +179,7 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) *db.Data
 
 	return &db.Data{
 		Epoch:          epoch,
-		ValidationTime: *big.NewInt(ctx.newState.State.NextValidationTime().Unix()),
+		ValidationTime: *big.NewInt(ctx.newStateReadOnly.State.NextValidationTime().Unix()),
 		Block:          block,
 		Identities:     identities,
 		SubmittedFlips: ctx.submittedFlips,
@@ -197,7 +200,7 @@ func determineFirstAddresses(incomingBlock *types.Block, ctx *conversionContext)
 		return nil
 	}
 	var addresses []db.Address
-	ctx.newState.State.IterateOverIdentities(func(addr common.Address, identity state.Identity) {
+	ctx.newStateReadOnly.State.IterateOverIdentities(func(addr common.Address, identity state.Identity) {
 		addresses = append(addresses, db.Address{
 			Address:  convertAddress(addr),
 			NewState: convertIdentityState(identity.State),
@@ -206,14 +209,20 @@ func determineFirstAddresses(incomingBlock *types.Block, ctx *conversionContext)
 	return addresses
 }
 
+func bytesToAddr(bytes []byte) common.Address {
+	addr := common.Address{}
+	addr.SetBytes(bytes[1:])
+	return addr
+}
+
 func determineBalanceChanges(ctx *conversionContext) []db.Balance {
 	var balances []db.Balance
 
-	callback := func(addr common.Address, s state.Identity) {
-		prevBalance := ctx.prevState.State.GetBalance(addr)
-		prevStake := ctx.prevState.State.GetStakeBalance(addr)
-		balance := ctx.newState.State.GetBalance(addr)
-		stake := ctx.newState.State.GetStakeBalance(addr)
+	callback := func(addr common.Address) bool {
+		prevBalance := ctx.prevStateReadOnly.State.GetBalance(addr)
+		prevStake := ctx.prevStateReadOnly.State.GetStakeBalance(addr)
+		balance := ctx.newStateReadOnly.State.GetBalance(addr)
+		stake := ctx.newStateReadOnly.State.GetStakeBalance(addr)
 		if balance.Cmp(prevBalance) != 0 || stake.Cmp(prevStake) != 0 {
 			balances = append(balances, db.Balance{
 				Address: convertAddress(addr),
@@ -221,15 +230,29 @@ func determineBalanceChanges(ctx *conversionContext) []db.Balance {
 				Stake:   blockchain.ConvertToFloat(stake),
 			})
 		}
+		return false
 	}
 
-	ctx.prevState.State.IterateOverIdentities(callback)
-
-	ctx.newState.State.IterateOverIdentities(func(addr common.Address, s state.Identity) {
-		if ctx.prevState.State.AccountExists(addr) {
-			return
+	prevAddrs := mapset.NewSet()
+	ctx.prevStateReadOnly.State.IterateAccounts(func(key []byte, _ []byte) bool {
+		if key == nil {
+			return true
 		}
-		callback(addr, s)
+		addr := bytesToAddr(key)
+		callback(addr)
+		prevAddrs.Add(addr)
+		return false
+	})
+
+	ctx.newStateReadOnly.State.IterateAccounts(func(key []byte, _ []byte) bool {
+		if key == nil {
+			return true
+		}
+		addr := bytesToAddr(key)
+		if !prevAddrs.Contains(addr) {
+			callback(addr)
+		}
+		return false
 	})
 	return balances
 }
@@ -253,14 +276,18 @@ func getProposer(block *types.Block) string {
 }
 
 func convertTransactions(incomingTxs []*types.Transaction, ctx *conversionContext) []db.Transaction {
+	if len(incomingTxs) == 0 {
+		return nil
+	}
+	stateToApply := ctx.prevStateReadOnly.Readonly(ctx.blockHeight - 1)
 	var txs []db.Transaction
 	for _, incomingTx := range incomingTxs {
-		txs = append(txs, convertTransaction(incomingTx, ctx))
+		txs = append(txs, convertTransaction(incomingTx, ctx, stateToApply))
 	}
 	return txs
 }
 
-func convertTransaction(incomingTx *types.Transaction, ctx *conversionContext) db.Transaction {
+func convertTransaction(incomingTx *types.Transaction, ctx *conversionContext, stateToApply *appstate.AppState) db.Transaction {
 	if f := determineSubmittedFlip(incomingTx); f != nil {
 		ctx.submittedFlips = append(ctx.submittedFlips, *f)
 	}
@@ -280,7 +307,7 @@ func convertTransaction(incomingTx *types.Transaction, ctx *conversionContext) d
 		}
 	}
 
-	fee, err := ctx.chain.ApplyTxOnState(ctx.prevState, incomingTx)
+	fee, err := ctx.chain.ApplyTxOnState(stateToApply, incomingTx)
 	if err != nil {
 		log.Error("Unable to calculate tx fee", "tx", incomingTx.Hash(), "err", err)
 	}
@@ -298,8 +325,8 @@ func convertTransaction(incomingTx *types.Transaction, ctx *conversionContext) d
 }
 
 func convertTxAddress(address common.Address, ctx *conversionContext) db.Address {
-	prevAddrState := ctx.prevState.State.GetIdentityState(address)
-	curAddrState := ctx.newState.State.GetIdentityState(address)
+	prevAddrState := ctx.prevStateReadOnly.State.GetIdentityState(address)
+	curAddrState := ctx.newStateReadOnly.State.GetIdentityState(address)
 	var newAddrState string
 	if curAddrState != prevAddrState {
 		newAddrState = convertIdentityState(curAddrState)
@@ -374,10 +401,10 @@ func determineEpochResult(block *types.Block, ctx *conversionContext) ([]db.Epoc
 	var identities []db.EpochIdentity
 	validationStats := ctx.c.GetValidationStats()
 
-	ctx.prevState.State.IterateOverIdentities(func(addr common.Address, _ state.Identity) {
+	ctx.prevStateReadOnly.State.IterateOverIdentities(func(addr common.Address, _ state.Identity) {
 		convertedIdentity := db.EpochIdentity{}
 		convertedIdentity.Address = convertAddress(addr)
-		convertedIdentity.State = convertIdentityState(ctx.newState.State.GetIdentityState(addr))
+		convertedIdentity.State = convertIdentityState(ctx.newStateReadOnly.State.GetIdentityState(addr))
 		if stats, present := validationStats.IdentitiesPerAddr[addr]; present {
 			convertedIdentity.ShortPoint = stats.ShortPoint
 			convertedIdentity.ShortFlips = stats.ShortFlips
