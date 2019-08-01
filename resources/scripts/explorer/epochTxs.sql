@@ -5,3 +5,5 @@ from transactions t
          join addresses afrom on afrom.id = t.from
          left join addresses ato on ato.id = t.to
 where e.epoch = $1
+order by b.Timestamp desc
+limit 50
