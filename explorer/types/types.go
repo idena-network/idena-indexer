@@ -14,13 +14,10 @@ type EpochSummary struct {
 }
 
 type EpochDetail struct {
-	Epoch                    uint64 `json:"epoch"`
-	VerifiedCount            uint32 `json:"verifiedCount"`
-	BlockCount               uint32 `json:"blockCount"`
-	FlipCount                uint32 `json:"flipCount"`
-	FlipsWithKeyCount        uint32 `json:"flipsWithKeyCount"`
-	QualifiedFlipCount       uint32 `json:"qualifiedFlipCount"`
-	WeaklyQualifiedFlipCount uint32 `json:"weaklyQualifiedFlipCount"`
+	Epoch            uint64                     `json:"epoch"`
+	LatestValidation CompletedValidationSummary `json:"latestValidation"`
+	NextValidation   NewValidationSummary       `json:"nextValidation"`
+	BlockCount       uint32                     `json:"blockCount"`
 }
 
 type BlockSummary struct {
@@ -77,6 +74,7 @@ type Invite struct {
 type EpochIdentitySummary struct {
 	Address     string  `json:"address"`
 	State       string  `json:"state"`
+	PrevState   string  `json:"prevState"`
 	RespScore   float32 `json:"respScore"`
 	AuthorScore float32 `json:"authorScore"`
 	Approved    bool    `json:"approved"`
@@ -141,7 +139,7 @@ type IdentityEpoch struct {
 
 type Summary struct {
 	Identities       IdentitiesSummary          `json:"identities"`
-	LatestValidation CompletedValidationSummary `json:"latestValidation"`
+	LatestValidation CompletedValidationSummary `json:"latestValidation,omitempty"`
 	NextValidation   NewValidationSummary       `json:"nextValidation"`
 }
 
@@ -155,21 +153,22 @@ type StateCount struct {
 }
 
 type CompletedValidationSummary struct {
-	Verified             uint32 `json:"verified"`
-	NotVerified          uint32 `json:"notVerified"`
-	SubmittedFlips       uint32 `json:"submittedFlips"`
-	SolvedFlips          uint32 `json:"solvedFlips"`
-	QualifiedFlips       uint32 `json:"qualifiedFlips"`
-	WeaklyQualifiedFlips uint32 `json:"weaklyQualifiedFlips"`
-	NotQualifiedFlips    uint32 `json:"notQualifiedFlips"`
-	InappropriateFlips   uint32 `json:"inappropriateFlips"`
+	Time                 time.Time         `json:"time"`
+	FirstBlockHeight     uint64            `json:"firstBlockHeight"`
+	Identities           IdentitiesSummary `json:"identities"`
+	SubmittedFlips       uint32            `json:"submittedFlips"`
+	SolvedFlips          uint32            `json:"solvedFlips"`
+	FlipsWithKey         uint32            `json:"flipsWithKey"`
+	QualifiedFlips       uint32            `json:"qualifiedFlips"`
+	WeaklyQualifiedFlips uint32            `json:"weaklyQualifiedFlips"`
+	NotQualifiedFlips    uint32            `json:"notQualifiedFlips"`
+	InappropriateFlips   uint32            `json:"inappropriateFlips"`
 }
 
 type NewValidationSummary struct {
-	Time       time.Time `json:"time"`
-	Invites    uint32    `json:"invites"`
-	Candidates uint32    `json:"candidates"`
-	Flips      uint32    `json:"flips"`
+	Time    time.Time `json:"time"`
+	Invites uint32    `json:"invites"`
+	Flips   uint32    `json:"flips"`
 }
 
 type Address struct {

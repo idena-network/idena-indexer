@@ -41,6 +41,7 @@ const (
 	insertIdentityStateQuery  = "insertIdentityState.sql"
 	resetToBlockQuery         = "resetToBlock.sql"
 	insertBalanceQuery        = "insertBalance.sql"
+	insertBlockFlagQuery      = "insertBlockFlag.sql"
 )
 
 func (a *postgresAccessor) getQuery(name string) string {
@@ -133,6 +134,10 @@ func (a *postgresAccessor) Save(data *Data) error {
 
 	ctx.blockId, err = a.saveBlock(ctx, data.Block)
 	if err != nil {
+		return err
+	}
+
+	if err = a.saveBlockFlags(ctx, data.Block.Flags); err != nil {
 		return err
 	}
 
@@ -261,6 +266,23 @@ func (a *postgresAccessor) saveEpoch(ctx *context, epoch uint64, validationTime 
 func (a *postgresAccessor) saveBlock(ctx *context, block Block) (id int64, err error) {
 	err = ctx.tx.QueryRow(a.getQuery(insertBlockQuery), block.Height, block.Hash, ctx.epochId, block.Time.Int64()).Scan(&id)
 	return
+}
+
+func (a *postgresAccessor) saveBlockFlags(ctx *context, flags []string) error {
+	if len(flags) == 0 {
+		return nil
+	}
+	for _, flag := range flags {
+		if err := a.saveBlockFlag(ctx, flag); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (a *postgresAccessor) saveBlockFlag(ctx *context, flag string) error {
+	_, err := ctx.tx.Exec(a.getQuery(insertBlockFlagQuery), ctx.blockId, flag)
+	return errors.Wrapf(err, "unable to save block flag")
 }
 
 func (a *postgresAccessor) saveProposer(ctx *context, block Block) error {

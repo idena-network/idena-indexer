@@ -1,14 +1,10 @@
-select (select count(*)
-        from epoch_identities ei
-                 join address_states s on s.id = ei.address_state_id
-        where s.state = 'Verified'
-          and ei.epoch_id = e.id)                    verified,
-       (select count(*)
-        from epoch_identities ei
-                 join address_states s on s.id = ei.address_state_id
-        where s.state != 'Verified'
-          and ei.epoch_id = e.id)                    not_verified,
-
+select e.validation_time,
+       coalesce((select b.height
+                 from blocks b
+                          join block_flags bf on bf.block_id = b.id
+                 where b.epoch_id = e.id
+                   and bf.flag = 'FlipLotteryStarted'
+                ), 0)                                firstBlockHeight,
        (select count(*)
         from flips f
                  join transactions t on t.id = f.tx_id
@@ -50,7 +46,4 @@ select (select count(*)
 
 
 from epochs e
-where e.epoch =
-      (select max(epoch) epoch
-       from epochs e
-                join epoch_identities ei on ei.epoch_id = e.id)
+where e.epoch = $1

@@ -488,6 +488,45 @@ CREATE TABLE IF NOT EXISTS public.balances
 ALTER TABLE public.balances
     OWNER to postgres;
 
+-- SEQUENCE: public.block_flags_id_seq
+
+-- DROP SEQUENCE public.block_flags_id_seq;
+
+CREATE SEQUENCE IF NOT EXISTS public.block_flags_id_seq
+    INCREMENT 1
+    START 1
+    MINVALUE 1
+    MAXVALUE 9223372036854775807
+    CACHE 1;
+
+ALTER SEQUENCE public.block_flags_id_seq
+    OWNER TO postgres;
+
+-- Table: public.block_flags
+
+-- DROP TABLE public.block_flags;
+
+CREATE TABLE IF NOT EXISTS public.block_flags
+(
+    id bigint NOT NULL DEFAULT nextval('block_flags_id_seq'::regclass),
+    block_id bigint NOT NULL,
+    flag character varying(50) COLLATE pg_catalog."default" NOT NULL,
+    CONSTRAINT block_flags_pkey PRIMARY KEY (id),
+    CONSTRAINT block_flags_block_id_flag_key UNIQUE (block_id, flag)
+    ,
+    CONSTRAINT block_flags_block_id_fkey FOREIGN KEY (block_id)
+        REFERENCES public.blocks (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+)
+    WITH (
+        OIDS = FALSE
+    )
+    TABLESPACE pg_default;
+
+ALTER TABLE public.block_flags
+    OWNER to postgres;
+
 -- View: public.current_balances
 
 -- DROP VIEW public.current_balances;
@@ -507,4 +546,3 @@ WHERE ((ab.address_id, b.height) IN (SELECT bh.address_id,
                                            FROM balances ab_1
                                                     JOIN blocks b_1 ON b_1.id = ab_1.block_id) bh
                                      GROUP BY bh.address_id));
-

@@ -64,6 +64,18 @@ var (
 		2: "Right",
 		3: "Inappropriate",
 	}
+
+	blockFlags = map[types.BlockFlag]string{
+		types.IdentityUpdate:          "IdentityUpdate",
+		types.FlipLotteryStarted:      "FlipLotteryStarted",
+		types.ShortSessionStarted:     "ShortSessionStarted",
+		types.LongSessionStarted:      "LongSessionStarted",
+		types.AfterLongSessionStarted: "AfterLongSessionStarted",
+		types.ValidationFinished:      "ValidationFinished",
+		types.Snapshot:                "Snapshot",
+		types.OfflinePropose:          "OfflinePropose",
+		types.OfflineCommit:           "OfflineCommit",
+	}
 )
 
 type Indexer struct {
@@ -149,13 +161,21 @@ type conversionContext struct {
 	submittedFlips    []db.Flip
 	flipKeys          []db.FlipKey
 	flipsData         []db.FlipData
-	addresses         []db.Address
+	addresses         map[string]db.Address
 	prevStateReadOnly *appstate.AppState
 	newStateReadOnly  *appstate.AppState
 	chain             *blockchain.Blockchain
 	c                 *ceremony.ValidationCeremony
 	fp                *flip.Flipper
 	getFlips          func(string) ([]string, error)
+}
+
+func (ctx *conversionContext) getAddresses() []db.Address {
+	var addresses []db.Address
+	for _, addr := range ctx.addresses {
+		addresses = append(addresses, addr)
+	}
+	return addresses
 }
 
 func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) *db.Data {
@@ -169,13 +189,17 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) *db.Data
 		c:                 indexer.listener.Node().Ceremony(),
 		fp:                indexer.listener.Node().Flipper(),
 		getFlips:          indexer.db.GetCurrentFlipCids,
+		addresses:         make(map[string]db.Address),
 	}
 	epoch := uint64(prevState.State.Epoch())
 
 	block := convertBlock(incomingBlock, &ctx)
 	identities, flipStats := determineEpochResult(incomingBlock, &ctx)
 
-	ctx.addresses = append(ctx.addresses, determineFirstAddresses(incomingBlock, &ctx)...)
+	firstAddresses := determineFirstAddresses(incomingBlock, &ctx)
+	for _, addr := range firstAddresses {
+		ctx.addresses[addr.Address] = addr
+	}
 
 	return &db.Data{
 		Epoch:          epoch,
@@ -186,7 +210,7 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) *db.Data
 		FlipKeys:       ctx.flipKeys,
 		FlipsData:      ctx.flipsData,
 		FlipStats:      flipStats,
-		Addresses:      ctx.addresses,
+		Addresses:      ctx.getAddresses(),
 		Balances:       determineBalanceChanges(&ctx),
 	}
 }
@@ -259,13 +283,25 @@ func determineBalanceChanges(ctx *conversionContext) []db.Balance {
 
 func convertBlock(incomingBlock *types.Block, ctx *conversionContext) db.Block {
 	txs := convertTransactions(incomingBlock.Body.Transactions, ctx)
+	incomingBlock.Header.Flags()
 	return db.Block{
 		Height:       incomingBlock.Height(),
 		Hash:         convertHash(incomingBlock.Hash()),
 		Time:         *incomingBlock.Header.Time(),
 		Transactions: txs,
 		Proposer:     getProposer(incomingBlock),
+		Flags:        convertFlags(incomingBlock.Header.Flags()),
 	}
+}
+
+func convertFlags(incomingFlags types.BlockFlag) []string {
+	var flags []string
+	for incomingFlag, flag := range blockFlags {
+		if incomingFlags.HasFlag(incomingFlag) {
+			flags = append(flags, flag)
+		}
+	}
+	return flags
 }
 
 func getProposer(block *types.Block) string {
@@ -297,13 +333,15 @@ func convertTransaction(incomingTx *types.Transaction, ctx *conversionContext, s
 
 	sender, _ := types.Sender(incomingTx)
 	from := convertAddress(sender)
-	ctx.addresses = append(ctx.addresses, convertTxAddress(sender, ctx))
+	addr := convertTxAddress(sender, ctx)
+	ctx.addresses[addr.Address] = addr
 
 	var to string
 	if incomingTx.To != nil {
 		to = convertAddress(*incomingTx.To)
 		if to != from {
-			ctx.addresses = append(ctx.addresses, convertTxAddress(*incomingTx.To, ctx))
+			addr := convertTxAddress(*incomingTx.To, ctx)
+			ctx.addresses[addr.Address] = addr
 		}
 	}
 

@@ -99,6 +99,11 @@ delete
 from addresses
 where block_id in (select id from blocks where height > $1);
 
+-- block_flags
+delete
+from block_flags
+where block_id in (select id from blocks where height > $1);
+
 -- blocks
 delete
 from blocks

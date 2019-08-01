@@ -35,7 +35,7 @@ func LoadConfig(configPath string) *Config {
 
 func newDefaultConfig() *Config {
 	return &Config{
-		NodeConfigFile: filepath.Join("resources", "conf", "node.json"),
+		NodeConfigFile: filepath.Join("conf", "node.json"),
 		ScriptsDir:     filepath.Join("resources", "scripts", "indexer"),
 		Verbosity:      3,
 		NodeVerbosity:  0,

@@ -24,12 +24,12 @@ func main() {
 		cli.StringFlag{
 			Name:  "explorerConfig",
 			Usage: "Explorer config file",
-			Value: filepath.Join("resources", "conf", "explorer.json"),
+			Value: filepath.Join("conf", "explorer.json"),
 		},
 		cli.StringFlag{
 			Name:  "indexerConfig",
 			Usage: "Indexer config file",
-			Value: filepath.Join("resources", "conf", "indexer.json"),
+			Value: filepath.Join("conf", "indexer.json"),
 		},
 	}
 

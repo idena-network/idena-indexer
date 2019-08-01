@@ -1,5 +1,14 @@
 select a.address,
        s.state,
+       (
+           select as2.state
+           from address_states as2
+                    join blocks b on b.id = as2.block_Id
+           where as2.address_id = s.address_id
+             and b.height < (select height from blocks where id = s.block_id)
+           order by b.height desc
+           limit 1
+       )        prev_state,
        ei.approved,
        ei.missed,
        (case
