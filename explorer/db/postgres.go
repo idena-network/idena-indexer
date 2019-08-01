@@ -117,6 +117,7 @@ func (a *postgresAccessor) validationSummary(epoch uint64) (res types.CompletedV
 	if err != nil {
 		return
 	}
+	defer rows.Close()
 	if !rows.Next() {
 		return
 	}
@@ -137,6 +138,7 @@ func (a *postgresAccessor) nextValidationSummary(epoch uint64) (res types.NewVal
 	if err != nil {
 		return
 	}
+	defer rows.Close()
 	if !rows.Next() {
 		return
 	}
@@ -425,6 +427,7 @@ func (a *postgresAccessor) identityFlipsSummary(identityId int64) (count, qualif
 	if err != nil {
 		return
 	}
+	defer rows.Close()
 	if !rows.Next() {
 		return
 	}
