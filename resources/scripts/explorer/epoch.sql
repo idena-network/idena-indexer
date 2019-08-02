@@ -1,5 +1,8 @@
 select e.epoch,
-       COALESCE(b.blockCount, 0) blockCount
+       (select count(*) from blocks b where b.epoch_id = e.id) block_count,
+       (select count(*)
+        from transactions t
+                 join blocks b on b.id = t.block_id
+        where b.epoch_id = e.id)                               tx_count
 from epochs e
-         left join (select b.epoch_id, count(*) blockCount from blocks b group by b.epoch_id) b on b.epoch_id = e.id
 where e.epoch = $1

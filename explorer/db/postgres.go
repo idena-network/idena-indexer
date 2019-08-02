@@ -17,35 +17,35 @@ type postgresAccessor struct {
 }
 
 const (
-	epochsQuery                          = "epochs.sql"
-	epochQuery                           = "epoch.sql"
-	epochBlocksQuery                     = "epochBlocks.sql"
-	epochTxsQuery                        = "epochTxs.sql"
-	blockQuery                           = "block.sql"
-	blockTxsQuery                        = "blockTxs.sql"
-	epochFlipsWithKeyQuery               = "epochFlipsWithKey.sql"
-	epochFlipsQuery                      = "epochFlips.sql"
-	epochInvitesQuery                    = "epochInvites.sql"
-	epochIdentitiesQuery                 = "epochIdentities.sql"
-	flipQuery                            = "flip.sql"
-	flipAnswersQuery                     = "flipAnswers.sql"
-	identityQuery                        = "identity.sql"
-	identityAnswersQuery                 = "identityAnswers.sql"
-	identityFlipsQuery                   = "identityFlips.sql"
-	identityEpochsQuery                  = "identityEpochs.sql"
-	identityCurrentFlipsQuery            = "identityCurrentFlips.sql"
-	epochIdentityQuery                   = "epochIdentity.sql"
-	epochIdentityFlipsToSolveQuery       = "epochIdentityFlipsToSolve.sql"
-	epochIdentityAnswersQuery            = "epochIdentityAnswers.sql"
-	identityStatesSummaryQuery           = "identityStatesSummary.sql"
-	latestValidationSummaryQuery         = "latestValidationSummary.sql"
-	nextValidationSummaryQuery           = "nextValidationSummary.sql"
-	identityTxsQuery                     = "identityTxs.sql"
-	identityInvitesQuery                 = "identityInvites.sql"
-	addressQuery                         = "address.sql"
-	transactionQuery                     = "transaction.sql"
-	currentEpochQuery                    = "currentEpoch.sql"
-	validationIdentityStatesSummaryQuery = "validationIdentityStatesSummary.sql"
+	epochsQuery                    = "epochs.sql"
+	epochQuery                     = "epoch.sql"
+	epochBlocksQuery               = "epochBlocks.sql"
+	epochTxsQuery                  = "epochTxs.sql"
+	blockQuery                     = "block.sql"
+	blockTxsQuery                  = "blockTxs.sql"
+	epochFlipsWithKeyQuery         = "epochFlipsWithKey.sql"
+	epochFlipsQuery                = "epochFlips.sql"
+	epochInvitesQuery              = "epochInvites.sql"
+	epochIdentitiesQuery           = "epochIdentities.sql"
+	flipQuery                      = "flip.sql"
+	flipAnswersQuery               = "flipAnswers.sql"
+	identityQuery                  = "identity.sql"
+	identityAnswersQuery           = "identityAnswers.sql"
+	identityFlipsQuery             = "identityFlips.sql"
+	identityEpochsQuery            = "identityEpochs.sql"
+	identityCurrentFlipsQuery      = "identityCurrentFlips.sql"
+	epochIdentityQuery             = "epochIdentity.sql"
+	epochIdentityFlipsToSolveQuery = "epochIdentityFlipsToSolve.sql"
+	epochIdentityAnswersQuery      = "epochIdentityAnswers.sql"
+	latestValidationSummaryQuery   = "latestValidationSummary.sql"
+	identityTxsQuery               = "identityTxs.sql"
+	identityInvitesQuery           = "identityInvites.sql"
+	addressQuery                   = "address.sql"
+	transactionQuery               = "transaction.sql"
+	currentEpochQuery              = "currentEpoch.sql"
+	validationIdentityStatesQuery  = "validationIdentityStates.sql"
+	epochFlipStatesQuery           = "epochFlipStates.sql"
+	epochFlipQualifiedAnswersQuery = "epochFlipQualifiedAnswers.sql"
 )
 
 type flipWithKey struct {
@@ -62,27 +62,6 @@ func (a *postgresAccessor) getQuery(name string) string {
 	panic(fmt.Sprintf("There is no query '%s'", name))
 }
 
-func (a *postgresAccessor) Summary() (types.Summary, error) {
-	summary := types.Summary{}
-	var err error
-	var epoch int64
-	if epoch, err = a.getCurrentEpoch(); err != nil {
-		return types.Summary{}, err
-	}
-	if summary.Identities, err = a.identitiesSummary(identityStatesSummaryQuery); err != nil {
-		return types.Summary{}, err
-	}
-	if epoch > 0 {
-		if summary.LatestValidation, err = a.validationSummary(uint64(epoch) - 1); err != nil {
-			return types.Summary{}, err
-		}
-	}
-	if summary.NextValidation, err = a.nextValidationSummary(uint64(epoch)); err != nil {
-		return types.Summary{}, err
-	}
-	return summary, nil
-}
-
 func (a *postgresAccessor) getCurrentEpoch() (int64, error) {
 	var epoch int64
 	err := a.db.QueryRow(a.getQuery(currentEpochQuery)).Scan(&epoch)
@@ -92,24 +71,12 @@ func (a *postgresAccessor) getCurrentEpoch() (int64, error) {
 	return epoch, nil
 }
 
-func (a *postgresAccessor) identitiesSummary(queryName string, args ...interface{}) (types.IdentitiesSummary, error) {
+func (a *postgresAccessor) identityStates(queryName string, args ...interface{}) ([]types.StrValueCount, error) {
 	rows, err := a.db.Query(a.getQuery(queryName), args...)
 	if err != nil {
-		return types.IdentitiesSummary{}, err
+		return nil, err
 	}
-	defer rows.Close()
-	var states []types.StateCount
-	for rows.Next() {
-		item := types.StateCount{}
-		err = rows.Scan(&item.State, &item.Count)
-		if err != nil {
-			return types.IdentitiesSummary{}, err
-		}
-		states = append(states, item)
-	}
-	return types.IdentitiesSummary{
-		States: states,
-	}, nil
+	return a.readStrValueCounts(rows)
 }
 
 func (a *postgresAccessor) validationSummary(epoch uint64) (res types.CompletedValidationSummary, err error) {
@@ -122,32 +89,19 @@ func (a *postgresAccessor) validationSummary(epoch uint64) (res types.CompletedV
 		return
 	}
 	var validationTime int64
-	if err = rows.Scan(&validationTime, &res.FirstBlockHeight, &res.SubmittedFlips, &res.SolvedFlips,
-		&res.QualifiedFlips, &res.WeaklyQualifiedFlips, &res.NotQualifiedFlips, &res.InappropriateFlips); err != nil {
+	if err = rows.Scan(&validationTime, &res.FirstBlockHeight); err != nil {
 		return
 	}
 	res.Time = common.TimestampToTime(big.NewInt(validationTime))
-	if res.Identities, err = a.identitiesSummary(validationIdentityStatesSummaryQuery, epoch); err != nil {
+	if res.IdentityStates, err = a.strValueCounts(validationIdentityStatesQuery, epoch); err != nil {
 		return
 	}
-	return
-}
-
-func (a *postgresAccessor) nextValidationSummary(epoch uint64) (res types.NewValidationSummary, err error) {
-	rows, err := a.db.Query(a.getQuery(nextValidationSummaryQuery), epoch)
-	if err != nil {
+	if res.FlipStates, err = a.strValueCounts(epochFlipStatesQuery, epoch); err != nil {
 		return
 	}
-	defer rows.Close()
-	if !rows.Next() {
+	if res.FlipQualifiedAnswers, err = a.strValueCounts(epochFlipQualifiedAnswersQuery, epoch); err != nil {
 		return
 	}
-
-	var validationTime int64
-	if err = rows.Scan(&validationTime, &res.Invites, &res.Flips); err != nil {
-		return
-	}
-	res.Time = common.TimestampToTime(big.NewInt(validationTime))
 	return
 }
 
@@ -171,7 +125,7 @@ func (a *postgresAccessor) Epochs() ([]types.EpochSummary, error) {
 
 func (a *postgresAccessor) Epoch(epoch uint64) (types.EpochDetail, error) {
 	epochInfo := types.EpochDetail{}
-	err := a.db.QueryRow(a.getQuery(epochQuery), epoch).Scan(&epochInfo.Epoch, &epochInfo.BlockCount)
+	err := a.db.QueryRow(a.getQuery(epochQuery), epoch).Scan(&epochInfo.Epoch, &epochInfo.BlockCount, &epochInfo.TxCount)
 	if err == sql.ErrNoRows {
 		err = NoDataFound
 	}
@@ -179,13 +133,7 @@ func (a *postgresAccessor) Epoch(epoch uint64) (types.EpochDetail, error) {
 		return types.EpochDetail{}, err
 	}
 
-	if epoch > 0 {
-		if epochInfo.LatestValidation, err = a.validationSummary(epoch - 1); err != nil {
-			return types.EpochDetail{}, err
-		}
-	}
-
-	if epochInfo.NextValidation, err = a.nextValidationSummary(epoch); err != nil {
+	if epochInfo.Validation, err = a.validationSummary(epoch); err != nil {
 		return types.EpochDetail{}, err
 	}
 
@@ -580,6 +528,27 @@ func (a *postgresAccessor) Transaction(hash string) (types.TransactionDetail, er
 		return types.TransactionDetail{}, err
 	}
 	res.Timestamp = common.TimestampToTime(big.NewInt(timestamp))
+	return res, nil
+}
+
+func (a *postgresAccessor) strValueCounts(queryName string, args ...interface{}) ([]types.StrValueCount, error) {
+	rows, err := a.db.Query(a.getQuery(queryName), args...)
+	if err != nil {
+		return nil, err
+	}
+	return a.readStrValueCounts(rows)
+}
+
+func (a *postgresAccessor) readStrValueCounts(rows *sql.Rows) ([]types.StrValueCount, error) {
+	defer rows.Close()
+	var res []types.StrValueCount
+	for rows.Next() {
+		item := types.StrValueCount{}
+		if err := rows.Scan(&item.Value, &item.Count); err != nil {
+			return nil, err
+		}
+		res = append(res, item)
+	}
 	return res, nil
 }
 

@@ -15,10 +15,6 @@ func newApi(db db.Accessor) *api {
 	}
 }
 
-func (a *api) summary() (types.Summary, error) {
-	return a.db.Summary()
-}
-
 func (a *api) epochs() ([]types.EpochSummary, error) {
 	return a.db.Epochs()
 }

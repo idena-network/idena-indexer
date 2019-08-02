@@ -5,7 +5,6 @@ import (
 )
 
 type Accessor interface {
-	Summary() (types.Summary, error)
 	Epochs() ([]types.EpochSummary, error)
 	Epoch(epoch uint64) (types.EpochDetail, error)
 	EpochBlocks(epoch uint64) ([]types.BlockSummary, error)

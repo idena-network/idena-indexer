@@ -33,7 +33,6 @@ func NewServer(port int, db db.Accessor, logger log.Logger) Server {
 	server.handlers[strings.ToLower("/api/Flip")] = server.flip
 	server.handlers[strings.ToLower("/api/Identity")] = server.identity
 	server.handlers[strings.ToLower("/api/EpochIdentity")] = server.epochIdentity
-	server.handlers[strings.ToLower("/api/Summary")] = server.summary
 	server.handlers[strings.ToLower("/api/Address")] = server.address
 	server.handlers[strings.ToLower("/api/Block")] = server.block
 	server.handlers[strings.ToLower("/api/Transaction")] = server.transaction
@@ -100,10 +99,6 @@ func (s *httpServer) handleRequest(w http.ResponseWriter, r *http.Request) {
 }
 
 type handler func(r *http.Request) Response
-
-func (s *httpServer) summary(r *http.Request) Response {
-	return getResponse(s.api.summary())
-}
 
 func (s *httpServer) epochs(r *http.Request) Response {
 	return getResponse(s.api.epochs())
