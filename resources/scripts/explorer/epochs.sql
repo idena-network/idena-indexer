@@ -19,3 +19,5 @@ from epochs e
                       and t.block_id = b.id
                     group by b.epoch_id) f on f.epoch_id = e.id
 order by e.epoch
+limit $2
+    offset $1

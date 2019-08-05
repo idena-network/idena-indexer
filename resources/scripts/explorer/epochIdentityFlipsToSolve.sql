@@ -1,4 +1,10 @@
-select f.cid, fts.is_short
+select f.cid
 from flips_to_solve fts
          join flips f on f.id = fts.flip_id
-where fts.epoch_identity_id = $1
+         join epoch_identities ei on ei.id = fts.epoch_identity_id
+         join epochs e on e.id = ei.epoch_id
+         join address_states s on s.id = ei.address_state_id
+         join addresses a on a.id = s.address_id
+where e.epoch = $1
+  and lower(a.address) = lower($2)
+  and fts.is_short = $3

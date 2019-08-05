@@ -1,8 +1,9 @@
-select e.epoch,
-       (select count(*) from blocks b where b.epoch_id = e.id) block_count,
-       (select count(*)
-        from transactions t
-                 join blocks b on b.id = t.block_id
-        where b.epoch_id = e.id)                               tx_count
+select e.validation_time,
+       coalesce((select b.height
+                 from blocks b
+                          join block_flags bf on bf.block_id = b.id
+                 where b.epoch_id = e.id
+                   and bf.flag = 'FlipLotteryStarted'
+                ), 0) firstBlockHeight
 from epochs e
 where e.epoch = $1

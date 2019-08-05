@@ -154,6 +154,10 @@ func (a *postgresAccessor) Save(data *Data) error {
 		return err
 	}
 
+	if err = a.saveAddressStates(ctx, data.Addresses); err != nil {
+		return err
+	}
+
 	if err := a.saveBalances(ctx, data.Balances); err != nil {
 		return err
 	}
@@ -304,13 +308,25 @@ func (a *postgresAccessor) saveAddresses(ctx *context, addresses []Address) (map
 			return nil, err
 		}
 		addrIdsPerAddr[address.Address] = addressId
-		if len(address.NewState) > 0 {
-			if _, err = a.saveAddressState(ctx, addressId, address); err != nil {
-				return nil, err
+	}
+	return addrIdsPerAddr, nil
+}
+
+func (a *postgresAccessor) saveAddressStates(ctx *context, addresses []Address) error {
+	if len(addresses) == 0 {
+		return nil
+	}
+	for _, address := range addresses {
+		if len(address.StateChanges) == 0 {
+			continue
+		}
+		for _, stateChange := range address.StateChanges {
+			if _, err := a.saveAddressState(ctx, ctx.addrIdsPerAddr[address.Address], stateChange); err != nil {
+				return err
 			}
 		}
 	}
-	return addrIdsPerAddr, nil
+	return nil
 }
 
 func (a *postgresAccessor) saveAddress(ctx *context, address Address) (int64, error) {
@@ -326,13 +342,13 @@ func (a *postgresAccessor) saveAddress(ctx *context, address Address) (int64, er
 	return id, err
 }
 
-func (a *postgresAccessor) saveAddressState(ctx *context, addressId int64, address Address) (int64, error) {
+func (a *postgresAccessor) saveAddressState(ctx *context, addressId int64, stateChange AddressStateChange) (int64, error) {
 	_, err := ctx.tx.Exec(a.getQuery(archiveAddressStateQuery), addressId)
 	if err != nil {
 		return 0, err
 	}
 	var id int64
-	err = ctx.tx.QueryRow(a.getQuery(insertAddressStateQuery), addressId, address.NewState, ctx.blockId).Scan(&id)
+	err = ctx.tx.QueryRow(a.getQuery(insertAddressStateQuery), addressId, stateChange.NewState, ctx.blockId, stateChange.TxHash).Scan(&id)
 	return id, err
 }
 

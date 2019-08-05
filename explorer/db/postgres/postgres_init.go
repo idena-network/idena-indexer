@@ -1,22 +1,23 @@
-package db
+package postgres
 
 import (
 	"database/sql"
 	"fmt"
+	"github.com/idena-network/idena-indexer/explorer/db"
 	"github.com/idena-network/idena-indexer/log"
 	"io/ioutil"
 	"path/filepath"
 	"strings"
 )
 
-func NewPostgresAccessor(connStr string, scriptsDirPath string, logger log.Logger) Accessor {
-	db, err := sql.Open("postgres", connStr)
+func NewPostgresAccessor(connStr string, scriptsDirPath string, logger log.Logger) db.Accessor {
+	dbAccessor, err := sql.Open("postgres", connStr)
 	if err != nil {
 		panic(err)
 	}
 
 	return &postgresAccessor{
-		db:      db,
+		db:      dbAccessor,
 		queries: readQueries(scriptsDirPath, logger),
 		log:     logger,
 	}

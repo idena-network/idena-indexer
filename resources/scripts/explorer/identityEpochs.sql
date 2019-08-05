@@ -13,7 +13,8 @@ select e.epoch,
            end) authorScore
 
 from epoch_identities ei
-         join address_states s on s.id=ei.address_state_id
+         join address_states s on s.id = ei.address_state_id
+         join addresses a on a.id = s.address_id
          join epochs e on e.id = ei.epoch_id
 
          left join (select e.id e_id, ad.id a_id, count(*) fCount
@@ -42,5 +43,7 @@ from epoch_identities ei
                              join addresses ad on ad.id = t.from
                     where f.status is not NULL
                     group by ad.id, e.id) allf on allf.a_id = s.address_id and allf.e_id = e.id
-where s.address_id = $1
+where lower(a.address) = lower($1)
 order by e.epoch
+limit $3
+    offset $2

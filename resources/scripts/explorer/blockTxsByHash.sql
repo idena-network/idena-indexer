@@ -3,6 +3,6 @@ from transactions t
          join blocks b on b.id = t.block_id
          join addresses afrom on afrom.id = t.from
          left join addresses ato on ato.id = t.to
-where b.height = $1
-order by b.Timestamp desc
-limit 50
+where lower(b.hash) = lower($1)
+limit $3
+    offset $2

@@ -161,7 +161,7 @@ type conversionContext struct {
 	submittedFlips    []db.Flip
 	flipKeys          []db.FlipKey
 	flipsData         []db.FlipData
-	addresses         map[string]db.Address
+	addresses         map[string]*db.Address
 	prevStateReadOnly *appstate.AppState
 	newStateReadOnly  *appstate.AppState
 	chain             *blockchain.Blockchain
@@ -173,7 +173,7 @@ type conversionContext struct {
 func (ctx *conversionContext) getAddresses() []db.Address {
 	var addresses []db.Address
 	for _, addr := range ctx.addresses {
-		addresses = append(addresses, addr)
+		addresses = append(addresses, *addr)
 	}
 	return addresses
 }
@@ -189,7 +189,7 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) *db.Data
 		c:                 indexer.listener.Node().Ceremony(),
 		fp:                indexer.listener.Node().Flipper(),
 		getFlips:          indexer.db.GetCurrentFlipCids,
-		addresses:         make(map[string]db.Address),
+		addresses:         make(map[string]*db.Address),
 	}
 	epoch := uint64(prevState.State.Epoch())
 
@@ -198,7 +198,11 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) *db.Data
 
 	firstAddresses := determineFirstAddresses(incomingBlock, &ctx)
 	for _, addr := range firstAddresses {
-		ctx.addresses[addr.Address] = addr
+		if curAddr, present := ctx.addresses[addr.Address]; present {
+			curAddr.StateChanges = append(curAddr.StateChanges, addr.StateChanges...)
+		} else {
+			ctx.addresses[addr.Address] = addr
+		}
 	}
 
 	return &db.Data{
@@ -219,15 +223,20 @@ func isFirstBlock(incomingBlock *types.Block) bool {
 	return incomingBlock.Height() == firstBlockHeight
 }
 
-func determineFirstAddresses(incomingBlock *types.Block, ctx *conversionContext) []db.Address {
+func determineFirstAddresses(incomingBlock *types.Block, ctx *conversionContext) []*db.Address {
 	if !isFirstBlock(incomingBlock) {
 		return nil
 	}
-	var addresses []db.Address
+	var addresses []*db.Address
 	ctx.newStateReadOnly.State.IterateOverIdentities(func(addr common.Address, identity state.Identity) {
-		addresses = append(addresses, db.Address{
-			Address:  convertAddress(addr),
-			NewState: convertIdentityState(identity.State),
+		addresses = append(addresses, &db.Address{
+			Address: convertAddress(addr),
+			StateChanges: []db.AddressStateChange{
+				{
+					PrevState: convertIdentityState(ctx.prevStateReadOnly.State.GetIdentityState(addr)),
+					NewState:  convertIdentityState(identity.State),
+				},
+			},
 		})
 	})
 	return addresses
@@ -333,21 +342,47 @@ func convertTransaction(incomingTx *types.Transaction, ctx *conversionContext, s
 
 	sender, _ := types.Sender(incomingTx)
 	from := convertAddress(sender)
-	addr := convertTxAddress(sender, ctx)
-	ctx.addresses[addr.Address] = addr
-
-	var to string
-	if incomingTx.To != nil {
-		to = convertAddress(*incomingTx.To)
-		if to != from {
-			addr := convertTxAddress(*incomingTx.To, ctx)
-			ctx.addresses[addr.Address] = addr
+	if _, present := ctx.addresses[from]; !present {
+		ctx.addresses[from] = &db.Address{
+			Address: from,
 		}
 	}
 
+	var to string
+	var recipientPrevState *state.IdentityState
+	if incomingTx.To != nil {
+		to = convertAddress(*incomingTx.To)
+		if _, present := ctx.addresses[to]; !present {
+			ctx.addresses[to] = &db.Address{
+				Address: to,
+			}
+		}
+		st := stateToApply.State.GetIdentityState(*incomingTx.To)
+		recipientPrevState = &st
+	}
+
+	senderPrevState := stateToApply.State.GetIdentityState(sender)
 	fee, err := ctx.chain.ApplyTxOnState(stateToApply, incomingTx)
 	if err != nil {
 		log.Error("Unable to calculate tx fee", "tx", incomingTx.Hash(), "err", err)
+	}
+	senderNewState := stateToApply.State.GetIdentityState(sender)
+	if senderNewState != senderPrevState {
+		ctx.addresses[from].StateChanges = append(ctx.addresses[from].StateChanges, db.AddressStateChange{
+			PrevState: convertIdentityState(senderPrevState),
+			NewState:  convertIdentityState(senderNewState),
+			TxHash:    txHash,
+		})
+	}
+	if recipientPrevState != nil {
+		recipientNewState := stateToApply.State.GetIdentityState(*incomingTx.To)
+		if recipientNewState != *recipientPrevState {
+			ctx.addresses[to].StateChanges = append(ctx.addresses[to].StateChanges, db.AddressStateChange{
+				PrevState: convertIdentityState(*recipientPrevState),
+				NewState:  convertIdentityState(recipientNewState),
+				TxHash:    txHash,
+			})
+		}
 	}
 
 	tx := db.Transaction{
@@ -360,20 +395,6 @@ func convertTransaction(incomingTx *types.Transaction, ctx *conversionContext, s
 		Fee:     blockchain.ConvertToFloat(fee),
 	}
 	return tx
-}
-
-func convertTxAddress(address common.Address, ctx *conversionContext) db.Address {
-	prevAddrState := ctx.prevStateReadOnly.State.GetIdentityState(address)
-	curAddrState := ctx.newStateReadOnly.State.GetIdentityState(address)
-	var newAddrState string
-	if curAddrState != prevAddrState {
-		newAddrState = convertIdentityState(curAddrState)
-	}
-
-	return db.Address{
-		Address:  convertAddress(address),
-		NewState: newAddrState,
-	}
 }
 
 func convertTxType(txType types.TxType) string {

@@ -5,4 +5,4 @@ from flips f
          join blocks b on b.id = t.block_id
          join (select id, epoch from epochs order by epoch desc limit 1) e on e.id = b.epoch_id
 where f.status is null
-  and a.id = $1
+  and lower(a.address) = lower($1)

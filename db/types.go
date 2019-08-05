@@ -81,8 +81,14 @@ type FlipData struct {
 }
 
 type Address struct {
-	Address  string
-	NewState string
+	Address      string
+	StateChanges []AddressStateChange
+}
+
+type AddressStateChange struct {
+	PrevState string
+	NewState  string
+	TxHash    string
 }
 
 type Balance struct {

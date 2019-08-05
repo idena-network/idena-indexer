@@ -206,6 +206,7 @@ CREATE TABLE IF NOT EXISTS public.address_states
     state      character varying(20) COLLATE pg_catalog."default" NOT NULL,
     is_actual  boolean                                            NOT NULL,
     block_id   integer                                            NOT NULL,
+    tx_id      bigint,
     CONSTRAINT address_states_pkey PRIMARY KEY (id),
     CONSTRAINT address_states_address_id_fkey FOREIGN KEY (address_id)
         REFERENCES public.addresses (id) MATCH SIMPLE
@@ -213,6 +214,10 @@ CREATE TABLE IF NOT EXISTS public.address_states
         ON DELETE NO ACTION,
     CONSTRAINT address_states_block_id_fkey FOREIGN KEY (block_id)
         REFERENCES public.blocks (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT address_states_tx_id_fkey FOREIGN KEY (tx_id)
+        REFERENCES public.transactions (id) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION
 )
@@ -508,12 +513,11 @@ ALTER SEQUENCE public.block_flags_id_seq
 
 CREATE TABLE IF NOT EXISTS public.block_flags
 (
-    id bigint NOT NULL DEFAULT nextval('block_flags_id_seq'::regclass),
-    block_id bigint NOT NULL,
-    flag character varying(50) COLLATE pg_catalog."default" NOT NULL,
+    id       bigint                                             NOT NULL DEFAULT nextval('block_flags_id_seq'::regclass),
+    block_id bigint                                             NOT NULL,
+    flag     character varying(50) COLLATE pg_catalog."default" NOT NULL,
     CONSTRAINT block_flags_pkey PRIMARY KEY (id),
-    CONSTRAINT block_flags_block_id_flag_key UNIQUE (block_id, flag)
-    ,
+    CONSTRAINT block_flags_block_id_flag_key UNIQUE (block_id, flag),
     CONSTRAINT block_flags_block_id_fkey FOREIGN KEY (block_id)
         REFERENCES public.blocks (id) MATCH SIMPLE
         ON UPDATE NO ACTION
