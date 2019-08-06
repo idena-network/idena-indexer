@@ -94,6 +94,11 @@ delete
 from proposers
 where block_id in (select id from blocks where height > $1);
 
+-- temporary_identities
+delete
+from temporary_identities
+where block_id in (select id from blocks where height > $1);
+
 -- addresses
 delete
 from addresses

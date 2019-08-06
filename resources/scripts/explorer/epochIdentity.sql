@@ -1,13 +1,14 @@
-select s.state,
-       ei.short_point,
-       ei.short_flips,
-       ei.long_point,
-       ei.long_flips,
-       ei.approved,
-       ei.missed
-from epoch_identities ei
-         join address_states s on s.id = ei.address_state_id
-         join addresses a on a.id = s.address_id
-         join epochs e on e.id = ei.epoch_id
-where e.epoch = $1
+select eis.state,
+       coalesce(ei.short_point, 0),
+       coalesce(ei.short_flips, 0),
+       coalesce(ei.total_short_point, 0),
+       coalesce(ei.total_short_flips, 0),
+       coalesce(ei.long_point, 0),
+       coalesce(ei.long_flips, 0),
+       coalesce(ei.approved, false),
+       coalesce(ei.missed, false)
+from epoch_identity_states eis
+         left join epoch_identities ei on ei.epoch_id = eis.epoch_id and ei.address_state_id = eis.address_state_id
+         join addresses a on a.id = eis.address_id
+where eis.epoch = $1
   and LOWER(a.address) = LOWER($2)

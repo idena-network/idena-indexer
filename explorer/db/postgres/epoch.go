@@ -8,21 +8,21 @@ import (
 )
 
 const (
-	epochQuery                     = "epoch.sql"
-	epochBlocksCountQuery          = "epochBlocksCount.sql"
-	epochBlocksQuery               = "epochBlocks.sql"
-	epochFlipsCountQuery           = "epochFlipsCount.sql"
-	epochFlipsQuery                = "epochFlips.sql"
-	epochFlipStatesQuery           = "epochFlipStates.sql"
-	epochFlipQualifiedAnswersQuery = "epochFlipQualifiedAnswers.sql"
-	validationIdentityStatesQuery  = "validationIdentityStates.sql"
-	epochIdentitiesQueryCount      = "epochIdentitiesCount.sql"
-	epochIdentitiesQuery           = "epochIdentities.sql"
-	epochInvitesCountQuery         = "epochInvitesCount.sql"
-	epochInvitesQuery              = "epochInvites.sql"
-	epochInvitesSummaryQuery       = "epochInvitesSummary.sql"
-	epochTxsCountQuery             = "epochTxsCount.sql"
-	epochTxsQuery                  = "epochTxs.sql"
+	epochQuery                      = "epoch.sql"
+	epochBlocksCountQuery           = "epochBlocksCount.sql"
+	epochBlocksQuery                = "epochBlocks.sql"
+	epochFlipsCountQuery            = "epochFlipsCount.sql"
+	epochFlipsQuery                 = "epochFlips.sql"
+	epochFlipStatesQuery            = "epochFlipStates.sql"
+	epochFlipQualifiedAnswersQuery  = "epochFlipQualifiedAnswers.sql"
+	epochIdentityStatesSummaryQuery = "epochIdentityStatesSummary.sql"
+	epochIdentitiesQueryCount       = "epochIdentitiesCount.sql"
+	epochIdentitiesQuery            = "epochIdentities.sql"
+	epochInvitesCountQuery          = "epochInvitesCount.sql"
+	epochInvitesQuery               = "epochInvites.sql"
+	epochInvitesSummaryQuery        = "epochInvitesSummary.sql"
+	epochTxsCountQuery              = "epochTxsCount.sql"
+	epochTxsQuery                   = "epochTxs.sql"
 )
 
 func (a *postgresAccessor) Epoch(epoch uint64) (types.EpochDetail, error) {
@@ -53,7 +53,7 @@ func (a *postgresAccessor) EpochBlocks(epoch uint64, startIndex uint64, count ui
 	for rows.Next() {
 		block := types.BlockSummary{}
 		var timestamp int64
-		err = rows.Scan(&block.Height, &timestamp, &block.TxCount)
+		err = rows.Scan(&block.Height, &block.Hash, &timestamp, &block.TxCount, &block.Proposer)
 		if err != nil {
 			return nil, err
 		}
@@ -92,22 +92,11 @@ func (a *postgresAccessor) EpochIdentities(epoch uint64, startIndex uint64, coun
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-	var res []types.EpochIdentitySummary
-	for rows.Next() {
-		item := types.EpochIdentitySummary{}
-		err = rows.Scan(&item.Address, &item.State, &item.PrevState, &item.Approved, &item.Missed,
-			&item.ShortAnswers.Point, &item.ShortAnswers.FlipsCount, &item.LongAnswers.Point, &item.LongAnswers.FlipsCount)
-		if err != nil {
-			return nil, err
-		}
-		res = append(res, item)
-	}
-	return res, nil
+	return a.readEpochIdentitySummaries(rows)
 }
 
 func (a *postgresAccessor) EpochIdentityStatesSummary(epoch uint64) ([]types.StrValueCount, error) {
-	return a.strValueCounts(validationIdentityStatesQuery, epoch)
+	return a.strValueCounts(epochIdentityStatesSummaryQuery, epoch)
 }
 
 func (a *postgresAccessor) EpochInvitesSummary(epoch uint64) (types.InvitesSummary, error) {

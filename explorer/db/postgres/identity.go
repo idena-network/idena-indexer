@@ -35,27 +35,24 @@ func (a *postgresAccessor) Identity(address string) (types.Identity, error) {
 	}
 	identity.Address = address
 
-	if identity.ShortAnswers, identity.LongAnswers, err = a.identityAnswerPoints(address); err != nil {
+	if identity.ShortAnswers, identity.TotalShortAnswers, identity.LongAnswers, err = a.identityAnswerPoints(address); err != nil {
 		return types.Identity{}, err
 	}
 
 	return identity, nil
 }
 
-func (a *postgresAccessor) identityAnswerPoints(address string) (short, long types.IdentityAnswersSummary, err error) {
+func (a *postgresAccessor) identityAnswerPoints(address string) (short, totalShort, long types.IdentityAnswersSummary, err error) {
 	rows, err := a.db.Query(a.getQuery(identityAnswerPointsQuery), address)
 	if err != nil {
-		return types.IdentityAnswersSummary{}, types.IdentityAnswersSummary{}, err
+		return
 	}
 	defer rows.Close()
 	if !rows.Next() {
-		return types.IdentityAnswersSummary{}, types.IdentityAnswersSummary{}, nil
+		return
 	}
-	err = rows.Scan(&short.Point, &short.FlipsCount, &long.Point, &long.FlipsCount)
-	if err != nil {
-		return types.IdentityAnswersSummary{}, types.IdentityAnswersSummary{}, err
-	}
-	return short, long, nil
+	err = rows.Scan(&short.Point, &short.FlipsCount, &totalShort.Point, &totalShort.FlipsCount, &long.Point, &long.FlipsCount)
+	return
 }
 
 func (a *postgresAccessor) IdentityAge(address string) (uint64, error) {
@@ -92,22 +89,12 @@ func (a *postgresAccessor) IdentityEpochsCount(address string) (uint64, error) {
 	return a.count(identityEpochsCountQuery, address)
 }
 
-func (a *postgresAccessor) IdentityEpochs(address string, startIndex uint64, count uint64) ([]types.IdentityEpoch, error) {
+func (a *postgresAccessor) IdentityEpochs(address string, startIndex uint64, count uint64) ([]types.EpochIdentitySummary, error) {
 	rows, err := a.db.Query(a.getQuery(identityEpochsQuery), address, startIndex, count)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-	var res []types.IdentityEpoch
-	for rows.Next() {
-		item := types.IdentityEpoch{}
-		err = rows.Scan(&item.Epoch, &item.State, &item.Approved, &item.Missed, &item.RespScore, &item.AuthorScore)
-		if err != nil {
-			return nil, err
-		}
-		res = append(res, item)
-	}
-	return res, nil
+	return a.readEpochIdentitySummaries(rows)
 }
 
 func (a *postgresAccessor) IdentityFlipStates(address string) ([]types.StrValueCount, error) {

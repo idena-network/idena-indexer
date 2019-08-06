@@ -367,14 +367,18 @@ func convertTransaction(incomingTx *types.Transaction, ctx *conversionContext, s
 		log.Error("Unable to calculate tx fee", "tx", incomingTx.Hash(), "err", err)
 	}
 	senderNewState := stateToApply.State.GetIdentityState(sender)
+
 	if senderNewState != senderPrevState {
+		if incomingTx.Type == types.ActivationTx && senderNewState == state.Killed {
+			ctx.addresses[from].IsTemporary = true
+		}
 		ctx.addresses[from].StateChanges = append(ctx.addresses[from].StateChanges, db.AddressStateChange{
 			PrevState: convertIdentityState(senderPrevState),
 			NewState:  convertIdentityState(senderNewState),
 			TxHash:    txHash,
 		})
 	}
-	if recipientPrevState != nil {
+	if recipientPrevState != nil && *incomingTx.To != sender {
 		recipientNewState := stateToApply.State.GetIdentityState(*incomingTx.To)
 		if recipientNewState != *recipientPrevState {
 			ctx.addresses[to].StateChanges = append(ctx.addresses[to].StateChanges, db.AddressStateChange{
@@ -460,10 +464,12 @@ func determineEpochResult(block *types.Block, ctx *conversionContext) ([]db.Epoc
 	var identities []db.EpochIdentity
 	validationStats := ctx.c.GetValidationStats()
 
-	ctx.prevStateReadOnly.State.IterateOverIdentities(func(addr common.Address, _ state.Identity) {
+	ctx.prevStateReadOnly.State.IterateOverIdentities(func(addr common.Address, identity state.Identity) {
 		convertedIdentity := db.EpochIdentity{}
 		convertedIdentity.Address = convertAddress(addr)
 		convertedIdentity.State = convertIdentityState(ctx.newStateReadOnly.State.GetIdentityState(addr))
+		convertedIdentity.TotalShortPoint = ctx.newStateReadOnly.State.GetShortFlipPoints(addr)
+		convertedIdentity.TotalShortFlips = ctx.newStateReadOnly.State.GetQualifiedFlipsCount(addr)
 		if stats, present := validationStats.IdentitiesPerAddr[addr]; present {
 			convertedIdentity.ShortPoint = stats.ShortPoint
 			convertedIdentity.ShortFlips = stats.ShortFlips

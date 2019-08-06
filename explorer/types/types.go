@@ -20,8 +20,10 @@ type EpochDetail struct {
 
 type BlockSummary struct {
 	Height    uint64    `json:"height"`
+	Hash      string    `json:"hash"`
 	Timestamp time.Time `json:"timestamp"`
 	TxCount   uint16    `json:"txCount"`
+	Proposer  string    `json:"proposer"`
 }
 
 type BlockDetail struct {
@@ -29,7 +31,7 @@ type BlockDetail struct {
 	Hash            string    `json:"hash"`
 	Timestamp       time.Time `json:"timestamp"`
 	TxCount         uint16    `json:"txCount"`
-	ValidatorsCount uint16    `json:"validatorsCount"`
+	ValidatorsCount uint16    `json:"validatorsCount"` // todo
 	Proposer        string    `json:"proposer"`
 }
 
@@ -38,7 +40,7 @@ type IdentityState struct {
 	Epoch       uint64    `json:"epoch"`
 	BlockHeight uint64    `json:"blockHeight"`
 	BlockHash   string    `json:"blockHash"`
-	TxHash      string    `json:"txHash"`
+	TxHash      string    `json:"txHash,omitempty"`
 	Timestamp   time.Time `json:"timestamp"`
 }
 
@@ -77,28 +79,32 @@ type FlipSummary struct {
 }
 
 type Invite struct {
-	Id        string    `json:"id"`
-	Author    string    `json:"author"`
-	Status    string    `json:"status"`
-	Timestamp time.Time `json:"timestamp"`
+	Id                string    `json:"id"`
+	Author            string    `json:"author"`
+	Status            string    `json:"status"` // todo
+	CreateTimestamp   time.Time `json:"createTimestamp"`
+	ActivateTimestamp time.Time `json:"activateTimestamp"` // todo
 }
 
 type EpochIdentitySummary struct {
-	Address      string                 `json:"address"`
-	State        string                 `json:"state"`
-	PrevState    string                 `json:"prevState"`
-	ShortAnswers IdentityAnswersSummary `json:"shortAnswers"`
-	LongAnswers  IdentityAnswersSummary `json:"longAnswers"`
-	Approved     bool                   `json:"approved"`
-	Missed       bool                   `json:"missed"`
+	Address           string                 `json:"address"`
+	Epoch             uint64                 `json:"epoch"`
+	State             string                 `json:"state"`
+	PrevState         string                 `json:"prevState"`
+	ShortAnswers      IdentityAnswersSummary `json:"shortAnswers"`
+	TotalShortAnswers IdentityAnswersSummary `json:"totalShortAnswers"`
+	LongAnswers       IdentityAnswersSummary `json:"longAnswers"`
+	Approved          bool                   `json:"approved"`
+	Missed            bool                   `json:"missed"`
 }
 
 type EpochIdentity struct {
-	State        string                 `json:"state"`
-	ShortAnswers IdentityAnswersSummary `json:"shortAnswers"`
-	LongAnswers  IdentityAnswersSummary `json:"longAnswers"`
-	Approved     bool                   `json:"approved"`
-	Missed       bool                   `json:"missed"`
+	State             string                 `json:"state"`
+	ShortAnswers      IdentityAnswersSummary `json:"shortAnswers"`
+	TotalShortAnswers IdentityAnswersSummary `json:"totalShortAnswers"`
+	LongAnswers       IdentityAnswersSummary `json:"longAnswers"`
+	Approved          bool                   `json:"approved"`
+	Missed            bool                   `json:"missed"`
 }
 
 type Flip struct {
@@ -115,10 +121,11 @@ type Answer struct {
 }
 
 type Identity struct {
-	Address      string                 `json:"address"`
-	State        string                 `json:"state"`
-	ShortAnswers IdentityAnswersSummary `json:"shortAnswers"`
-	LongAnswers  IdentityAnswersSummary `json:"longAnswers"`
+	Address           string                 `json:"address"`
+	State             string                 `json:"state"`
+	ShortAnswers      IdentityAnswersSummary `json:"shortAnswers"`
+	TotalShortAnswers IdentityAnswersSummary `json:"totalShortAnswers"`
+	LongAnswers       IdentityAnswersSummary `json:"longAnswers"`
 }
 
 type IdentityFlipsSummary struct {
@@ -129,15 +136,6 @@ type IdentityFlipsSummary struct {
 type IdentityAnswersSummary struct {
 	Point      float32 `json:"point"`
 	FlipsCount uint32  `json:"flipsCount"`
-}
-
-type IdentityEpoch struct {
-	Epoch       uint64  `json:"epoch"`
-	RespScore   float32 `json:"respScore"`
-	AuthorScore float32 `json:"authorScore"`
-	State       string  `json:"state"`
-	Approved    bool    `json:"approved"`
-	Missed      bool    `json:"missed"`
 }
 
 type StrValueCount struct {

@@ -16,32 +16,33 @@ type postgresAccessor struct {
 }
 
 const (
-	initQuery                 = "init.sql"
-	maxHeightQuery            = "maxHeight.sql"
-	currentFlipCidsQuery      = "currentFlipCids.sql"
-	updateFlipStateQuery      = "updateFlipState.sql"
-	updateFlipDataQuery       = "updateFlipData.sql"
-	insertAnswersQuery        = "insertAnswers.sql"
-	insertBlockQuery          = "insertBlock.sql"
-	insertProposerQuery       = "insertProposer.sql"
-	selectIdentityQuery       = "selectIdentity.sql"
-	selectFlipQuery           = "selectFlip.sql"
-	insertEpochIdentityQuery  = "insertEpochIdentity.sql"
-	insertTransactionQuery    = "insertTransaction.sql"
-	insertSubmittedFlipQuery  = "insertSubmittedFlip.sql"
-	insertFlipKeyQuery        = "insertFlipKey.sql"
-	selectEpochQuery          = "selectEpoch.sql"
-	insertEpochQuery          = "insertEpoch.sql"
-	insertFlipsToSolveQuery   = "insertFlipsToSolve.sql"
-	selectAddressQuery        = "selectAddress.sql"
-	insertAddressQuery        = "insertAddress.sql"
-	archiveAddressStateQuery  = "archiveAddressState.sql"
-	insertAddressStateQuery   = "insertAddressState.sql"
-	archiveIdentityStateQuery = "archiveIdentityState.sql"
-	insertIdentityStateQuery  = "insertIdentityState.sql"
-	resetToBlockQuery         = "resetToBlock.sql"
-	insertBalanceQuery        = "insertBalance.sql"
-	insertBlockFlagQuery      = "insertBlockFlag.sql"
+	initQuery                    = "init.sql"
+	maxHeightQuery               = "maxHeight.sql"
+	currentFlipCidsQuery         = "currentFlipCids.sql"
+	updateFlipStateQuery         = "updateFlipState.sql"
+	updateFlipDataQuery          = "updateFlipData.sql"
+	insertAnswersQuery           = "insertAnswers.sql"
+	insertBlockQuery             = "insertBlock.sql"
+	insertProposerQuery          = "insertProposer.sql"
+	selectIdentityQuery          = "selectIdentity.sql"
+	selectFlipQuery              = "selectFlip.sql"
+	insertEpochIdentityQuery     = "insertEpochIdentity.sql"
+	insertTransactionQuery       = "insertTransaction.sql"
+	insertSubmittedFlipQuery     = "insertSubmittedFlip.sql"
+	insertFlipKeyQuery           = "insertFlipKey.sql"
+	selectEpochQuery             = "selectEpoch.sql"
+	insertEpochQuery             = "insertEpoch.sql"
+	insertFlipsToSolveQuery      = "insertFlipsToSolve.sql"
+	selectAddressQuery           = "selectAddress.sql"
+	insertAddressQuery           = "insertAddress.sql"
+	insertTemporaryIdentityQuery = "insertTemporaryIdentity.sql"
+	archiveAddressStateQuery     = "archiveAddressState.sql"
+	insertAddressStateQuery      = "insertAddressState.sql"
+	archiveIdentityStateQuery    = "archiveIdentityState.sql"
+	insertIdentityStateQuery     = "insertIdentityState.sql"
+	resetToBlockQuery            = "resetToBlock.sql"
+	insertBalanceQuery           = "insertBalance.sql"
+	insertBlockFlagQuery         = "insertBlockFlag.sql"
 )
 
 func (a *postgresAccessor) getQuery(name string) string {
@@ -308,6 +309,11 @@ func (a *postgresAccessor) saveAddresses(ctx *context, addresses []Address) (map
 			return nil, err
 		}
 		addrIdsPerAddr[address.Address] = addressId
+		if address.IsTemporary {
+			if err = a.saveTemporaryIdentity(ctx, addressId); err != nil {
+				return nil, err
+			}
+		}
 	}
 	return addrIdsPerAddr, nil
 }
@@ -340,6 +346,11 @@ func (a *postgresAccessor) saveAddress(ctx *context, address Address) (int64, er
 	}
 	err = ctx.tx.QueryRow(a.getQuery(insertAddressQuery), address.Address, ctx.blockId).Scan(&id)
 	return id, err
+}
+
+func (a *postgresAccessor) saveTemporaryIdentity(ctx *context, addressId int64) error {
+	_, err := ctx.tx.Exec(a.getQuery(insertTemporaryIdentityQuery), addressId, ctx.blockId)
+	return errors.Wrapf(err, "unable to save temporary identity")
 }
 
 func (a *postgresAccessor) saveAddressState(ctx *context, addressId int64, stateChange AddressStateChange) (int64, error) {
@@ -399,7 +410,8 @@ func (a *postgresAccessor) saveEpochIdentity(ctx *context, identityStateId int64
 	var id int64
 
 	if err := ctx.tx.QueryRow(a.getQuery(insertEpochIdentityQuery), ctx.epochId, identityStateId, identity.ShortPoint,
-		identity.ShortFlips, identity.LongPoint, identity.LongFlips, identity.Approved, identity.Missed).Scan(&id); err != nil {
+		identity.ShortFlips, identity.TotalShortPoint, identity.TotalShortFlips,
+		identity.LongPoint, identity.LongFlips, identity.Approved, identity.Missed).Scan(&id); err != nil {
 		return 0, errors.Wrapf(err, "unable to execute query %s", insertEpochIdentityQuery)
 	}
 

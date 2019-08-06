@@ -26,7 +26,7 @@ func (a *postgresAccessor) readInvites(rows *sql.Rows) ([]types.Invite, error) {
 		if err := rows.Scan(&item.Id, &item.Author, &timestamp); err != nil {
 			return nil, err
 		}
-		item.Timestamp = common.TimestampToTime(big.NewInt(timestamp))
+		item.CreateTimestamp = common.TimestampToTime(big.NewInt(timestamp))
 		res = append(res, item)
 	}
 	return res, nil
@@ -72,6 +72,23 @@ func (a *postgresAccessor) readFlips(rows *sql.Rows) ([]types.FlipSummary, error
 			return nil, err
 		}
 		item.Timestamp = common.TimestampToTime(big.NewInt(timestamp))
+		res = append(res, item)
+	}
+	return res, nil
+}
+
+func (a *postgresAccessor) readEpochIdentitySummaries(rows *sql.Rows) ([]types.EpochIdentitySummary, error) {
+	defer rows.Close()
+	var res []types.EpochIdentitySummary
+	for rows.Next() {
+		item := types.EpochIdentitySummary{}
+		err := rows.Scan(&item.Address, &item.Epoch, &item.State, &item.PrevState, &item.Approved, &item.Missed,
+			&item.ShortAnswers.Point, &item.ShortAnswers.FlipsCount,
+			&item.TotalShortAnswers.Point, &item.TotalShortAnswers.FlipsCount,
+			&item.LongAnswers.Point, &item.LongAnswers.FlipsCount)
+		if err != nil {
+			return nil, err
+		}
 		res = append(res, item)
 	}
 	return res, nil

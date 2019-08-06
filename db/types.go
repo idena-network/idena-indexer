@@ -43,6 +43,8 @@ type EpochIdentity struct {
 	State                string
 	ShortPoint           float32
 	ShortFlips           uint32
+	TotalShortPoint      float32
+	TotalShortFlips      uint32
 	LongPoint            float32
 	LongFlips            uint32
 	Approved             bool
@@ -82,6 +84,7 @@ type FlipData struct {
 
 type Address struct {
 	Address      string
+	IsTemporary  bool
 	StateChanges []AddressStateChange
 }
 

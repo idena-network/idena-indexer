@@ -17,6 +17,8 @@ func (a *postgresAccessor) EpochIdentity(epoch uint64, address string) (types.Ep
 	err := a.db.QueryRow(a.getQuery(epochIdentityQuery), epoch, address).Scan(&res.State,
 		&res.ShortAnswers.Point,
 		&res.ShortAnswers.FlipsCount,
+		&res.TotalShortAnswers.Point,
+		&res.TotalShortAnswers.FlipsCount,
 		&res.LongAnswers.Point,
 		&res.LongAnswers.FlipsCount,
 		&res.Approved,
