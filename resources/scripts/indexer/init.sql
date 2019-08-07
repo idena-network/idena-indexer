@@ -559,33 +559,6 @@ CREATE TABLE IF NOT EXISTS public.temporary_identities
 ALTER TABLE public.temporary_identities
     OWNER to postgres;
 
--- Table: public.used_invites
-
--- DROP TABLE public.used_invites;
-
-CREATE TABLE IF NOT EXISTS public.used_invites
-(
-    invite_tx_id     bigint NOT NULL,
-    activation_tx_id bigint NOT NULL,
-    CONSTRAINT used_invites_pkey PRIMARY KEY (invite_tx_id),
-    CONSTRAINT used_invites_activation_tx_id_key UNIQUE (activation_tx_id),
-    CONSTRAINT used_invites_activation_tx_id_fkey FOREIGN KEY (activation_tx_id)
-        REFERENCES public.transactions (id) MATCH SIMPLE
-        ON UPDATE NO ACTION
-        ON DELETE NO ACTION,
-    CONSTRAINT used_invites_invite_tx_id_fkey FOREIGN KEY (invite_tx_id)
-        REFERENCES public.transactions (id) MATCH SIMPLE
-        ON UPDATE NO ACTION
-        ON DELETE NO ACTION
-)
-    WITH (
-        OIDS = FALSE
-    )
-    TABLESPACE pg_default;
-
-ALTER TABLE public.used_invites
-    OWNER to postgres;
-
 -- View: public.current_balances
 
 -- DROP VIEW public.current_balances;

@@ -83,15 +83,6 @@ where tx_id in
                 join blocks b on b.id = t.block_id
        where b.height > $1);
 
--- used_invites
-delete
-from used_invites
-where activation_tx_id in
-      (select t.id
-       from transactions t
-                join blocks b on b.id = t.block_id
-       where b.height > $1);
-
 -- transactions
 delete
 from transactions
