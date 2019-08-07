@@ -109,9 +109,13 @@ type EpochIdentity struct {
 }
 
 type Flip struct {
-	Status string        `json:"status"`
-	Answer string        `json:"answer"`
-	Data   hexutil.Bytes `json:"hex,omitempty"`
+	Status      string        `json:"status"`
+	Answer      string        `json:"answer"`
+	TxHash      string        `json:"txHash"`
+	BlockHash   string        `json:"blockHash"`
+	BlockHeight uint64        `json:"blockHeight"`
+	Epoch       uint64        `json:"epoch"`
+	Data        hexutil.Bytes `json:"hex,omitempty"`
 }
 
 type Answer struct {

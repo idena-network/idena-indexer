@@ -14,7 +14,15 @@ const (
 func (a *postgresAccessor) Flip(hash string) (types.Flip, error) {
 	flip := types.Flip{}
 	var id uint64
-	err := a.db.QueryRow(a.getQuery(flipQuery), hash).Scan(&id, &flip.Answer, &flip.Status, &flip.Data)
+	err := a.db.QueryRow(a.getQuery(flipQuery), hash).
+		Scan(&id,
+			&flip.Answer,
+			&flip.Status,
+			&flip.Data,
+			&flip.TxHash,
+			&flip.BlockHash,
+			&flip.BlockHeight,
+			&flip.Epoch)
 	if err == sql.ErrNoRows {
 		err = NoDataFound
 	}
