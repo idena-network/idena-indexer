@@ -22,11 +22,15 @@ func (a *postgresAccessor) readInvites(rows *sql.Rows) ([]types.Invite, error) {
 	for rows.Next() {
 		item := types.Invite{}
 		var timestamp int64
-		// todo status (Not activated/Candidate)
-		if err := rows.Scan(&item.Id, &item.Author, &timestamp); err != nil {
+		var activationTimestamp int64
+		if err := rows.Scan(&item.Hash, &item.Author, &timestamp, &item.ActivationHash, &item.ActivationAuthor, &activationTimestamp); err != nil {
 			return nil, err
 		}
-		item.CreateTimestamp = common.TimestampToTime(big.NewInt(timestamp))
+		item.Timestamp = common.TimestampToTime(big.NewInt(timestamp))
+		if activationTimestamp > 0 {
+			at := common.TimestampToTime(big.NewInt(activationTimestamp))
+			item.ActivationTimestamp = &at
+		}
 		res = append(res, item)
 	}
 	return res, nil

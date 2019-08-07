@@ -79,11 +79,12 @@ type FlipSummary struct {
 }
 
 type Invite struct {
-	Id                string    `json:"id"`
-	Author            string    `json:"author"`
-	Status            string    `json:"status"` // todo
-	CreateTimestamp   time.Time `json:"createTimestamp"`
-	ActivateTimestamp time.Time `json:"activateTimestamp"` // todo
+	Hash                string     `json:"hash"`
+	Author              string     `json:"author"`
+	Timestamp           time.Time  `json:"timestamp"`
+	ActivationHash      string     `json:"activationHash"`
+	ActivationAuthor    string     `json:"activationAuthor"`
+	ActivationTimestamp *time.Time `json:"activationTimestamp"`
 }
 
 type EpochIdentitySummary struct {
@@ -145,7 +146,7 @@ type StrValueCount struct {
 
 type InvitesSummary struct {
 	AllCount  uint64 `json:"allCount"`
-	UsedCount uint64 `json:"usedCount"` // todo
+	UsedCount uint64 `json:"usedCount"`
 }
 
 type Address struct {

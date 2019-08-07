@@ -9,6 +9,7 @@ type Data struct {
 	Epoch          uint64
 	ValidationTime big.Int
 	Block          Block
+	Activations    []Transaction
 	Identities     []EpochIdentity
 	SubmittedFlips []Flip
 	FlipKeys       []FlipKey
@@ -36,6 +37,11 @@ type Transaction struct {
 	Amount  decimal.Decimal
 	Fee     decimal.Decimal
 	Payload []byte
+}
+
+type Activation struct {
+	InviteRecipient string
+	Activator       string
 }
 
 type EpochIdentity struct {
