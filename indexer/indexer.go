@@ -162,7 +162,6 @@ type conversionContext struct {
 	flipKeys          []db.FlipKey
 	flipsData         []db.FlipData
 	addresses         map[string]*db.Address
-	activations       []db.Transaction
 	prevStateReadOnly *appstate.AppState
 	newStateReadOnly  *appstate.AppState
 	chain             *blockchain.Blockchain
@@ -210,7 +209,6 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) *db.Data
 		Epoch:          epoch,
 		ValidationTime: *big.NewInt(ctx.newStateReadOnly.State.NextValidationTime().Unix()),
 		Block:          block,
-		Activations:    ctx.activations,
 		Identities:     identities,
 		SubmittedFlips: ctx.submittedFlips,
 		FlipKeys:       ctx.flipKeys,
@@ -399,10 +397,6 @@ func convertTransaction(incomingTx *types.Transaction, ctx *conversionContext, s
 		To:      to,
 		Amount:  blockchain.ConvertToFloat(incomingTx.Amount),
 		Fee:     blockchain.ConvertToFloat(fee),
-	}
-
-	if incomingTx.Type == types.ActivationTx {
-		ctx.activations = append(ctx.activations, tx)
 	}
 
 	return tx

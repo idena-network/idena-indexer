@@ -630,3 +630,21 @@ WHERE ti.address_id IS NULL
 
 ALTER TABLE public.epoch_identity_states
     OWNER TO postgres;
+
+-- View: public.used_invites
+
+-- DROP VIEW public.used_invites;
+
+CREATE OR REPLACE VIEW public.used_invites AS
+SELECT DISTINCT ON (b.epoch_id, it."to") it.id AS invite_tx_id,
+                                         t.id  AS activation_tx_id
+FROM transactions t
+         JOIN blocks b ON b.id = t.block_id
+         JOIN blocks ib ON ib.epoch_id = b.epoch_id AND ib.height < b.height
+         JOIN transactions it ON it.block_id = ib.id AND it.type::text = 'InviteTx'::text AND it."to" = t."from"
+WHERE t.type::text = 'ActivationTx'::text
+ORDER BY b.epoch_id, it."to", ib.height DESC;
+
+ALTER TABLE public.used_invites
+    OWNER TO postgres;
+

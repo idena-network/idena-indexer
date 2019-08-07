@@ -43,7 +43,6 @@ const (
 	resetToBlockQuery            = "resetToBlock.sql"
 	insertBalanceQuery           = "insertBalance.sql"
 	insertBlockFlagQuery         = "insertBlockFlag.sql"
-	insertUsedInviteQuery        = "insertUsedInvite.sql"
 )
 
 func (a *postgresAccessor) getQuery(name string) string {
@@ -153,10 +152,6 @@ func (a *postgresAccessor) Save(data *Data) error {
 
 	ctx.txIdsPerHash, err = a.saveTransactions(ctx, data.Block.Transactions)
 	if err != nil {
-		return err
-	}
-
-	if err = a.saveActivations(ctx, data.Activations); err != nil {
 		return err
 	}
 
@@ -488,28 +483,6 @@ func (a *postgresAccessor) saveTransaction(ctx *context, tx Transaction) (int64,
 	err = ctx.tx.QueryRow(a.getQuery(insertTransactionQuery), tx.Hash, ctx.blockId, tx.Type, from, to,
 		tx.Amount, tx.Fee).Scan(&id)
 	return id, err
-}
-
-func (a *postgresAccessor) saveActivations(ctx *context, txs []Transaction) error {
-	if len(txs) == 0 {
-		return nil
-	}
-	for _, tx := range txs {
-		err := a.saveActivation(ctx, tx)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (a *postgresAccessor) saveActivation(ctx *context, tx Transaction) error {
-	txId, err := ctx.txId(tx.Hash)
-	if err != nil {
-		return err
-	}
-	_, err = ctx.tx.Exec(a.getQuery(insertUsedInviteQuery), ctx.epochId, tx.From, txId)
-	return err
 }
 
 func (a *postgresAccessor) saveSubmittedFlips(ctx *context, flips []Flip) (map[string]int64, error) {
