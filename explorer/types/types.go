@@ -109,6 +109,7 @@ type EpochIdentity struct {
 }
 
 type Flip struct {
+	Author      string        `json:"author"`
 	Timestamp   time.Time     `json:"timestamp"`
 	Size        uint32        `json:"size"`
 	Status      string        `json:"status"`

@@ -15,10 +15,9 @@ const (
 
 func (a *postgresAccessor) Flip(hash string) (types.Flip, error) {
 	flip := types.Flip{}
-	var id uint64
 	var timestamp int64
 	err := a.db.QueryRow(a.getQuery(flipQuery), hash).
-		Scan(&id,
+		Scan(&flip.Author,
 			&flip.Size,
 			&timestamp,
 			&flip.Answer,
