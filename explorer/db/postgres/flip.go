@@ -47,15 +47,5 @@ func (a *postgresAccessor) FlipAnswers(hash string, isShort bool, startIndex uin
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-	var res []types.Answer
-	for rows.Next() {
-		item := types.Answer{}
-		err = rows.Scan(&item.Address, &item.RespAnswer, &item.FlipAnswer)
-		if err != nil {
-			return nil, err
-		}
-		res = append(res, item)
-	}
-	return res, nil
+	return a.readAnswers(rows)
 }

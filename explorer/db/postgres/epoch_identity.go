@@ -71,17 +71,7 @@ func (a *postgresAccessor) epochIdentityAnswers(epoch uint64, address string, is
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-	var res []types.Answer
-	for rows.Next() {
-		item := types.Answer{}
-		err = rows.Scan(&item.Cid, &item.RespAnswer, &item.FlipAnswer)
-		if err != nil {
-			return nil, err
-		}
-		res = append(res, item)
-	}
-	return res, nil
+	return a.readAnswers(rows)
 }
 
 func (a *postgresAccessor) EpochIdentityFlips(epoch uint64, address string) ([]types.FlipSummary, error) {

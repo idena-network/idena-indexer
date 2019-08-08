@@ -1,4 +1,4 @@
-select ad.address, a.answer, coalesce(f.answer)
+select '' cid, ad.address, a.answer, coalesce(f.answer), coalesce(f.status)
 from answers a
          join epoch_identities ei on ei.id = a.epoch_identity_id
          join address_states s on s.id = ei.address_state_id

@@ -125,6 +125,7 @@ type Answer struct {
 	Address    string `json:"address,omitempty"`
 	RespAnswer string `json:"respAnswer"`
 	FlipAnswer string `json:"flipAnswer"`
+	FlipStatus string `json:"flipStatus"`
 }
 
 type Identity struct {

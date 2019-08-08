@@ -98,3 +98,17 @@ func (a *postgresAccessor) readEpochIdentitySummaries(rows *sql.Rows) ([]types.E
 	}
 	return res, nil
 }
+
+func (a *postgresAccessor) readAnswers(rows *sql.Rows) ([]types.Answer, error) {
+	defer rows.Close()
+	var res []types.Answer
+	for rows.Next() {
+		item := types.Answer{}
+		err := rows.Scan(&item.Cid, &item.Address, &item.RespAnswer, &item.FlipAnswer, &item.FlipStatus)
+		if err != nil {
+			return nil, err
+		}
+		res = append(res, item)
+	}
+	return res, nil
+}
