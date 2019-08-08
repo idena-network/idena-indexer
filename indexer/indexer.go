@@ -550,7 +550,7 @@ func determineSubmittedFlip(tx *types.Transaction, ctx *conversionContext) *db.F
 	ipfsFlip, err := ctx.fp.GetRawFlip(tx.Payload)
 	var size uint32
 	if err != nil {
-		log.Error("Unable to get flips data to define flip size.", "tx", tx.Hash(), "err", err)
+		log.Error("Unable to get flip data to define flip size.", "cid", flipCid, "err", err)
 	} else {
 		size = uint32(len(ipfsFlip.Data))
 	}

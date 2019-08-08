@@ -107,6 +107,7 @@ func (s *httpServer) initHandler() http.Handler {
 	api.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Identity/{address}/Answers/Short")).HandlerFunc(s.epochIdentityShortAnswes)
 	api.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Identity/{address}/Answers/Long")).HandlerFunc(s.epochIdentityLongAnswers)
 	api.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Identity/{address}/Flips")).HandlerFunc(s.epochIdentityFlips)
+	api.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Identity/{address}/ValidationTxs")).HandlerFunc(s.epochIdentityValidationTxs)
 
 	api.Path(strings.ToLower("/Block/{id}")).HandlerFunc(s.block)
 	api.Path(strings.ToLower("/Block/{id}/Txs/Count")).HandlerFunc(s.blockTxsCount)
@@ -415,6 +416,17 @@ func (s *httpServer) epochIdentityFlips(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	resp, err := s.db.EpochIdentityFlips(epoch, vars["address"])
+	s.writeResponse(w, resp, err)
+}
+
+func (s *httpServer) epochIdentityValidationTxs(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	epoch, err := toUint(vars, "epoch")
+	if err != nil {
+		s.writeErrorResponse(w, err)
+		return
+	}
+	resp, err := s.db.EpochIdentityValidationTxs(epoch, vars["address"])
 	s.writeResponse(w, resp, err)
 }
 

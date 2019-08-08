@@ -30,6 +30,7 @@ type Accessor interface {
 	EpochIdentityShortAnswers(epoch uint64, address string) ([]types.Answer, error)
 	EpochIdentityLongAnswers(epoch uint64, address string) ([]types.Answer, error)
 	EpochIdentityFlips(epoch uint64, address string) ([]types.FlipSummary, error)
+	EpochIdentityValidationTxs(epoch uint64, address string) ([]types.TransactionSummary, error)
 
 	BlockByHeight(height uint64) (types.BlockDetail, error)
 	BlockTxsCountByHeight(height uint64) (uint64, error)

@@ -6,10 +6,11 @@ import (
 )
 
 const (
-	epochIdentityQuery             = "epochIdentity.sql"
-	epochIdentityAnswersQuery      = "epochIdentityAnswers.sql"
-	epochIdentityFlipsToSolveQuery = "epochIdentityFlipsToSolve.sql"
-	epochIdentityFlipsQuery        = "epochIdentityFlips.sql"
+	epochIdentityQuery              = "epochIdentity.sql"
+	epochIdentityAnswersQuery       = "epochIdentityAnswers.sql"
+	epochIdentityFlipsToSolveQuery  = "epochIdentityFlipsToSolve.sql"
+	epochIdentityFlipsQuery         = "epochIdentityFlips.sql"
+	epochIdentityValidationTxsQuery = "epochIdentityValidationTxs.sql"
 )
 
 func (a *postgresAccessor) EpochIdentity(epoch uint64, address string) (types.EpochIdentity, error) {
@@ -80,4 +81,12 @@ func (a *postgresAccessor) EpochIdentityFlips(epoch uint64, address string) ([]t
 		return nil, err
 	}
 	return a.readFlips(rows)
+}
+
+func (a *postgresAccessor) EpochIdentityValidationTxs(epoch uint64, address string) ([]types.TransactionSummary, error) {
+	rows, err := a.db.Query(a.getQuery(epochIdentityValidationTxsQuery), epoch, address)
+	if err != nil {
+		return nil, err
+	}
+	return a.readTxs(rows)
 }
