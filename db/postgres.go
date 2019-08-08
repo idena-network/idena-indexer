@@ -16,33 +16,35 @@ type postgresAccessor struct {
 }
 
 const (
-	initQuery                    = "init.sql"
-	maxHeightQuery               = "maxHeight.sql"
-	currentFlipCidsQuery         = "currentFlipCids.sql"
-	updateFlipStateQuery         = "updateFlipState.sql"
-	updateFlipDataQuery          = "updateFlipData.sql"
-	insertAnswersQuery           = "insertAnswers.sql"
-	insertBlockQuery             = "insertBlock.sql"
-	insertProposerQuery          = "insertProposer.sql"
-	selectIdentityQuery          = "selectIdentity.sql"
-	selectFlipQuery              = "selectFlip.sql"
-	insertEpochIdentityQuery     = "insertEpochIdentity.sql"
-	insertTransactionQuery       = "insertTransaction.sql"
-	insertSubmittedFlipQuery     = "insertSubmittedFlip.sql"
-	insertFlipKeyQuery           = "insertFlipKey.sql"
-	selectEpochQuery             = "selectEpoch.sql"
-	insertEpochQuery             = "insertEpoch.sql"
-	insertFlipsToSolveQuery      = "insertFlipsToSolve.sql"
-	selectAddressQuery           = "selectAddress.sql"
-	insertAddressQuery           = "insertAddress.sql"
-	insertTemporaryIdentityQuery = "insertTemporaryIdentity.sql"
-	archiveAddressStateQuery     = "archiveAddressState.sql"
-	insertAddressStateQuery      = "insertAddressState.sql"
-	archiveIdentityStateQuery    = "archiveIdentityState.sql"
-	insertIdentityStateQuery     = "insertIdentityState.sql"
-	resetToBlockQuery            = "resetToBlock.sql"
-	insertBalanceQuery           = "insertBalance.sql"
-	insertBlockFlagQuery         = "insertBlockFlag.sql"
+	initQuery                       = "init.sql"
+	maxHeightQuery                  = "maxHeight.sql"
+	currentFlipCidsQuery            = "currentFlipCids.sql"
+	currentFlipCidsWithoutDataQuery = "currentFlipCidsWithoutData.sql"
+	updateFlipStateQuery            = "updateFlipState.sql"
+	updateFlipDataQuery             = "updateFlipData.sql"
+	updateFlipMemPoolDataQuery      = "updateFlipMemPoolData.sql"
+	insertAnswersQuery              = "insertAnswers.sql"
+	insertBlockQuery                = "insertBlock.sql"
+	insertProposerQuery             = "insertProposer.sql"
+	selectIdentityQuery             = "selectIdentity.sql"
+	selectFlipQuery                 = "selectFlip.sql"
+	insertEpochIdentityQuery        = "insertEpochIdentity.sql"
+	insertTransactionQuery          = "insertTransaction.sql"
+	insertSubmittedFlipQuery        = "insertSubmittedFlip.sql"
+	insertFlipKeyQuery              = "insertFlipKey.sql"
+	selectEpochQuery                = "selectEpoch.sql"
+	insertEpochQuery                = "insertEpoch.sql"
+	insertFlipsToSolveQuery         = "insertFlipsToSolve.sql"
+	selectAddressQuery              = "selectAddress.sql"
+	insertAddressQuery              = "insertAddress.sql"
+	insertTemporaryIdentityQuery    = "insertTemporaryIdentity.sql"
+	archiveAddressStateQuery        = "archiveAddressState.sql"
+	insertAddressStateQuery         = "insertAddressState.sql"
+	archiveIdentityStateQuery       = "archiveIdentityState.sql"
+	insertIdentityStateQuery        = "insertIdentityState.sql"
+	resetToBlockQuery               = "resetToBlock.sql"
+	insertBalanceQuery              = "insertBalance.sql"
+	insertBlockFlagQuery            = "insertBlockFlag.sql"
 )
 
 func (a *postgresAccessor) getQuery(name string) string {
@@ -81,6 +83,24 @@ func (a *postgresAccessor) GetLastHeight() (uint64, error) {
 
 func (a *postgresAccessor) GetCurrentFlipCids(address string) ([]string, error) {
 	rows, err := a.db.Query(a.getQuery(currentFlipCidsQuery), address)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var res []string
+	for rows.Next() {
+		var item string
+		err = rows.Scan(&item)
+		if err != nil {
+			return nil, err
+		}
+		res = append(res, item)
+	}
+	return res, nil
+}
+
+func (a *postgresAccessor) GetCurrentFlipsWithoutData(limit uint32) ([]string, error) {
+	rows, err := a.db.Query(a.getQuery(currentFlipCidsWithoutDataQuery), limit)
 	if err != nil {
 		return nil, err
 	}
@@ -183,6 +203,10 @@ func (a *postgresAccessor) Save(data *Data) error {
 		return err
 	}
 
+	if err := a.saveFlipsMemPoolData(ctx, data.FlipsMemPoolData); err != nil {
+		return err
+	}
+
 	return tx.Commit()
 }
 
@@ -229,6 +253,23 @@ func (a *postgresAccessor) saveFlipData(ctx *context, flipData FlipData) error {
 		return err
 	}
 	return nil
+}
+
+func (a *postgresAccessor) saveFlipsMemPoolData(ctx *context, flipsData []FlipData) error {
+	if len(flipsData) == 0 {
+		return nil
+	}
+	for _, flipData := range flipsData {
+		if err := a.saveFlipMemPoolData(ctx, flipData); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (a *postgresAccessor) saveFlipMemPoolData(ctx *context, flipData FlipData) error {
+	_, err := ctx.tx.Exec(a.getQuery(updateFlipMemPoolDataQuery), flipData.Data, flipData.Cid)
+	return err
 }
 
 func (a *postgresAccessor) saveAnswers(ctx *context, cid string, answers []Answer,
@@ -506,7 +547,7 @@ func (a *postgresAccessor) saveSubmittedFlips(ctx *context, flips []Flip) (map[s
 
 func (a *postgresAccessor) saveSubmittedFlip(ctx *context, txId int64, flip Flip) (int64, error) {
 	var id int64
-	err := ctx.tx.QueryRow(a.getQuery(insertSubmittedFlipQuery), flip.Cid, txId).Scan(&id)
+	err := ctx.tx.QueryRow(a.getQuery(insertSubmittedFlipQuery), flip.Cid, txId, flip.Size).Scan(&id)
 	return id, errors.Wrapf(err, "unable to save flip %s", flip.Cid)
 }
 

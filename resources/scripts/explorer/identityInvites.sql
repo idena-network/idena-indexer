@@ -10,7 +10,8 @@ from transactions t
          join epochs e on e.id = epoch_id
          left join used_invites ui on ui.invite_tx_id = t.id
          left join transactions at on at.id = ui.activation_tx_id
-         left join addresses aa on aa.id = at.from
+         left join blocks ab on ab.id = at.block_id
+         left join addresses aa on aa.id = at.to
 where t.type = 'InviteTx'
   and lower(a.address) = lower($1)
 order by b.height

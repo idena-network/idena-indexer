@@ -302,11 +302,13 @@ CREATE TABLE IF NOT EXISTS public.flips
     id              bigint                                              NOT NULL DEFAULT nextval('flips_id_seq'::regclass),
     tx_id           bigint                                              NOT NULL,
     cid             character varying(100) COLLATE pg_catalog."default" NOT NULL,
+    size            integer                                             NOT NULL,
     status_block_id bigint,
     answer          character varying(20) COLLATE pg_catalog."default",
     status          character varying(20) COLLATE pg_catalog."default",
     data_tx_id      bigint,
     data            bytea,
+    mempool_data    bytea,
     CONSTRAINT flips_pkey PRIMARY KEY (id),
     CONSTRAINT flips_cid_key UNIQUE (cid),
     CONSTRAINT flips_data_tx_id_fkey FOREIGN KEY (data_tx_id)

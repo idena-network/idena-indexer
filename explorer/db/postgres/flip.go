@@ -2,7 +2,9 @@ package postgres
 
 import (
 	"database/sql"
+	"github.com/idena-network/idena-go/common"
 	"github.com/idena-network/idena-indexer/explorer/types"
+	"math/big"
 )
 
 const (
@@ -14,8 +16,11 @@ const (
 func (a *postgresAccessor) Flip(hash string) (types.Flip, error) {
 	flip := types.Flip{}
 	var id uint64
+	var timestamp int64
 	err := a.db.QueryRow(a.getQuery(flipQuery), hash).
 		Scan(&id,
+			&flip.Size,
+			&timestamp,
 			&flip.Answer,
 			&flip.Status,
 			&flip.Data,
@@ -29,6 +34,7 @@ func (a *postgresAccessor) Flip(hash string) (types.Flip, error) {
 	if err != nil {
 		return types.Flip{}, err
 	}
+	flip.Timestamp = common.TimestampToTime(big.NewInt(timestamp))
 	return flip, nil
 }
 

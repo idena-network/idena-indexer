@@ -23,8 +23,9 @@ import (
 )
 
 const (
-	requestRetryInterval = time.Second * 5
-	firstBlockHeight     = 2
+	requestRetryInterval      = time.Second * 5
+	firstBlockHeight          = 2
+	flipLimitToGetMemPoolData = 500
 )
 
 var (
@@ -157,17 +158,18 @@ func (indexer *Indexer) loadHeightToIndex() uint64 {
 }
 
 type conversionContext struct {
-	blockHeight       uint64
-	submittedFlips    []db.Flip
-	flipKeys          []db.FlipKey
-	flipsData         []db.FlipData
-	addresses         map[string]*db.Address
-	prevStateReadOnly *appstate.AppState
-	newStateReadOnly  *appstate.AppState
-	chain             *blockchain.Blockchain
-	c                 *ceremony.ValidationCeremony
-	fp                *flip.Flipper
-	getFlips          func(string) ([]string, error)
+	blockHeight         uint64
+	submittedFlips      []db.Flip
+	flipKeys            []db.FlipKey
+	flipsData           []db.FlipData
+	addresses           map[string]*db.Address
+	prevStateReadOnly   *appstate.AppState
+	newStateReadOnly    *appstate.AppState
+	chain               *blockchain.Blockchain
+	c                   *ceremony.ValidationCeremony
+	fp                  *flip.Flipper
+	getFlips            func(string) ([]string, error)
+	getFlipsWithoutData func(uint32) ([]string, error)
 }
 
 func (ctx *conversionContext) getAddresses() []db.Address {
@@ -179,22 +181,23 @@ func (ctx *conversionContext) getAddresses() []db.Address {
 }
 
 func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) *db.Data {
-	prevState := indexer.listener.Node().AppStateReadonly(incomingBlock.Height() - 1)
-	newState := indexer.listener.Node().AppStateReadonly(incomingBlock.Height())
+	prevState := indexer.listener.AppStateReadonly(incomingBlock.Height() - 1)
+	newState := indexer.listener.AppStateReadonly(incomingBlock.Height())
 	ctx := conversionContext{
-		blockHeight:       incomingBlock.Height(),
-		prevStateReadOnly: prevState,
-		newStateReadOnly:  newState,
-		chain:             indexer.listener.Node().Blockchain(),
-		c:                 indexer.listener.Node().Ceremony(),
-		fp:                indexer.listener.Node().Flipper(),
-		getFlips:          indexer.db.GetCurrentFlipCids,
-		addresses:         make(map[string]*db.Address),
+		blockHeight:         incomingBlock.Height(),
+		prevStateReadOnly:   prevState,
+		newStateReadOnly:    newState,
+		chain:               indexer.listener.Blockchain(),
+		c:                   indexer.listener.Ceremony(),
+		fp:                  indexer.listener.Flipper(),
+		getFlips:            indexer.db.GetCurrentFlipCids,
+		getFlipsWithoutData: indexer.db.GetCurrentFlipsWithoutData,
+		addresses:           make(map[string]*db.Address),
 	}
 	epoch := uint64(prevState.State.Epoch())
 
 	block := convertBlock(incomingBlock, &ctx)
-	identities, flipStats := determineEpochResult(incomingBlock, &ctx)
+	identities, flipStats, flipsMemPoolData := determineEpochResult(incomingBlock, &ctx)
 
 	firstAddresses := determineFirstAddresses(incomingBlock, &ctx)
 	for _, addr := range firstAddresses {
@@ -206,16 +209,17 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) *db.Data
 	}
 
 	return &db.Data{
-		Epoch:          epoch,
-		ValidationTime: *big.NewInt(ctx.newStateReadOnly.State.NextValidationTime().Unix()),
-		Block:          block,
-		Identities:     identities,
-		SubmittedFlips: ctx.submittedFlips,
-		FlipKeys:       ctx.flipKeys,
-		FlipsData:      ctx.flipsData,
-		FlipStats:      flipStats,
-		Addresses:      ctx.getAddresses(),
-		Balances:       determineBalanceChanges(&ctx),
+		Epoch:            epoch,
+		ValidationTime:   *big.NewInt(ctx.newStateReadOnly.State.NextValidationTime().Unix()),
+		Block:            block,
+		Identities:       identities,
+		SubmittedFlips:   ctx.submittedFlips,
+		FlipKeys:         ctx.flipKeys,
+		FlipsData:        ctx.flipsData,
+		FlipsMemPoolData: flipsMemPoolData,
+		FlipStats:        flipStats,
+		Addresses:        ctx.getAddresses(),
+		Balances:         determineBalanceChanges(&ctx),
 	}
 }
 
@@ -333,7 +337,7 @@ func convertTransactions(incomingTxs []*types.Transaction, ctx *conversionContex
 }
 
 func convertTransaction(incomingTx *types.Transaction, ctx *conversionContext, stateToApply *appstate.AppState) db.Transaction {
-	if f := determineSubmittedFlip(incomingTx); f != nil {
+	if f := determineSubmittedFlip(incomingTx, ctx); f != nil {
 		ctx.submittedFlips = append(ctx.submittedFlips, *f)
 	}
 
@@ -457,9 +461,9 @@ func convertCid(cid cid.Cid) string {
 	return cid.String()
 }
 
-func determineEpochResult(block *types.Block, ctx *conversionContext) ([]db.EpochIdentity, []db.FlipStats) {
+func determineEpochResult(block *types.Block, ctx *conversionContext) ([]db.EpochIdentity, []db.FlipStats, []db.FlipData) {
 	if !block.Header.Flags().HasFlag(types.ValidationFinished) {
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	var identities []db.EpochIdentity
@@ -504,10 +508,37 @@ func determineEpochResult(block *types.Block, ctx *conversionContext) ([]db.Epoc
 		flipsStats = append(flipsStats, flipStats)
 	}
 
-	return identities, flipsStats
+	return identities, flipsStats, getFlipsMemPoolKeyData(ctx)
 }
 
-func determineSubmittedFlip(tx *types.Transaction) *db.Flip {
+func getFlipsMemPoolKeyData(ctx *conversionContext) []db.FlipData {
+	flipCidsWithoutData, err := ctx.getFlipsWithoutData(flipLimitToGetMemPoolData)
+	if err != nil {
+		log.Error("Unable to get cids without data to try to load it with key from mem pool. Skipped.", "err", err)
+		return nil
+	}
+	if len(flipCidsWithoutData) == 0 {
+		return nil
+	}
+	var flipsMemPoolKeyData []db.FlipData
+	log.Info(fmt.Sprintf("Flip count for loading data with key from mem pool: %d", len(flipCidsWithoutData)))
+	for _, flipCidStr := range flipCidsWithoutData {
+		flipCid, _ := cid.Decode(flipCidStr)
+		data, err := ctx.fp.GetFlip(flipCid.Bytes())
+		if err != nil {
+			log.Error("Unable to get flip data with key from mem pool. Skipped.", "cid", flipCidStr, "err", err)
+			continue
+		}
+		flipsMemPoolKeyData = append(flipsMemPoolKeyData, db.FlipData{
+			Cid:    flipCidStr,
+			TxHash: "",
+			Data:   data,
+		})
+	}
+	return flipsMemPoolKeyData
+}
+
+func determineSubmittedFlip(tx *types.Transaction, ctx *conversionContext) *db.Flip {
 	if tx.Type != types.SubmitFlipTx {
 		return nil
 	}
@@ -516,9 +547,17 @@ func determineSubmittedFlip(tx *types.Transaction) *db.Flip {
 		log.Error("Unable to parse flip cid. Skipped.", "tx", tx.Hash(), "err", err)
 		return nil
 	}
+	ipfsFlip, err := ctx.fp.GetRawFlip(tx.Payload)
+	var size uint32
+	if err != nil {
+		log.Error("Unable to get flips data to define flip size.", "tx", tx.Hash(), "err", err)
+	} else {
+		size = uint32(len(ipfsFlip.Data))
+	}
 	f := &db.Flip{
 		TxHash: convertHash(tx.Hash()),
 		Cid:    convertCid(flipCid),
+		Size:   size,
 	}
 	return f
 }

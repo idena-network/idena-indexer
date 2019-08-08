@@ -6,16 +6,17 @@ import (
 )
 
 type Data struct {
-	Epoch          uint64
-	ValidationTime big.Int
-	Block          Block
-	Identities     []EpochIdentity
-	SubmittedFlips []Flip
-	FlipKeys       []FlipKey
-	FlipStats      []FlipStats
-	Addresses      []Address
-	Balances       []Balance
-	FlipsData      []FlipData
+	Epoch            uint64
+	ValidationTime   big.Int
+	Block            Block
+	Identities       []EpochIdentity
+	SubmittedFlips   []Flip
+	FlipKeys         []FlipKey
+	FlipStats        []FlipStats
+	Addresses        []Address
+	Balances         []Balance
+	FlipsData        []FlipData
+	FlipsMemPoolData []FlipData
 }
 
 type Block struct {
@@ -56,6 +57,7 @@ type EpochIdentity struct {
 type Flip struct {
 	TxHash string
 	Cid    string
+	Size   uint32
 }
 
 type FlipStats struct {

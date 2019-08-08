@@ -66,6 +66,7 @@ func (a *postgresAccessor) readFlips(rows *sql.Rows) ([]types.FlipSummary, error
 		item := types.FlipSummary{}
 		var timestamp int64
 		err := rows.Scan(&item.Cid,
+			&item.Size,
 			&item.Author,
 			&item.Status,
 			&item.Answer,

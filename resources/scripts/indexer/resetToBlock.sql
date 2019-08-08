@@ -63,7 +63,8 @@ where tx_id in
 update flips
 set status_block_id=null,
     status=null,
-    answer=null
+    answer=null,
+    mempool_data=null
 where status_block_id in (select id from blocks where height > $1);
 update flips
 set data=null,

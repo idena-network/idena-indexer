@@ -75,7 +75,7 @@ type FlipSummary struct {
 	Status         string    `json:"status"`
 	Answer         string    `json:"answer"`
 	Timestamp      time.Time `json:"timestamp"`
-	Size           uint32    `json:"size"` // todo
+	Size           uint32    `json:"size"`
 }
 
 type Invite struct {
@@ -109,6 +109,8 @@ type EpochIdentity struct {
 }
 
 type Flip struct {
+	Timestamp   time.Time     `json:"timestamp"`
+	Size        uint32        `json:"size"`
 	Status      string        `json:"status"`
 	Answer      string        `json:"answer"`
 	TxHash      string        `json:"txHash"`

@@ -1,22 +1,32 @@
 package incoming
 
 import (
+	"github.com/idena-network/idena-go/blockchain"
 	"github.com/idena-network/idena-go/blockchain/types"
 	"github.com/idena-network/idena-go/common/eventbus"
 	"github.com/idena-network/idena-go/config"
+	"github.com/idena-network/idena-go/core/appstate"
+	"github.com/idena-network/idena-go/core/ceremony"
+	"github.com/idena-network/idena-go/core/flip"
 	"github.com/idena-network/idena-go/events"
 	"github.com/idena-network/idena-go/node"
 )
 
 type Listener interface {
 	Listen(handleBlock func(block *types.Block), expectedHeadHeight uint64)
-	Node() *node.Node
+	AppStateReadonly(height uint64) *appstate.AppState
+	Ceremony() *ceremony.ValidationCeremony
+	Blockchain() *blockchain.Blockchain
+	Flipper() *flip.Flipper
 	Destroy()
 }
 
 type listenerImpl struct {
 	nodeConfigFile string
-	n              *node.Node
+	appState       *appstate.AppState
+	ceremony       *ceremony.ValidationCeremony
+	blockchain     *blockchain.Blockchain
+	flipper        *flip.Flipper
 }
 
 func NewListener(nodeConfigFile string) Listener {
@@ -24,6 +34,22 @@ func NewListener(nodeConfigFile string) Listener {
 		nodeConfigFile: nodeConfigFile,
 	}
 	return l
+}
+
+func (l *listenerImpl) AppStateReadonly(height uint64) *appstate.AppState {
+	return l.appState.Readonly(height)
+}
+
+func (l *listenerImpl) Ceremony() *ceremony.ValidationCeremony {
+	return l.ceremony
+}
+
+func (l *listenerImpl) Blockchain() *blockchain.Blockchain {
+	return l.blockchain
+}
+
+func (l *listenerImpl) Flipper() *flip.Flipper {
+	return l.flipper
 }
 
 func (l *listenerImpl) Listen(handleBlock func(block *types.Block), expectedHeadHeight uint64) {
@@ -40,19 +66,19 @@ func (l *listenerImpl) Listen(handleBlock func(block *types.Block), expectedHead
 			handleBlock(newBlockEvent.Block)
 		})
 
-	n, err := node.NewNode(cfg, bus)
+	nodeCtx, err := node.NewIndexerNode(cfg, bus)
 	if err != nil {
 		panic(err)
 	}
 
-	l.n = n
+	l.appState = nodeCtx.AppState
+	l.flipper = nodeCtx.Flipper
+	l.blockchain = nodeCtx.Blockchain
+	l.ceremony = nodeCtx.Ceremony
 
+	n := nodeCtx.Node
 	n.StartWithHeight(expectedHeadHeight)
 	n.WaitForStop()
-}
-
-func (l *listenerImpl) Node() *node.Node {
-	return l.n
 }
 
 func (l *listenerImpl) Destroy() {

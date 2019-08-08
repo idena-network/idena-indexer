@@ -1,4 +1,5 @@
 select f.Cid,
+       f.Size,
        a.address              author,
        COALESCE(f.Status, '') status,
        COALESCE(f.Answer, '') answer,

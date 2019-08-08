@@ -1,11 +1,13 @@
 select f.id,
-       coalesce(f.answer, '')      answer,
-       coalesce(f.status, '')      status,
-       coalesce(f.data, ''::bytea) "data",
-       t.hash                      tx_hash,
-       b.hash                      block_hash,
-       b.height                    block_height,
-       e.epoch                     epoch
+       f.size,
+       b.timestamp,
+       coalesce(f.answer, '')                                answer,
+       coalesce(f.status, '')                                status,
+       coalesce(f.data, coalesce(f.mempool_data, ''::bytea)) "data",
+       t.hash                                                tx_hash,
+       b.hash                                                block_hash,
+       b.height                                              block_height,
+       e.epoch                                               epoch
 from flips f
          join transactions t on t.id = f.tx_id
          join blocks b on b.id = t.block_id
