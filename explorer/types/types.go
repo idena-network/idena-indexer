@@ -7,10 +7,12 @@ import (
 )
 
 type EpochSummary struct {
-	Epoch         uint64 `json:"epoch"`
-	VerifiedCount uint32 `json:"verified"`
-	BlockCount    uint32 `json:"blockCount"`
-	FlipCount     uint32 `json:"flipCount"`
+	Epoch          uint64 `json:"epoch"`
+	ValidatedCount uint32 `json:"validatedCount"`
+	BlockCount     uint32 `json:"blockCount"`
+	TxCount        uint32 `json:"txCount"`
+	InviteCount    uint32 `json:"inviteCount"`
+	FlipCount      uint32 `json:"flipCount"`
 }
 
 type EpochDetail struct {

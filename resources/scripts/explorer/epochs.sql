@@ -1,23 +1,31 @@
 select e.epoch,
-       COALESCE(ei.verifiedCount, 0) verifiedCount,
-       COALESCE(b.blockCount, 0)     blockCount,
-       COALESCE(f.flipsCount, 0)     flipsCount
+       (select count(*)
+        from epoch_identities ei
+                 join address_states s on s.id = ei.address_state_id
+        where ei.epoch_id = e.id
+          and s.state in ('Verified', 'Newbie')) validated_count,
+       (select count(*)
+        from blocks b
+        where b.epoch_id = e.id)                 block_count,
+       (select count(*)
+        from transactions t,
+             blocks b
+        where t.block_id = b.id
+          and b.epoch_id = e.id)                 tx_count,
+       (select count(*)
+        from transactions t,
+             blocks b
+        where t.block_id = b.id
+          and b.epoch_id = e.id
+          and t.type = 'InviteTx')               invite_count,
+       (select count(*)
+        from flips f,
+             transactions t,
+             blocks b
+        where f.tx_id = t.id
+          and t.block_id = b.id
+          and b.epoch_id = e.id)                 flip_count
 from epochs e
-         left join (select ei.epoch_id, count(*) verifiedCount
-                    from epoch_identities ei
-                             join address_states s on s.id = ei.address_state_id
-                    where s.state = 'Verified'
-                    group by ei.epoch_id) ei on ei.epoch_id = e.id
-         left join (select b.epoch_id, count(*) blockCount
-                    from blocks b
-                    group by b.epoch_id) b on b.epoch_id = e.id
-         left join (select b.epoch_id, count(*) flipsCount
-                    from flips f,
-                         transactions t,
-                         blocks b
-                    where f.tx_id = t.id
-                      and t.block_id = b.id
-                    group by b.epoch_id) f on f.epoch_id = e.id
 order by e.epoch
 limit $2
     offset $1

@@ -20,7 +20,12 @@ func (a *postgresAccessor) Epochs(startIndex uint64, count uint64) ([]types.Epoc
 	var epochs []types.EpochSummary
 	for rows.Next() {
 		epoch := types.EpochSummary{}
-		err = rows.Scan(&epoch.Epoch, &epoch.VerifiedCount, &epoch.BlockCount, &epoch.FlipCount)
+		err = rows.Scan(&epoch.Epoch,
+			&epoch.ValidatedCount,
+			&epoch.BlockCount,
+			&epoch.TxCount,
+			&epoch.InviteCount,
+			&epoch.FlipCount)
 		if err != nil {
 			return nil, err
 		}
