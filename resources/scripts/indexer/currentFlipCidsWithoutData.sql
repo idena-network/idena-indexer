@@ -2,7 +2,7 @@ select f.cid
 from flips f
          join transactions t on t.id = f.tx_id
          join blocks b on b.id = t.block_id
-         join addresses a on a.id = t.from
+         left join flips_data fd on fd.flip_id = f.id
 where b.epoch_id = (select id from epochs order by epoch desc limit 1)
-  and f.data is null
+  and fd.id is null
 limit $1

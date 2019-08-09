@@ -112,16 +112,21 @@ type EpochIdentity struct {
 }
 
 type Flip struct {
-	Author      string        `json:"author"`
-	Timestamp   time.Time     `json:"timestamp"`
-	Size        uint32        `json:"size"`
-	Status      string        `json:"status"`
-	Answer      string        `json:"answer"`
-	TxHash      string        `json:"txHash"`
-	BlockHash   string        `json:"blockHash"`
-	BlockHeight uint64        `json:"blockHeight"`
-	Epoch       uint64        `json:"epoch"`
-	Data        hexutil.Bytes `json:"hex,omitempty"`
+	Author      string    `json:"author"`
+	Timestamp   time.Time `json:"timestamp"`
+	Size        uint32    `json:"size"`
+	Status      string    `json:"status"`
+	Answer      string    `json:"answer"`
+	TxHash      string    `json:"txHash"`
+	BlockHash   string    `json:"blockHash"`
+	BlockHeight uint64    `json:"blockHeight"`
+	Epoch       uint64    `json:"epoch"`
+}
+
+type FlipContent struct {
+	LeftOrder  []uint16
+	RightOrder []uint16
+	Pics       []hexutil.Bytes
 }
 
 type Answer struct {

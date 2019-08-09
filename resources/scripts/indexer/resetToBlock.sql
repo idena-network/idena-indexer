@@ -52,6 +52,30 @@ where id in
               group by address_id)
          and not s.is_actual);
 
+-- flip_pics
+delete
+from flip_pics
+where flip_data_id in
+      (select id
+       from flips_data
+       where block_id in
+             (select id from blocks where height > $1));
+
+-- flip_pic_orders
+delete
+from flip_pic_orders
+where flip_data_id in
+      (select id
+       from flips_data
+       where block_id in
+             (select id from blocks where height > $1));
+
+-- flips_data
+delete
+from flips_data
+where block_id in
+      (select id from blocks where height > $1);
+
 -- flips
 delete
 from flips
@@ -63,17 +87,8 @@ where tx_id in
 update flips
 set status_block_id=null,
     status=null,
-    answer=null,
-    mempool_data=null
+    answer=null
 where status_block_id in (select id from blocks where height > $1);
-update flips
-set data=null,
-    data_tx_id=null
-where data_tx_id in
-      (select id
-       from transactions
-       where block_id in
-             (select id from blocks where height > $1));
 
 -- flip_keys
 delete

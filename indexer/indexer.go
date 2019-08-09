@@ -14,6 +14,7 @@ import (
 	"github.com/idena-network/idena-go/core/state"
 	"github.com/idena-network/idena-go/crypto"
 	"github.com/idena-network/idena-go/crypto/ecies"
+	"github.com/idena-network/idena-go/rlp"
 	"github.com/idena-network/idena-indexer/db"
 	"github.com/idena-network/idena-indexer/incoming"
 	"github.com/idena-network/idena-indexer/log"
@@ -209,17 +210,16 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) *db.Data
 	}
 
 	return &db.Data{
-		Epoch:            epoch,
-		ValidationTime:   *big.NewInt(ctx.newStateReadOnly.State.NextValidationTime().Unix()),
-		Block:            block,
-		Identities:       identities,
-		SubmittedFlips:   ctx.submittedFlips,
-		FlipKeys:         ctx.flipKeys,
-		FlipsData:        ctx.flipsData,
-		FlipsMemPoolData: flipsMemPoolData,
-		FlipStats:        flipStats,
-		Addresses:        ctx.getAddresses(),
-		Balances:         determineBalanceChanges(&ctx),
+		Epoch:          epoch,
+		ValidationTime: *big.NewInt(ctx.newStateReadOnly.State.NextValidationTime().Unix()),
+		Block:          block,
+		Identities:     identities,
+		SubmittedFlips: ctx.submittedFlips,
+		FlipKeys:       ctx.flipKeys,
+		FlipsData:      append(ctx.flipsData, flipsMemPoolData...),
+		FlipStats:      flipStats,
+		Addresses:      ctx.getAddresses(),
+		Balances:       determineBalanceChanges(&ctx),
 	}
 }
 
@@ -529,13 +529,45 @@ func getFlipsMemPoolKeyData(ctx *conversionContext) []db.FlipData {
 			log.Error("Unable to get flip data with key from mem pool. Skipped.", "cid", flipCidStr, "err", err)
 			continue
 		}
+		parsedData, err := parseFlip(data)
+		if err != nil {
+			log.Error("Unable to parse flip data with key from mem pool. Skipped.", "cid", flipCidStr, "err", err)
+			continue
+		}
 		flipsMemPoolKeyData = append(flipsMemPoolKeyData, db.FlipData{
-			Cid:    flipCidStr,
-			TxHash: "",
-			Data:   data,
+			Cid:     flipCidStr,
+			Content: parsedData,
 		})
 	}
 	return flipsMemPoolKeyData
+}
+
+func parseFlip(data []byte) (db.FlipContent, error) {
+	arr := make([]interface{}, 2)
+	err := rlp.DecodeBytes(data, &arr)
+	if err != nil {
+		return db.FlipContent{}, err
+	}
+	var pics [][]byte
+	for _, b := range arr[0].([]interface{}) {
+		pics = append(pics, b.([]byte))
+	}
+	var allOrders [][]byte
+	for _, b := range arr[1].([]interface{}) {
+		var orders []byte
+		for _, bb := range b.([]interface{}) {
+			var order byte
+			if len(bb.([]byte)) > 0 {
+				order = bb.([]byte)[0]
+			}
+			orders = append(orders, order)
+		}
+		allOrders = append(allOrders, orders)
+	}
+	return db.FlipContent{
+		Pics:   pics,
+		Orders: allOrders,
+	}, nil
 }
 
 func determineSubmittedFlip(tx *types.Transaction, ctx *conversionContext) *db.Flip {
@@ -606,10 +638,15 @@ func getFlipsData(tx *types.Transaction, attachment *attachments.ShortAnswerAtta
 			log.Error("Unable to get flip data. Skipped.", "tx", tx.Hash(), "cid", flipCidStr, "err", err)
 			continue
 		}
+		parsedData, err := parseFlip(flipData)
+		if err != nil {
+			log.Error("Unable to parse flip data. Skipped.", "tx", tx.Hash(), "cid", flipCidStr, "err", err)
+			continue
+		}
 		flipsData = append(flipsData, db.FlipData{
-			Cid:    flipCidStr,
-			TxHash: convertHash(tx.Hash()),
-			Data:   flipData,
+			Cid:     flipCidStr,
+			TxHash:  convertHash(tx.Hash()),
+			Content: parsedData,
 		})
 	}
 	return flipsData, nil

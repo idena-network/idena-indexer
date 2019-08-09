@@ -21,8 +21,9 @@ const (
 	currentFlipCidsQuery            = "currentFlipCids.sql"
 	currentFlipCidsWithoutDataQuery = "currentFlipCidsWithoutData.sql"
 	updateFlipStateQuery            = "updateFlipState.sql"
-	updateFlipDataQuery             = "updateFlipData.sql"
-	updateFlipMemPoolDataQuery      = "updateFlipMemPoolData.sql"
+	insertFlipDataQuery             = "insertFlipData.sql"
+	insertFlipPicQuery              = "insertFlipPic.sql"
+	insertFlipPicOrderQuery         = "insertFlipPicOrder.sql"
 	insertAnswersQuery              = "insertAnswers.sql"
 	insertBlockQuery                = "insertBlock.sql"
 	insertProposerQuery             = "insertProposer.sql"
@@ -203,10 +204,6 @@ func (a *postgresAccessor) Save(data *Data) error {
 		return err
 	}
 
-	if err := a.saveFlipsMemPoolData(ctx, data.FlipsMemPoolData); err != nil {
-		return err
-	}
-
 	return tx.Commit()
 }
 
@@ -245,30 +242,40 @@ func (a *postgresAccessor) saveFlipsData(ctx *context, flipsData []FlipData) err
 }
 
 func (a *postgresAccessor) saveFlipData(ctx *context, flipData FlipData) error {
-	txId, err := ctx.txId(flipData.TxHash)
-	if err != nil {
-		return err
-	}
-	if _, err := ctx.tx.Exec(a.getQuery(updateFlipDataQuery), flipData.Data, txId, flipData.Cid); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (a *postgresAccessor) saveFlipsMemPoolData(ctx *context, flipsData []FlipData) error {
-	if len(flipsData) == 0 {
-		return nil
-	}
-	for _, flipData := range flipsData {
-		if err := a.saveFlipMemPoolData(ctx, flipData); err != nil {
+	var txId *int64
+	if len(flipData.TxHash) > 0 {
+		id, err := ctx.txId(flipData.TxHash)
+		if err != nil {
 			return err
+		}
+		txId = &id
+	}
+	var flipDataId int64
+	if err := ctx.tx.QueryRow(a.getQuery(insertFlipDataQuery), flipData.Cid, ctx.blockId, txId).Scan(&flipDataId); err != nil {
+		return err
+	}
+	for picIndex, pic := range flipData.Content.Pics {
+		if err := a.saveFlipPic(ctx, byte(picIndex), pic, flipDataId); err != nil {
+			return err
+		}
+	}
+	for answerIndex, order := range flipData.Content.Orders {
+		for posIndex, flipPicIndex := range order {
+			if err := a.saveFlipPicOrder(ctx, byte(answerIndex), byte(posIndex), flipPicIndex, flipDataId); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
 }
 
-func (a *postgresAccessor) saveFlipMemPoolData(ctx *context, flipData FlipData) error {
-	_, err := ctx.tx.Exec(a.getQuery(updateFlipMemPoolDataQuery), flipData.Data, flipData.Cid)
+func (a *postgresAccessor) saveFlipPic(ctx *context, picIndex byte, pic []byte, flipDataId int64) error {
+	_, err := ctx.tx.Exec(a.getQuery(insertFlipPicQuery), flipDataId, picIndex, pic)
+	return err
+}
+
+func (a *postgresAccessor) saveFlipPicOrder(ctx *context, answerIndex, posIndex, flipPicIndex byte, flipDataId int64) error {
+	_, err := ctx.tx.Exec(a.getQuery(insertFlipPicOrderQuery), flipDataId, answerIndex, posIndex, flipPicIndex)
 	return err
 }
 

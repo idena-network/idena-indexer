@@ -311,15 +311,9 @@ CREATE TABLE IF NOT EXISTS public.flips
     status_block_id bigint,
     answer          character varying(20) COLLATE pg_catalog."default",
     status          character varying(20) COLLATE pg_catalog."default",
-    data_tx_id      bigint,
-    data            bytea,
     mempool_data    bytea,
     CONSTRAINT flips_pkey PRIMARY KEY (id),
     CONSTRAINT flips_cid_key UNIQUE (cid),
-    CONSTRAINT flips_data_tx_id_fkey FOREIGN KEY (data_tx_id)
-        REFERENCES public.transactions (id) MATCH SIMPLE
-        ON UPDATE NO ACTION
-        ON DELETE NO ACTION,
     CONSTRAINT flips_status_block_id_fkey FOREIGN KEY (status_block_id)
         REFERENCES public.blocks (id) MATCH SIMPLE
         ON UPDATE NO ACTION
@@ -564,6 +558,98 @@ CREATE TABLE IF NOT EXISTS public.temporary_identities
     TABLESPACE pg_default;
 
 ALTER TABLE public.temporary_identities
+    OWNER to postgres;
+
+-- SEQUENCE: public.flips_data_id_seq
+
+-- DROP SEQUENCE public.flips_data_id_seq;
+
+CREATE SEQUENCE IF NOT EXISTS public.flips_data_id_seq
+    INCREMENT 1
+    START 1
+    MINVALUE 1
+    MAXVALUE 9223372036854775807
+    CACHE 1;
+
+ALTER SEQUENCE public.flips_data_id_seq
+    OWNER TO postgres;
+
+-- Table: public.flips_data
+
+-- DROP TABLE public.flips_data;
+
+CREATE TABLE IF NOT EXISTS public.flips_data
+(
+    id       bigint NOT NULL DEFAULT nextval('flips_data_id_seq'::regclass),
+    flip_id  bigint NOT NULL,
+    block_id bigint,
+    tx_id    bigint,
+    CONSTRAINT flips_data_pkey PRIMARY KEY (id),
+    CONSTRAINT flips_data_flip_id_key UNIQUE (flip_id),
+    CONSTRAINT flips_data_block_id_fkey FOREIGN KEY (block_id)
+        REFERENCES public.blocks (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT flips_data_flip_id_fkey FOREIGN KEY (flip_id)
+        REFERENCES public.flips (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT flips_data_tx_id_fkey1 FOREIGN KEY (tx_id)
+        REFERENCES public.transactions (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+)
+    WITH (
+        OIDS = FALSE
+    )
+    TABLESPACE pg_default;
+
+ALTER TABLE public.flips_data
+    OWNER to postgres;
+
+-- Table: public.flip_pics
+
+-- DROP TABLE public.flip_pics;
+
+CREATE TABLE IF NOT EXISTS public.flip_pics
+(
+    flip_data_id bigint   NOT NULL,
+    index        smallint NOT NULL,
+    data         bytea    NOT NULL,
+    CONSTRAINT flip_pics_flip_data_id_fkey FOREIGN KEY (flip_data_id)
+        REFERENCES public.flips_data (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+)
+    WITH (
+        OIDS = FALSE
+    )
+    TABLESPACE pg_default;
+
+ALTER TABLE public.flip_pics
+    OWNER to postgres;
+
+-- Table: public.flip_pic_orders
+
+-- DROP TABLE public.flip_pic_orders;
+
+CREATE TABLE IF NOT EXISTS public.flip_pic_orders
+(
+    flip_data_id   bigint   NOT NULL,
+    answer_index   smallint NOT NULL,
+    pos_index      smallint NOT NULL,
+    flip_pic_index smallint NOT NULL,
+    CONSTRAINT flip_pic_orders_flip_data_id_fkey FOREIGN KEY (flip_data_id)
+        REFERENCES public.flips_data (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+)
+    WITH (
+        OIDS = FALSE
+    )
+    TABLESPACE pg_default;
+
+ALTER TABLE public.flip_pic_orders
     OWNER to postgres;
 
 -- View: public.current_balances

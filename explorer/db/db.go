@@ -40,6 +40,7 @@ type Accessor interface {
 	BlockTxsByHash(hash string, startIndex uint64, count uint64) ([]types.TransactionSummary, error)
 
 	Flip(hash string) (types.Flip, error)
+	FlipContent(hash string) (types.FlipContent, error)
 	FlipAnswersCount(hash string, isShort bool) (uint64, error)
 	FlipAnswers(hash string, isShort bool, startIndex uint64, count uint64) ([]types.Answer, error)
 

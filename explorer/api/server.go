@@ -138,6 +138,7 @@ func (s *httpServer) initHandler() http.Handler {
 		HandlerFunc(s.identityTxs)
 
 	api.Path(strings.ToLower("/Flip/{hash}")).HandlerFunc(s.flip)
+	api.Path(strings.ToLower("/Flip/{hash}/Content")).HandlerFunc(s.flipContent)
 	api.Path(strings.ToLower("/Flip/{hash}/Answers/Short/Count")).HandlerFunc(s.flipShortAnswersCount)
 	api.Path(strings.ToLower("/Flip/{hash}/Answers/Short")).
 		Queries("skip", "{skip}", "limit", "{limit}").
@@ -562,6 +563,11 @@ func (s *httpServer) identityTxs(w http.ResponseWriter, r *http.Request) {
 
 func (s *httpServer) flip(w http.ResponseWriter, r *http.Request) {
 	resp, err := s.db.Flip(mux.Vars(r)["hash"])
+	s.writeResponse(w, resp, err)
+}
+
+func (s *httpServer) flipContent(w http.ResponseWriter, r *http.Request) {
+	resp, err := s.db.FlipContent(mux.Vars(r)["hash"])
 	s.writeResponse(w, resp, err)
 }
 
