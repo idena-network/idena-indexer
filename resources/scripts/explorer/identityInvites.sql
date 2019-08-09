@@ -14,6 +14,6 @@ from transactions t
          left join addresses aa on aa.id = at.to
 where t.type = 'InviteTx'
   and lower(a.address) = lower($1)
-order by b.height
+order by b.height desc
 limit $3
     offset $2

@@ -26,6 +26,6 @@ select e.epoch,
           and t.block_id = b.id
           and b.epoch_id = e.id)                 flip_count
 from epochs e
-order by e.epoch
+order by e.epoch desc
 limit $2
     offset $1

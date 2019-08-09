@@ -8,5 +8,6 @@ from blocks b
          join proposers p on p.block_id = b.id
          join addresses a on a.id = p.address_id
 where e.epoch = $1
+order by b.height desc
 limit $3
     offset $2

@@ -16,6 +16,6 @@ from flips f
          left join (select a.flip_id, count(*) answers from answers a where a.is_short = false group by a.flip_id) long
                    on long.flip_id = f.id
 where e.epoch = $1
-order by b.height
+order by b.height desc
 limit $3
     offset $2
