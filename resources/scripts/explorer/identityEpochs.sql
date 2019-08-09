@@ -1,15 +1,7 @@
 select a.address,
        eis.epoch,
        eis.state,
-       coalesce((
-                    select as2.state
-                    from address_states as2
-                             join blocks b on b.id = as2.block_Id
-                    where as2.address_id = eis.address_id
-                      and b.height < (select height from blocks where id = eis.block_id)
-                    order by b.height desc
-                    limit 1
-                ), '') prev_state,
+       coalesce(prevs.state, '') prev_state,
        coalesce(ei.approved, false),
        coalesce(ei.missed, false),
        coalesce(ei.short_point, 0),
@@ -20,6 +12,7 @@ select a.address,
        coalesce(ei.long_flips, 0)
 from epoch_identity_states eis
          join addresses a on a.id = eis.address_id
+         left join address_states prevs on prevs.id = eis.prev_id
          left join epoch_identities ei on ei.epoch_id = eis.epoch_id and ei.address_state_id = eis.address_state_id
 where lower(a.address) = lower($1)
 order by eis.epoch

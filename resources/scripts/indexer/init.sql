@@ -207,6 +207,7 @@ CREATE TABLE IF NOT EXISTS public.address_states
     is_actual  boolean                                            NOT NULL,
     block_id   bigint                                             NOT NULL,
     tx_id      bigint,
+    prev_id    bigint,
     CONSTRAINT address_states_pkey PRIMARY KEY (id),
     CONSTRAINT address_states_address_id_fkey FOREIGN KEY (address_id)
         REFERENCES public.addresses (id) MATCH SIMPLE
@@ -214,6 +215,10 @@ CREATE TABLE IF NOT EXISTS public.address_states
         ON DELETE NO ACTION,
     CONSTRAINT address_states_block_id_fkey FOREIGN KEY (block_id)
         REFERENCES public.blocks (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT address_states_prev_id_fkey FOREIGN KEY (prev_id)
+        REFERENCES public.address_states (id) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION,
     CONSTRAINT address_states_tx_id_fkey FOREIGN KEY (tx_id)
@@ -588,6 +593,7 @@ WHERE ((ab.address_id, b.height) IN (SELECT bh.address_id,
 CREATE OR REPLACE VIEW public.epoch_identity_states AS
 SELECT s.id AS address_state_id,
        s.address_id,
+       s.prev_id,
        s.state,
        s.block_id,
        e.id AS epoch_id,

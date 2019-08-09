@@ -16,6 +16,7 @@ const (
 func (a *postgresAccessor) EpochIdentity(epoch uint64, address string) (types.EpochIdentity, error) {
 	res := types.EpochIdentity{}
 	err := a.db.QueryRow(a.getQuery(epochIdentityQuery), epoch, address).Scan(&res.State,
+		&res.PrevState,
 		&res.ShortAnswers.Point,
 		&res.ShortAnswers.FlipsCount,
 		&res.TotalShortAnswers.Point,

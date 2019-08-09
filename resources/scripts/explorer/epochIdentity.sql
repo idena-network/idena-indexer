@@ -1,4 +1,5 @@
 select eis.state,
+       coalesce(preva.state, '') prev_state,
        coalesce(ei.short_point, 0),
        coalesce(ei.short_flips, 0),
        coalesce(ei.total_short_point, 0),
@@ -9,6 +10,7 @@ select eis.state,
        coalesce(ei.missed, false)
 from epoch_identity_states eis
          left join epoch_identities ei on ei.epoch_id = eis.epoch_id and ei.address_state_id = eis.address_state_id
+         left join address_states preva on preva.id = eis.prev_id
          join addresses a on a.id = eis.address_id
 where eis.epoch = $1
   and LOWER(a.address) = LOWER($2)

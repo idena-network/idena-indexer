@@ -101,6 +101,7 @@ type EpochIdentitySummary struct {
 
 type EpochIdentity struct {
 	State             string                 `json:"state"`
+	PrevState         string                 `json:"prevState"`
 	ShortAnswers      IdentityAnswersSummary `json:"shortAnswers"`
 	TotalShortAnswers IdentityAnswersSummary `json:"totalShortAnswers"`
 	LongAnswers       IdentityAnswersSummary `json:"longAnswers"`

@@ -395,12 +395,17 @@ func (a *postgresAccessor) saveTemporaryIdentity(ctx *context, addressId int64) 
 }
 
 func (a *postgresAccessor) saveAddressState(ctx *context, addressId int64, stateChange AddressStateChange) (int64, error) {
-	_, err := ctx.tx.Exec(a.getQuery(archiveAddressStateQuery), addressId)
-	if err != nil {
+	var prevId int64
+	err := ctx.tx.QueryRow(a.getQuery(archiveAddressStateQuery), addressId).Scan(&prevId)
+	if err != nil && err != sql.ErrNoRows {
 		return 0, err
 	}
 	var id int64
-	err = ctx.tx.QueryRow(a.getQuery(insertAddressStateQuery), addressId, stateChange.NewState, ctx.blockId, stateChange.TxHash).Scan(&id)
+	if prevId > 0 {
+		err = ctx.tx.QueryRow(a.getQuery(insertAddressStateQuery), addressId, stateChange.NewState, ctx.blockId, stateChange.TxHash, prevId).Scan(&id)
+	} else {
+		err = ctx.tx.QueryRow(a.getQuery(insertAddressStateQuery), addressId, stateChange.NewState, ctx.blockId, stateChange.TxHash, nil).Scan(&id)
+	}
 	return id, err
 }
 
@@ -438,12 +443,17 @@ func (a *postgresAccessor) saveIdentities(ctx *context, identities []EpochIdenti
 }
 
 func (a *postgresAccessor) saveIdentityState(ctx *context, identity EpochIdentity) (int64, error) {
-	_, err := ctx.tx.Exec(a.getQuery(archiveIdentityStateQuery), identity.Address)
-	if err != nil {
+	var prevId int64
+	err := ctx.tx.QueryRow(a.getQuery(archiveIdentityStateQuery), identity.Address).Scan(&prevId)
+	if err != nil && err != sql.ErrNoRows {
 		return 0, errors.Wrapf(err, "unable to execute query %s", archiveIdentityStateQuery)
 	}
 	var id int64
-	err = ctx.tx.QueryRow(a.getQuery(insertIdentityStateQuery), identity.Address, identity.State, ctx.blockId).Scan(&id)
+	if prevId > 0 {
+		err = ctx.tx.QueryRow(a.getQuery(insertIdentityStateQuery), identity.Address, identity.State, ctx.blockId, prevId).Scan(&id)
+	} else {
+		err = ctx.tx.QueryRow(a.getQuery(insertIdentityStateQuery), identity.Address, identity.State, ctx.blockId, nil).Scan(&id)
+	}
 	return id, errors.Wrapf(err, "unable to execute query %s", insertIdentityStateQuery)
 }
 
