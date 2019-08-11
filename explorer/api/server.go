@@ -65,6 +65,10 @@ func (s *httpServer) initHandler() http.Handler {
 	r := mux.NewRouter()
 	api := r.PathPrefix("/api").Subrouter()
 
+	api.Path(strings.ToLower("/Search")).
+		Queries("value", "{value}").
+		HandlerFunc(s.search)
+
 	api.Path(strings.ToLower("/Epochs/Count")).HandlerFunc(s.epochsCount)
 	api.Path(strings.ToLower("/Epochs")).
 		Queries("skip", "{skip}", "limit", "{limit}").
@@ -153,6 +157,11 @@ func (s *httpServer) initHandler() http.Handler {
 	api.Path(strings.ToLower("/Address/{address}")).HandlerFunc(s.address)
 
 	return s.requestFilter(r)
+}
+
+func (s *httpServer) search(w http.ResponseWriter, r *http.Request) {
+	resp, err := s.db.Search(mux.Vars(r)["value"])
+	s.writeResponse(w, resp, err)
 }
 
 func (s *httpServer) epochsCount(w http.ResponseWriter, r *http.Request) {

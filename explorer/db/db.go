@@ -5,6 +5,8 @@ import (
 )
 
 type Accessor interface {
+	Search(value string) ([]types.Entity, error)
+
 	EpochsCount() (uint64, error)
 	Epochs(startIndex uint64, count uint64) ([]types.EpochSummary, error)
 

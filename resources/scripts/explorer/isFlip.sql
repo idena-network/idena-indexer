@@ -1,0 +1,1 @@
+select exists(select 1 from flips where lower(cid) = lower($1))

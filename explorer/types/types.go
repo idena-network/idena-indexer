@@ -6,6 +6,11 @@ import (
 	"time"
 )
 
+type Entity struct {
+	Name string
+	Ref  string
+}
+
 type EpochSummary struct {
 	Epoch          uint64 `json:"epoch"`
 	ValidatedCount uint32 `json:"validatedCount"`
