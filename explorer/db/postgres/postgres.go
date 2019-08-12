@@ -18,16 +18,15 @@ type postgresAccessor struct {
 }
 
 const (
-	epochFlipsWithKeyQuery = "epochFlipsWithKey.sql"
-	addressQuery           = "address.sql"
-	transactionQuery       = "transaction.sql"
-	currentEpochQuery      = "currentEpoch.sql"
-	isAddressQuery         = "isAddress.sql"
-	isBlockHashQuery       = "isBlockHash.sql"
-	isBlockHeightQuery     = "isBlockHeight.sql"
-	isEpochQuery           = "isEpoch.sql"
-	isFlipQuery            = "isFlip.sql"
-	isTxQuery              = "isTx.sql"
+	addressQuery       = "address.sql"
+	transactionQuery   = "transaction.sql"
+	currentEpochQuery  = "currentEpoch.sql"
+	isAddressQuery     = "isAddress.sql"
+	isBlockHashQuery   = "isBlockHash.sql"
+	isBlockHeightQuery = "isBlockHeight.sql"
+	isEpochQuery       = "isEpoch.sql"
+	isFlipQuery        = "isFlip.sql"
+	isTxQuery          = "isTx.sql"
 )
 
 type flipWithKey struct {
@@ -137,24 +136,6 @@ func (a *postgresAccessor) identityStates(queryName string, args ...interface{})
 		return nil, err
 	}
 	return a.readStrValueCounts(rows)
-}
-
-func (a *postgresAccessor) epochFlipsWithKey(epoch uint64) ([]flipWithKey, error) {
-	rows, err := a.db.Query(a.getQuery(epochFlipsWithKeyQuery), epoch)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var res []flipWithKey
-	for rows.Next() {
-		item := flipWithKey{}
-		err = rows.Scan(&item.cid, &item.key)
-		if err != nil {
-			return nil, err
-		}
-		res = append(res, item)
-	}
-	return res, nil
 }
 
 func (a *postgresAccessor) Address(address string) (types.Address, error) {

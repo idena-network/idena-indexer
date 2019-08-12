@@ -1,2 +1,2 @@
-insert into block_flags (block_id, flag)
+insert into block_flags (block_height, flag)
 values ($1, $2)

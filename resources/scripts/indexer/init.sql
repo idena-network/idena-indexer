@@ -1,29 +1,12 @@
--- SEQUENCE: public.epochs_id_seq
-
--- DROP SEQUENCE public.epochs_id_seq;
-
-CREATE SEQUENCE IF NOT EXISTS public.epochs_id_seq
-    INCREMENT 1
-    START 1
-    MINVALUE 1
-    MAXVALUE 9223372036854775807
-    CACHE 1;
-
-ALTER SEQUENCE public.epochs_id_seq
-    OWNER TO postgres;
-
 -- Table: public.epochs
 
 -- DROP TABLE public.epochs;
 
 CREATE TABLE IF NOT EXISTS public.epochs
 (
-    id              bigint  NOT NULL DEFAULT nextval('epochs_id_seq'::regclass),
-    epoch           integer NOT NULL,
-    validation_time bigint  NOT NULL,
-    CONSTRAINT epochs_pkey PRIMARY KEY (id),
-    CONSTRAINT epochs_epoch_key UNIQUE (epoch)
-
+    epoch           bigint NOT NULL,
+    validation_time bigint NOT NULL,
+    CONSTRAINT epochs_pkey PRIMARY KEY (epoch)
 )
     WITH (
         OIDS = FALSE
@@ -33,36 +16,20 @@ CREATE TABLE IF NOT EXISTS public.epochs
 ALTER TABLE public.epochs
     OWNER to postgres;
 
--- SEQUENCE: public.blocks_id_seq
-
--- DROP SEQUENCE public.blocks_id_seq;
-
-CREATE SEQUENCE IF NOT EXISTS public.blocks_id_seq
-    INCREMENT 1
-    START 1
-    MINVALUE 1
-    MAXVALUE 9223372036854775807
-    CACHE 1;
-
-ALTER SEQUENCE public.blocks_id_seq
-    OWNER TO postgres;
-
 -- Table: public.blocks
 
 -- DROP TABLE public.blocks;
 
 CREATE TABLE IF NOT EXISTS public.blocks
 (
-    id          bigint                                     NOT NULL DEFAULT nextval('blocks_id_seq'::regclass),
     height      integer                                    NOT NULL,
     hash        character(66) COLLATE pg_catalog."default" NOT NULL,
-    epoch_id    bigint                                     NOT NULL,
+    epoch       bigint                                     NOT NULL,
     "timestamp" bigint                                     NOT NULL,
-    CONSTRAINT blocks_pkey PRIMARY KEY (id),
+    CONSTRAINT blocks_pkey PRIMARY KEY (height),
     CONSTRAINT blocks_hash_key UNIQUE (hash),
-    CONSTRAINT blocks_height_key UNIQUE (height),
-    CONSTRAINT blocks_epoch_id_fkey FOREIGN KEY (epoch_id)
-        REFERENCES public.epochs (id) MATCH SIMPLE
+    CONSTRAINT blocks_epoch_fkey FOREIGN KEY (epoch)
+        REFERENCES public.epochs (epoch) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION
 )
@@ -94,13 +61,13 @@ ALTER SEQUENCE public.addresses_id_seq
 
 CREATE TABLE IF NOT EXISTS public.addresses
 (
-    id       bigint                                     NOT NULL DEFAULT nextval('addresses_id_seq'::regclass),
-    address  character(42) COLLATE pg_catalog."default" NOT NULL,
-    block_id bigint                                     NOT NULL,
+    id           bigint                                     NOT NULL DEFAULT nextval('addresses_id_seq'::regclass),
+    address      character(42) COLLATE pg_catalog."default" NOT NULL,
+    block_height bigint                                     NOT NULL,
     CONSTRAINT addresses_pkey PRIMARY KEY (id),
     CONSTRAINT addresses_address_key UNIQUE (address),
-    CONSTRAINT addresses_block_id_fkey FOREIGN KEY (block_id)
-        REFERENCES public.blocks (id) MATCH SIMPLE
+    CONSTRAINT addresses_block_height_fkey FOREIGN KEY (block_height)
+        REFERENCES public.blocks (height) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION
 )
@@ -118,9 +85,9 @@ ALTER TABLE public.addresses
 
 CREATE TABLE IF NOT EXISTS public.proposers
 (
-    address_id bigint NOT NULL,
-    block_id   bigint NOT NULL,
-    CONSTRAINT proposers_pkey PRIMARY KEY (block_id)
+    address_id   bigint NOT NULL,
+    block_height bigint NOT NULL,
+    CONSTRAINT proposers_pkey PRIMARY KEY (block_height)
 )
     WITH (
         OIDS = FALSE
@@ -150,18 +117,18 @@ ALTER SEQUENCE public.transactions_id_seq
 
 CREATE TABLE IF NOT EXISTS public.transactions
 (
-    id       bigint                                             NOT NULL DEFAULT nextval('transactions_id_seq'::regclass),
-    hash     character(66) COLLATE pg_catalog."default"         NOT NULL,
-    block_id bigint                                             NOT NULL,
-    type     character varying(20) COLLATE pg_catalog."default" NOT NULL,
-    "from"   bigint                                             NOT NULL,
-    "to"     bigint,
-    amount   character varying(20) COLLATE pg_catalog."default" NOT NULL,
-    fee      character varying(20) COLLATE pg_catalog."default" NOT NULL,
+    id           bigint                                             NOT NULL DEFAULT nextval('transactions_id_seq'::regclass),
+    hash         character(66) COLLATE pg_catalog."default"         NOT NULL,
+    block_height bigint                                             NOT NULL,
+    type         character varying(20) COLLATE pg_catalog."default" NOT NULL,
+    "from"       bigint                                             NOT NULL,
+    "to"         bigint,
+    amount       character varying(20) COLLATE pg_catalog."default" NOT NULL,
+    fee          character varying(20) COLLATE pg_catalog."default" NOT NULL,
     CONSTRAINT transactions_pkey PRIMARY KEY (id),
     CONSTRAINT transactions_hash_key UNIQUE (hash),
-    CONSTRAINT transactions_block_id_fkey FOREIGN KEY (block_id)
-        REFERENCES public.blocks (id) MATCH SIMPLE
+    CONSTRAINT transactions_block_height_fkey FOREIGN KEY (block_height)
+        REFERENCES public.blocks (height) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION,
     CONSTRAINT transactions_from_fkey FOREIGN KEY ("from")
@@ -201,20 +168,20 @@ ALTER SEQUENCE public.address_states_id_seq
 
 CREATE TABLE IF NOT EXISTS public.address_states
 (
-    id         bigint                                             NOT NULL DEFAULT nextval('address_states_id_seq'::regclass),
-    address_id bigint                                             NOT NULL,
-    state      character varying(20) COLLATE pg_catalog."default" NOT NULL,
-    is_actual  boolean                                            NOT NULL,
-    block_id   bigint                                             NOT NULL,
-    tx_id      bigint,
-    prev_id    bigint,
+    id           bigint                                             NOT NULL DEFAULT nextval('address_states_id_seq'::regclass),
+    address_id   bigint                                             NOT NULL,
+    state        character varying(20) COLLATE pg_catalog."default" NOT NULL,
+    is_actual    boolean                                            NOT NULL,
+    block_height bigint                                             NOT NULL,
+    tx_id        bigint,
+    prev_id      bigint,
     CONSTRAINT address_states_pkey PRIMARY KEY (id),
     CONSTRAINT address_states_address_id_fkey FOREIGN KEY (address_id)
         REFERENCES public.addresses (id) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION,
-    CONSTRAINT address_states_block_id_fkey FOREIGN KEY (block_id)
-        REFERENCES public.blocks (id) MATCH SIMPLE
+    CONSTRAINT address_states_block_height_fkey FOREIGN KEY (block_height)
+        REFERENCES public.blocks (height) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION,
     CONSTRAINT address_states_prev_id_fkey FOREIGN KEY (prev_id)
@@ -255,7 +222,7 @@ ALTER SEQUENCE public.epoch_identities_id_seq
 CREATE TABLE IF NOT EXISTS public.epoch_identities
 (
     id                bigint  NOT NULL DEFAULT nextval('epoch_identities_id_seq'::regclass),
-    epoch_id          bigint  NOT NULL,
+    epoch             bigint  NOT NULL,
     address_state_id  bigint  NOT NULL,
     short_point       real    NOT NULL,
     short_flips       integer NOT NULL,
@@ -266,13 +233,13 @@ CREATE TABLE IF NOT EXISTS public.epoch_identities
     approved          boolean NOT NULL,
     missed            boolean NOT NULL,
     CONSTRAINT epoch_identities_pkey PRIMARY KEY (id),
-    CONSTRAINT epoch_identities_epoch_id_identity_id_key UNIQUE (epoch_id, address_state_id),
+    CONSTRAINT epoch_identities_epoch_identity_id_key UNIQUE (epoch, address_state_id),
     CONSTRAINT epoch_identities_address_state_id_fkey FOREIGN KEY (address_state_id)
         REFERENCES public.address_states (id) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION,
-    CONSTRAINT epoch_identities_epoch_id_fkey FOREIGN KEY (epoch_id)
-        REFERENCES public.epochs (id) MATCH SIMPLE
+    CONSTRAINT epoch_identities_epoch_id_fkey FOREIGN KEY (epoch)
+        REFERENCES public.epochs (epoch) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION
 )
@@ -304,18 +271,17 @@ ALTER SEQUENCE public.flips_id_seq
 
 CREATE TABLE IF NOT EXISTS public.flips
 (
-    id              bigint                                              NOT NULL DEFAULT nextval('flips_id_seq'::regclass),
-    tx_id           bigint                                              NOT NULL,
-    cid             character varying(100) COLLATE pg_catalog."default" NOT NULL,
-    size            integer                                             NOT NULL,
-    status_block_id bigint,
-    answer          character varying(20) COLLATE pg_catalog."default",
-    status          character varying(20) COLLATE pg_catalog."default",
-    mempool_data    bytea,
+    id                  bigint                                              NOT NULL DEFAULT nextval('flips_id_seq'::regclass),
+    tx_id               bigint                                              NOT NULL,
+    cid                 character varying(100) COLLATE pg_catalog."default" NOT NULL,
+    size                integer                                             NOT NULL,
+    status_block_height bigint,
+    answer              character varying(20) COLLATE pg_catalog."default",
+    status              character varying(20) COLLATE pg_catalog."default",
     CONSTRAINT flips_pkey PRIMARY KEY (id),
     CONSTRAINT flips_cid_key UNIQUE (cid),
-    CONSTRAINT flips_status_block_id_fkey FOREIGN KEY (status_block_id)
-        REFERENCES public.blocks (id) MATCH SIMPLE
+    CONSTRAINT flips_status_block_height_fkey FOREIGN KEY (status_block_height)
+        REFERENCES public.blocks (height) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION,
     CONSTRAINT flips_tx_id_fkey FOREIGN KEY (tx_id)
@@ -473,18 +439,18 @@ ALTER SEQUENCE public.balances_id_seq
 
 CREATE TABLE IF NOT EXISTS public.balances
 (
-    id         bigint                                             NOT NULL DEFAULT nextval('balances_id_seq'::regclass),
-    address_id bigint                                             NOT NULL,
-    balance    character varying(50) COLLATE pg_catalog."default" NOT NULL,
-    stake      character varying(50) COLLATE pg_catalog."default" NOT NULL,
-    block_id   bigint                                             NOT NULL,
+    id           bigint                                             NOT NULL DEFAULT nextval('balances_id_seq'::regclass),
+    address_id   bigint                                             NOT NULL,
+    balance      character varying(50) COLLATE pg_catalog."default" NOT NULL,
+    stake        character varying(50) COLLATE pg_catalog."default" NOT NULL,
+    block_height bigint                                             NOT NULL,
     CONSTRAINT balances_pkey PRIMARY KEY (id),
     CONSTRAINT balances_address_id_fkey FOREIGN KEY (address_id)
         REFERENCES public.addresses (id) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION,
-    CONSTRAINT balances_block_id_fkey FOREIGN KEY (block_id)
-        REFERENCES public.blocks (id) MATCH SIMPLE
+    CONSTRAINT balances_block_height_fkey FOREIGN KEY (block_height)
+        REFERENCES public.blocks (height) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION
 )
@@ -516,13 +482,13 @@ ALTER SEQUENCE public.block_flags_id_seq
 
 CREATE TABLE IF NOT EXISTS public.block_flags
 (
-    id       bigint                                             NOT NULL DEFAULT nextval('block_flags_id_seq'::regclass),
-    block_id bigint                                             NOT NULL,
-    flag     character varying(50) COLLATE pg_catalog."default" NOT NULL,
+    id           bigint                                             NOT NULL DEFAULT nextval('block_flags_id_seq'::regclass),
+    block_height bigint                                             NOT NULL,
+    flag         character varying(50) COLLATE pg_catalog."default" NOT NULL,
     CONSTRAINT block_flags_pkey PRIMARY KEY (id),
-    CONSTRAINT block_flags_block_id_flag_key UNIQUE (block_id, flag),
-    CONSTRAINT block_flags_block_id_fkey FOREIGN KEY (block_id)
-        REFERENCES public.blocks (id) MATCH SIMPLE
+    CONSTRAINT block_flags_block_height_flag_key UNIQUE (block_height, flag),
+    CONSTRAINT block_flags_block_height_fkey FOREIGN KEY (block_height)
+        REFERENCES public.blocks (height) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION
 )
@@ -540,15 +506,15 @@ ALTER TABLE public.block_flags
 
 CREATE TABLE IF NOT EXISTS public.temporary_identities
 (
-    address_id bigint NOT NULL,
-    block_id   bigint NOT NULL,
+    address_id   bigint NOT NULL,
+    block_height bigint NOT NULL,
     CONSTRAINT temporary_identities_pkey PRIMARY KEY (address_id),
     CONSTRAINT temporary_identities_address_id_fkey FOREIGN KEY (address_id)
         REFERENCES public.addresses (id) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION,
-    CONSTRAINT temporary_identities_block_id_fkey FOREIGN KEY (block_id)
-        REFERENCES public.blocks (id) MATCH SIMPLE
+    CONSTRAINT temporary_identities_block_height_fkey FOREIGN KEY (block_height)
+        REFERENCES public.blocks (height) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION
 )
@@ -580,14 +546,14 @@ ALTER SEQUENCE public.flips_data_id_seq
 
 CREATE TABLE IF NOT EXISTS public.flips_data
 (
-    id       bigint NOT NULL DEFAULT nextval('flips_data_id_seq'::regclass),
-    flip_id  bigint NOT NULL,
-    block_id bigint,
-    tx_id    bigint,
+    id           bigint NOT NULL DEFAULT nextval('flips_data_id_seq'::regclass),
+    flip_id      bigint NOT NULL,
+    block_height bigint,
+    tx_id        bigint,
     CONSTRAINT flips_data_pkey PRIMARY KEY (id),
     CONSTRAINT flips_data_flip_id_key UNIQUE (flip_id),
-    CONSTRAINT flips_data_block_id_fkey FOREIGN KEY (block_id)
-        REFERENCES public.blocks (id) MATCH SIMPLE
+    CONSTRAINT flips_data_block_height_fkey FOREIGN KEY (block_height)
+        REFERENCES public.blocks (height) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION,
     CONSTRAINT flips_data_flip_id_fkey FOREIGN KEY (flip_id)
@@ -662,15 +628,13 @@ SELECT a.id address_id,
        ab.balance,
        ab.stake
 FROM balances ab
-         JOIN blocks b ON b.id = ab.block_id
          JOIN addresses a ON a.id = ab.address_id
-WHERE ((ab.address_id, b.height) IN (SELECT bh.address_id,
-                                            max(bh.height) AS max
-                                     FROM (SELECT ab_1.address_id,
-                                                  b_1.height
-                                           FROM balances ab_1
-                                                    JOIN blocks b_1 ON b_1.id = ab_1.block_id) bh
-                                     GROUP BY bh.address_id));
+WHERE ((ab.address_id, ab.block_height) IN (SELECT bh.address_id,
+                                                   max(bh.block_height) AS max
+                                            FROM (SELECT ab_1.address_id,
+                                                         ab_1.block_height
+                                                  FROM balances ab_1) bh
+                                            GROUP BY bh.address_id));
 
 -- View: public.epoch_identity_states
 
@@ -681,18 +645,17 @@ SELECT s.id AS address_state_id,
        s.address_id,
        s.prev_id,
        s.state,
-       s.block_id,
-       e.id AS epoch_id,
+       s.block_height,
        e.epoch
 FROM address_states s
-         JOIN blocks b ON b.id = s.block_id
+         JOIN blocks b ON b.height = s.block_height
          LEFT JOIN epoch_identities ei ON s.id = ei.address_state_id
          LEFT JOIN temporary_identities ti ON ti.address_id = s.address_id,
      epochs e
 WHERE ti.address_id IS NULL
-  AND (e.id = b.epoch_id AND s.is_actual OR e.id = b.epoch_id AND ei.address_state_id IS NOT NULL OR
+  AND (e.epoch = b.epoch AND s.is_actual OR e.epoch = b.epoch AND ei.address_state_id IS NOT NULL OR
        e.epoch = ((SELECT max(epochs.epoch) AS max_epoch
-                   FROM epochs)) AND s.is_actual AND NOT (b.epoch_id <> e.id AND (s.state::text = ANY
+                   FROM epochs)) AND s.is_actual AND NOT (b.epoch <> e.epoch AND (s.state::text = ANY
                                                                                   (ARRAY ['Undefined'::character varying, 'Killed'::character varying]::text[]))));
 
 ALTER TABLE public.epoch_identity_states
@@ -703,14 +666,14 @@ ALTER TABLE public.epoch_identity_states
 -- DROP VIEW public.used_invites;
 
 CREATE OR REPLACE VIEW public.used_invites AS
-SELECT DISTINCT ON (b.epoch_id, it."to") it.id AS invite_tx_id,
-                                         t.id  AS activation_tx_id
+SELECT DISTINCT ON (b.epoch, it."to") it.id AS invite_tx_id,
+                                      t.id  AS activation_tx_id
 FROM transactions t
-         JOIN blocks b ON b.id = t.block_id
-         JOIN blocks ib ON ib.epoch_id = b.epoch_id AND ib.height < b.height
-         JOIN transactions it ON it.block_id = ib.id AND it.type::text = 'InviteTx'::text AND it."to" = t."from"
+         JOIN blocks b ON b.height = t.block_height
+         JOIN blocks ib ON ib.epoch = b.epoch AND ib.height < b.height
+         JOIN transactions it ON it.block_height = ib.height AND it.type::text = 'InviteTx'::text AND it."to" = t."from"
 WHERE t.type::text = 'ActivationTx'::text
-ORDER BY b.epoch_id, it."to", ib.height DESC;
+ORDER BY b.epoch, it."to", ib.height DESC;
 
 ALTER TABLE public.used_invites
     OWNER TO postgres;

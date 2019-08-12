@@ -9,7 +9,7 @@ select eis.state,
        coalesce(ei.approved, false),
        coalesce(ei.missed, false)
 from epoch_identity_states eis
-         left join epoch_identities ei on ei.epoch_id = eis.epoch_id and ei.address_state_id = eis.address_state_id
+         left join epoch_identities ei on ei.epoch = eis.epoch and ei.address_state_id = eis.address_state_id
          left join address_states preva on preva.id = eis.prev_id
          join addresses a on a.id = eis.address_id
 where eis.epoch = $1

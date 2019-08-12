@@ -7,8 +7,8 @@ import (
 )
 
 type context struct {
-	epochId                 int64
-	blockId                 int64
+	epoch                   uint64
+	blockHeight             uint64
 	flipIdsPerCid           map[string]int64
 	txIdsPerHash            map[string]int64
 	addrIdsPerAddr          map[string]int64
@@ -17,10 +17,12 @@ type context struct {
 	tx                      *sql.Tx
 }
 
-func newContext(a *postgresAccessor, tx *sql.Tx) *context {
+func newContext(a *postgresAccessor, tx *sql.Tx, epoch uint64, blockHeight uint64) *context {
 	return &context{
-		a:  a,
-		tx: tx,
+		a:           a,
+		tx:          tx,
+		epoch:       epoch,
+		blockHeight: blockHeight,
 	}
 }
 

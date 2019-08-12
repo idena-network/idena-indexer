@@ -147,15 +147,13 @@ func (a *postgresAccessor) Save(data *Data) error {
 	}
 	defer tx.Rollback()
 
-	ctx := newContext(a, tx)
+	ctx := newContext(a, tx, data.Epoch, data.Block.Height)
 
-	ctx.epochId, err = a.saveEpoch(ctx, data.Epoch, data.ValidationTime)
-	if err != nil {
+	if err = a.saveEpoch(ctx, data.Epoch, data.ValidationTime); err != nil {
 		return err
 	}
 
-	ctx.blockId, err = a.saveBlock(ctx, data.Block)
-	if err != nil {
+	if err = a.saveBlock(ctx, data.Block); err != nil {
 		return err
 	}
 
@@ -223,7 +221,7 @@ func (a *postgresAccessor) saveFlipStats(ctx *context, flipStats FlipStats) erro
 	if err := a.saveAnswers(ctx, flipStats.Cid, flipStats.LongAnswers, false); err != nil {
 		return err
 	}
-	if _, err := ctx.tx.Exec(a.getQuery(updateFlipStateQuery), flipStats.Status, flipStats.Answer, ctx.blockId, flipStats.Cid); err != nil {
+	if _, err := ctx.tx.Exec(a.getQuery(updateFlipStateQuery), flipStats.Status, flipStats.Answer, ctx.blockHeight, flipStats.Cid); err != nil {
 		return err
 	}
 	return nil
@@ -251,7 +249,7 @@ func (a *postgresAccessor) saveFlipData(ctx *context, flipData FlipData) error {
 		txId = &id
 	}
 	var flipDataId int64
-	if err := ctx.tx.QueryRow(a.getQuery(insertFlipDataQuery), flipData.Cid, ctx.blockId, txId).Scan(&flipDataId); err != nil {
+	if err := ctx.tx.QueryRow(a.getQuery(insertFlipDataQuery), flipData.Cid, ctx.blockHeight, txId).Scan(&flipDataId); err != nil {
 		return err
 	}
 	for picIndex, pic := range flipData.Content.Pics {
@@ -303,22 +301,22 @@ func (a *postgresAccessor) saveAnswer(ctx *context, cid string, answer Answer, i
 	return id, err
 }
 
-func (a *postgresAccessor) saveEpoch(ctx *context, epoch uint64, validationTime big.Int) (int64, error) {
-	var id int64
-	err := ctx.tx.QueryRow(a.getQuery(selectEpochQuery), epoch).Scan(&id)
+func (a *postgresAccessor) saveEpoch(ctx *context, epoch uint64, validationTime big.Int) error {
+	var savedEpoch int64
+	err := ctx.tx.QueryRow(a.getQuery(selectEpochQuery), epoch).Scan(&savedEpoch)
 	if err == nil {
-		return id, nil
+		return nil
 	}
 	if err != sql.ErrNoRows {
-		return 0, err
+		return err
 	}
-	err = ctx.tx.QueryRow(a.getQuery(insertEpochQuery), epoch, validationTime.Int64()).Scan(&id)
-	return id, err
+	_, err = ctx.tx.Exec(a.getQuery(insertEpochQuery), epoch, validationTime.Int64())
+	return err
 }
 
-func (a *postgresAccessor) saveBlock(ctx *context, block Block) (id int64, err error) {
-	err = ctx.tx.QueryRow(a.getQuery(insertBlockQuery), block.Height, block.Hash, ctx.epochId, block.Time.Int64()).Scan(&id)
-	return
+func (a *postgresAccessor) saveBlock(ctx *context, block Block) error {
+	_, err := ctx.tx.Exec(a.getQuery(insertBlockQuery), block.Height, block.Hash, ctx.epoch, block.Time.Int64())
+	return err
 }
 
 func (a *postgresAccessor) saveBlockFlags(ctx *context, flags []string) error {
@@ -334,7 +332,7 @@ func (a *postgresAccessor) saveBlockFlags(ctx *context, flags []string) error {
 }
 
 func (a *postgresAccessor) saveBlockFlag(ctx *context, flag string) error {
-	_, err := ctx.tx.Exec(a.getQuery(insertBlockFlagQuery), ctx.blockId, flag)
+	_, err := ctx.tx.Exec(a.getQuery(insertBlockFlagQuery), ctx.blockHeight, flag)
 	return errors.Wrapf(err, "unable to save block flag")
 }
 
@@ -342,7 +340,7 @@ func (a *postgresAccessor) saveProposer(ctx *context, block Block) error {
 	if len(block.Proposer) == 0 {
 		return nil
 	}
-	_, err := ctx.tx.Exec(a.getQuery(insertProposerQuery), ctx.blockId, block.Proposer)
+	_, err := ctx.tx.Exec(a.getQuery(insertProposerQuery), ctx.blockHeight, block.Proposer)
 	return err
 }
 
@@ -392,12 +390,12 @@ func (a *postgresAccessor) saveAddress(ctx *context, address Address) (int64, er
 	if err != sql.ErrNoRows {
 		return 0, err
 	}
-	err = ctx.tx.QueryRow(a.getQuery(insertAddressQuery), address.Address, ctx.blockId).Scan(&id)
+	err = ctx.tx.QueryRow(a.getQuery(insertAddressQuery), address.Address, ctx.blockHeight).Scan(&id)
 	return id, err
 }
 
 func (a *postgresAccessor) saveTemporaryIdentity(ctx *context, addressId int64) error {
-	_, err := ctx.tx.Exec(a.getQuery(insertTemporaryIdentityQuery), addressId, ctx.blockId)
+	_, err := ctx.tx.Exec(a.getQuery(insertTemporaryIdentityQuery), addressId, ctx.blockHeight)
 	return errors.Wrapf(err, "unable to save temporary identity")
 }
 
@@ -409,9 +407,9 @@ func (a *postgresAccessor) saveAddressState(ctx *context, addressId int64, state
 	}
 	var id int64
 	if prevId > 0 {
-		err = ctx.tx.QueryRow(a.getQuery(insertAddressStateQuery), addressId, stateChange.NewState, ctx.blockId, stateChange.TxHash, prevId).Scan(&id)
+		err = ctx.tx.QueryRow(a.getQuery(insertAddressStateQuery), addressId, stateChange.NewState, ctx.blockHeight, stateChange.TxHash, prevId).Scan(&id)
 	} else {
-		err = ctx.tx.QueryRow(a.getQuery(insertAddressStateQuery), addressId, stateChange.NewState, ctx.blockId, stateChange.TxHash, nil).Scan(&id)
+		err = ctx.tx.QueryRow(a.getQuery(insertAddressStateQuery), addressId, stateChange.NewState, ctx.blockHeight, stateChange.TxHash, nil).Scan(&id)
 	}
 	return id, err
 }
@@ -429,7 +427,7 @@ func (a *postgresAccessor) saveBalances(ctx *context, balances []Balance) error 
 }
 
 func (a *postgresAccessor) saveBalance(ctx *context, balance Balance) error {
-	_, err := ctx.tx.Exec(a.getQuery(insertBalanceQuery), balance.Address, balance.Balance, balance.Stake, ctx.blockId)
+	_, err := ctx.tx.Exec(a.getQuery(insertBalanceQuery), balance.Address, balance.Balance, balance.Stake, ctx.blockHeight)
 	return errors.Wrapf(err, "unable to save balance")
 }
 
@@ -457,9 +455,9 @@ func (a *postgresAccessor) saveIdentityState(ctx *context, identity EpochIdentit
 	}
 	var id int64
 	if prevId > 0 {
-		err = ctx.tx.QueryRow(a.getQuery(insertIdentityStateQuery), identity.Address, identity.State, ctx.blockId, prevId).Scan(&id)
+		err = ctx.tx.QueryRow(a.getQuery(insertIdentityStateQuery), identity.Address, identity.State, ctx.blockHeight, prevId).Scan(&id)
 	} else {
-		err = ctx.tx.QueryRow(a.getQuery(insertIdentityStateQuery), identity.Address, identity.State, ctx.blockId, nil).Scan(&id)
+		err = ctx.tx.QueryRow(a.getQuery(insertIdentityStateQuery), identity.Address, identity.State, ctx.blockHeight, nil).Scan(&id)
 	}
 	return id, errors.Wrapf(err, "unable to execute query %s", insertIdentityStateQuery)
 }
@@ -467,7 +465,7 @@ func (a *postgresAccessor) saveIdentityState(ctx *context, identity EpochIdentit
 func (a *postgresAccessor) saveEpochIdentity(ctx *context, identityStateId int64, identity EpochIdentity) (int64, error) {
 	var id int64
 
-	if err := ctx.tx.QueryRow(a.getQuery(insertEpochIdentityQuery), ctx.epochId, identityStateId, identity.ShortPoint,
+	if err := ctx.tx.QueryRow(a.getQuery(insertEpochIdentityQuery), ctx.epoch, identityStateId, identity.ShortPoint,
 		identity.ShortFlips, identity.TotalShortPoint, identity.TotalShortFlips,
 		identity.LongPoint, identity.LongFlips, identity.Approved, identity.Missed).Scan(&id); err != nil {
 		return 0, errors.Wrapf(err, "unable to execute query %s", insertEpochIdentityQuery)
@@ -538,7 +536,7 @@ func (a *postgresAccessor) saveTransaction(ctx *context, tx Transaction) (int64,
 	} else {
 		to = nil
 	}
-	err = ctx.tx.QueryRow(a.getQuery(insertTransactionQuery), tx.Hash, ctx.blockId, tx.Type, from, to,
+	err = ctx.tx.QueryRow(a.getQuery(insertTransactionQuery), tx.Hash, ctx.blockHeight, tx.Type, from, to,
 		tx.Amount, tx.Fee).Scan(&id)
 	return id, err
 }

@@ -1,4 +1,4 @@
-select e.epoch,
+select b.epoch,
        b.height,
        b.hash,
        t.Hash,
@@ -9,8 +9,7 @@ select e.epoch,
        t.Amount,
        t.Fee
 from transactions t
-         join blocks b on b.id = t.block_id
-         join epochs e on e.id = b.epoch_id
+         join blocks b on b.height = t.block_height
          join addresses afrom on afrom.id = t.from
          left join addresses ato on ato.id = t.to
 where lower(t.Hash) = lower($1)

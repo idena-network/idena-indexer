@@ -1,2 +1,2 @@
-insert into proposers (block_id, address_id)
+insert into proposers (block_height, address_id)
 values ($1, (select id from addresses where address=$2))

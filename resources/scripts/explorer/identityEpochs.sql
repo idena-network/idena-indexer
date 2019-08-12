@@ -13,7 +13,7 @@ select a.address,
 from epoch_identity_states eis
          join addresses a on a.id = eis.address_id
          left join address_states prevs on prevs.id = eis.prev_id
-         left join epoch_identities ei on ei.epoch_id = eis.epoch_id and ei.address_state_id = eis.address_state_id
+         left join epoch_identities ei on ei.epoch = eis.epoch and ei.address_state_id = eis.address_state_id
 where lower(a.address) = lower($1)
 order by eis.epoch desc
 limit $3
