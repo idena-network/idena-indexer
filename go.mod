@@ -8,7 +8,7 @@ require (
 	github.com/deckarep/golang-set v1.7.1
 	github.com/go-stack/stack v1.8.0
 	github.com/gorilla/mux v1.7.3
-	github.com/idena-network/idena-go v0.5.8-0.20190808090506-dbc522dc965c
+	github.com/idena-network/idena-go v0.6.1-0.20190813190806-e06398f95478
 	github.com/ipfs/go-cid v0.0.2
 	github.com/lib/pq v1.1.1
 	github.com/pkg/errors v0.8.1
