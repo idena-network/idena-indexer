@@ -623,18 +623,16 @@ ALTER TABLE public.flip_pic_orders
 -- DROP VIEW public.current_balances;
 
 CREATE OR REPLACE VIEW public.current_balances AS
-SELECT a.id address_id,
-       a.address,
-       ab.balance,
-       ab.stake
+SELECT DISTINCT ON (ab.address_id) ab.address_id,
+                                   a.address,
+                                   ab.balance,
+                                   ab.stake
 FROM balances ab
          JOIN addresses a ON a.id = ab.address_id
-WHERE ((ab.address_id, ab.block_height) IN (SELECT bh.address_id,
-                                                   max(bh.block_height) AS max
-                                            FROM (SELECT ab_1.address_id,
-                                                         ab_1.block_height
-                                                  FROM balances ab_1) bh
-                                            GROUP BY bh.address_id));
+ORDER BY ab.address_id, ab.block_height DESC;
+
+ALTER TABLE public.current_balances
+    OWNER TO postgres;
 
 -- View: public.epoch_identity_states
 
