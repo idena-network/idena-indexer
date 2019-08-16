@@ -52,9 +52,21 @@ func (a *postgresAccessor) EpochBlocks(epoch uint64, startIndex uint64, count ui
 	defer rows.Close()
 	var blocks []types.BlockSummary
 	for rows.Next() {
-		block := types.BlockSummary{}
+		block := types.BlockSummary{
+			Coins: types.AllCoins{},
+		}
 		var timestamp int64
-		err = rows.Scan(&block.Height, &block.Hash, &timestamp, &block.TxCount, &block.Proposer)
+		err = rows.Scan(&block.Height,
+			&block.Hash,
+			&timestamp,
+			&block.TxCount,
+			&block.Proposer,
+			&block.Coins.Balance.Burnt,
+			&block.Coins.Balance.Minted,
+			&block.Coins.Balance.Total,
+			&block.Coins.Stake.Burnt,
+			&block.Coins.Stake.Minted,
+			&block.Coins.Stake.Total)
 		if err != nil {
 			return nil, err
 		}

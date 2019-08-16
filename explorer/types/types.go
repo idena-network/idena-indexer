@@ -32,6 +32,7 @@ type BlockSummary struct {
 	Timestamp time.Time `json:"timestamp"`
 	TxCount   uint16    `json:"txCount"`
 	Proposer  string    `json:"proposer"`
+	Coins     AllCoins  `json:"coins"`
 }
 
 type BlockDetail struct {
