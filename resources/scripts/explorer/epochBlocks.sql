@@ -3,11 +3,11 @@ select b.height,
        b.timestamp,
        (select count(*) from transactions where block_height = b.height) TX_COUNT,
        coalesce(a.address, '')                                           proposer,
-       c.minted_balance,
        c.burnt_balance,
+       c.minted_balance,
        c.total_balance,
-       c.minted_stake,
        c.burnt_stake,
+       c.minted_stake,
        c.total_stake
 from blocks b
          left join proposers p on p.block_height = b.height
