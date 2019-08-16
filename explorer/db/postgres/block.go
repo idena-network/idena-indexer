@@ -14,6 +14,8 @@ const (
 	blockTxsCountByHashQuery   = "blockTxsCountByHash.sql"
 	blockTxsByHeightQuery      = "blockTxsByHeight.sql"
 	blockTxsByHashQuery        = "blockTxsByHash.sql"
+	blockCoinsByHeightQuery    = "blockCoinsByHeight.sql"
+	blockCoinsByHashQuery      = "blockCoinsByHash.sql"
 )
 
 func (a *postgresAccessor) BlockByHeight(height uint64) (types.BlockDetail, error) {
@@ -66,4 +68,12 @@ func (a *postgresAccessor) BlockTxsByHash(hash string, startIndex uint64, count 
 		return nil, err
 	}
 	return a.readTxs(rows)
+}
+
+func (a *postgresAccessor) BlockCoinsByHeight(height uint64) (types.AllCoins, error) {
+	return a.coins(blockCoinsByHeightQuery, height)
+}
+
+func (a *postgresAccessor) BlockCoinsByHash(hash string) (types.AllCoins, error) {
+	return a.coins(blockCoinsByHashQuery, hash)
 }

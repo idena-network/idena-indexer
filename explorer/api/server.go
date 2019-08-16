@@ -69,6 +69,9 @@ func (s *httpServer) initHandler() http.Handler {
 		Queries("value", "{value}").
 		HandlerFunc(s.search)
 
+	api.Path(strings.ToLower("/Coins")).
+		HandlerFunc(s.coins)
+
 	api.Path(strings.ToLower("/Epochs/Count")).HandlerFunc(s.epochsCount)
 	api.Path(strings.ToLower("/Epochs")).
 		Queries("skip", "{skip}", "limit", "{limit}").
@@ -104,6 +107,8 @@ func (s *httpServer) initHandler() http.Handler {
 	api.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Txs")).
 		Queries("skip", "{skip}", "limit", "{limit}").
 		HandlerFunc(s.epochTxs)
+	api.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Coins")).
+		HandlerFunc(s.epochCoins)
 
 	api.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Identity/{address}")).HandlerFunc(s.epochIdentity)
 	api.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Identity/{address}/FlipsToSolve/Short")).HandlerFunc(s.epochIdentityShortFlipsToSolve)
@@ -118,6 +123,8 @@ func (s *httpServer) initHandler() http.Handler {
 	api.Path(strings.ToLower("/Block/{id}/Txs")).
 		Queries("skip", "{skip}", "limit", "{limit}").
 		HandlerFunc(s.blockTxs)
+	api.Path(strings.ToLower("/Block/{id}/Coins")).
+		HandlerFunc(s.blockCoins)
 
 	api.Path(strings.ToLower("/Identity/{address}")).HandlerFunc(s.identity)
 	api.Path(strings.ToLower("/Identity/{address}/Age")).HandlerFunc(s.identityAge)
@@ -136,10 +143,6 @@ func (s *httpServer) initHandler() http.Handler {
 	api.Path(strings.ToLower("/Identity/{address}/States")).
 		Queries("skip", "{skip}", "limit", "{limit}").
 		HandlerFunc(s.identityStates)
-	api.Path(strings.ToLower("/Identity/{address}/Txs/Count")).HandlerFunc(s.identityTxsCount)
-	api.Path(strings.ToLower("/Identity/{address}/Txs")).
-		Queries("skip", "{skip}", "limit", "{limit}").
-		HandlerFunc(s.identityTxs)
 
 	api.Path(strings.ToLower("/Flip/{hash}")).HandlerFunc(s.flip)
 	api.Path(strings.ToLower("/Flip/{hash}/Content")).HandlerFunc(s.flipContent)
@@ -155,12 +158,26 @@ func (s *httpServer) initHandler() http.Handler {
 	api.Path(strings.ToLower("/Transaction/{hash}")).HandlerFunc(s.transaction)
 
 	api.Path(strings.ToLower("/Address/{address}")).HandlerFunc(s.address)
+	api.Path(strings.ToLower("/Address/{address}/Txs/Count")).HandlerFunc(s.identityTxsCount)
+	api.Path(strings.ToLower("/Address/{address}/Txs")).
+		Queries("skip", "{skip}", "limit", "{limit}").
+		HandlerFunc(s.identityTxs)
+
+	api.Path(strings.ToLower("/Balances/Count")).HandlerFunc(s.balancesCount)
+	api.Path(strings.ToLower("/Balances")).
+		Queries("skip", "{skip}", "limit", "{limit}").
+		HandlerFunc(s.balances)
 
 	return s.requestFilter(r)
 }
 
 func (s *httpServer) search(w http.ResponseWriter, r *http.Request) {
 	resp, err := s.db.Search(mux.Vars(r)["value"])
+	s.writeResponse(w, resp, err)
+}
+
+func (s *httpServer) coins(w http.ResponseWriter, r *http.Request) {
+	resp, err := s.db.Coins()
 	s.writeResponse(w, resp, err)
 }
 
@@ -363,6 +380,17 @@ func (s *httpServer) epochTxs(w http.ResponseWriter, r *http.Request) {
 	s.writeResponse(w, resp, err)
 }
 
+func (s *httpServer) epochCoins(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	epoch, err := toUint(vars, "epoch")
+	if err != nil {
+		s.writeErrorResponse(w, err)
+		return
+	}
+	resp, err := s.db.EpochCoins(epoch)
+	s.writeResponse(w, resp, err)
+}
+
 func (s *httpServer) epochIdentity(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	epoch, err := toUint(vars, "epoch")
@@ -477,6 +505,18 @@ func (s *httpServer) blockTxs(w http.ResponseWriter, r *http.Request) {
 		resp, err = s.db.BlockTxsByHash(vars["id"], startIndex, count)
 	} else {
 		resp, err = s.db.BlockTxsByHeight(height, startIndex, count)
+	}
+	s.writeResponse(w, resp, err)
+}
+
+func (s *httpServer) blockCoins(w http.ResponseWriter, r *http.Request) {
+	var resp interface{}
+	vars := mux.Vars(r)
+	height, err := toUint(vars, "id")
+	if err != nil {
+		resp, err = s.db.BlockCoinsByHash(vars["id"])
+	} else {
+		resp, err = s.db.BlockCoinsByHeight(height)
 	}
 	s.writeResponse(w, resp, err)
 }
@@ -621,6 +661,21 @@ func (s *httpServer) transaction(w http.ResponseWriter, r *http.Request) {
 	resp, err := s.db.Transaction(mux.Vars(r)["hash"])
 	s.writeResponse(w, resp, err)
 
+}
+
+func (s *httpServer) balancesCount(w http.ResponseWriter, r *http.Request) {
+	resp, err := s.db.BalancesCount()
+	s.writeResponse(w, resp, err)
+}
+
+func (s *httpServer) balances(w http.ResponseWriter, r *http.Request) {
+	startIndex, count, err := readPaginatorParams(mux.Vars(r))
+	if err != nil {
+		s.writeErrorResponse(w, err)
+		return
+	}
+	resp, err := s.db.Balances(startIndex, count)
+	s.writeResponse(w, resp, err)
 }
 
 func getErrorMsgResponse(errMsg string) Response {

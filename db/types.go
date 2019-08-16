@@ -6,16 +6,19 @@ import (
 )
 
 type Data struct {
-	Epoch          uint64
-	ValidationTime big.Int
-	Block          Block
-	Identities     []EpochIdentity
-	SubmittedFlips []Flip
-	FlipKeys       []FlipKey
-	FlipStats      []FlipStats
-	Addresses      []Address
-	Balances       []Balance
-	FlipsData      []FlipData
+	Epoch            uint64
+	ValidationTime   big.Int
+	Block            Block
+	Identities       []EpochIdentity
+	SubmittedFlips   []Flip
+	FlipKeys         []FlipKey
+	FlipStats        []FlipStats
+	Addresses        []Address
+	FlipsData        []FlipData
+	BalanceUpdates   []Balance
+	BalanceCoins     Coins
+	StakeCoins       Coins
+	SaveEpochSummary bool
 }
 
 type Block struct {
@@ -102,6 +105,13 @@ type AddressStateChange struct {
 
 type Balance struct {
 	Address string
+	TxHash  string
 	Balance decimal.Decimal
 	Stake   decimal.Decimal
+}
+
+type Coins struct {
+	Minted decimal.Decimal
+	Burnt  decimal.Decimal
+	Total  decimal.Decimal
 }

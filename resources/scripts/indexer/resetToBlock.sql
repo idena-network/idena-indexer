@@ -1,6 +1,16 @@
+-- epoch_summaries
+delete
+from epoch_summaries
+where block_height > $1;
+
 -- balances
 delete
 from balances
+where block_height > $1;
+
+-- coins
+delete
+from coins
 where block_height > $1;
 
 -- flips_to_solve

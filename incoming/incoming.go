@@ -18,6 +18,7 @@ type Listener interface {
 	Ceremony() *ceremony.ValidationCeremony
 	Blockchain() *blockchain.Blockchain
 	Flipper() *flip.Flipper
+	Config() *config.Config
 	Destroy()
 }
 
@@ -27,6 +28,7 @@ type listenerImpl struct {
 	ceremony       *ceremony.ValidationCeremony
 	blockchain     *blockchain.Blockchain
 	flipper        *flip.Flipper
+	config         *config.Config
 }
 
 func NewListener(nodeConfigFile string) Listener {
@@ -52,6 +54,10 @@ func (l *listenerImpl) Flipper() *flip.Flipper {
 	return l.flipper
 }
 
+func (l *listenerImpl) Config() *config.Config {
+	return l.config
+}
+
 func (l *listenerImpl) Listen(handleBlock func(block *types.Block), expectedHeadHeight uint64) {
 	cfg, err := config.MakeConfigFromFile(l.nodeConfigFile)
 	if err != nil {
@@ -75,6 +81,7 @@ func (l *listenerImpl) Listen(handleBlock func(block *types.Block), expectedHead
 	l.flipper = nodeCtx.Flipper
 	l.blockchain = nodeCtx.Blockchain
 	l.ceremony = nodeCtx.Ceremony
+	l.config = cfg
 
 	n := nodeCtx.Node
 	n.StartWithHeight(expectedHeadHeight)

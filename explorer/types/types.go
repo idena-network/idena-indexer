@@ -12,12 +12,13 @@ type Entity struct {
 }
 
 type EpochSummary struct {
-	Epoch          uint64 `json:"epoch"`
-	ValidatedCount uint32 `json:"validatedCount"`
-	BlockCount     uint32 `json:"blockCount"`
-	TxCount        uint32 `json:"txCount"`
-	InviteCount    uint32 `json:"inviteCount"`
-	FlipCount      uint32 `json:"flipCount"`
+	Epoch          uint64   `json:"epoch"`
+	ValidatedCount uint32   `json:"validatedCount"`
+	BlockCount     uint32   `json:"blockCount"`
+	TxCount        uint32   `json:"txCount"`
+	InviteCount    uint32   `json:"inviteCount"`
+	FlipCount      uint32   `json:"flipCount"`
+	Coins          AllCoins `json:"coins"`
 }
 
 type EpochDetail struct {
@@ -175,4 +176,21 @@ type Address struct {
 	Balance decimal.Decimal `json:"balance"`
 	Stake   decimal.Decimal `json:"stake"`
 	TxCount uint32          `json:"txCount"`
+}
+
+type AllCoins struct {
+	Balance Coins `json:"balance"`
+	Stake   Coins `json:"stake"`
+}
+
+type Coins struct {
+	Minted decimal.Decimal `json:"minted"`
+	Burnt  decimal.Decimal `json:"burnt"`
+	Total  decimal.Decimal `json:"total"`
+}
+
+type Balance struct {
+	Address string          `json:"address"`
+	Balance decimal.Decimal `json:"balance"`
+	Stake   decimal.Decimal `json:"stake"`
 }

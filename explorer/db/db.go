@@ -7,6 +7,8 @@ import (
 type Accessor interface {
 	Search(value string) ([]types.Entity, error)
 
+	Coins() (types.AllCoins, error)
+
 	EpochsCount() (uint64, error)
 	Epochs(startIndex uint64, count uint64) ([]types.EpochSummary, error)
 
@@ -25,6 +27,7 @@ type Accessor interface {
 	EpochInvites(epoch uint64, startIndex uint64, count uint64) ([]types.Invite, error)
 	EpochTxsCount(epoch uint64) (uint64, error)
 	EpochTxs(epoch uint64, startIndex uint64, count uint64) ([]types.TransactionSummary, error)
+	EpochCoins(epoch uint64) (types.AllCoins, error)
 
 	EpochIdentity(epoch uint64, address string) (types.EpochIdentity, error)
 	EpochIdentityShortFlipsToSolve(epoch uint64, address string) ([]string, error)
@@ -40,6 +43,8 @@ type Accessor interface {
 	BlockByHash(hash string) (types.BlockDetail, error)
 	BlockTxsCountByHash(hash string) (uint64, error)
 	BlockTxsByHash(hash string, startIndex uint64, count uint64) ([]types.TransactionSummary, error)
+	BlockCoinsByHeight(height uint64) (types.AllCoins, error)
+	BlockCoinsByHash(hash string) (types.AllCoins, error)
 
 	Flip(hash string) (types.Flip, error)
 	FlipContent(hash string) (types.FlipContent, error)
@@ -63,6 +68,9 @@ type Accessor interface {
 	Address(address string) (types.Address, error)
 
 	Transaction(hash string) (types.TransactionDetail, error)
+
+	BalancesCount() (uint64, error)
+	Balances(startIndex uint64, count uint64) ([]types.Balance, error)
 
 	Destroy()
 }

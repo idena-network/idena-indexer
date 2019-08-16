@@ -41,6 +41,43 @@ CREATE TABLE IF NOT EXISTS public.blocks
 ALTER TABLE public.blocks
     OWNER to postgres;
 
+-- Table: public.epoch_summaries
+
+-- DROP TABLE public.epoch_summaries;
+
+CREATE TABLE IF NOT EXISTS public.epoch_summaries
+(
+    epoch           bigint          NOT NULL,
+    validated_count integer         NOT NULL,
+    block_count     bigint          NOT NULL,
+    tx_count        bigint          NOT NULL,
+    invite_count    bigint          NOT NULL,
+    flip_count      integer         NOT NULL,
+    burnt_balance   numeric(30, 18) NOT NULL,
+    minted_balance  numeric(30, 18) NOT NULL,
+    total_balance   numeric(30, 18) NOT NULL,
+    burnt_stake     numeric(30, 18) NOT NULL,
+    minted_stake    numeric(30, 18) NOT NULL,
+    total_stake     numeric(30, 18) NOT NULL,
+    block_height    bigint          NOT NULL,
+    CONSTRAINT epoch_summaries_pkey PRIMARY KEY (epoch),
+    CONSTRAINT epoch_summaries_block_height_fkey FOREIGN KEY (block_height)
+        REFERENCES public.blocks (height) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT epoch_summaries_epoch_fkey FOREIGN KEY (epoch)
+        REFERENCES public.epochs (epoch) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+)
+    WITH (
+        OIDS = FALSE
+    )
+    TABLESPACE pg_default;
+
+ALTER TABLE public.epoch_summaries
+    OWNER to postgres;
+
 -- SEQUENCE: public.addresses_id_seq
 
 -- DROP SEQUENCE public.addresses_id_seq;
@@ -123,8 +160,8 @@ CREATE TABLE IF NOT EXISTS public.transactions
     type         character varying(20) COLLATE pg_catalog."default" NOT NULL,
     "from"       bigint                                             NOT NULL,
     "to"         bigint,
-    amount       character varying(20) COLLATE pg_catalog."default" NOT NULL,
-    fee          character varying(20) COLLATE pg_catalog."default" NOT NULL,
+    amount       numeric(30, 18),
+    fee          numeric(30, 18),
     CONSTRAINT transactions_pkey PRIMARY KEY (id),
     CONSTRAINT transactions_hash_key UNIQUE (hash),
     CONSTRAINT transactions_block_height_fkey FOREIGN KEY (block_height)
@@ -439,11 +476,12 @@ ALTER SEQUENCE public.balances_id_seq
 
 CREATE TABLE IF NOT EXISTS public.balances
 (
-    id           bigint                                             NOT NULL DEFAULT nextval('balances_id_seq'::regclass),
-    address_id   bigint                                             NOT NULL,
-    balance      character varying(50) COLLATE pg_catalog."default" NOT NULL,
-    stake        character varying(50) COLLATE pg_catalog."default" NOT NULL,
-    block_height bigint                                             NOT NULL,
+    id           bigint NOT NULL DEFAULT nextval('balances_id_seq'::regclass),
+    address_id   bigint NOT NULL,
+    balance      numeric(30, 18),
+    stake        numeric(30, 18),
+    tx_id        bigint,
+    block_height bigint NOT NULL,
     CONSTRAINT balances_pkey PRIMARY KEY (id),
     CONSTRAINT balances_address_id_fkey FOREIGN KEY (address_id)
         REFERENCES public.addresses (id) MATCH SIMPLE
@@ -451,6 +489,10 @@ CREATE TABLE IF NOT EXISTS public.balances
         ON DELETE NO ACTION,
     CONSTRAINT balances_block_height_fkey FOREIGN KEY (block_height)
         REFERENCES public.blocks (height) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT balances_tx_id_fkey FOREIGN KEY (tx_id)
+        REFERENCES public.transactions (id) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION
 )
@@ -460,6 +502,33 @@ CREATE TABLE IF NOT EXISTS public.balances
     TABLESPACE pg_default;
 
 ALTER TABLE public.balances
+    OWNER to postgres;
+
+-- Table: public.coins
+
+-- DROP TABLE public.coins;
+
+CREATE TABLE IF NOT EXISTS public.coins
+(
+    block_height   bigint NOT NULL,
+    burnt_balance  numeric(30, 18),
+    minted_balance numeric(30, 18),
+    total_balance  numeric(30, 18),
+    burnt_stake    numeric(30, 18),
+    minted_stake   numeric(30, 18),
+    total_stake    numeric(30, 18),
+    CONSTRAINT coins_pkey PRIMARY KEY (block_height),
+    CONSTRAINT coins_block_height_fkey FOREIGN KEY (block_height)
+        REFERENCES public.blocks (height) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+)
+    WITH (
+        OIDS = FALSE
+    )
+    TABLESPACE pg_default;
+
+ALTER TABLE public.coins
     OWNER to postgres;
 
 -- SEQUENCE: public.block_flags_id_seq
@@ -674,5 +743,73 @@ WHERE t.type::text = 'ActivationTx'::text
 ORDER BY b.epoch, it."to", ib.height DESC;
 
 ALTER TABLE public.used_invites
+    OWNER TO postgres;
+
+-- View: public.epochs_detail
+
+-- DROP VIEW public.epochs_detail;
+
+CREATE OR REPLACE VIEW public.epochs_detail AS
+SELECT e.epoch,
+       COALESCE(es.validated_count::bigint, (SELECT count(*) AS count
+                                             FROM epoch_identities ei
+                                                      JOIN address_states s ON s.id = ei.address_state_id
+                                             WHERE ei.epoch = e.epoch
+                                               AND (s.state::text = ANY
+                                                    (ARRAY ['Verified'::character varying, 'Newbie'::character varying]::text[])))) AS validated_count,
+       COALESCE(es.block_count, (SELECT count(*) AS count
+                                 FROM blocks b
+                                 WHERE b.epoch = e.epoch))                                                                          AS block_count,
+       COALESCE(es.tx_count, (SELECT count(*) AS count
+                              FROM transactions t,
+                                   blocks b
+                              WHERE t.block_height = b.height
+                                AND b.epoch = e.epoch))                                                                             AS tx_count,
+       COALESCE(es.invite_count, (SELECT count(*) AS count
+                                  FROM transactions t,
+                                       blocks b
+                                  WHERE t.block_height = b.height
+                                    AND b.epoch = e.epoch
+                                    AND t.type::text = 'InviteTx'::text))                                                           AS invite_count,
+       COALESCE(es.flip_count::bigint, (SELECT count(*) AS count
+                                        FROM flips f,
+                                             transactions t,
+                                             blocks b
+                                        WHERE f.tx_id = t.id
+                                          AND t.block_height = b.height
+                                          AND b.epoch = e.epoch))                                                                   AS flip_count,
+       COALESCE(es.burnt_balance, (SELECT COALESCE(sum(c.burnt_balance), 0::numeric) AS "coalesce"
+                                   FROM coins c
+                                            JOIN blocks b ON b.height = c.block_height
+                                   WHERE b.epoch = e.epoch))                                                                        AS burnt_balance,
+       COALESCE(es.minted_balance, (SELECT COALESCE(sum(c.minted_balance), 0::numeric) AS "coalesce"
+                                    FROM coins c
+                                             JOIN blocks b ON b.height = c.block_height
+                                    WHERE b.epoch = e.epoch))                                                                       AS minted_balance,
+       COALESCE(es.total_balance, (SELECT c.total_balance
+                                   FROM coins c
+                                            JOIN blocks b ON b.height = c.block_height
+                                   WHERE b.epoch = e.epoch
+                                   ORDER BY c.block_height DESC
+                                   LIMIT 1))                                                                                        AS total_balance,
+       COALESCE(es.burnt_stake, (SELECT COALESCE(sum(c.burnt_stake), 0::numeric) AS "coalesce"
+                                 FROM coins c
+                                          JOIN blocks b ON b.height = c.block_height
+                                 WHERE b.epoch = e.epoch))                                                                          AS burnt_stake,
+       COALESCE(es.minted_stake, (SELECT COALESCE(sum(c.minted_stake), 0::numeric) AS minted_stake
+                                  FROM coins c
+                                           JOIN blocks b ON b.height = c.block_height
+                                  WHERE b.epoch = e.epoch))                                                                         AS minted_stake,
+       COALESCE(es.total_stake, (SELECT c.total_stake
+                                 FROM coins c
+                                          JOIN blocks b ON b.height = c.block_height
+                                 WHERE b.epoch = e.epoch
+                                 ORDER BY c.block_height DESC
+                                 LIMIT 1))                                                                                          AS total_stake
+FROM epochs e
+         LEFT JOIN epoch_summaries es ON es.epoch = e.epoch
+ORDER BY e.epoch DESC;
+
+ALTER TABLE public.epochs_detail
     OWNER TO postgres;
 

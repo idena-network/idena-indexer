@@ -6,4 +6,4 @@ from transactions t
 where b.epoch = $1
   and lower(afrom.address) = lower($2)
   and t.Type in ('SubmitAnswersHashTx', 'SubmitShortAnswersTx', 'SubmitLongAnswersTx', 'EvidenceTx')
-order by b.height
+order by b.height desc

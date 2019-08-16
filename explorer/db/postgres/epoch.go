@@ -23,6 +23,7 @@ const (
 	epochInvitesSummaryQuery        = "epochInvitesSummary.sql"
 	epochTxsCountQuery              = "epochTxsCount.sql"
 	epochTxsQuery                   = "epochTxs.sql"
+	epochCoinsQuery                 = "epochCoins.sql"
 )
 
 func (a *postgresAccessor) Epoch(epoch uint64) (types.EpochDetail, error) {
@@ -133,4 +134,8 @@ func (a *postgresAccessor) EpochTxs(epoch uint64, startIndex uint64, count uint6
 		return nil, err
 	}
 	return a.readTxs(rows)
+}
+
+func (a *postgresAccessor) EpochCoins(epoch uint64) (types.AllCoins, error) {
+	return a.coins(epochCoinsQuery, epoch)
 }

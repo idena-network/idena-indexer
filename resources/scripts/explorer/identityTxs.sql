@@ -4,6 +4,6 @@ from transactions t
          join addresses afrom on afrom.id = t.from
          left join addresses ato on ato.id = t.to
 where lower(afrom.address) = lower($1)
-order by b.height
+order by b.height desc
 limit $3
     offset $2

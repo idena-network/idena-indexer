@@ -112,3 +112,24 @@ func (a *postgresAccessor) readAnswers(rows *sql.Rows) ([]types.Answer, error) {
 	}
 	return res, nil
 }
+
+func (a *postgresAccessor) coins(queryName string, args ...interface{}) (types.AllCoins, error) {
+	res := types.AllCoins{
+		Balance: types.Coins{},
+		Stake:   types.Coins{},
+	}
+	err := a.db.QueryRow(a.getQuery(queryName), args...).
+		Scan(&res.Balance.Burnt,
+			&res.Balance.Minted,
+			&res.Balance.Total,
+			&res.Stake.Burnt,
+			&res.Stake.Minted,
+			&res.Stake.Total)
+	if err == sql.ErrNoRows {
+		err = NoDataFound
+	}
+	if err != nil {
+		return types.AllCoins{}, err
+	}
+	return res, nil
+}

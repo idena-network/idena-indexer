@@ -19,13 +19,21 @@ func (a *postgresAccessor) Epochs(startIndex uint64, count uint64) ([]types.Epoc
 	defer rows.Close()
 	var epochs []types.EpochSummary
 	for rows.Next() {
-		epoch := types.EpochSummary{}
+		epoch := types.EpochSummary{
+			Coins: types.AllCoins{},
+		}
 		err = rows.Scan(&epoch.Epoch,
 			&epoch.ValidatedCount,
 			&epoch.BlockCount,
 			&epoch.TxCount,
 			&epoch.InviteCount,
-			&epoch.FlipCount)
+			&epoch.FlipCount,
+			&epoch.Coins.Balance.Burnt,
+			&epoch.Coins.Balance.Minted,
+			&epoch.Coins.Balance.Total,
+			&epoch.Coins.Stake.Burnt,
+			&epoch.Coins.Stake.Minted,
+			&epoch.Coins.Stake.Total)
 		if err != nil {
 			return nil, err
 		}

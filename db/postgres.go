@@ -6,6 +6,7 @@ import (
 	"github.com/idena-network/idena-indexer/log"
 	_ "github.com/lib/pq"
 	"github.com/pkg/errors"
+	"github.com/shopspring/decimal"
 	"math/big"
 	"strings"
 )
@@ -18,6 +19,7 @@ type postgresAccessor struct {
 const (
 	initQuery                       = "init.sql"
 	maxHeightQuery                  = "maxHeight.sql"
+	currentTotalCoinsQuery          = "currentTotalCoins.sql"
 	currentFlipCidsQuery            = "currentFlipCids.sql"
 	currentFlipCidsWithoutDataQuery = "currentFlipCidsWithoutData.sql"
 	updateFlipStateQuery            = "updateFlipState.sql"
@@ -45,7 +47,9 @@ const (
 	insertIdentityStateQuery        = "insertIdentityState.sql"
 	resetToBlockQuery               = "resetToBlock.sql"
 	insertBalanceQuery              = "insertBalance.sql"
+	insertCoinsQuery                = "insertCoins.sql"
 	insertBlockFlagQuery            = "insertBlockFlag.sql"
+	insertEpochSummaryQuery         = "insertEpochSummary.sql"
 )
 
 func (a *postgresAccessor) getQuery(name string) string {
@@ -80,6 +84,16 @@ func (a *postgresAccessor) GetLastHeight() (uint64, error) {
 		return 0, err
 	}
 	return uint64(maxHeight), nil
+}
+
+func (a *postgresAccessor) GetTotalCoins() (balance decimal.Decimal, stake decimal.Decimal, err error) {
+	err = a.db.QueryRow(a.getQuery(currentTotalCoinsQuery)).Scan(&balance, &stake)
+	if err == sql.ErrNoRows {
+		err = nil
+		balance = decimal.Zero
+		stake = decimal.Zero
+	}
+	return
 }
 
 func (a *postgresAccessor) GetCurrentFlipCids(address string) ([]string, error) {
@@ -178,7 +192,11 @@ func (a *postgresAccessor) Save(data *Data) error {
 		return err
 	}
 
-	if err := a.saveBalances(ctx, data.Balances); err != nil {
+	if err := a.saveCoins(ctx, data.BalanceCoins, data.StakeCoins); err != nil {
+		return err
+	}
+
+	if err := a.saveBalances(ctx, data.BalanceUpdates); err != nil {
 		return err
 	}
 
@@ -200,6 +218,12 @@ func (a *postgresAccessor) Save(data *Data) error {
 
 	if err = a.saveFlipsStats(ctx, data.FlipStats); err != nil {
 		return err
+	}
+
+	if data.SaveEpochSummary {
+		if err = a.saveEpochSummary(ctx, data.BalanceCoins, data.StakeCoins); err != nil {
+			return err
+		}
 	}
 
 	return tx.Commit()
@@ -414,6 +438,19 @@ func (a *postgresAccessor) saveAddressState(ctx *context, addressId int64, state
 	return id, err
 }
 
+func (a *postgresAccessor) saveCoins(ctx *context, balanceCoins Coins, stakeCoins Coins) error {
+	_, err := ctx.tx.Exec(a.getQuery(insertCoinsQuery),
+		ctx.blockHeight,
+		balanceCoins.Burnt,
+		balanceCoins.Minted,
+		balanceCoins.Total,
+		stakeCoins.Burnt,
+		stakeCoins.Minted,
+		stakeCoins.Total)
+
+	return errors.Wrapf(err, "unable to save coins %v, %v", balanceCoins, stakeCoins)
+}
+
 func (a *postgresAccessor) saveBalances(ctx *context, balances []Balance) error {
 	if len(balances) == 0 {
 		return nil
@@ -427,7 +464,20 @@ func (a *postgresAccessor) saveBalances(ctx *context, balances []Balance) error 
 }
 
 func (a *postgresAccessor) saveBalance(ctx *context, balance Balance) error {
-	_, err := ctx.tx.Exec(a.getQuery(insertBalanceQuery), balance.Address, balance.Balance, balance.Stake, ctx.blockHeight)
+	var txId *int64
+	if len(balance.TxHash) > 0 {
+		id, err := ctx.txId(balance.TxHash)
+		if err != nil {
+			return err
+		}
+		txId = &id
+	}
+	_, err := ctx.tx.Exec(a.getQuery(insertBalanceQuery),
+		balance.Address,
+		balance.Balance,
+		balance.Stake,
+		ctx.blockHeight,
+		txId)
 	return errors.Wrapf(err, "unable to save balance")
 }
 
@@ -586,6 +636,11 @@ func (a *postgresAccessor) saveFlipKeys(ctx *context, keys []FlipKey) error {
 func (a *postgresAccessor) saveFlipKey(ctx *context, txId int64, key FlipKey) error {
 	_, err := ctx.tx.Exec(a.getQuery(insertFlipKeyQuery), txId, key.Key)
 	return errors.Wrapf(err, "unable to save flip key %s", key.Key)
+}
+
+func (a *postgresAccessor) saveEpochSummary(ctx *context, balanceCoins Coins, stakeCoins Coins) error {
+	_, err := ctx.tx.Exec(a.getQuery(insertEpochSummaryQuery), ctx.epoch, ctx.blockHeight, balanceCoins.Total, stakeCoins.Total)
+	return errors.Wrapf(err, "unable to save epoch summary for %s", ctx.epoch)
 }
 
 func (a *postgresAccessor) Destroy() {

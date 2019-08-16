@@ -18,21 +18,18 @@ type postgresAccessor struct {
 }
 
 const (
-	addressQuery       = "address.sql"
-	transactionQuery   = "transaction.sql"
-	currentEpochQuery  = "currentEpoch.sql"
-	isAddressQuery     = "isAddress.sql"
-	isBlockHashQuery   = "isBlockHash.sql"
-	isBlockHeightQuery = "isBlockHeight.sql"
-	isEpochQuery       = "isEpoch.sql"
-	isFlipQuery        = "isFlip.sql"
-	isTxQuery          = "isTx.sql"
+	addressQuery             = "address.sql"
+	transactionQuery         = "transaction.sql"
+	currentEpochQuery        = "currentEpoch.sql"
+	isAddressQuery           = "isAddress.sql"
+	isBlockHashQuery         = "isBlockHash.sql"
+	isBlockHeightQuery       = "isBlockHeight.sql"
+	isEpochQuery             = "isEpoch.sql"
+	isFlipQuery              = "isFlip.sql"
+	isTxQuery                = "isTx.sql"
+	coinsBurntAndMintedQuery = "coinsBurntAndMinted.sql"
+	coinsTotalQuery          = "coinsTotal.sql"
 )
-
-type flipWithKey struct {
-	cid string
-	key string
-}
 
 var NoDataFound = errors.New("no data found")
 
@@ -102,6 +99,32 @@ func (a *postgresAccessor) Search(value string) ([]types.Entity, error) {
 		})
 	}
 
+	return res, nil
+}
+
+func (a *postgresAccessor) Coins() (types.AllCoins, error) {
+	res := types.AllCoins{
+		Balance: types.Coins{},
+		Stake:   types.Coins{},
+	}
+	err := a.db.QueryRow(a.getQuery(coinsTotalQuery)).Scan(&res.Balance.Total, &res.Stake.Total)
+	if err == sql.ErrNoRows {
+		err = NoDataFound
+	}
+	if err != nil {
+		return types.AllCoins{}, err
+	}
+	err = a.db.QueryRow(a.getQuery(coinsBurntAndMintedQuery)).
+		Scan(&res.Balance.Burnt,
+			&res.Balance.Minted,
+			&res.Stake.Burnt,
+			&res.Stake.Minted)
+	if err == sql.ErrNoRows {
+		err = NoDataFound
+	}
+	if err != nil {
+		return types.AllCoins{}, err
+	}
 	return res, nil
 }
 
