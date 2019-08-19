@@ -56,7 +56,7 @@ func (s *httpServer) requestFilter(next http.Handler) http.Handler {
 }
 
 func (s *httpServer) Start() {
-	headersOk := handlers.AllowedHeaders([]string{"X-Requested-With"})
+	headersOk := handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type"})
 	originsOk := handlers.AllowedOrigins([]string{"*"})
 	methodsOk := handlers.AllowedMethods([]string{"GET", "HEAD", "POST", "PUT", "OPTIONS"})
 	err := http.ListenAndServe(fmt.Sprintf(":%d", s.port), handlers.CORS(originsOk, headersOk, methodsOk)(s.initHandler()))
