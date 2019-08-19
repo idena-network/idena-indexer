@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/idena-network/idena-indexer/explorer/db"
 	"github.com/idena-network/idena-indexer/log"
@@ -55,7 +56,10 @@ func (s *httpServer) requestFilter(next http.Handler) http.Handler {
 }
 
 func (s *httpServer) Start() {
-	err := http.ListenAndServe(fmt.Sprintf(":%d", s.port), s.initHandler())
+	headersOk := handlers.AllowedHeaders([]string{"X-Requested-With"})
+	originsOk := handlers.AllowedOrigins([]string{"*"})
+	methodsOk := handlers.AllowedMethods([]string{"GET", "HEAD", "POST", "PUT", "OPTIONS"})
+	err := http.ListenAndServe(fmt.Sprintf(":%d", s.port), handlers.CORS(originsOk, headersOk, methodsOk)(s.initHandler()))
 	if err != nil {
 		panic(err)
 	}
