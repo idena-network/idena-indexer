@@ -14,7 +14,7 @@ from (select sum(ei.short_point)       short_point,
                join address_states s on s.id = ei.address_state_id
                join addresses a on a.id = s.address_id
       where lower(a.address) = lower($1)
-        and s.block_height >= (select max(block_height)
+        and s.block_height >= (select coalesce(max(block_height), 0)
                                from address_states s
                                where s.address_id = a.id
                                  and s.state = 'Candidate')
