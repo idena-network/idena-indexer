@@ -9,10 +9,11 @@ require (
 	github.com/go-stack/stack v1.8.0
 	github.com/gorilla/handlers v1.4.2
 	github.com/gorilla/mux v1.7.3
-	github.com/idena-network/idena-go v0.6.1-0.20190813190806-e06398f95478
+	github.com/idena-network/idena-go v0.6.2-0.20190821064506-a413795aa9be
 	github.com/ipfs/go-cid v0.0.2
 	github.com/lib/pq v1.1.1
 	github.com/pkg/errors v0.8.1
 	github.com/shopspring/decimal v0.0.0-20180709203117-cd690d0c9e24
+	golang.org/x/image v0.0.0-20190802002840-cff245a6509b
 	gopkg.in/urfave/cli.v1 v1.20.0
 )

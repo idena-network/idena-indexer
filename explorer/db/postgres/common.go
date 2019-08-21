@@ -72,7 +72,8 @@ func (a *postgresAccessor) readFlips(rows *sql.Rows) ([]types.FlipSummary, error
 			&item.Answer,
 			&item.ShortRespCount,
 			&item.LongRespCount,
-			&timestamp)
+			&timestamp,
+			&item.Icon)
 		if err != nil {
 			return nil, err
 		}

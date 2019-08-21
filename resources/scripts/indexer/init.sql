@@ -664,6 +664,27 @@ CREATE TABLE IF NOT EXISTS public.flip_pics
 ALTER TABLE public.flip_pics
     OWNER to postgres;
 
+-- Table: public.flip_icons
+
+-- DROP TABLE public.flip_icons;
+
+CREATE TABLE IF NOT EXISTS public.flip_icons
+(
+    flip_data_id bigint NOT NULL,
+    data         bytea  NOT NULL,
+    CONSTRAINT flip_icons_flip_data_id_fkey FOREIGN KEY (flip_data_id)
+        REFERENCES public.flips_data (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+)
+    WITH (
+        OIDS = FALSE
+    )
+    TABLESPACE pg_default;
+
+ALTER TABLE public.flip_icons
+    OWNER to postgres;
+
 -- Table: public.flip_pic_orders
 
 -- DROP TABLE public.flip_pic_orders;

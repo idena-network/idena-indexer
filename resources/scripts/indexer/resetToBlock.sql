@@ -67,6 +67,14 @@ where flip_data_id in
        from flips_data
        where block_height > $1);
 
+-- flip_icons
+delete
+from flip_icons
+where flip_data_id in
+      (select id
+       from flips_data
+       where block_height > $1);
+
 -- flip_pic_orders
 delete
 from flip_pic_orders

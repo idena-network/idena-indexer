@@ -25,6 +25,7 @@ const (
 	updateFlipStateQuery            = "updateFlipState.sql"
 	insertFlipDataQuery             = "insertFlipData.sql"
 	insertFlipPicQuery              = "insertFlipPic.sql"
+	insertFlipIconQuery             = "insertFlipIcon.sql"
 	insertFlipPicOrderQuery         = "insertFlipPicOrder.sql"
 	insertAnswersQuery              = "insertAnswers.sql"
 	insertBlockQuery                = "insertBlock.sql"
@@ -288,11 +289,24 @@ func (a *postgresAccessor) saveFlipData(ctx *context, flipData FlipData) error {
 			}
 		}
 	}
+	if flipData.Content.Icon != nil {
+		if err := a.saveFlipIcon(ctx, flipData.Content.Icon, flipDataId); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
 func (a *postgresAccessor) saveFlipPic(ctx *context, picIndex byte, pic []byte, flipDataId int64) error {
 	_, err := ctx.tx.Exec(a.getQuery(insertFlipPicQuery), flipDataId, picIndex, pic)
+	return err
+}
+
+func (a *postgresAccessor) saveFlipIcon(ctx *context, icon []byte, flipDataId int64) error {
+	if icon == nil {
+		return nil
+	}
+	_, err := ctx.tx.Exec(a.getQuery(insertFlipIconQuery), flipDataId, icon)
 	return err
 }
 

@@ -77,14 +77,15 @@ type TransactionDetail struct {
 }
 
 type FlipSummary struct {
-	Cid            string    `json:"cid"`
-	Author         string    `json:"author"`
-	ShortRespCount uint32    `json:"shortRespCount"`
-	LongRespCount  uint32    `json:"longRespCount"`
-	Status         string    `json:"status"`
-	Answer         string    `json:"answer"`
-	Timestamp      time.Time `json:"timestamp"`
-	Size           uint32    `json:"size"`
+	Cid            string        `json:"cid"`
+	Author         string        `json:"author"`
+	ShortRespCount uint32        `json:"shortRespCount"`
+	LongRespCount  uint32        `json:"longRespCount"`
+	Status         string        `json:"status"`
+	Answer         string        `json:"answer"`
+	Timestamp      time.Time     `json:"timestamp"`
+	Size           uint32        `json:"size"`
+	Icon           hexutil.Bytes `json:"icon"`
 }
 
 type Invite struct {

@@ -89,6 +89,7 @@ type FlipData struct {
 type FlipContent struct {
 	Pics   [][]byte
 	Orders [][]byte
+	Icon   []byte
 }
 
 type Address struct {

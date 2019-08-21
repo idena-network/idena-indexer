@@ -1,7 +1,10 @@
 package indexer
 
 import (
+	"bufio"
+	"bytes"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"github.com/idena-network/idena-go/blockchain"
 	"github.com/idena-network/idena-go/blockchain/attachments"
@@ -19,6 +22,10 @@ import (
 	"github.com/idena-network/idena-indexer/log"
 	"github.com/ipfs/go-cid"
 	"github.com/shopspring/decimal"
+	"golang.org/x/image/draw"
+	"image"
+	"image/jpeg"
+	_ "image/png"
 	"math/big"
 	"time"
 )
@@ -126,7 +133,13 @@ func (indexer *Indexer) indexBlock(block *types.Block) {
 		data := indexer.convertIncomingData(block)
 		indexer.saveData(data)
 		indexer.applyOnState(data)
-		log.Debug(fmt.Sprintf("Processed block %d", data.Block.Height))
+
+		if data.Block.Height%1000 == 0 {
+			log.Info(fmt.Sprintf("Processed block %d", data.Block.Height))
+		} else {
+			log.Debug(fmt.Sprintf("Processed block %d", data.Block.Height))
+		}
+
 		return
 	}
 }
@@ -538,7 +551,7 @@ func getFlipsMemPoolKeyData(ctx *conversionContext) []db.FlipData {
 			log.Error("Unable to get flip data with key from mem pool. Skipped.", "cid", flipCidStr, "err", err)
 			continue
 		}
-		parsedData, err := parseFlip(data)
+		parsedData, err := parseFlip(flipCidStr, data)
 		if err != nil {
 			log.Error("Unable to parse flip data with key from mem pool. Skipped.", "cid", flipCidStr, "err", err)
 			continue
@@ -551,7 +564,7 @@ func getFlipsMemPoolKeyData(ctx *conversionContext) []db.FlipData {
 	return flipsMemPoolKeyData
 }
 
-func parseFlip(data []byte) (db.FlipContent, error) {
+func parseFlip(flipCidStr string, data []byte) (db.FlipContent, error) {
 	arr := make([]interface{}, 2)
 	err := rlp.DecodeBytes(data, &arr)
 	if err != nil {
@@ -573,10 +586,49 @@ func parseFlip(data []byte) (db.FlipContent, error) {
 		}
 		allOrders = append(allOrders, orders)
 	}
+	var icon []byte
+
+	if len(pics) > 0 {
+		icon, err = compressPic(pics[0])
+		if err != nil {
+			log.Error("Unable to create flip icon, src pic will be used instead", "cid", flipCidStr, "err", err)
+			icon = pics[0]
+		}
+	}
 	return db.FlipContent{
 		Pics:   pics,
 		Orders: allOrders,
+		Icon:   icon,
 	}, nil
+}
+
+func compressPic(src []byte) ([]byte, error) {
+	srcImage, _, err := image.Decode(bytes.NewReader(src))
+	if err != nil {
+		return nil, err
+	}
+	var x, y int
+	if srcImage.Bounds().Max.X > srcImage.Bounds().Max.Y {
+		x = 64
+		y = int(float32(srcImage.Bounds().Max.Y) / float32(srcImage.Bounds().Max.X) * 64)
+	} else {
+		y = 64
+		x = int(float32(srcImage.Bounds().Max.X) / float32(srcImage.Bounds().Max.Y) * 64)
+	}
+
+	dr := image.Rect(0, 0, x, y)
+	dst := image.NewRGBA(dr)
+	draw.CatmullRom.Scale(dst, dr, srcImage, srcImage.Bounds(), draw.Src, nil)
+
+	var res bytes.Buffer
+	err = jpeg.Encode(bufio.NewWriter(&res), dst, nil)
+	if err != nil {
+		return nil, err
+	}
+	if len(res.Bytes()) == 0 {
+		return nil, errors.New("empty converted pic")
+	}
+	return res.Bytes(), nil
 }
 
 func determineSubmittedFlip(tx *types.Transaction, ctx *conversionContext) *db.Flip {
@@ -647,7 +699,7 @@ func getFlipsData(tx *types.Transaction, attachment *attachments.ShortAnswerAtta
 			log.Error("Unable to get flip data. Skipped.", "tx", tx.Hash(), "cid", flipCidStr, "err", err)
 			continue
 		}
-		parsedData, err := parseFlip(flipData)
+		parsedData, err := parseFlip(flipCidStr, flipData)
 		if err != nil {
 			log.Error("Unable to parse flip data. Skipped.", "tx", tx.Hash(), "cid", flipCidStr, "err", err)
 			continue
