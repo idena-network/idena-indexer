@@ -31,6 +31,7 @@ const (
 	insertBlockQuery                = "insertBlock.sql"
 	insertBlockProposerQuery        = "insertBlockProposer.sql"
 	insertBlockValidatorQuery       = "insertBlockValidator.sql"
+	updateBlockValidatorsCountQuery = "updateBlockValidatorsCount.sql"
 	selectIdentityQuery             = "selectIdentity.sql"
 	selectFlipQuery                 = "selectFlip.sql"
 	insertEpochIdentityQuery        = "insertEpochIdentity.sql"
@@ -185,7 +186,7 @@ func (a *postgresAccessor) Save(data *Data) error {
 		return err
 	}
 
-	if err = a.saveValidators(ctx, data.Block.Validators); err != nil {
+	if err = a.saveValidators(ctx, data.PrevBlockValidators); err != nil {
 		return err
 	}
 
@@ -358,7 +359,7 @@ func (a *postgresAccessor) saveEpoch(ctx *context, epoch uint64, validationTime 
 }
 
 func (a *postgresAccessor) saveBlock(ctx *context, block Block) error {
-	_, err := ctx.tx.Exec(a.getQuery(insertBlockQuery), block.Height, block.Hash, ctx.epoch, block.Time.Int64(), block.IsEmpty, len(block.Validators))
+	_, err := ctx.tx.Exec(a.getQuery(insertBlockQuery), block.Height, block.Hash, ctx.epoch, block.Time.Int64(), block.IsEmpty, 0)
 	return err
 }
 
@@ -388,19 +389,24 @@ func (a *postgresAccessor) saveProposer(ctx *context, proposer string) error {
 }
 
 func (a *postgresAccessor) saveValidators(ctx *context, validators []string) error {
-	if len(validators) == 0 {
-		return nil
-	}
 	for _, validator := range validators {
-		if err := a.saveValidator(ctx, validator); err != nil {
-			return errors.Wrapf(err, "unable to save block validator")
+		if err := a.savePrevBlockValidator(ctx, validator); err != nil {
+			return errors.Wrapf(err, "unable to save prev block validator")
 		}
+	}
+	if err := a.savePrevBlockValidatorsCount(ctx, len(validators)); err != nil {
+		return errors.Wrapf(err, "unable to save prev block validators count")
 	}
 	return nil
 }
 
-func (a *postgresAccessor) saveValidator(ctx *context, validator string) error {
-	_, err := ctx.tx.Exec(a.getQuery(insertBlockValidatorQuery), ctx.blockHeight, validator)
+func (a *postgresAccessor) savePrevBlockValidator(ctx *context, validator string) error {
+	_, err := ctx.tx.Exec(a.getQuery(insertBlockValidatorQuery), ctx.blockHeight-1, validator)
+	return err
+}
+
+func (a *postgresAccessor) savePrevBlockValidatorsCount(ctx *context, count int) error {
+	_, err := ctx.tx.Exec(a.getQuery(updateBlockValidatorsCountQuery), ctx.blockHeight-1, count)
 	return err
 }
 

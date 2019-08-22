@@ -6,19 +6,20 @@ import (
 )
 
 type Data struct {
-	Epoch            uint64
-	ValidationTime   big.Int
-	Block            Block
-	Identities       []EpochIdentity
-	SubmittedFlips   []Flip
-	FlipKeys         []FlipKey
-	FlipStats        []FlipStats
-	Addresses        []Address
-	FlipsData        []FlipData
-	BalanceUpdates   []Balance
-	BalanceCoins     Coins
-	StakeCoins       Coins
-	SaveEpochSummary bool
+	Epoch               uint64
+	ValidationTime      big.Int
+	Block               Block
+	PrevBlockValidators []string
+	Identities          []EpochIdentity
+	SubmittedFlips      []Flip
+	FlipKeys            []FlipKey
+	FlipStats           []FlipStats
+	Addresses           []Address
+	FlipsData           []FlipData
+	BalanceUpdates      []Balance
+	BalanceCoins        Coins
+	StakeCoins          Coins
+	SaveEpochSummary    bool
 }
 
 type Block struct {
@@ -28,7 +29,6 @@ type Block struct {
 	Transactions       []Transaction
 	Time               big.Int
 	Proposer           string
-	Validators         []string
 	Flags              []string
 	IsEmpty            bool
 }

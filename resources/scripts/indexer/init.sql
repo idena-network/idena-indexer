@@ -29,7 +29,6 @@ CREATE TABLE IF NOT EXISTS public.blocks
     is_empty         boolean                                    NOT NULL,
     validators_count integer                                    NOT NULL,
     CONSTRAINT blocks_pkey PRIMARY KEY (height),
-    CONSTRAINT blocks_hash_key UNIQUE (hash),
     CONSTRAINT blocks_epoch_fkey FOREIGN KEY (epoch)
         REFERENCES public.epochs (epoch) MATCH SIMPLE
         ON UPDATE NO ACTION
@@ -42,6 +41,8 @@ CREATE TABLE IF NOT EXISTS public.blocks
 
 ALTER TABLE public.blocks
     OWNER to postgres;
+
+CREATE UNIQUE INDEX IF NOT EXISTS blocks_hash_unique_idx on blocks (LOWER(hash));
 
 -- Table: public.epoch_summaries
 
@@ -105,7 +106,6 @@ CREATE TABLE IF NOT EXISTS public.addresses
     address      character(42) COLLATE pg_catalog."default" NOT NULL,
     block_height bigint                                     NOT NULL,
     CONSTRAINT addresses_pkey PRIMARY KEY (id),
-    CONSTRAINT addresses_address_key UNIQUE (address),
     CONSTRAINT addresses_block_height_fkey FOREIGN KEY (block_height)
         REFERENCES public.blocks (height) MATCH SIMPLE
         ON UPDATE NO ACTION
@@ -118,6 +118,8 @@ CREATE TABLE IF NOT EXISTS public.addresses
 
 ALTER TABLE public.addresses
     OWNER to postgres;
+
+CREATE UNIQUE INDEX IF NOT EXISTS addresses_address_unique_idx on addresses (LOWER(address));
 
 -- Table: public.block_proposers
 
@@ -195,7 +197,6 @@ CREATE TABLE IF NOT EXISTS public.transactions
     amount       numeric(30, 18),
     fee          numeric(30, 18),
     CONSTRAINT transactions_pkey PRIMARY KEY (id),
-    CONSTRAINT transactions_hash_key UNIQUE (hash),
     CONSTRAINT transactions_block_height_fkey FOREIGN KEY (block_height)
         REFERENCES public.blocks (height) MATCH SIMPLE
         ON UPDATE NO ACTION
@@ -216,6 +217,8 @@ CREATE TABLE IF NOT EXISTS public.transactions
 
 ALTER TABLE public.transactions
     OWNER to postgres;
+
+CREATE UNIQUE INDEX IF NOT EXISTS transactions_hash_unique_idx on transactions (LOWER(hash));
 
 -- SEQUENCE: public.address_states_id_seq
 
@@ -348,7 +351,6 @@ CREATE TABLE IF NOT EXISTS public.flips
     answer              character varying(20) COLLATE pg_catalog."default",
     status              character varying(20) COLLATE pg_catalog."default",
     CONSTRAINT flips_pkey PRIMARY KEY (id),
-    CONSTRAINT flips_cid_key UNIQUE (cid),
     CONSTRAINT flips_status_block_height_fkey FOREIGN KEY (status_block_height)
         REFERENCES public.blocks (height) MATCH SIMPLE
         ON UPDATE NO ACTION
@@ -365,6 +367,8 @@ CREATE TABLE IF NOT EXISTS public.flips
 
 ALTER TABLE public.flips
     OWNER to postgres;
+
+CREATE UNIQUE INDEX IF NOT EXISTS flips_cid_unique_idx on flips (LOWER(cid));
 
 -- SEQUENCE: public.flip_keys_id_seq
 
