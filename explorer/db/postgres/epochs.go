@@ -25,6 +25,7 @@ func (a *postgresAccessor) Epochs(startIndex uint64, count uint64) ([]types.Epoc
 		err = rows.Scan(&epoch.Epoch,
 			&epoch.ValidatedCount,
 			&epoch.BlockCount,
+			&epoch.EmptyBlockCount,
 			&epoch.TxCount,
 			&epoch.InviteCount,
 			&epoch.FlipCount,

@@ -2,6 +2,7 @@ insert into epoch_summaries
 (epoch,
  validated_count,
  block_count,
+ empty_block_count,
  tx_count,
  invite_count,
  flip_count,
@@ -21,6 +22,10 @@ values ($1,
         (select count(*)
          from blocks b
          where b.epoch = $1),
+        (select count(*)
+         from blocks b
+         where b.epoch = $1
+           and b.is_empty),
         (select count(*)
          from transactions t,
               blocks b

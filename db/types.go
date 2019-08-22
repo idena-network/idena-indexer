@@ -28,7 +28,9 @@ type Block struct {
 	Transactions       []Transaction
 	Time               big.Int
 	Proposer           string
+	Validators         []string
 	Flags              []string
+	IsEmpty            bool
 }
 
 type Transaction struct {

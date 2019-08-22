@@ -7,7 +7,6 @@ import (
 	"github.com/idena-network/idena-go/common"
 	"github.com/idena-network/idena-go/core/appstate"
 	"github.com/idena-network/idena-go/core/state"
-	"github.com/idena-network/idena-go/core/validators"
 	"github.com/idena-network/idena-indexer/db"
 	"github.com/idena-network/idena-indexer/log"
 	"math/big"
@@ -44,7 +43,7 @@ type BlockBalanceUpdateDetector struct {
 	isFirstBlock bool
 }
 
-func NewBlockBalanceUpdateDetector(block *types.Block, prevState *appstate.AppState, ctx *conversionContext) *BlockBalanceUpdateDetector {
+func NewBlockBalanceUpdateDetector(block *types.Block, prevState *appstate.AppState, blockValidators mapset.Set, ctx *conversionContext) *BlockBalanceUpdateDetector {
 	res := BlockBalanceUpdateDetector{}
 	var addresses []common.Address
 	if isFirstBlock(block) {
@@ -62,24 +61,19 @@ func NewBlockBalanceUpdateDetector(block *types.Block, prevState *appstate.AppSt
 			return false
 		})
 	} else {
-		var identities mapset.Set
 		if !block.IsEmpty() {
-			prevBlock := ctx.chain.GetBlockHeaderByHeight(block.Height() - 1)
-			validatorsCache := validators.NewValidatorsCache(prevState.IdentityState, prevState.State.GodAddress())
-			validatorsCache.Load()
-			identities := validatorsCache.GetOnlineValidators(prevBlock.Seed(), prevBlock.Height(), 1000, ctx.chain.GetCommitteSize(validatorsCache, true))
-			if identities == nil || !identities.Contains(block.Header.ProposedHeader.Coinbase) {
+			if blockValidators == nil || !blockValidators.Contains(block.Header.ProposedHeader.Coinbase) {
 				addresses = append(addresses, block.Header.ProposedHeader.Coinbase)
 			}
-			if identities != nil {
-				for _, address := range identities.ToSlice() {
+			if blockValidators != nil {
+				for _, address := range blockValidators.ToSlice() {
 					addresses = append(addresses, address.(common.Address))
 				}
 			}
 		}
 		if block.Header.Flags().HasFlag(types.IdentityUpdate) {
 			prevState.State.IterateOverIdentities(func(addr common.Address, identity state.Identity) {
-				if block.IsEmpty() || !(addr == block.Header.ProposedHeader.Coinbase || (identities != nil && identities.Contains(addr))) {
+				if block.IsEmpty() || !(addr == block.Header.ProposedHeader.Coinbase || (blockValidators != nil && blockValidators.Contains(addr))) {
 					addresses = append(addresses, addr)
 				}
 			})

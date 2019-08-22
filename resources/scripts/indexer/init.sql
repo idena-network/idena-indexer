@@ -22,10 +22,12 @@ ALTER TABLE public.epochs
 
 CREATE TABLE IF NOT EXISTS public.blocks
 (
-    height      integer                                    NOT NULL,
-    hash        character(66) COLLATE pg_catalog."default" NOT NULL,
-    epoch       bigint                                     NOT NULL,
-    "timestamp" bigint                                     NOT NULL,
+    height           bigint                                     NOT NULL,
+    hash             character(66) COLLATE pg_catalog."default" NOT NULL,
+    epoch            bigint                                     NOT NULL,
+    "timestamp"      bigint                                     NOT NULL,
+    is_empty         boolean                                    NOT NULL,
+    validators_count integer                                    NOT NULL,
     CONSTRAINT blocks_pkey PRIMARY KEY (height),
     CONSTRAINT blocks_hash_key UNIQUE (hash),
     CONSTRAINT blocks_epoch_fkey FOREIGN KEY (epoch)
@@ -47,19 +49,20 @@ ALTER TABLE public.blocks
 
 CREATE TABLE IF NOT EXISTS public.epoch_summaries
 (
-    epoch           bigint          NOT NULL,
-    validated_count integer         NOT NULL,
-    block_count     bigint          NOT NULL,
-    tx_count        bigint          NOT NULL,
-    invite_count    bigint          NOT NULL,
-    flip_count      integer         NOT NULL,
-    burnt_balance   numeric(30, 18) NOT NULL,
-    minted_balance  numeric(30, 18) NOT NULL,
-    total_balance   numeric(30, 18) NOT NULL,
-    burnt_stake     numeric(30, 18) NOT NULL,
-    minted_stake    numeric(30, 18) NOT NULL,
-    total_stake     numeric(30, 18) NOT NULL,
-    block_height    bigint          NOT NULL,
+    epoch             bigint          NOT NULL,
+    validated_count   integer         NOT NULL,
+    block_count       bigint          NOT NULL,
+    empty_block_count bigint          NOT NULL,
+    tx_count          bigint          NOT NULL,
+    invite_count      bigint          NOT NULL,
+    flip_count        integer         NOT NULL,
+    burnt_balance     numeric(30, 18) NOT NULL,
+    minted_balance    numeric(30, 18) NOT NULL,
+    total_balance     numeric(30, 18) NOT NULL,
+    burnt_stake       numeric(30, 18) NOT NULL,
+    minted_stake      numeric(30, 18) NOT NULL,
+    total_stake       numeric(30, 18) NOT NULL,
+    block_height      bigint          NOT NULL,
     CONSTRAINT epoch_summaries_pkey PRIMARY KEY (epoch),
     CONSTRAINT epoch_summaries_block_height_fkey FOREIGN KEY (block_height)
         REFERENCES public.blocks (height) MATCH SIMPLE
@@ -116,22 +119,51 @@ CREATE TABLE IF NOT EXISTS public.addresses
 ALTER TABLE public.addresses
     OWNER to postgres;
 
--- Table: public.proposers
+-- Table: public.block_proposers
 
--- DROP TABLE public.proposers;
+-- DROP TABLE public.block_proposers;
 
-CREATE TABLE IF NOT EXISTS public.proposers
+CREATE TABLE IF NOT EXISTS public.block_proposers
 (
     address_id   bigint NOT NULL,
     block_height bigint NOT NULL,
-    CONSTRAINT proposers_pkey PRIMARY KEY (block_height)
+    CONSTRAINT block_proposers_pkey PRIMARY KEY (block_height),
+    CONSTRAINT block_proposers_address_id_fkey FOREIGN KEY (address_id)
+        REFERENCES public.addresses (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
 )
     WITH (
         OIDS = FALSE
     )
     TABLESPACE pg_default;
 
-ALTER TABLE public.proposers
+ALTER TABLE public.block_proposers
+    OWNER to postgres;
+
+-- Table: public.block_validators
+
+-- DROP TABLE public.block_validators;
+
+CREATE TABLE IF NOT EXISTS public.block_validators
+(
+    block_height bigint NOT NULL,
+    address_id   bigint NOT NULL,
+    CONSTRAINT block_validators_address_id_fkey FOREIGN KEY (address_id)
+        REFERENCES public.addresses (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT block_validators_block_height_fkey FOREIGN KEY (block_height)
+        REFERENCES public.blocks (height) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+)
+    WITH (
+        OIDS = FALSE
+    )
+    TABLESPACE pg_default;
+
+ALTER TABLE public.block_validators
     OWNER to postgres;
 
 -- SEQUENCE: public.transactions_id_seq
@@ -781,6 +813,10 @@ SELECT e.epoch,
        COALESCE(es.block_count, (SELECT count(*) AS count
                                  FROM blocks b
                                  WHERE b.epoch = e.epoch))                                                                          AS block_count,
+       COALESCE(es.empty_block_count, (SELECT count(*) AS count
+                                       FROM blocks b
+                                       WHERE b.epoch = e.epoch
+                                         and b.is_empty))                                                                           AS empty_block_count,
        COALESCE(es.tx_count, (SELECT count(*) AS count
                               FROM transactions t,
                                    blocks b

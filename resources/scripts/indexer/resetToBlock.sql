@@ -114,9 +114,14 @@ delete
 from transactions
 where block_height > $1;
 
--- proposers
+-- block_proposers
 delete
-from proposers
+from block_proposers
+where block_height > $1;
+
+-- block_validators
+delete
+from block_validators
 where block_height > $1;
 
 -- temporary_identities

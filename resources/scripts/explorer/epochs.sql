@@ -1,6 +1,7 @@
 select epoch,
        validated_count,
        block_count,
+       empty_block_count,
        tx_count,
        invite_count,
        flip_count,

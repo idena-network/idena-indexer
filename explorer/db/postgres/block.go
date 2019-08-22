@@ -21,7 +21,13 @@ const (
 func (a *postgresAccessor) BlockByHeight(height uint64) (types.BlockDetail, error) {
 	res := types.BlockDetail{}
 	var timestamp int64
-	err := a.db.QueryRow(a.getQuery(blockQueryByHeight), height).Scan(&res.Height, &res.Hash, &timestamp, &res.TxCount, &res.Proposer)
+	err := a.db.QueryRow(a.getQuery(blockQueryByHeight), height).Scan(&res.Height,
+		&res.Hash,
+		&timestamp,
+		&res.TxCount,
+		&res.ValidatorsCount,
+		&res.Proposer,
+		&res.IsEmpty)
 	if err == sql.ErrNoRows {
 		err = NoDataFound
 	}
@@ -35,7 +41,13 @@ func (a *postgresAccessor) BlockByHeight(height uint64) (types.BlockDetail, erro
 func (a *postgresAccessor) BlockByHash(hash string) (types.BlockDetail, error) {
 	res := types.BlockDetail{}
 	var timestamp int64
-	err := a.db.QueryRow(a.getQuery(blockQueryByHash), hash).Scan(&res.Height, &res.Hash, &timestamp, &res.TxCount, &res.Proposer)
+	err := a.db.QueryRow(a.getQuery(blockQueryByHash), hash).Scan(&res.Height,
+		&res.Hash,
+		&timestamp,
+		&res.TxCount,
+		&res.ValidatorsCount,
+		&res.Proposer,
+		&res.IsEmpty)
 	if err == sql.ErrNoRows {
 		err = NoDataFound
 	}

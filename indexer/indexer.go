@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	mapset "github.com/deckarep/golang-set"
 	"github.com/idena-network/idena-go/blockchain"
 	"github.com/idena-network/idena-go/blockchain/attachments"
 	"github.com/idena-network/idena-go/blockchain/types"
@@ -14,6 +15,7 @@ import (
 	"github.com/idena-network/idena-go/core/appstate"
 	"github.com/idena-network/idena-go/core/ceremony"
 	"github.com/idena-network/idena-go/core/state"
+	"github.com/idena-network/idena-go/core/validators"
 	"github.com/idena-network/idena-go/crypto"
 	"github.com/idena-network/idena-go/crypto/ecies"
 	"github.com/idena-network/idena-go/rlp"
@@ -292,7 +294,13 @@ func determineFirstAddresses(incomingBlock *types.Block, ctx *conversionContext)
 func convertBlock(incomingBlock *types.Block, ctx *conversionContext) db.Block {
 	stateToApply := ctx.newStateReadOnly.Readonly(ctx.blockHeight - 1)
 	txs := convertTransactions(incomingBlock.Body.Transactions, stateToApply, ctx)
-	blockBalanceUpdateDetector := NewBlockBalanceUpdateDetector(incomingBlock, stateToApply, ctx)
+
+	prevBlock := ctx.chain.GetBlockHeaderByHeight(incomingBlock.Height() - 1)
+	validatorsCache := validators.NewValidatorsCache(stateToApply.IdentityState, stateToApply.State.GodAddress())
+	validatorsCache.Load()
+	blockValidators := validatorsCache.GetOnlineValidators(prevBlock.Seed(), prevBlock.Height(), 1000, ctx.chain.GetCommitteSize(validatorsCache, true))
+
+	blockBalanceUpdateDetector := NewBlockBalanceUpdateDetector(incomingBlock, stateToApply, blockValidators, ctx)
 	balanceUpdates, diff := blockBalanceUpdateDetector.GetUpdates(ctx.newStateReadOnly)
 	if len(balanceUpdates) > 0 {
 		ctx.balanceUpdates = append(ctx.balanceUpdates, balanceUpdates...)
@@ -310,7 +318,9 @@ func convertBlock(incomingBlock *types.Block, ctx *conversionContext) db.Block {
 		Time:         *incomingBlock.Header.Time(),
 		Transactions: txs,
 		Proposer:     getProposer(incomingBlock),
+		Validators:   convertBlockValidators(blockValidators),
 		Flags:        convertFlags(incomingBlock.Header.Flags()),
+		IsEmpty:      incomingBlock.IsEmpty(),
 	}
 }
 
@@ -329,6 +339,17 @@ func getProposer(block *types.Block) string {
 		return ""
 	}
 	return convertAddress(block.Header.ProposedHeader.Coinbase)
+}
+
+func convertBlockValidators(blockValidators mapset.Set) []string {
+	if blockValidators == nil || blockValidators.Cardinality() == 0 {
+		return nil
+	}
+	var res []string
+	for _, address := range blockValidators.ToSlice() {
+		res = append(res, convertAddress(address.(common.Address)))
+	}
+	return res
 }
 
 func convertTransactions(incomingTxs []*types.Transaction, stateToApply *appstate.AppState, ctx *conversionContext) []db.Transaction {

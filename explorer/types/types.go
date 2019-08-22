@@ -12,13 +12,14 @@ type Entity struct {
 }
 
 type EpochSummary struct {
-	Epoch          uint64   `json:"epoch"`
-	ValidatedCount uint32   `json:"validatedCount"`
-	BlockCount     uint32   `json:"blockCount"`
-	TxCount        uint32   `json:"txCount"`
-	InviteCount    uint32   `json:"inviteCount"`
-	FlipCount      uint32   `json:"flipCount"`
-	Coins          AllCoins `json:"coins"`
+	Epoch           uint64   `json:"epoch"`
+	ValidatedCount  uint32   `json:"validatedCount"`
+	BlockCount      uint32   `json:"blockCount"`
+	EmptyBlockCount uint32   `json:"emptyBlockCount"`
+	TxCount         uint32   `json:"txCount"`
+	InviteCount     uint32   `json:"inviteCount"`
+	FlipCount       uint32   `json:"flipCount"`
+	Coins           AllCoins `json:"coins"`
 }
 
 type EpochDetail struct {
@@ -32,6 +33,7 @@ type BlockSummary struct {
 	Timestamp time.Time `json:"timestamp"`
 	TxCount   uint16    `json:"txCount"`
 	Proposer  string    `json:"proposer"`
+	IsEmpty   string    `json:"isEmpty"`
 	Coins     AllCoins  `json:"coins"`
 }
 
@@ -40,8 +42,9 @@ type BlockDetail struct {
 	Hash            string    `json:"hash"`
 	Timestamp       time.Time `json:"timestamp"`
 	TxCount         uint16    `json:"txCount"`
-	ValidatorsCount uint16    `json:"validatorsCount"` // todo
+	ValidatorsCount uint16    `json:"validatorsCount"`
 	Proposer        string    `json:"proposer"`
+	IsEmpty         string    `json:"isEmpty"`
 }
 
 type IdentityState struct {
