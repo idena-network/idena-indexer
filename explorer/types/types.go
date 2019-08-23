@@ -33,7 +33,7 @@ type BlockSummary struct {
 	Timestamp time.Time `json:"timestamp"`
 	TxCount   uint16    `json:"txCount"`
 	Proposer  string    `json:"proposer"`
-	IsEmpty   string    `json:"isEmpty"`
+	IsEmpty   bool      `json:"isEmpty"`
 	Coins     AllCoins  `json:"coins"`
 }
 
@@ -44,7 +44,7 @@ type BlockDetail struct {
 	TxCount         uint16    `json:"txCount"`
 	ValidatorsCount uint16    `json:"validatorsCount"`
 	Proposer        string    `json:"proposer"`
-	IsEmpty         string    `json:"isEmpty"`
+	IsEmpty         bool      `json:"isEmpty"`
 }
 
 type IdentityState struct {

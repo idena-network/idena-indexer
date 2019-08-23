@@ -53,6 +53,7 @@ const (
 	insertCoinsQuery                = "insertCoins.sql"
 	insertBlockFlagQuery            = "insertBlockFlag.sql"
 	insertEpochSummaryQuery         = "insertEpochSummary.sql"
+	archiveBalanceQuery             = "archiveBalance.sql"
 )
 
 func (a *postgresAccessor) getQuery(name string) string {
@@ -506,6 +507,10 @@ func (a *postgresAccessor) saveBalances(ctx *context, balances []Balance) error 
 }
 
 func (a *postgresAccessor) saveBalance(ctx *context, balance Balance) error {
+	_, err := ctx.tx.Exec(a.getQuery(archiveBalanceQuery), balance.Address)
+	if err != nil {
+		return errors.Wrapf(err, "unable to archive previous balance")
+	}
 	var txId *int64
 	if len(balance.TxHash) > 0 {
 		id, err := ctx.txId(balance.TxHash)
@@ -514,7 +519,7 @@ func (a *postgresAccessor) saveBalance(ctx *context, balance Balance) error {
 		}
 		txId = &id
 	}
-	_, err := ctx.tx.Exec(a.getQuery(insertBalanceQuery),
+	_, err = ctx.tx.Exec(a.getQuery(insertBalanceQuery),
 		balance.Address,
 		balance.Balance,
 		balance.Stake,

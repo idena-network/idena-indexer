@@ -512,12 +512,13 @@ ALTER SEQUENCE public.balances_id_seq
 
 CREATE TABLE IF NOT EXISTS public.balances
 (
-    id           bigint NOT NULL DEFAULT nextval('balances_id_seq'::regclass),
-    address_id   bigint NOT NULL,
+    id           bigint  NOT NULL DEFAULT nextval('balances_id_seq'::regclass),
+    address_id   bigint  NOT NULL,
     balance      numeric(30, 18),
     stake        numeric(30, 18),
     tx_id        bigint,
-    block_height bigint NOT NULL,
+    is_actual    boolean NOT NULL,
+    block_height bigint  NOT NULL,
     CONSTRAINT balances_pkey PRIMARY KEY (id),
     CONSTRAINT balances_address_id_fkey FOREIGN KEY (address_id)
         REFERENCES public.addresses (id) MATCH SIMPLE
@@ -749,13 +750,11 @@ ALTER TABLE public.flip_pic_orders
 -- DROP VIEW public.current_balances;
 
 CREATE OR REPLACE VIEW public.current_balances AS
-SELECT DISTINCT ON (ab.address_id) ab.address_id,
-                                   a.address,
-                                   ab.balance,
-                                   ab.stake
-FROM balances ab
-         JOIN addresses a ON a.id = ab.address_id
-ORDER BY ab.address_id, ab.block_height DESC;
+SELECT address_id,
+       balance,
+       stake
+FROM balances
+where is_actual;
 
 ALTER TABLE public.current_balances
     OWNER TO postgres;

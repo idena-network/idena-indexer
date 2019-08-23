@@ -1,4 +1,6 @@
-select address, balance, stake from current_balances
-order by balance desc
+select a.address, b.balance, b.stake
+from current_balances b
+         join addresses a on a.id = b.address_id
+order by b.balance desc
 limit $2
     offset $1
