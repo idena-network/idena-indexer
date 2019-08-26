@@ -75,6 +75,7 @@ type FlipStats struct {
 type Answer struct {
 	Address string
 	Answer  string
+	Point   float32
 }
 
 type FlipKey struct {

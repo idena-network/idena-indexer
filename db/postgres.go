@@ -342,7 +342,7 @@ func (a *postgresAccessor) saveAnswer(ctx *context, cid string, answer Answer, i
 	if err != nil {
 		return 0, err
 	}
-	err = ctx.tx.QueryRow(a.getQuery(insertAnswersQuery), flipId, epochIdentityId, isShort, answer.Answer).Scan(&id)
+	err = ctx.tx.QueryRow(a.getQuery(insertAnswersQuery), flipId, epochIdentityId, isShort, answer.Answer, answer.Point).Scan(&id)
 	return id, err
 }
 

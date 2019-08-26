@@ -141,11 +141,12 @@ type FlipContent struct {
 }
 
 type Answer struct {
-	Cid        string `json:"cid,omitempty"`
-	Address    string `json:"address,omitempty"`
-	RespAnswer string `json:"respAnswer"`
-	FlipAnswer string `json:"flipAnswer"`
-	FlipStatus string `json:"flipStatus"`
+	Cid        string  `json:"cid,omitempty"`
+	Address    string  `json:"address,omitempty"`
+	RespAnswer string  `json:"respAnswer"`
+	FlipAnswer string  `json:"flipAnswer"`
+	FlipStatus string  `json:"flipStatus"`
+	Point      float32 `json:"point"`
 }
 
 type Identity struct {

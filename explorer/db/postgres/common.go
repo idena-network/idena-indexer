@@ -105,7 +105,7 @@ func (a *postgresAccessor) readAnswers(rows *sql.Rows) ([]types.Answer, error) {
 	var res []types.Answer
 	for rows.Next() {
 		item := types.Answer{}
-		err := rows.Scan(&item.Cid, &item.Address, &item.RespAnswer, &item.FlipAnswer, &item.FlipStatus)
+		err := rows.Scan(&item.Cid, &item.Address, &item.RespAnswer, &item.FlipAnswer, &item.FlipStatus, &item.Point)
 		if err != nil {
 			return nil, err
 		}

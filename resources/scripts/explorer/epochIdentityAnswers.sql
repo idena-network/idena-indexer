@@ -1,4 +1,4 @@
-select f.cid, '' address, a.answer, coalesce(f.answer, ''), coalesce(f.status)
+select f.cid, '' address, a.answer, coalesce(f.answer, ''), coalesce(f.status), a.point
 from answers a
          join flips f on f.id = a.flip_id
          join epoch_identities ei on ei.id = a.epoch_identity_id

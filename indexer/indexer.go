@@ -484,6 +484,7 @@ func convertStatsAnswer(incomingAnswer ceremony.FlipAnswerStats) db.Answer {
 	return db.Answer{
 		Address: convertAddress(incomingAnswer.Respondent),
 		Answer:  convertAnswer(incomingAnswer.Answer),
+		Point:   incomingAnswer.Point,
 	}
 }
 

@@ -432,6 +432,7 @@ CREATE TABLE IF NOT EXISTS public.answers
     epoch_identity_id bigint                                             NOT NULL,
     is_short          boolean                                            NOT NULL,
     answer            character varying(20) COLLATE pg_catalog."default" NOT NULL,
+    point             real                                               NOT NULL,
     CONSTRAINT answers_pkey PRIMARY KEY (id),
     CONSTRAINT answers_epoch_identity_id_fkey FOREIGN KEY (epoch_identity_id)
         REFERENCES public.epoch_identities (id) MATCH SIMPLE
