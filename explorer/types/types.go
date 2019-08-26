@@ -88,7 +88,7 @@ type FlipSummary struct {
 	Answer         string        `json:"answer"`
 	Timestamp      time.Time     `json:"timestamp"`
 	Size           uint32        `json:"size"`
-	Icon           hexutil.Bytes `json:"icon"`
+	Icon           hexutil.Bytes `json:"icon,omitempty"`
 }
 
 type Invite struct {

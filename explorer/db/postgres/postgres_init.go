@@ -40,7 +40,7 @@ func readQueries(scriptsDirPath string, log log.Logger) map[string]string {
 		queryName := file.Name()
 		query := string(bytes)
 		queries[queryName] = query
-		log.Info(fmt.Sprintf("Read query %s", queryName))
+		log.Info(fmt.Sprintf("Read query %s from %s", queryName, scriptsDirPath))
 	}
 	return queries
 }

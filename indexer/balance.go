@@ -44,7 +44,7 @@ type BlockBalanceUpdateDetector struct {
 	isFirstBlock bool
 }
 
-func NewBlockBalanceUpdateDetector(block *types.Block, prevState *appstate.AppState, ctx *conversionContext) *BlockBalanceUpdateDetector {
+func NewBlockBalanceUpdateDetector(block *types.Block, prevState *appstate.AppState, chain *blockchain.Blockchain, ctx *conversionContext) *BlockBalanceUpdateDetector {
 	res := BlockBalanceUpdateDetector{}
 	var addresses []common.Address
 	if isFirstBlock(block) {
@@ -62,10 +62,10 @@ func NewBlockBalanceUpdateDetector(block *types.Block, prevState *appstate.AppSt
 			return false
 		})
 	} else {
-		prevBlock := ctx.chain.GetBlockHeaderByHeight(block.Height() - 1)
+		prevBlock := chain.GetBlockHeaderByHeight(block.Height() - 1)
 		validatorsCache := validators.NewValidatorsCache(prevState.IdentityState, prevState.State.GodAddress())
 		validatorsCache.Load()
-		blockValidators := validatorsCache.GetOnlineValidators(prevBlock.Seed(), prevBlock.Height(), 1000, ctx.chain.GetCommitteSize(validatorsCache, true))
+		blockValidators := validatorsCache.GetOnlineValidators(prevBlock.Seed(), prevBlock.Height(), 1000, chain.GetCommitteSize(validatorsCache, true))
 		if !block.IsEmpty() {
 			if blockValidators == nil || !blockValidators.Contains(block.Header.ProposedHeader.Coinbase) {
 				addresses = append(addresses, block.Header.ProposedHeader.Coinbase)

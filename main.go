@@ -9,6 +9,8 @@ import (
 	"github.com/idena-network/idena-indexer/incoming"
 	"github.com/idena-network/idena-indexer/indexer"
 	"github.com/idena-network/idena-indexer/log"
+	"github.com/idena-network/idena-indexer/migration/flip"
+	migration "github.com/idena-network/idena-indexer/migration/flip/db"
 	"gopkg.in/urfave/cli.v1"
 	"os"
 	"path/filepath"
@@ -64,6 +66,10 @@ func initLog(verbosity int, nodeVerbosity int) {
 
 func initIndexer(config *config.Config) *indexer.Indexer {
 	listener := incoming.NewListener(config.NodeConfigFile)
-	dbAccessor := db.NewPostgresAccessor(config.PostgresConnStr, config.ScriptsDir)
-	return indexer.NewIndexer(listener, dbAccessor)
+	dbAccessor := db.NewPostgresAccessor(config.Postgres.ConnStr, config.Postgres.ScriptsDir)
+	var sfs *flip.SecondaryFlipStorage
+	if config.MigrationPostgres != nil {
+		sfs = flip.NewSecondaryFlipStorage(migration.NewPostgresAccessor(config.MigrationPostgres.ConnStr, config.MigrationPostgres.ScriptsDir))
+	}
+	return indexer.NewIndexer(listener, dbAccessor, sfs)
 }
