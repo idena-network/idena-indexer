@@ -551,6 +551,9 @@ func (indexer *Indexer) determineEpochResult(block *types.Block, ctx *conversion
 }
 
 func (indexer *Indexer) getFlipsMemPoolKeyData(ctx *conversionContext) []db.FlipData {
+	// todo do not load flips here temporarily
+	return nil
+
 	flipCidsWithoutData, err := indexer.db.GetCurrentFlipsWithoutData(flipLimitToGetMemPoolData)
 	if err != nil {
 		log.Error("Unable to get cids without data to try to load it with key from mem pool. Skipped.", "err", err)
