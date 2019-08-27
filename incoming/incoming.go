@@ -8,6 +8,7 @@ import (
 	"github.com/idena-network/idena-go/core/appstate"
 	"github.com/idena-network/idena-go/core/ceremony"
 	"github.com/idena-network/idena-go/core/flip"
+	"github.com/idena-network/idena-go/core/mempool"
 	"github.com/idena-network/idena-go/events"
 	"github.com/idena-network/idena-go/node"
 )
@@ -19,6 +20,7 @@ type Listener interface {
 	Blockchain() *blockchain.Blockchain
 	Flipper() *flip.Flipper
 	Config() *config.Config
+	KeysPool() *mempool.KeysPool
 	Destroy()
 }
 
@@ -28,6 +30,7 @@ type listenerImpl struct {
 	ceremony       *ceremony.ValidationCeremony
 	blockchain     *blockchain.Blockchain
 	flipper        *flip.Flipper
+	keysPool       *mempool.KeysPool
 	config         *config.Config
 }
 
@@ -52,6 +55,10 @@ func (l *listenerImpl) Blockchain() *blockchain.Blockchain {
 
 func (l *listenerImpl) Flipper() *flip.Flipper {
 	return l.flipper
+}
+
+func (l *listenerImpl) KeysPool() *mempool.KeysPool {
+	return l.keysPool
 }
 
 func (l *listenerImpl) Config() *config.Config {
@@ -81,6 +88,7 @@ func (l *listenerImpl) Listen(handleBlock func(block *types.Block), expectedHead
 	l.flipper = nodeCtx.Flipper
 	l.blockchain = nodeCtx.Blockchain
 	l.ceremony = nodeCtx.Ceremony
+	l.keysPool = nodeCtx.KeysPool
 	l.config = cfg
 
 	n := nodeCtx.Node

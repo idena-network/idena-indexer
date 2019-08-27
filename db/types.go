@@ -119,3 +119,8 @@ type Coins struct {
 	Burnt  decimal.Decimal
 	Total  decimal.Decimal
 }
+
+type AddressFlipCid struct {
+	Address string
+	Cid     string
+}

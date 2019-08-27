@@ -118,16 +118,16 @@ func (a *postgresAccessor) GetCurrentFlipCids(address string) ([]string, error) 
 	return res, nil
 }
 
-func (a *postgresAccessor) GetCurrentFlipsWithoutData(limit uint32) ([]string, error) {
+func (a *postgresAccessor) GetCurrentFlipsWithoutData(limit uint32) ([]AddressFlipCid, error) {
 	rows, err := a.db.Query(a.getQuery(currentFlipCidsWithoutDataQuery), limit)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var res []string
+	var res []AddressFlipCid
 	for rows.Next() {
-		var item string
-		err = rows.Scan(&item)
+		item := AddressFlipCid{}
+		err = rows.Scan(&item.Cid, &item.Address)
 		if err != nil {
 			return nil, err
 		}

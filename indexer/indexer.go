@@ -551,9 +551,6 @@ func (indexer *Indexer) determineEpochResult(block *types.Block, ctx *conversion
 }
 
 func (indexer *Indexer) getFlipsMemPoolKeyData(ctx *conversionContext) []db.FlipData {
-	// todo do not load flips here temporarily
-	return nil
-
 	flipCidsWithoutData, err := indexer.db.GetCurrentFlipsWithoutData(flipLimitToGetMemPoolData)
 	if err != nil {
 		log.Error("Unable to get cids without data to try to load it with key from mem pool. Skipped.", "err", err)
@@ -563,47 +560,41 @@ func (indexer *Indexer) getFlipsMemPoolKeyData(ctx *conversionContext) []db.Flip
 		return nil
 	}
 	log.Info(fmt.Sprintf("Flip count for loading data with key from mem pool: %d", len(flipCidsWithoutData)))
-	if len(flipCidsWithoutData) == 0 {
-		return nil
-	}
 	if indexer.sfs != nil && ctx.blockHeight > indexer.sfs.GetLastBlockHeight() {
 		indexer.sfs.Destroy()
 		indexer.sfs = nil
 		log.Info("Completed flip migration")
 	}
-	if indexer.sfs == nil {
-		var cids [][]byte
-		for _, flipCidStr := range flipCidsWithoutData {
-			flipCid, _ := cid.Decode(flipCidStr)
-			cids = append(cids, flipCid.Bytes())
-		}
-		indexer.listener.Flipper().Load(cids)
-	}
 	var flipsMemPoolKeyData []db.FlipData
 	var parsedData db.FlipContent
-	for _, flipCidStr := range flipCidsWithoutData {
+	for _, addrFlipCid := range flipCidsWithoutData {
 		if indexer.sfs == nil {
-			flipCid, _ := cid.Decode(flipCidStr)
-			data, err := indexer.listener.Flipper().GetFlip(flipCid.Bytes())
-			if err != nil {
-				log.Error("Unable to get flip data with key from mem pool. Skipped.", "cid", flipCidStr, "err", err)
+			flipKey := indexer.listener.KeysPool().GetFlipKey(common.HexToAddress(addrFlipCid.Address))
+			if flipKey == nil || flipKey.Key == nil {
+				log.Error("Missed mem pool key. Skipped.", "cid", addrFlipCid)
 				continue
 			}
-			parsedData, err = parseFlip(flipCidStr, data)
+			flipCid, _ := cid.Decode(addrFlipCid.Cid)
+			data, err := indexer.getFlipData(flipCid.Bytes(), flipKey.Key)
 			if err != nil {
-				log.Error("Unable to parse flip data with key from mem pool. Skipped.", "cid", flipCidStr, "err", err)
+				log.Error("Unable to get flip data with key from mem pool. Skipped.", "cid", addrFlipCid, "err", err)
+				continue
+			}
+			parsedData, err = parseFlip(addrFlipCid.Cid, data)
+			if err != nil {
+				log.Error("Unable to parse flip data with key from mem pool. Skipped.", "cid", addrFlipCid, "err", err)
 				continue
 			}
 		} else {
-			parsedData, err = indexer.sfs.GetFlipContent(flipCidStr)
+			parsedData, err = indexer.sfs.GetFlipContent(addrFlipCid.Cid)
 			if err != nil {
-				log.Error("Unable to get flip data from previous db. Skipped.", "cid", flipCidStr, "err", err)
+				log.Error("Unable to get flip data from previous db. Skipped.", "cid", addrFlipCid, "err", err)
 				continue
 			}
-			log.Info("Migrated flip content from previous db", "cid", flipCidStr)
+			log.Info("Migrated flip content from previous db", "cid", addrFlipCid)
 		}
 		flipsMemPoolKeyData = append(flipsMemPoolKeyData, db.FlipData{
-			Cid:     flipCidStr,
+			Cid:     addrFlipCid.Cid,
 			Content: parsedData,
 		})
 	}
@@ -740,7 +731,7 @@ func (indexer *Indexer) getFlipsData(tx *types.Transaction, attachment *attachme
 	var flipsData []db.FlipData
 	for _, flipCidStr := range keyAuthorFlips {
 		flipCid, _ := cid.Decode(flipCidStr)
-		flipData, err := indexer.getFlipData(flipCid.Bytes(), attachment.Key, ctx)
+		flipData, err := indexer.getFlipData(flipCid.Bytes(), attachment.Key)
 		if err != nil {
 			log.Error("Unable to get flip data. Skipped.", "tx", tx.Hash(), "cid", flipCidStr, "err", err)
 			continue
@@ -759,7 +750,7 @@ func (indexer *Indexer) getFlipsData(tx *types.Transaction, attachment *attachme
 	return flipsData, nil
 }
 
-func (indexer *Indexer) getFlipData(cid []byte, key []byte, ctx *conversionContext) ([]byte, error) {
+func (indexer *Indexer) getFlipData(cid []byte, key []byte) ([]byte, error) {
 	ipfsFlip, err := indexer.listener.Flipper().GetRawFlip(cid)
 	if err != nil {
 		return nil, err
