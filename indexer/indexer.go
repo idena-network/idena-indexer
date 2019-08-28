@@ -103,8 +103,16 @@ func NewIndexer(listener incoming.Listener, db db.Accessor, sfs *flip.SecondaryF
 	}
 }
 
+func (indexer *Indexer) OfflineDetector() *blockchain.OfflineDetector {
+	return indexer.listener.OfflineDetector()
+}
+
 func (indexer *Indexer) Start() {
 	indexer.listener.Listen(indexer.indexBlock, indexer.getHeightToIndex()-1)
+}
+
+func (indexer *Indexer) WaitForNodeStop() {
+	indexer.listener.WaitForStop()
 }
 
 func (indexer *Indexer) Destroy() {

@@ -1,6 +1,7 @@
 package explorer
 
 import (
+	"github.com/idena-network/idena-indexer/core/server"
 	"github.com/idena-network/idena-indexer/explorer/api"
 	"github.com/idena-network/idena-indexer/explorer/config"
 	"github.com/idena-network/idena-indexer/explorer/db"
@@ -12,6 +13,8 @@ import (
 
 type Explorer interface {
 	Start()
+	RouterInitializer() server.RouterInitializer
+	Logger() log.Logger
 	Destroy()
 }
 
@@ -21,6 +24,7 @@ func NewExplorer(c *config.Config) Explorer {
 	e := &explorer{
 		server: api.NewServer(c.Port, accessor, logger),
 		db:     accessor,
+		logger: logger,
 	}
 	return e
 }
@@ -28,10 +32,19 @@ func NewExplorer(c *config.Config) Explorer {
 type explorer struct {
 	server api.Server
 	db     db.Accessor
+	logger log.Logger
 }
 
 func (e *explorer) Start() {
 	e.server.Start()
+}
+
+func (e *explorer) RouterInitializer() server.RouterInitializer {
+	return e.server
+}
+
+func (e *explorer) Logger() log.Logger {
+	return e.logger
 }
 
 func (e *explorer) Destroy() {

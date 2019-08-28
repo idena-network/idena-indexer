@@ -3,6 +3,9 @@ package main
 import (
 	nodeLog "github.com/idena-network/idena-go/log"
 	"github.com/idena-network/idena-indexer/config"
+	"github.com/idena-network/idena-indexer/core/activity"
+	"github.com/idena-network/idena-indexer/core/api"
+	"github.com/idena-network/idena-indexer/core/server"
 	"github.com/idena-network/idena-indexer/db"
 	"github.com/idena-network/idena-indexer/explorer"
 	explorerConfig "github.com/idena-network/idena-indexer/explorer/config"
@@ -37,15 +40,28 @@ func main() {
 
 	app.Action = func(context *cli.Context) error {
 
-		e := explorer.NewExplorer(explorerConfig.LoadConfig(context.String("explorerConfig")))
+		// Explorer
+		explorerConf := explorerConfig.LoadConfig(context.String("explorerConfig"))
+		e := explorer.NewExplorer(explorerConf)
 		defer e.Destroy()
-		go e.Start()
 
+		// Indexer
 		conf := config.LoadConfig(context.String("indexerConfig"))
 		initLog(conf.Verbosity, conf.NodeVerbosity)
-		indexer := initIndexer(conf)
-		defer indexer.Destroy()
-		indexer.Start()
+		indxr := initIndexer(conf)
+		defer indxr.Destroy()
+		indxr.Start()
+
+		// Server for explorer & indexer api
+		lastActivities := activity.NewLastActivitiesCache(indxr.OfflineDetector())
+		explorerRi := e.RouterInitializer()
+		indexerApi := api.NewApi(lastActivities)
+		ownRi := server.NewRouterInitializer(indexerApi, e.Logger())
+		apiServer := server.NewServer(explorerConf.Port, e.Logger())
+		go apiServer.Start(explorerRi, ownRi)
+
+		indxr.WaitForNodeStop()
+
 		return nil
 	}
 

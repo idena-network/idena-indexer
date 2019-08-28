@@ -21,17 +21,21 @@ type Listener interface {
 	Flipper() *flip.Flipper
 	Config() *config.Config
 	KeysPool() *mempool.KeysPool
+	OfflineDetector() *blockchain.OfflineDetector
 	Destroy()
+	WaitForStop()
 }
 
 type listenerImpl struct {
-	nodeConfigFile string
-	appState       *appstate.AppState
-	ceremony       *ceremony.ValidationCeremony
-	blockchain     *blockchain.Blockchain
-	flipper        *flip.Flipper
-	keysPool       *mempool.KeysPool
-	config         *config.Config
+	nodeConfigFile  string
+	appState        *appstate.AppState
+	ceremony        *ceremony.ValidationCeremony
+	blockchain      *blockchain.Blockchain
+	flipper         *flip.Flipper
+	keysPool        *mempool.KeysPool
+	offlineDetector *blockchain.OfflineDetector
+	config          *config.Config
+	waitForStop     func()
 }
 
 func NewListener(nodeConfigFile string) Listener {
@@ -59,6 +63,10 @@ func (l *listenerImpl) Flipper() *flip.Flipper {
 
 func (l *listenerImpl) KeysPool() *mempool.KeysPool {
 	return l.keysPool
+}
+
+func (l *listenerImpl) OfflineDetector() *blockchain.OfflineDetector {
+	return l.offlineDetector
 }
 
 func (l *listenerImpl) Config() *config.Config {
@@ -89,11 +97,16 @@ func (l *listenerImpl) Listen(handleBlock func(block *types.Block), expectedHead
 	l.blockchain = nodeCtx.Blockchain
 	l.ceremony = nodeCtx.Ceremony
 	l.keysPool = nodeCtx.KeysPool
+	l.offlineDetector = nodeCtx.OfflineDetector
 	l.config = cfg
 
 	n := nodeCtx.Node
 	n.StartWithHeight(expectedHeadHeight)
-	n.WaitForStop()
+	l.waitForStop = n.WaitForStop
+}
+
+func (l *listenerImpl) WaitForStop() {
+	l.waitForStop()
 }
 
 func (l *listenerImpl) Destroy() {
