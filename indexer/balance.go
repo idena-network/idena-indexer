@@ -65,7 +65,7 @@ func NewBlockBalanceUpdateDetector(block *types.Block, prevState *appstate.AppSt
 		prevBlock := chain.GetBlockHeaderByHeight(block.Height() - 1)
 		validatorsCache := validators.NewValidatorsCache(prevState.IdentityState, prevState.State.GodAddress())
 		validatorsCache.Load()
-		blockValidators := validatorsCache.GetOnlineValidators(prevBlock.Seed(), prevBlock.Height(), 1000, chain.GetCommitteSize(validatorsCache, true))
+		blockValidators := validatorsCache.GetOnlineValidators(prevBlock.Seed(), block.Height(), 1000, chain.GetCommitteSize(validatorsCache, true))
 		if !block.IsEmpty() {
 			if blockValidators == nil || !blockValidators.Contains(block.Header.ProposedHeader.Coinbase) {
 				addresses = append(addresses, block.Header.ProposedHeader.Coinbase)
