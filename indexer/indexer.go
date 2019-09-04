@@ -224,6 +224,7 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) *db.Data
 		SubmittedFlips:      ctx.submittedFlips,
 		FlipKeys:            ctx.flipKeys,
 		FlipsData:           append(ctx.flipsData, flipsMemPoolData...),
+		FlipSizeUpdates:     ctx.flipSizeUpdates,
 		FlipStats:           flipStats,
 		Addresses:           ctx.getAddresses(),
 		BalanceUpdates:      ctx.balanceUpdates,
@@ -583,7 +584,7 @@ func (indexer *Indexer) getFlipsMemPoolKeyData(ctx *conversionContext) []db.Flip
 				continue
 			}
 			flipCid, _ := cid.Decode(addrFlipCid.Cid)
-			data, err := indexer.getFlipData(flipCid.Bytes(), flipKey.Key)
+			data, err := indexer.getFlipData(flipCid.Bytes(), flipKey.Key, addrFlipCid.Cid, ctx)
 			if err != nil {
 				log.Error("Unable to get flip data with key from mem pool. Skipped.", "cid", addrFlipCid, "err", err)
 				continue
@@ -739,7 +740,7 @@ func (indexer *Indexer) getFlipsData(tx *types.Transaction, attachment *attachme
 	var flipsData []db.FlipData
 	for _, flipCidStr := range keyAuthorFlips {
 		flipCid, _ := cid.Decode(flipCidStr)
-		flipData, err := indexer.getFlipData(flipCid.Bytes(), attachment.Key)
+		flipData, err := indexer.getFlipData(flipCid.Bytes(), attachment.Key, flipCidStr, ctx)
 		if err != nil {
 			log.Error("Unable to get flip data. Skipped.", "tx", tx.Hash(), "cid", flipCidStr, "err", err)
 			continue
@@ -758,11 +759,15 @@ func (indexer *Indexer) getFlipsData(tx *types.Transaction, attachment *attachme
 	return flipsData, nil
 }
 
-func (indexer *Indexer) getFlipData(cid []byte, key []byte) ([]byte, error) {
+func (indexer *Indexer) getFlipData(cid []byte, key []byte, cidStr string, ctx *conversionContext) ([]byte, error) {
 	ipfsFlip, err := indexer.listener.Flipper().GetRawFlip(cid)
 	if err != nil {
 		return nil, err
 	}
+	ctx.flipSizeUpdates = append(ctx.flipSizeUpdates, db.FlipSizeUpdate{
+		Cid:  cidStr,
+		Size: uint32(len(ipfsFlip.Data)),
+	})
 	ecdsaKey, _ := crypto.ToECDSA(key)
 	encryptionKey := ecies.ImportECDSA(ecdsaKey)
 	decryptedFlip, err := encryptionKey.Decrypt(ipfsFlip.Data, nil, nil)

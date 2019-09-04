@@ -197,6 +197,8 @@ github.com/idena-network/iavl v0.0.0-20190701090235-eef65d855b4a h1:LgOAJnS9muoC
 github.com/idena-network/iavl v0.0.0-20190701090235-eef65d855b4a/go.mod h1:jyrq5ac7saVO5dNsZcpIizoELkLWI0Yro/dNU/1jEO0=
 github.com/idena-network/iavl v0.12.3-0.20190724103809-104317193459 h1:A9cql1yvc2NB/gR7Db4INny5/pOD2vPROBvr3uEXJGA=
 github.com/idena-network/iavl v0.12.3-0.20190724103809-104317193459/go.mod h1:RdiCCprSHWRfGvL+JUECU1Q+r2MlCO/zIEI4yoIf+fw=
+github.com/idena-network/iavl v0.12.3-0.20190901114926-11530f9fda43 h1:8X4kC3sP+lPKlZcSyupWIr5OVya3PKxeqtESVbC+gP4=
+github.com/idena-network/iavl v0.12.3-0.20190901114926-11530f9fda43/go.mod h1:8LHakzt8/0G3/I8FUU0ReNx98S/EP6eyPJkAUvEXT/o=
 github.com/idena-network/idena-go v0.0.0-20190712120726-4f0e360db5c5 h1:EEpWkLwp0gTHEAYn+p7qGjEB1Vj4Iu1VvWxQEU9ty9Y=
 github.com/idena-network/idena-go v0.0.0-20190712120726-4f0e360db5c5/go.mod h1:cbe6bsOb6qOFC3FtowAnqsT82iKBJ4RJ53pGDp1b75o=
 github.com/idena-network/idena-go v0.0.0-20190712120726-9a772292/go.mod h1:cbe6bsOb6qOFC3FtowAnqsT82iKBJ4RJ53pGDp1b75o=
@@ -242,6 +244,8 @@ github.com/idena-network/idena-go v0.7.1-0.20190827192610-a8a86bb9de12 h1:sJadJ5
 github.com/idena-network/idena-go v0.7.1-0.20190827192610-a8a86bb9de12/go.mod h1:eDaXyvcBWmSoPgVQY32gQXXF0xBPPuL+44WcMorHiGM=
 github.com/idena-network/idena-go v0.7.1-0.20190828111208-13120a1fd980 h1:p9WCedcPtdN3kaj4o2EH8oe+BuYvHv54clG77Ryq94I=
 github.com/idena-network/idena-go v0.7.1-0.20190828111208-13120a1fd980/go.mod h1:eDaXyvcBWmSoPgVQY32gQXXF0xBPPuL+44WcMorHiGM=
+github.com/idena-network/idena-go v0.7.3-0.20190903174018-dd44f376e5bb h1:dEaH4YrS9wBKiECeROoLQXS+ORfLp0hhGhWbeb0kPcc=
+github.com/idena-network/idena-go v0.7.3-0.20190903174018-dd44f376e5bb/go.mod h1:o7hQUshZy2vovXngq8G034NEt4HnlvlAjUYxTXtEPUw=
 github.com/inconshreveable/mousetrap v1.0.0/go.mod h1:PxqpIevigyE2G7u3NXJIT2ANytuPF1OarO4DADm73n8=
 github.com/ipfs/bbloom v0.0.1 h1:s7KkiBPfxCeDVo47KySjK0ACPc5GJRUxFpdyWEuDjhw=
 github.com/ipfs/bbloom v0.0.1/go.mod h1:oqo8CVWsJFMOZqTglBG4wydCE4IQA/G2/SEofB0rjUI=
@@ -626,6 +630,8 @@ github.com/onsi/gomega v1.5.0/go.mod h1:ex+gbHU/CVuBBDIJjb2X0qEXbFg53c61hWP/1Cpa
 github.com/opentracing/opentracing-go v1.0.2/go.mod h1:UkNAQd3GIcIGf0SeVgPpRdFStlNbqXla1AfSYxPUl2o=
 github.com/opentracing/opentracing-go v1.1.0 h1:pWlfV3Bxv7k65HYwkikxat0+s3pV4bsqf19k25Ur8rU=
 github.com/opentracing/opentracing-go v1.1.0/go.mod h1:UkNAQd3GIcIGf0SeVgPpRdFStlNbqXla1AfSYxPUl2o=
+github.com/patrickmn/go-cache v2.1.0+incompatible h1:HRMgzkcYKYpi3C8ajMPV8OFXaaRUnok+kx1WdO15EQc=
+github.com/patrickmn/go-cache v2.1.0+incompatible/go.mod h1:3Qf8kWWT7OJRJbdiICTKqZju1ZixQ/KpMGzzAfe6+WQ=
 github.com/pborman/uuid v1.2.0 h1:J7Q5mO4ysT1dv8hyrUGHb9+ooztCXu1D8MY8DZYsu3g=
 github.com/pborman/uuid v1.2.0/go.mod h1:X/NO0urCmaxf9VXbdlT7C2Yzkj2IKimNn4k+gtPdI/k=
 github.com/pelletier/go-toml v1.1.0/go.mod h1:5z9KED0ma1S8pY6P1sdut58dfprrGBbd/94hg7ilaic=
@@ -714,6 +720,8 @@ github.com/tendermint/tendermint v0.32.1 h1:J8ddXMbCmG6GZjdCl/N1wgdXDU9uO91J2Y5C
 github.com/tendermint/tendermint v0.32.1/go.mod h1:jmPDAKuNkev9793/ivn/fTBnfpA9mGBww8MPRNPNxnU=
 github.com/tendermint/tm-cmn v0.0.0-20190716080004-dfcde30d5acb h1:t/HdvqJc9e1iJDl+hf8wQKfOo40aen+Rkqh4AwEaNsI=
 github.com/tendermint/tm-cmn v0.0.0-20190716080004-dfcde30d5acb/go.mod h1:SLI3Mc+gRrorRsAXJArnHz4xmAdJT8O7Ns0NL4HslXE=
+github.com/tendermint/tm-db v0.1.1 h1:G3Xezy3sOk9+ekhjZ/kjArYIs1SmwV+1OUgNkj7RgV0=
+github.com/tendermint/tm-db v0.1.1/go.mod h1:0cPKWu2Mou3IlxecH+MEUSYc1Ch537alLe6CpFrKzgw=
 github.com/texttheater/golang-levenshtein v0.0.0-20180516184445-d188e65d659e/go.mod h1:XDKHRm5ThF8YJjx001LtgelzsoaEcvnA7lVWz9EeX3g=
 github.com/tinylib/msgp v1.1.0 h1:9fQd+ICuRIu/ue4vxJZu6/LzxN0HwMds2nq/0cFvxHU=
 github.com/tinylib/msgp v1.1.0/go.mod h1:+d+yLhGm8mzTaHzB+wgMYrodPfmZrzkirds8fDWklFE=

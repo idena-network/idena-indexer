@@ -24,6 +24,7 @@ const (
 	currentFlipCidsWithoutDataQuery = "currentFlipCidsWithoutData.sql"
 	updateFlipStateQuery            = "updateFlipState.sql"
 	insertFlipDataQuery             = "insertFlipData.sql"
+	updateFlipSizeQuery             = "updateFlipSize.sql"
 	insertFlipPicQuery              = "insertFlipPic.sql"
 	insertFlipIconQuery             = "insertFlipIcon.sql"
 	insertFlipPicOrderQuery         = "insertFlipPicOrder.sql"
@@ -220,6 +221,10 @@ func (a *postgresAccessor) Save(data *Data) error {
 		return err
 	}
 
+	if err := a.updateFlipSizes(ctx, data.FlipSizeUpdates); err != nil {
+		return err
+	}
+
 	if err = a.saveIdentities(ctx, data.Identities); err != nil {
 		return err
 	}
@@ -302,6 +307,23 @@ func (a *postgresAccessor) saveFlipData(ctx *context, flipData FlipData) error {
 		}
 	}
 	return nil
+}
+
+func (a *postgresAccessor) updateFlipSizes(ctx *context, flipSizeUpdates []FlipSizeUpdate) error {
+	if len(flipSizeUpdates) == 0 {
+		return nil
+	}
+	for _, flipSizeUpdate := range flipSizeUpdates {
+		if err := a.updateFlipSize(ctx, flipSizeUpdate); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (a *postgresAccessor) updateFlipSize(ctx *context, flipSizeUpdate FlipSizeUpdate) error {
+	_, err := ctx.tx.Exec(a.getQuery(updateFlipSizeQuery), flipSizeUpdate.Size, flipSizeUpdate.Cid)
+	return err
 }
 
 func (a *postgresAccessor) saveFlipPic(ctx *context, picIndex byte, pic []byte, flipDataId int64) error {

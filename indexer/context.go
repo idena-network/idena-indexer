@@ -11,6 +11,7 @@ type conversionContext struct {
 	submittedFlips    []db.Flip
 	flipKeys          []db.FlipKey
 	flipsData         []db.FlipData
+	flipSizeUpdates   []db.FlipSizeUpdate
 	addresses         map[string]*db.Address
 	balanceUpdates    []db.Balance
 	totalBalanceDiff  *balanceDiff

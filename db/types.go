@@ -16,6 +16,7 @@ type Data struct {
 	FlipStats           []FlipStats
 	Addresses           []Address
 	FlipsData           []FlipData
+	FlipSizeUpdates     []FlipSizeUpdate
 	BalanceUpdates      []Balance
 	BalanceCoins        Coins
 	StakeCoins          Coins
@@ -87,6 +88,11 @@ type FlipData struct {
 	Cid     string
 	TxHash  string
 	Content FlipContent
+}
+
+type FlipSizeUpdate struct {
+	Cid  string
+	Size uint32
 }
 
 type FlipContent struct {
