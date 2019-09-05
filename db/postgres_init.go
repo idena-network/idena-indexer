@@ -2,6 +2,8 @@ package db
 
 import (
 	"database/sql"
+	"github.com/idena-network/idena-indexer/log"
+	"time"
 )
 
 func NewPostgresAccessor(connStr string, scriptsDirPath string) Accessor {
@@ -14,8 +16,13 @@ func NewPostgresAccessor(connStr string, scriptsDirPath string) Accessor {
 		db:      db,
 		queries: ReadQueries(scriptsDirPath),
 	}
-	if err := a.init(); err != nil {
-		panic(err)
+	for {
+		if err := a.init(); err != nil {
+			log.Error("Unable to initialize postgres connection", "err", err)
+			time.Sleep(time.Second * 10)
+			continue
+		}
+		break
 	}
 	return a
 }
