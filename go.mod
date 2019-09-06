@@ -2,7 +2,7 @@ module github.com/idena-network/idena-indexer
 
 go 1.12
 
-replace github.com/tendermint/iavl => github.com/idena-network/iavl v0.12.3-0.20190901114926-11530f9fda43
+replace github.com/tendermint/iavl => github.com/idena-network/iavl v0.12.3-0.20190904114916-53100aff08f6
 
 require (
 	github.com/deckarep/golang-set v1.7.1
