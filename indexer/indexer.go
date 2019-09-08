@@ -681,7 +681,12 @@ func (indexer *Indexer) determineSubmittedFlip(tx *types.Transaction, ctx *conve
 	if tx.Type != types.SubmitFlipTx {
 		return nil
 	}
-	flipCid, err := cid.Parse(tx.Payload)
+	attachment := attachments.ParseFlipSubmitAttachment(tx)
+	if attachment == nil {
+		log.Error("Unable to parse submitted flip payload. Skipped.", "tx", tx.Hash())
+		return nil
+	}
+	flipCid, err := cid.Parse(attachment)
 	if err != nil {
 		log.Error("Unable to parse flip cid. Skipped.", "tx", tx.Hash(), "err", err)
 		return nil
