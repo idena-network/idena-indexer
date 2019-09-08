@@ -691,7 +691,7 @@ func (indexer *Indexer) determineSubmittedFlip(tx *types.Transaction, ctx *conve
 		log.Error("Unable to parse flip cid. Skipped.", "tx", tx.Hash(), "err", err)
 		return nil
 	}
-	ipfsFlip, err := indexer.listener.Flipper().GetRawFlip(tx.Payload)
+	ipfsFlip, err := indexer.listener.Flipper().GetRawFlip(attachment.Cid)
 	var size uint32
 	if err != nil {
 		log.Error("Unable to get flip data to define flip size.", "cid", flipCid, "err", err)
