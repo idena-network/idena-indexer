@@ -2,6 +2,7 @@ package activity
 
 import (
 	"github.com/idena-network/idena-go/blockchain"
+	"github.com/idena-network/idena-indexer/indexer"
 	"sort"
 	"strings"
 	"time"
@@ -62,7 +63,7 @@ func (updater *lastActivitiesCacheUpdater) loop() {
 		var activities []*Activity
 		activitiesPerAddress := make(map[string]*Activity, len(activityMap))
 		for address, activityTime := range activityMap {
-			addressStr := address.Hex()
+			addressStr := indexer.ConvertAddress(address)
 			activity := &Activity{
 				Address: addressStr,
 				Time:    activityTime,

@@ -5,6 +5,7 @@ import (
 	"github.com/idena-network/idena-indexer/config"
 	"github.com/idena-network/idena-indexer/core/activity"
 	"github.com/idena-network/idena-indexer/core/api"
+	"github.com/idena-network/idena-indexer/core/penalty"
 	"github.com/idena-network/idena-indexer/core/server"
 	"github.com/idena-network/idena-indexer/db"
 	"github.com/idena-network/idena-indexer/explorer"
@@ -54,8 +55,9 @@ func main() {
 
 		// Server for explorer & indexer api
 		lastActivities := activity.NewLastActivitiesCache(indxr.OfflineDetector())
+		currentPenalties := penalty.NewCurrentPenaltiesCache(indxr.AppState())
 		explorerRi := e.RouterInitializer()
-		indexerApi := api.NewApi(lastActivities)
+		indexerApi := api.NewApi(lastActivities, currentPenalties)
 		ownRi := server.NewRouterInitializer(indexerApi, e.Logger())
 		apiServer := server.NewServer(explorerConf.Port, e.Logger())
 		go apiServer.Start(explorerRi, ownRi)

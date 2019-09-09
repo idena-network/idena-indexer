@@ -55,7 +55,7 @@ func NewBlockBalanceUpdateDetector(block *types.Block, isFirstBlock bool, prevSt
 			}
 			addr := bytesToAddr(key)
 			addresses = append(addresses, addr)
-			convertedAddress := convertAddress(addr)
+			convertedAddress := ConvertAddress(addr)
 			ctx.addresses[convertedAddress] = &db.Address{
 				Address: convertedAddress,
 			}
@@ -101,7 +101,7 @@ func (d *BlockBalanceUpdateDetector) GetUpdates(state *appstate.AppState) ([]db.
 		var totalDiff *balanceDiff
 		for _, prevBalance := range d.detector.prevBalances {
 			res = append(res, db.Balance{
-				Address: convertAddress(prevBalance.address),
+				Address: ConvertAddress(prevBalance.address),
 				Balance: blockchain.ConvertToFloat(prevBalance.balance),
 				Stake:   blockchain.ConvertToFloat(prevBalance.stake),
 			})
@@ -191,7 +191,7 @@ func (d *balanceUpdateDetector) detectUpdate(ab addrBalance, state *appstate.App
 		burntStake = burntStake.Sub(prevStake, stake)
 	}
 	return db.Balance{
-			Address: convertAddress(ab.address),
+			Address: ConvertAddress(ab.address),
 			Balance: blockchain.ConvertToFloat(balance),
 			Stake:   blockchain.ConvertToFloat(stake),
 		}, balanceDiff{

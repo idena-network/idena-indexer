@@ -108,6 +108,10 @@ func (indexer *Indexer) OfflineDetector() *blockchain.OfflineDetector {
 	return indexer.listener.OfflineDetector()
 }
 
+func (indexer *Indexer) AppState() *appstate.AppState {
+	return indexer.listener.AppState()
+}
+
 func (indexer *Indexer) Start() {
 	indexer.listener.Listen(indexer.indexBlock, indexer.getHeightToIndex()-1)
 }
@@ -285,7 +289,7 @@ func (indexer *Indexer) determineFirstAddresses(incomingBlock *types.Block, ctx 
 	var addresses []*db.Address
 	ctx.newStateReadOnly.State.IterateOverIdentities(func(addr common.Address, identity state.Identity) {
 		addresses = append(addresses, &db.Address{
-			Address: convertAddress(addr),
+			Address: ConvertAddress(addr),
 			StateChanges: []db.AddressStateChange{
 				{
 					PrevState: convertIdentityState(ctx.prevStateReadOnly.State.GetIdentityState(addr)),
@@ -342,7 +346,7 @@ func getProposer(block *types.Block) string {
 	if block.IsEmpty() {
 		return ""
 	}
-	return convertAddress(block.Header.ProposedHeader.Coinbase)
+	return ConvertAddress(block.Header.ProposedHeader.Coinbase)
 }
 
 func (indexer *Indexer) convertPrevBlockValidators(block *types.Block, ctx *conversionContext) []string {
@@ -356,7 +360,7 @@ func (indexer *Indexer) convertPrevBlockValidators(block *types.Block, ctx *conv
 	}
 	var res []string
 	for _, vote := range cert.Votes {
-		res = append(res, convertAddress(vote.VoterAddr()))
+		res = append(res, ConvertAddress(vote.VoterAddr()))
 	}
 	return res
 }
@@ -381,7 +385,7 @@ func (indexer *Indexer) convertTransaction(incomingTx *types.Transaction, ctx *c
 	txHash := convertHash(incomingTx.Hash())
 
 	sender, _ := types.Sender(incomingTx)
-	from := convertAddress(sender)
+	from := ConvertAddress(sender)
 	if _, present := ctx.addresses[from]; !present {
 		ctx.addresses[from] = &db.Address{
 			Address: from,
@@ -391,7 +395,7 @@ func (indexer *Indexer) convertTransaction(incomingTx *types.Transaction, ctx *c
 	var to string
 	var recipientPrevState *state.IdentityState
 	if incomingTx.To != nil {
-		to = convertAddress(*incomingTx.To)
+		to = ConvertAddress(*incomingTx.To)
 		if _, present := ctx.addresses[to]; !present {
 			ctx.addresses[to] = &db.Address{
 				Address: to,
@@ -496,14 +500,10 @@ func convertStatsAnswers(incomingAnswers []ceremony.FlipAnswerStats) []db.Answer
 
 func convertStatsAnswer(incomingAnswer ceremony.FlipAnswerStats) db.Answer {
 	return db.Answer{
-		Address: convertAddress(incomingAnswer.Respondent),
+		Address: ConvertAddress(incomingAnswer.Respondent),
 		Answer:  convertAnswer(incomingAnswer.Answer),
 		Point:   incomingAnswer.Point,
 	}
-}
-
-func convertAddress(address common.Address) string {
-	return address.Hex()
 }
 
 func convertHash(hash common.Hash) string {
@@ -524,7 +524,7 @@ func (indexer *Indexer) determineEpochResult(block *types.Block, ctx *conversion
 
 	ctx.prevStateReadOnly.State.IterateOverIdentities(func(addr common.Address, identity state.Identity) {
 		convertedIdentity := db.EpochIdentity{}
-		convertedIdentity.Address = convertAddress(addr)
+		convertedIdentity.Address = ConvertAddress(addr)
 		convertedIdentity.State = convertIdentityState(ctx.newStateReadOnly.State.GetIdentityState(addr))
 		convertedIdentity.TotalShortPoint = ctx.newStateReadOnly.State.GetShortFlipPoints(addr)
 		convertedIdentity.TotalShortFlips = ctx.newStateReadOnly.State.GetQualifiedFlipsCount(addr)
@@ -741,7 +741,7 @@ func (indexer *Indexer) convertShortAnswers(tx *types.Transaction, ctx *conversi
 
 func (indexer *Indexer) getFlipsData(tx *types.Transaction, attachment *attachments.ShortAnswerAttachment, ctx *conversionContext) ([]db.FlipData, error) {
 	sender, _ := types.Sender(tx)
-	from := convertAddress(sender)
+	from := ConvertAddress(sender)
 	keyAuthorFlips, err := indexer.db.GetCurrentFlipCids(from)
 	if err != nil {
 		return nil, err

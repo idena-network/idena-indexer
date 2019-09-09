@@ -16,6 +16,7 @@ import (
 type Listener interface {
 	Listen(handleBlock func(block *types.Block), expectedHeadHeight uint64)
 	AppStateReadonly(height uint64) *appstate.AppState
+	AppState() *appstate.AppState
 	Ceremony() *ceremony.ValidationCeremony
 	Blockchain() *blockchain.Blockchain
 	Flipper() *flip.Flipper
@@ -47,6 +48,10 @@ func NewListener(nodeConfigFile string) Listener {
 
 func (l *listenerImpl) AppStateReadonly(height uint64) *appstate.AppState {
 	return l.appState.Readonly(height)
+}
+
+func (l *listenerImpl) AppState() *appstate.AppState {
+	return l.appState
 }
 
 func (l *listenerImpl) Ceremony() *ceremony.ValidationCeremony {
