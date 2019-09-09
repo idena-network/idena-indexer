@@ -55,6 +55,8 @@ type EpochIdentity struct {
 	LongFlips            uint32
 	Approved             bool
 	Missed               bool
+	RequiredFlips        uint8
+	MadeFlips            uint8
 	ShortFlipCidsToSolve []string
 	LongFlipCidsToSolve  []string
 }

@@ -586,7 +586,8 @@ func (a *postgresAccessor) saveEpochIdentity(ctx *context, identityStateId int64
 
 	if err := ctx.tx.QueryRow(a.getQuery(insertEpochIdentityQuery), ctx.epoch, identityStateId, identity.ShortPoint,
 		identity.ShortFlips, identity.TotalShortPoint, identity.TotalShortFlips,
-		identity.LongPoint, identity.LongFlips, identity.Approved, identity.Missed).Scan(&id); err != nil {
+		identity.LongPoint, identity.LongFlips, identity.Approved, identity.Missed,
+		identity.RequiredFlips, identity.MadeFlips).Scan(&id); err != nil {
 		return 0, errors.Wrapf(err, "unable to execute query %s", insertEpochIdentityQuery)
 	}
 

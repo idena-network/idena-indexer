@@ -110,6 +110,8 @@ type EpochIdentitySummary struct {
 	LongAnswers       IdentityAnswersSummary `json:"longAnswers"`
 	Approved          bool                   `json:"approved"`
 	Missed            bool                   `json:"missed"`
+	RequiredFlips     uint8                  `json:"requiredFlips"`
+	MadeFlips         uint8                  `json:"madeFlips"`
 }
 
 type EpochIdentity struct {
@@ -120,6 +122,8 @@ type EpochIdentity struct {
 	LongAnswers       IdentityAnswersSummary `json:"longAnswers"`
 	Approved          bool                   `json:"approved"`
 	Missed            bool                   `json:"missed"`
+	RequiredFlips     uint8                  `json:"requiredFlips"`
+	MadeFlips         uint8                  `json:"madeFlips"`
 }
 
 type Flip struct {

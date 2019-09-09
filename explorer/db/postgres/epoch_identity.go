@@ -24,7 +24,9 @@ func (a *postgresAccessor) EpochIdentity(epoch uint64, address string) (types.Ep
 		&res.LongAnswers.Point,
 		&res.LongAnswers.FlipsCount,
 		&res.Approved,
-		&res.Missed)
+		&res.Missed,
+		&res.RequiredFlips,
+		&res.MadeFlips)
 	if err == sql.ErrNoRows {
 		err = NoDataFound
 	}

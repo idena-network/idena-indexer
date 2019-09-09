@@ -7,7 +7,9 @@ select eis.state,
        coalesce(ei.long_point, 0),
        coalesce(ei.long_flips, 0),
        coalesce(ei.approved, false),
-       coalesce(ei.missed, false)
+       coalesce(ei.missed, false),
+       coalesce(ei.required_flips, 0) required_flips,
+       coalesce(ei.made_flips, 0) made_flips
 from epoch_identity_states eis
          left join epoch_identities ei on ei.epoch = eis.epoch and ei.address_state_id = eis.address_state_id
          left join address_states preva on preva.id = eis.prev_id

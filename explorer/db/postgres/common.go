@@ -88,10 +88,20 @@ func (a *postgresAccessor) readEpochIdentitySummaries(rows *sql.Rows) ([]types.E
 	var res []types.EpochIdentitySummary
 	for rows.Next() {
 		item := types.EpochIdentitySummary{}
-		err := rows.Scan(&item.Address, &item.Epoch, &item.State, &item.PrevState, &item.Approved, &item.Missed,
-			&item.ShortAnswers.Point, &item.ShortAnswers.FlipsCount,
-			&item.TotalShortAnswers.Point, &item.TotalShortAnswers.FlipsCount,
-			&item.LongAnswers.Point, &item.LongAnswers.FlipsCount)
+		err := rows.Scan(&item.Address,
+			&item.Epoch,
+			&item.State,
+			&item.PrevState,
+			&item.Approved,
+			&item.Missed,
+			&item.ShortAnswers.Point,
+			&item.ShortAnswers.FlipsCount,
+			&item.TotalShortAnswers.Point,
+			&item.TotalShortAnswers.FlipsCount,
+			&item.LongAnswers.Point,
+			&item.LongAnswers.FlipsCount,
+			&item.RequiredFlips,
+			&item.MadeFlips)
 		if err != nil {
 			return nil, err
 		}

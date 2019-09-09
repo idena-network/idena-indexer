@@ -9,7 +9,9 @@ select a.address,
        coalesce(ei.total_short_point, 0),
        coalesce(ei.total_short_flips, 0),
        coalesce(ei.long_point, 0),
-       coalesce(ei.long_flips, 0)
+       coalesce(ei.long_flips, 0),
+       coalesce(ei.required_flips, 0) required_flips,
+       coalesce(ei.made_flips, 0) made_flips
 from epoch_identity_states eis
          join addresses a on a.id = eis.address_id
          left join address_states prevs on prevs.id = eis.prev_id
