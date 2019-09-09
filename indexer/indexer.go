@@ -33,7 +33,6 @@ import (
 
 const (
 	requestRetryInterval      = time.Second * 5
-	firstBlockHeight          = 2
 	flipLimitToGetMemPoolData = 500
 )
 
@@ -89,17 +88,19 @@ var (
 )
 
 type Indexer struct {
-	listener incoming.Listener
-	db       db.Accessor
-	state    *indexerState
-	sfs      *flip.SecondaryFlipStorage
+	listener           incoming.Listener
+	db                 db.Accessor
+	state              *indexerState
+	sfs                *flip.SecondaryFlipStorage
+	genesisBlockHeight uint64
 }
 
-func NewIndexer(listener incoming.Listener, db db.Accessor, sfs *flip.SecondaryFlipStorage) *Indexer {
+func NewIndexer(listener incoming.Listener, db db.Accessor, sfs *flip.SecondaryFlipStorage, genesisBlockHeight uint64) *Indexer {
 	return &Indexer{
-		listener: listener,
-		db:       db,
-		sfs:      sfs,
+		listener:           listener,
+		db:                 db,
+		sfs:                sfs,
+		genesisBlockHeight: genesisBlockHeight,
 	}
 }
 
@@ -124,7 +125,7 @@ func (indexer *Indexer) indexBlock(block *types.Block) {
 	for {
 		heightToIndex := indexer.getHeightToIndex()
 
-		if !isFirstBlock(block) && block.Height() > heightToIndex {
+		if !indexer.isFirstBlock(block) && block.Height() > heightToIndex {
 			panic(fmt.Sprintf("Incoming block height=%d is greater than expected %d", block.Height(), heightToIndex))
 		}
 
@@ -207,7 +208,7 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) *db.Data
 	block := indexer.convertBlock(incomingBlock, ctx)
 	identities, flipStats, flipsMemPoolData := indexer.determineEpochResult(incomingBlock, ctx)
 
-	firstAddresses := determineFirstAddresses(incomingBlock, ctx)
+	firstAddresses := indexer.determineFirstAddresses(incomingBlock, ctx)
 	for _, addr := range firstAddresses {
 		if curAddr, present := ctx.addresses[addr.Address]; present {
 			curAddr.StateChanges = append(curAddr.StateChanges, addr.StateChanges...)
@@ -269,16 +270,16 @@ func getCoins(prevTotal decimal.Decimal, burnt decimal.Decimal, diff decimal.Dec
 	return res
 }
 
-func isFirstBlock(incomingBlock *types.Block) bool {
-	return isFirstBlockHeight(incomingBlock.Height())
+func (indexer *Indexer) isFirstBlock(incomingBlock *types.Block) bool {
+	return indexer.isFirstBlockHeight(incomingBlock.Height())
 }
 
-func isFirstBlockHeight(height uint64) bool {
-	return height == firstBlockHeight
+func (indexer *Indexer) isFirstBlockHeight(height uint64) bool {
+	return height == indexer.genesisBlockHeight+1
 }
 
-func determineFirstAddresses(incomingBlock *types.Block, ctx *conversionContext) []*db.Address {
-	if !isFirstBlock(incomingBlock) {
+func (indexer *Indexer) determineFirstAddresses(incomingBlock *types.Block, ctx *conversionContext) []*db.Address {
+	if !indexer.isFirstBlock(incomingBlock) {
 		return nil
 	}
 	var addresses []*db.Address
@@ -300,7 +301,11 @@ func (indexer *Indexer) convertBlock(incomingBlock *types.Block, ctx *conversion
 	stateToApply := ctx.newStateReadOnly.Readonly(ctx.blockHeight - 1)
 	txs := indexer.convertTransactions(incomingBlock.Body.Transactions, stateToApply, ctx)
 
-	blockBalanceUpdateDetector := NewBlockBalanceUpdateDetector(incomingBlock, stateToApply, indexer.listener.Blockchain(), ctx)
+	blockBalanceUpdateDetector := NewBlockBalanceUpdateDetector(incomingBlock,
+		indexer.isFirstBlock(incomingBlock),
+		stateToApply,
+		indexer.listener.Blockchain(),
+		ctx)
 	balanceUpdates, diff := blockBalanceUpdateDetector.GetUpdates(ctx.newStateReadOnly)
 	if len(balanceUpdates) > 0 {
 		ctx.balanceUpdates = append(ctx.balanceUpdates, balanceUpdates...)

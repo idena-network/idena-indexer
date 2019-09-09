@@ -44,10 +44,10 @@ type BlockBalanceUpdateDetector struct {
 	isFirstBlock bool
 }
 
-func NewBlockBalanceUpdateDetector(block *types.Block, prevState *appstate.AppState, chain *blockchain.Blockchain, ctx *conversionContext) *BlockBalanceUpdateDetector {
+func NewBlockBalanceUpdateDetector(block *types.Block, isFirstBlock bool, prevState *appstate.AppState, chain *blockchain.Blockchain, ctx *conversionContext) *BlockBalanceUpdateDetector {
 	res := BlockBalanceUpdateDetector{}
 	var addresses []common.Address
-	if isFirstBlock(block) {
+	if isFirstBlock {
 		res.isFirstBlock = true
 		prevState.State.IterateAccounts(func(key []byte, _ []byte) bool {
 			if key == nil {

@@ -9,11 +9,12 @@ import (
 )
 
 type Config struct {
-	Postgres          PostgresConfig
-	MigrationPostgres *PostgresConfig
-	NodeConfigFile    string
-	Verbosity         int
-	NodeVerbosity     int
+	Postgres           PostgresConfig
+	MigrationPostgres  *PostgresConfig
+	NodeConfigFile     string
+	Verbosity          int
+	NodeVerbosity      int
+	GenesisBlockHeight int
 }
 
 type PostgresConfig struct {
@@ -44,7 +45,8 @@ func newDefaultConfig() *Config {
 		Postgres: PostgresConfig{
 			ScriptsDir: filepath.Join("resources", "scripts", "indexer"),
 		},
-		Verbosity:     3,
-		NodeVerbosity: 0,
+		Verbosity:          3,
+		NodeVerbosity:      0,
+		GenesisBlockHeight: 1,
 	}
 }

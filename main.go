@@ -87,5 +87,5 @@ func initIndexer(config *config.Config) *indexer.Indexer {
 	if config.MigrationPostgres != nil {
 		sfs = flip.NewSecondaryFlipStorage(migration.NewPostgresAccessor(config.MigrationPostgres.ConnStr, config.MigrationPostgres.ScriptsDir))
 	}
-	return indexer.NewIndexer(listener, dbAccessor, sfs)
+	return indexer.NewIndexer(listener, dbAccessor, sfs, uint64(config.GenesisBlockHeight))
 }
