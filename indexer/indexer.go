@@ -112,6 +112,10 @@ func (indexer *Indexer) AppState() *appstate.AppState {
 	return indexer.listener.AppState()
 }
 
+func (indexer *Indexer) Blockchain() *blockchain.Blockchain {
+	return indexer.listener.Blockchain()
+}
+
 func (indexer *Indexer) Start() {
 	indexer.listener.Listen(indexer.indexBlock, indexer.getHeightToIndex()-1)
 }

@@ -22,9 +22,10 @@ type CurrentPenaltiesHolder interface {
 	Get(address string) *Penalty
 }
 
-func NewCurrentPenaltiesCache(appState *appstate.AppState) CurrentPenaltiesHolder {
+func NewCurrentPenaltiesCache(appState *appstate.AppState, chain *blockchain.Blockchain) CurrentPenaltiesHolder {
 	cache := &currentPenaltiesCache{}
-	cache.initialize(appState)
+	cache.set(nil, make(map[string]*Penalty))
+	cache.initialize(appState, chain)
 	return cache
 }
 
@@ -36,6 +37,7 @@ type currentPenaltiesCache struct {
 type currentPenaltiesCacheUpdater struct {
 	cache    *currentPenaltiesCache
 	appState *appstate.AppState
+	chain    *blockchain.Blockchain
 }
 
 func (cache *currentPenaltiesCache) GetAll() []*Penalty {
@@ -51,10 +53,11 @@ func (cache *currentPenaltiesCache) set(penalties []*Penalty, penaltiesPerAddres
 	cache.penaltiesPerAddress = penaltiesPerAddress
 }
 
-func (cache *currentPenaltiesCache) initialize(appState *appstate.AppState) {
+func (cache *currentPenaltiesCache) initialize(appState *appstate.AppState, chain *blockchain.Blockchain) {
 	updater := currentPenaltiesCacheUpdater{
 		cache:    cache,
 		appState: appState,
+		chain:    chain,
 	}
 	go updater.loop()
 }
@@ -65,22 +68,29 @@ func (updater *currentPenaltiesCacheUpdater) loop() {
 
 		var penalties []*Penalty
 		penaltiesPerAddress := make(map[string]*Penalty)
-		updater.appState.State.IterateOverIdentities(func(address common.Address, identity state.Identity) {
-			addressStr := indexer.ConvertAddress(address)
-			if identity.Penalty == nil || identity.Penalty.Sign() != 1 {
-				return
+		if updater.chain.Head != nil {
+			appState := updater.appState.Readonly(updater.chain.Head.Height())
+			if appState != nil {
+				appState.State.IterateOverIdentities(func(address common.Address, identity state.Identity) {
+					addressStr := indexer.ConvertAddress(address)
+					if identity.Penalty == nil || identity.Penalty.Sign() != 1 {
+						return
+					}
+					penalty := &Penalty{
+						Address: addressStr,
+						Penalty: blockchain.ConvertToFloat(identity.Penalty),
+					}
+					penalties = append(penalties, penalty)
+					penaltiesPerAddress[strings.ToLower(addressStr)] = penalty
+				})
 			}
-			penalty := &Penalty{
-				Address: addressStr,
-				Penalty: blockchain.ConvertToFloat(identity.Penalty),
-			}
-			penalties = append(penalties, penalty)
-			penaltiesPerAddress[strings.ToLower(addressStr)] = penalty
-		})
+		}
 
-		sort.Slice(penalties, func(i, j int) bool {
-			return penalties[i].Penalty.Cmp(penalties[j].Penalty) == 1
-		})
+		if len(penalties) > 0 {
+			sort.Slice(penalties, func(i, j int) bool {
+				return penalties[i].Penalty.Cmp(penalties[j].Penalty) == 1
+			})
+		}
 
 		updater.cache.set(penalties, penaltiesPerAddress)
 	}

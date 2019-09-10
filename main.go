@@ -55,7 +55,7 @@ func main() {
 
 		// Server for explorer & indexer api
 		lastActivities := activity.NewLastActivitiesCache(indxr.OfflineDetector())
-		currentPenalties := penalty.NewCurrentPenaltiesCache(indxr.AppState())
+		currentPenalties := penalty.NewCurrentPenaltiesCache(indxr.AppState(), indxr.Blockchain())
 		explorerRi := e.RouterInitializer()
 		indexerApi := api.NewApi(lastActivities, currentPenalties)
 		ownRi := server.NewRouterInitializer(indexerApi, e.Logger())
