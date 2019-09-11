@@ -28,7 +28,6 @@ type Listener interface {
 }
 
 type listenerImpl struct {
-	nodeConfigFile  string
 	appState        *appstate.AppState
 	ceremony        *ceremony.ValidationCeremony
 	blockchain      *blockchain.Blockchain
@@ -36,13 +35,41 @@ type listenerImpl struct {
 	keysPool        *mempool.KeysPool
 	offlineDetector *blockchain.OfflineDetector
 	config          *config.Config
-	waitForStop     func()
+	node            *node.Node
+	handleBlock     func(block *types.Block)
 }
 
 func NewListener(nodeConfigFile string) Listener {
-	l := &listenerImpl{
-		nodeConfigFile: nodeConfigFile,
+	l := &listenerImpl{}
+
+	cfg, err := config.MakeConfigFromFile(nodeConfigFile)
+	if err != nil {
+		panic(err)
 	}
+	cfg.Sync.FastSync = false
+
+	bus := eventbus.New()
+	bus.Subscribe(events.AddBlockEventID,
+		func(e eventbus.Event) {
+			newBlockEvent := e.(*events.NewBlockEvent)
+			l.handleBlock(newBlockEvent.Block)
+		})
+
+	nodeCtx, err := node.NewIndexerNode(cfg, bus)
+	if err != nil {
+		panic(err)
+	}
+
+	l.appState = nodeCtx.AppState
+	l.flipper = nodeCtx.Flipper
+	l.blockchain = nodeCtx.Blockchain
+	l.ceremony = nodeCtx.Ceremony
+	l.keysPool = nodeCtx.KeysPool
+	l.offlineDetector = nodeCtx.OfflineDetector
+	l.config = cfg
+
+	l.node = nodeCtx.Node
+
 	return l
 }
 
@@ -79,39 +106,12 @@ func (l *listenerImpl) Config() *config.Config {
 }
 
 func (l *listenerImpl) Listen(handleBlock func(block *types.Block), expectedHeadHeight uint64) {
-	cfg, err := config.MakeConfigFromFile(l.nodeConfigFile)
-	if err != nil {
-		panic(err)
-	}
-	cfg.Sync.FastSync = false
-
-	bus := eventbus.New()
-	bus.Subscribe(events.AddBlockEventID,
-		func(e eventbus.Event) {
-			newBlockEvent := e.(*events.NewBlockEvent)
-			handleBlock(newBlockEvent.Block)
-		})
-
-	nodeCtx, err := node.NewIndexerNode(cfg, bus)
-	if err != nil {
-		panic(err)
-	}
-
-	l.appState = nodeCtx.AppState
-	l.flipper = nodeCtx.Flipper
-	l.blockchain = nodeCtx.Blockchain
-	l.ceremony = nodeCtx.Ceremony
-	l.keysPool = nodeCtx.KeysPool
-	l.offlineDetector = nodeCtx.OfflineDetector
-	l.config = cfg
-
-	n := nodeCtx.Node
-	n.StartWithHeight(expectedHeadHeight)
-	l.waitForStop = n.WaitForStop
+	l.handleBlock = handleBlock
+	l.node.StartWithHeight(expectedHeadHeight)
 }
 
 func (l *listenerImpl) WaitForStop() {
-	l.waitForStop()
+	l.node.WaitForStop()
 }
 
 func (l *listenerImpl) Destroy() {

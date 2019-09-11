@@ -4,21 +4,7 @@ from epoch_summaries
 where block_height > $1;
 
 -- balances
-delete
-from balances
-where block_height > $1;
-
--- restore actual balances
-update balances
-set is_actual = true
-where id in
-      (select b.id
-       from balances b
-       where (b.address_id, b.block_height) in
-             (select b.address_id, max(b.block_height)
-              from balances b
-              group by address_id)
-         and not b.is_actual);
+delete from balances;
 
 -- coins
 delete

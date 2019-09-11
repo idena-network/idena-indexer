@@ -51,10 +51,10 @@ const (
 	insertIdentityStateQuery        = "insertIdentityState.sql"
 	resetToBlockQuery               = "resetToBlock.sql"
 	insertBalanceQuery              = "insertBalance.sql"
+	updateBalanceQuery              = "updateBalance.sql"
 	insertCoinsQuery                = "insertCoins.sql"
 	insertBlockFlagQuery            = "insertBlockFlag.sql"
 	insertEpochSummaryQuery         = "insertEpochSummary.sql"
-	archiveBalanceQuery             = "archiveBalance.sql"
 )
 
 func (a *postgresAccessor) getQuery(name string) string {
@@ -205,7 +205,7 @@ func (a *postgresAccessor) Save(data *Data) error {
 		return err
 	}
 
-	if err := a.saveBalances(ctx, data.BalanceUpdates); err != nil {
+	if err := a.saveBalances(ctx.tx, data.BalanceUpdates); err != nil {
 		return err
 	}
 
@@ -516,37 +516,30 @@ func (a *postgresAccessor) saveCoins(ctx *context, balanceCoins Coins, stakeCoin
 	return errors.Wrapf(err, "unable to save coins %v, %v", balanceCoins, stakeCoins)
 }
 
-func (a *postgresAccessor) saveBalances(ctx *context, balances []Balance) error {
+func (a *postgresAccessor) saveBalances(tx *sql.Tx, balances []Balance) error {
 	if len(balances) == 0 {
 		return nil
 	}
 	for _, balance := range balances {
-		if err := a.saveBalance(ctx, balance); err != nil {
+		if err := a.saveBalance(tx, balance); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (a *postgresAccessor) saveBalance(ctx *context, balance Balance) error {
-	_, err := ctx.tx.Exec(a.getQuery(archiveBalanceQuery), balance.Address)
-	if err != nil {
-		return errors.Wrapf(err, "unable to archive previous balance")
-	}
-	var txId *int64
-	if len(balance.TxHash) > 0 {
-		id, err := ctx.txId(balance.TxHash)
-		if err != nil {
-			return err
-		}
-		txId = &id
-	}
-	_, err = ctx.tx.Exec(a.getQuery(insertBalanceQuery),
+func (a *postgresAccessor) saveBalance(tx *sql.Tx, balance Balance) error {
+	var addressId uint64
+	err := tx.QueryRow(a.getQuery(updateBalanceQuery),
 		balance.Address,
 		balance.Balance,
-		balance.Stake,
-		ctx.blockHeight,
-		txId)
+		balance.Stake).Scan(&addressId)
+	if err == sql.ErrNoRows {
+		_, err = tx.Exec(a.getQuery(insertBalanceQuery),
+			balance.Address,
+			balance.Balance,
+			balance.Stake)
+	}
 	return errors.Wrapf(err, "unable to save balance")
 }
 

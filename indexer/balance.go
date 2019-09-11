@@ -4,10 +4,11 @@ import (
 	mapset "github.com/deckarep/golang-set"
 	"github.com/idena-network/idena-go/blockchain"
 	"github.com/idena-network/idena-go/blockchain/types"
-	"github.com/idena-network/idena-go/common"
+	nodeCommon "github.com/idena-network/idena-go/common"
 	"github.com/idena-network/idena-go/core/appstate"
 	"github.com/idena-network/idena-go/core/state"
 	"github.com/idena-network/idena-go/core/validators"
+	indexerCommon "github.com/idena-network/idena-indexer/core/common"
 	"github.com/idena-network/idena-indexer/db"
 	"github.com/idena-network/idena-indexer/log"
 	"math/big"
@@ -23,7 +24,7 @@ func NewTxBalanceUpdateDetector(tx *types.Transaction, prevState *appstate.AppSt
 		txHash: convertHash(tx.Hash()),
 	}
 	sender, _ := types.Sender(tx)
-	addresses := []common.Address{sender}
+	addresses := []nodeCommon.Address{sender}
 	if tx.To != nil && *tx.To != sender {
 		addresses = append(addresses, *tx.To)
 	}
@@ -46,16 +47,16 @@ type BlockBalanceUpdateDetector struct {
 
 func NewBlockBalanceUpdateDetector(block *types.Block, isFirstBlock bool, prevState *appstate.AppState, chain *blockchain.Blockchain, ctx *conversionContext) *BlockBalanceUpdateDetector {
 	res := BlockBalanceUpdateDetector{}
-	var addresses []common.Address
+	var addresses []nodeCommon.Address
 	if isFirstBlock {
 		res.isFirstBlock = true
 		prevState.State.IterateAccounts(func(key []byte, _ []byte) bool {
 			if key == nil {
 				return true
 			}
-			addr := bytesToAddr(key)
+			addr := indexerCommon.BytesToAddr(key)
 			addresses = append(addresses, addr)
-			convertedAddress := ConvertAddress(addr)
+			convertedAddress := indexerCommon.ConvertAddress(addr)
 			ctx.addresses[convertedAddress] = &db.Address{
 				Address: convertedAddress,
 			}
@@ -72,12 +73,12 @@ func NewBlockBalanceUpdateDetector(block *types.Block, isFirstBlock bool, prevSt
 			}
 			if blockValidators != nil {
 				for _, address := range blockValidators.ToSlice() {
-					addresses = append(addresses, address.(common.Address))
+					addresses = append(addresses, address.(nodeCommon.Address))
 				}
 			}
 		}
 		if block.Header.Flags().HasFlag(types.IdentityUpdate) {
-			prevState.State.IterateOverIdentities(func(addr common.Address, identity state.Identity) {
+			prevState.State.IterateOverIdentities(func(addr nodeCommon.Address, identity state.Identity) {
 				if block.IsEmpty() || !(addr == block.Header.ProposedHeader.Coinbase || (blockValidators != nil && blockValidators.Contains(addr))) {
 					addresses = append(addresses, addr)
 				}
@@ -89,19 +90,13 @@ func NewBlockBalanceUpdateDetector(block *types.Block, isFirstBlock bool, prevSt
 	return &res
 }
 
-func bytesToAddr(bytes []byte) common.Address {
-	addr := common.Address{}
-	addr.SetBytes(bytes[1:])
-	return addr
-}
-
 func (d *BlockBalanceUpdateDetector) GetUpdates(state *appstate.AppState) ([]db.Balance, *balanceDiff) {
 	if d.isFirstBlock {
 		var res []db.Balance
 		var totalDiff *balanceDiff
 		for _, prevBalance := range d.detector.prevBalances {
 			res = append(res, db.Balance{
-				Address: ConvertAddress(prevBalance.address),
+				Address: indexerCommon.ConvertAddress(prevBalance.address),
 				Balance: blockchain.ConvertToFloat(prevBalance.balance),
 				Stake:   blockchain.ConvertToFloat(prevBalance.stake),
 			})
@@ -126,7 +121,7 @@ type balanceUpdateDetector struct {
 }
 
 type addrBalance struct {
-	address common.Address
+	address nodeCommon.Address
 	balance *big.Int
 	stake   *big.Int
 }
@@ -143,7 +138,7 @@ func (diff *balanceDiff) Add(d *balanceDiff) {
 	diff.burntStake = new(big.Int).Add(diff.burntStake, d.burntStake)
 }
 
-func newBalanceUpdateDetector(prevState *appstate.AppState, addresses ...common.Address) *balanceUpdateDetector {
+func newBalanceUpdateDetector(prevState *appstate.AppState, addresses ...nodeCommon.Address) *balanceUpdateDetector {
 	res := balanceUpdateDetector{}
 	gotAddresses := mapset.NewSet()
 	for _, address := range addresses {
@@ -191,7 +186,7 @@ func (d *balanceUpdateDetector) detectUpdate(ab addrBalance, state *appstate.App
 		burntStake = burntStake.Sub(prevStake, stake)
 	}
 	return db.Balance{
-			Address: ConvertAddress(ab.address),
+			Address: indexerCommon.ConvertAddress(ab.address),
 			Balance: blockchain.ConvertToFloat(balance),
 			Stake:   blockchain.ConvertToFloat(stake),
 		}, balanceDiff{

@@ -5,7 +5,7 @@ import (
 	"github.com/idena-network/idena-go/common"
 	"github.com/idena-network/idena-go/core/appstate"
 	"github.com/idena-network/idena-go/core/state"
-	"github.com/idena-network/idena-indexer/indexer"
+	common2 "github.com/idena-network/idena-indexer/core/common"
 	"github.com/shopspring/decimal"
 	"sort"
 	"strings"
@@ -72,7 +72,7 @@ func (updater *currentPenaltiesCacheUpdater) loop() {
 			appState := updater.appState.Readonly(updater.chain.Head.Height())
 			if appState != nil {
 				appState.State.IterateOverIdentities(func(address common.Address, identity state.Identity) {
-					addressStr := indexer.ConvertAddress(address)
+					addressStr := common2.ConvertAddress(address)
 					if identity.Penalty == nil || identity.Penalty.Sign() != 1 {
 						return
 					}

@@ -1,3 +1,3 @@
 SELECT ID
 FROM FLIPS
-WHERE CID = $1
+WHERE lower(CID) = lower($1)

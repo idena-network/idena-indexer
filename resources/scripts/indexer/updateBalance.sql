@@ -1,4 +1,5 @@
 update balances
-set is_actual= false
+set balance=$2,
+    stake=$3
 where address_id = (select id from addresses where lower(address) = lower($1))
-  and is_actual
+returning address_id

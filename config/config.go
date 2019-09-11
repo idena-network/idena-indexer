@@ -9,16 +9,23 @@ import (
 )
 
 type Config struct {
-	Postgres           PostgresConfig
-	MigrationPostgres  *PostgresConfig
-	NodeConfigFile     string
-	Verbosity          int
-	NodeVerbosity      int
-	GenesisBlockHeight int
+	Postgres              PostgresConfig
+	FlipMigrationPostgres *PostgresConfig
+	Migration             *Migration
+	NodeConfigFile        string
+	Verbosity             int
+	NodeVerbosity         int
+	GenesisBlockHeight    int
 }
 
 type PostgresConfig struct {
 	ConnStr    string
+	ScriptsDir string
+}
+
+type Migration struct {
+	OldSchema  string
+	Height     uint64
 	ScriptsDir string
 }
 

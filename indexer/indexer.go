@@ -17,6 +17,8 @@ import (
 	"github.com/idena-network/idena-go/crypto"
 	"github.com/idena-network/idena-go/crypto/ecies"
 	"github.com/idena-network/idena-go/rlp"
+	common2 "github.com/idena-network/idena-indexer/core/common"
+	"github.com/idena-network/idena-indexer/core/restore"
 	"github.com/idena-network/idena-indexer/db"
 	"github.com/idena-network/idena-indexer/incoming"
 	"github.com/idena-network/idena-indexer/log"
@@ -90,17 +92,26 @@ var (
 type Indexer struct {
 	listener           incoming.Listener
 	db                 db.Accessor
+	restorer           *restore.Restorer
 	state              *indexerState
 	sfs                *flip.SecondaryFlipStorage
 	genesisBlockHeight uint64
+	restore            bool
 }
 
-func NewIndexer(listener incoming.Listener, db db.Accessor, sfs *flip.SecondaryFlipStorage, genesisBlockHeight uint64) *Indexer {
+func NewIndexer(listener incoming.Listener,
+	db db.Accessor,
+	restorer *restore.Restorer,
+	sfs *flip.SecondaryFlipStorage,
+	genesisBlockHeight uint64,
+	restoreInitially bool) *Indexer {
 	return &Indexer{
 		listener:           listener,
 		db:                 db,
+		restorer:           restorer,
 		sfs:                sfs,
 		genesisBlockHeight: genesisBlockHeight,
+		restore:            restoreInitially,
 	}
 }
 
@@ -145,9 +156,17 @@ func (indexer *Indexer) indexBlock(block *types.Block) {
 				indexer.waitForRetry()
 			} else {
 				log.Info(fmt.Sprintf("Indexer db has been reset to height=%d", height))
+				indexer.restore = true
 			}
 			// retry in any case to ensure incoming height equals to expected height to index after reset
 			continue
+		}
+
+		if indexer.restore {
+			log.Info("Start restoring DB data...")
+			indexer.restorer.Restore()
+			log.Info("DB data has been restored")
+			indexer.restore = false
 		}
 
 		data := indexer.convertIncomingData(block)
@@ -293,7 +312,7 @@ func (indexer *Indexer) determineFirstAddresses(incomingBlock *types.Block, ctx 
 	var addresses []*db.Address
 	ctx.newStateReadOnly.State.IterateOverIdentities(func(addr common.Address, identity state.Identity) {
 		addresses = append(addresses, &db.Address{
-			Address: ConvertAddress(addr),
+			Address: common2.ConvertAddress(addr),
 			StateChanges: []db.AddressStateChange{
 				{
 					PrevState: convertIdentityState(ctx.prevStateReadOnly.State.GetIdentityState(addr)),
@@ -350,7 +369,7 @@ func getProposer(block *types.Block) string {
 	if block.IsEmpty() {
 		return ""
 	}
-	return ConvertAddress(block.Header.ProposedHeader.Coinbase)
+	return common2.ConvertAddress(block.Header.ProposedHeader.Coinbase)
 }
 
 func (indexer *Indexer) convertPrevBlockValidators(block *types.Block, ctx *conversionContext) []string {
@@ -364,7 +383,7 @@ func (indexer *Indexer) convertPrevBlockValidators(block *types.Block, ctx *conv
 	}
 	var res []string
 	for _, vote := range cert.Votes {
-		res = append(res, ConvertAddress(vote.VoterAddr()))
+		res = append(res, common2.ConvertAddress(vote.VoterAddr()))
 	}
 	return res
 }
@@ -389,7 +408,7 @@ func (indexer *Indexer) convertTransaction(incomingTx *types.Transaction, ctx *c
 	txHash := convertHash(incomingTx.Hash())
 
 	sender, _ := types.Sender(incomingTx)
-	from := ConvertAddress(sender)
+	from := common2.ConvertAddress(sender)
 	if _, present := ctx.addresses[from]; !present {
 		ctx.addresses[from] = &db.Address{
 			Address: from,
@@ -399,7 +418,7 @@ func (indexer *Indexer) convertTransaction(incomingTx *types.Transaction, ctx *c
 	var to string
 	var recipientPrevState *state.IdentityState
 	if incomingTx.To != nil {
-		to = ConvertAddress(*incomingTx.To)
+		to = common2.ConvertAddress(*incomingTx.To)
 		if _, present := ctx.addresses[to]; !present {
 			ctx.addresses[to] = &db.Address{
 				Address: to,
@@ -504,7 +523,7 @@ func convertStatsAnswers(incomingAnswers []ceremony.FlipAnswerStats) []db.Answer
 
 func convertStatsAnswer(incomingAnswer ceremony.FlipAnswerStats) db.Answer {
 	return db.Answer{
-		Address: ConvertAddress(incomingAnswer.Respondent),
+		Address: common2.ConvertAddress(incomingAnswer.Respondent),
 		Answer:  convertAnswer(incomingAnswer.Answer),
 		Point:   incomingAnswer.Point,
 	}
@@ -528,7 +547,7 @@ func (indexer *Indexer) determineEpochResult(block *types.Block, ctx *conversion
 
 	ctx.prevStateReadOnly.State.IterateOverIdentities(func(addr common.Address, identity state.Identity) {
 		convertedIdentity := db.EpochIdentity{}
-		convertedIdentity.Address = ConvertAddress(addr)
+		convertedIdentity.Address = common2.ConvertAddress(addr)
 		convertedIdentity.State = convertIdentityState(ctx.newStateReadOnly.State.GetIdentityState(addr))
 		convertedIdentity.TotalShortPoint = ctx.newStateReadOnly.State.GetShortFlipPoints(addr)
 		convertedIdentity.TotalShortFlips = ctx.newStateReadOnly.State.GetQualifiedFlipsCount(addr)
@@ -745,7 +764,7 @@ func (indexer *Indexer) convertShortAnswers(tx *types.Transaction, ctx *conversi
 
 func (indexer *Indexer) getFlipsData(tx *types.Transaction, attachment *attachments.ShortAnswerAttachment, ctx *conversionContext) ([]db.FlipData, error) {
 	sender, _ := types.Sender(tx)
-	from := ConvertAddress(sender)
+	from := common2.ConvertAddress(sender)
 	keyAuthorFlips, err := indexer.db.GetCurrentFlipCids(from)
 	if err != nil {
 		return nil, err

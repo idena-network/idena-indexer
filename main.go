@@ -1,11 +1,13 @@
 package main
 
 import (
+	"fmt"
 	nodeLog "github.com/idena-network/idena-go/log"
 	"github.com/idena-network/idena-indexer/config"
 	"github.com/idena-network/idena-indexer/core/activity"
 	"github.com/idena-network/idena-indexer/core/api"
 	"github.com/idena-network/idena-indexer/core/penalty"
+	"github.com/idena-network/idena-indexer/core/restore"
 	"github.com/idena-network/idena-indexer/core/server"
 	"github.com/idena-network/idena-indexer/db"
 	"github.com/idena-network/idena-indexer/explorer"
@@ -13,8 +15,9 @@ import (
 	"github.com/idena-network/idena-indexer/incoming"
 	"github.com/idena-network/idena-indexer/indexer"
 	"github.com/idena-network/idena-indexer/log"
+	migrationDb "github.com/idena-network/idena-indexer/migration/db"
 	"github.com/idena-network/idena-indexer/migration/flip"
-	migration "github.com/idena-network/idena-indexer/migration/flip/db"
+	flipMigrationDb "github.com/idena-network/idena-indexer/migration/flip/db"
 	"gopkg.in/urfave/cli.v1"
 	"os"
 	"path/filepath"
@@ -85,9 +88,31 @@ func initLog(verbosity int, nodeVerbosity int) {
 func initIndexer(config *config.Config) *indexer.Indexer {
 	listener := incoming.NewListener(config.NodeConfigFile)
 	dbAccessor := db.NewPostgresAccessor(config.Postgres.ConnStr, config.Postgres.ScriptsDir)
+	restorer := restore.NewRestorer(dbAccessor, listener.AppState(), listener.Blockchain())
 	var sfs *flip.SecondaryFlipStorage
-	if config.MigrationPostgres != nil {
-		sfs = flip.NewSecondaryFlipStorage(migration.NewPostgresAccessor(config.MigrationPostgres.ConnStr, config.MigrationPostgres.ScriptsDir))
+	if config.FlipMigrationPostgres != nil {
+		sfs = flip.NewSecondaryFlipStorage(flipMigrationDb.NewPostgresAccessor(config.FlipMigrationPostgres.ConnStr, config.FlipMigrationPostgres.ScriptsDir))
 	}
-	return indexer.NewIndexer(listener, dbAccessor, sfs, uint64(config.GenesisBlockHeight))
+	var restoreInitially bool
+	if migrated, err := migrateDataIfNeeded(config); err != nil {
+		panic(fmt.Sprintf("Unable to migrate data: %v", err))
+	} else {
+		restoreInitially = migrated
+	}
+
+	return indexer.NewIndexer(listener, dbAccessor, restorer, sfs, uint64(config.GenesisBlockHeight), restoreInitially)
+}
+
+func migrateDataIfNeeded(config *config.Config) (bool, error) {
+	if config.Migration == nil {
+		return false, nil
+	}
+	dbAccessor := migrationDb.NewPostgresAccessor(config.Postgres.ConnStr, config.Migration.OldSchema, config.Migration.ScriptsDir)
+	defer dbAccessor.Destroy()
+	log.Info("Start migrating data...")
+	if err := dbAccessor.MigrateTo(config.Migration.Height); err != nil {
+		return false, err
+	}
+	log.Info("Data migration has been completed")
+	return true, nil
 }

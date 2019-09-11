@@ -1,8 +1,8 @@
--- Table: public.epochs
+-- Table: epochs
 
--- DROP TABLE public.epochs;
+-- DROP TABLE epochs;
 
-CREATE TABLE IF NOT EXISTS public.epochs
+CREATE TABLE IF NOT EXISTS epochs
 (
     epoch           bigint NOT NULL,
     validation_time bigint NOT NULL,
@@ -13,14 +13,14 @@ CREATE TABLE IF NOT EXISTS public.epochs
     )
     TABLESPACE pg_default;
 
-ALTER TABLE public.epochs
+ALTER TABLE epochs
     OWNER to postgres;
 
--- Table: public.blocks
+-- Table: blocks
 
--- DROP TABLE public.blocks;
+-- DROP TABLE blocks;
 
-CREATE TABLE IF NOT EXISTS public.blocks
+CREATE TABLE IF NOT EXISTS blocks
 (
     height           bigint                                     NOT NULL,
     hash             character(66) COLLATE pg_catalog."default" NOT NULL,
@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS public.blocks
     validators_count integer                                    NOT NULL,
     CONSTRAINT blocks_pkey PRIMARY KEY (height),
     CONSTRAINT blocks_epoch_fkey FOREIGN KEY (epoch)
-        REFERENCES public.epochs (epoch) MATCH SIMPLE
+        REFERENCES epochs (epoch) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION
 )
@@ -39,16 +39,16 @@ CREATE TABLE IF NOT EXISTS public.blocks
     )
     TABLESPACE pg_default;
 
-ALTER TABLE public.blocks
+ALTER TABLE blocks
     OWNER to postgres;
 
 CREATE UNIQUE INDEX IF NOT EXISTS blocks_hash_unique_idx on blocks (LOWER(hash));
 
--- Table: public.epoch_summaries
+-- Table: epoch_summaries
 
--- DROP TABLE public.epoch_summaries;
+-- DROP TABLE epoch_summaries;
 
-CREATE TABLE IF NOT EXISTS public.epoch_summaries
+CREATE TABLE IF NOT EXISTS epoch_summaries
 (
     epoch             bigint          NOT NULL,
     validated_count   integer         NOT NULL,
@@ -66,11 +66,11 @@ CREATE TABLE IF NOT EXISTS public.epoch_summaries
     block_height      bigint          NOT NULL,
     CONSTRAINT epoch_summaries_pkey PRIMARY KEY (epoch),
     CONSTRAINT epoch_summaries_block_height_fkey FOREIGN KEY (block_height)
-        REFERENCES public.blocks (height) MATCH SIMPLE
+        REFERENCES blocks (height) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION,
     CONSTRAINT epoch_summaries_epoch_fkey FOREIGN KEY (epoch)
-        REFERENCES public.epochs (epoch) MATCH SIMPLE
+        REFERENCES epochs (epoch) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION
 )
@@ -79,35 +79,35 @@ CREATE TABLE IF NOT EXISTS public.epoch_summaries
     )
     TABLESPACE pg_default;
 
-ALTER TABLE public.epoch_summaries
+ALTER TABLE epoch_summaries
     OWNER to postgres;
 
--- SEQUENCE: public.addresses_id_seq
+-- SEQUENCE: addresses_id_seq
 
--- DROP SEQUENCE public.addresses_id_seq;
+-- DROP SEQUENCE addresses_id_seq;
 
-CREATE SEQUENCE IF NOT EXISTS public.addresses_id_seq
+CREATE SEQUENCE IF NOT EXISTS addresses_id_seq
     INCREMENT 1
     START 1
     MINVALUE 1
     MAXVALUE 9223372036854775807
     CACHE 1;
 
-ALTER SEQUENCE public.addresses_id_seq
+ALTER SEQUENCE addresses_id_seq
     OWNER TO postgres;
 
--- Table: public.addresses
+-- Table: addresses
 
--- DROP TABLE public.addresses;
+-- DROP TABLE addresses;
 
-CREATE TABLE IF NOT EXISTS public.addresses
+CREATE TABLE IF NOT EXISTS addresses
 (
     id           bigint                                     NOT NULL DEFAULT nextval('addresses_id_seq'::regclass),
     address      character(42) COLLATE pg_catalog."default" NOT NULL,
     block_height bigint                                     NOT NULL,
     CONSTRAINT addresses_pkey PRIMARY KEY (id),
     CONSTRAINT addresses_block_height_fkey FOREIGN KEY (block_height)
-        REFERENCES public.blocks (height) MATCH SIMPLE
+        REFERENCES blocks (height) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION
 )
@@ -116,22 +116,22 @@ CREATE TABLE IF NOT EXISTS public.addresses
     )
     TABLESPACE pg_default;
 
-ALTER TABLE public.addresses
+ALTER TABLE addresses
     OWNER to postgres;
 
 CREATE UNIQUE INDEX IF NOT EXISTS addresses_address_unique_idx on addresses (LOWER(address));
 
--- Table: public.block_proposers
+-- Table: block_proposers
 
--- DROP TABLE public.block_proposers;
+-- DROP TABLE block_proposers;
 
-CREATE TABLE IF NOT EXISTS public.block_proposers
+CREATE TABLE IF NOT EXISTS block_proposers
 (
     address_id   bigint NOT NULL,
     block_height bigint NOT NULL,
     CONSTRAINT block_proposers_pkey PRIMARY KEY (block_height),
     CONSTRAINT block_proposers_address_id_fkey FOREIGN KEY (address_id)
-        REFERENCES public.addresses (id) MATCH SIMPLE
+        REFERENCES addresses (id) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION
 )
@@ -140,23 +140,23 @@ CREATE TABLE IF NOT EXISTS public.block_proposers
     )
     TABLESPACE pg_default;
 
-ALTER TABLE public.block_proposers
+ALTER TABLE block_proposers
     OWNER to postgres;
 
--- Table: public.block_validators
+-- Table: block_validators
 
--- DROP TABLE public.block_validators;
+-- DROP TABLE block_validators;
 
-CREATE TABLE IF NOT EXISTS public.block_validators
+CREATE TABLE IF NOT EXISTS block_validators
 (
     block_height bigint NOT NULL,
     address_id   bigint NOT NULL,
     CONSTRAINT block_validators_address_id_fkey FOREIGN KEY (address_id)
-        REFERENCES public.addresses (id) MATCH SIMPLE
+        REFERENCES addresses (id) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION,
     CONSTRAINT block_validators_block_height_fkey FOREIGN KEY (block_height)
-        REFERENCES public.blocks (height) MATCH SIMPLE
+        REFERENCES blocks (height) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION
 )
@@ -165,28 +165,28 @@ CREATE TABLE IF NOT EXISTS public.block_validators
     )
     TABLESPACE pg_default;
 
-ALTER TABLE public.block_validators
+ALTER TABLE block_validators
     OWNER to postgres;
 
--- SEQUENCE: public.transactions_id_seq
+-- SEQUENCE: transactions_id_seq
 
--- DROP SEQUENCE public.transactions_id_seq;
+-- DROP SEQUENCE transactions_id_seq;
 
-CREATE SEQUENCE IF NOT EXISTS public.transactions_id_seq
+CREATE SEQUENCE IF NOT EXISTS transactions_id_seq
     INCREMENT 1
     START 1
     MINVALUE 1
     MAXVALUE 9223372036854775807
     CACHE 1;
 
-ALTER SEQUENCE public.transactions_id_seq
+ALTER SEQUENCE transactions_id_seq
     OWNER TO postgres;
 
--- Table: public.transactions
+-- Table: transactions
 
--- DROP TABLE public.transactions;
+-- DROP TABLE transactions;
 
-CREATE TABLE IF NOT EXISTS public.transactions
+CREATE TABLE IF NOT EXISTS transactions
 (
     id           bigint                                             NOT NULL DEFAULT nextval('transactions_id_seq'::regclass),
     hash         character(66) COLLATE pg_catalog."default"         NOT NULL,
@@ -198,15 +198,15 @@ CREATE TABLE IF NOT EXISTS public.transactions
     fee          numeric(30, 18),
     CONSTRAINT transactions_pkey PRIMARY KEY (id),
     CONSTRAINT transactions_block_height_fkey FOREIGN KEY (block_height)
-        REFERENCES public.blocks (height) MATCH SIMPLE
+        REFERENCES blocks (height) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION,
     CONSTRAINT transactions_from_fkey FOREIGN KEY ("from")
-        REFERENCES public.addresses (id) MATCH SIMPLE
+        REFERENCES addresses (id) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION,
     CONSTRAINT transactions_to_fkey FOREIGN KEY ("to")
-        REFERENCES public.addresses (id) MATCH SIMPLE
+        REFERENCES addresses (id) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION
 )
@@ -215,30 +215,30 @@ CREATE TABLE IF NOT EXISTS public.transactions
     )
     TABLESPACE pg_default;
 
-ALTER TABLE public.transactions
+ALTER TABLE transactions
     OWNER to postgres;
 
 CREATE UNIQUE INDEX IF NOT EXISTS transactions_hash_unique_idx on transactions (LOWER(hash));
 
--- SEQUENCE: public.address_states_id_seq
+-- SEQUENCE: address_states_id_seq
 
--- DROP SEQUENCE public.address_states_id_seq;
+-- DROP SEQUENCE address_states_id_seq;
 
-CREATE SEQUENCE IF NOT EXISTS public.address_states_id_seq
+CREATE SEQUENCE IF NOT EXISTS address_states_id_seq
     INCREMENT 1
     START 1
     MINVALUE 1
     MAXVALUE 9223372036854775807
     CACHE 1;
 
-ALTER SEQUENCE public.address_states_id_seq
+ALTER SEQUENCE address_states_id_seq
     OWNER TO postgres;
 
--- Table: public.address_states
+-- Table: address_states
 
--- DROP TABLE public.address_states;
+-- DROP TABLE address_states;
 
-CREATE TABLE IF NOT EXISTS public.address_states
+CREATE TABLE IF NOT EXISTS address_states
 (
     id           bigint                                             NOT NULL DEFAULT nextval('address_states_id_seq'::regclass),
     address_id   bigint                                             NOT NULL,
@@ -249,19 +249,19 @@ CREATE TABLE IF NOT EXISTS public.address_states
     prev_id      bigint,
     CONSTRAINT address_states_pkey PRIMARY KEY (id),
     CONSTRAINT address_states_address_id_fkey FOREIGN KEY (address_id)
-        REFERENCES public.addresses (id) MATCH SIMPLE
+        REFERENCES addresses (id) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION,
     CONSTRAINT address_states_block_height_fkey FOREIGN KEY (block_height)
-        REFERENCES public.blocks (height) MATCH SIMPLE
+        REFERENCES blocks (height) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION,
     CONSTRAINT address_states_prev_id_fkey FOREIGN KEY (prev_id)
-        REFERENCES public.address_states (id) MATCH SIMPLE
+        REFERENCES address_states (id) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION,
     CONSTRAINT address_states_tx_id_fkey FOREIGN KEY (tx_id)
-        REFERENCES public.transactions (id) MATCH SIMPLE
+        REFERENCES transactions (id) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION
 )
@@ -270,28 +270,28 @@ CREATE TABLE IF NOT EXISTS public.address_states
     )
     TABLESPACE pg_default;
 
-ALTER TABLE public.address_states
+ALTER TABLE address_states
     OWNER to postgres;
 
--- SEQUENCE: public.epoch_identities_id_seq
+-- SEQUENCE: epoch_identities_id_seq
 
--- DROP SEQUENCE public.epoch_identities_id_seq;
+-- DROP SEQUENCE epoch_identities_id_seq;
 
-CREATE SEQUENCE IF NOT EXISTS public.epoch_identities_id_seq
+CREATE SEQUENCE IF NOT EXISTS epoch_identities_id_seq
     INCREMENT 1
     START 1
     MINVALUE 1
     MAXVALUE 9223372036854775807
     CACHE 1;
 
-ALTER SEQUENCE public.epoch_identities_id_seq
+ALTER SEQUENCE epoch_identities_id_seq
     OWNER TO postgres;
 
--- Table: public.epoch_identities
+-- Table: epoch_identities
 
--- DROP TABLE public.epoch_identities;
+-- DROP TABLE epoch_identities;
 
-CREATE TABLE IF NOT EXISTS public.epoch_identities
+CREATE TABLE IF NOT EXISTS epoch_identities
 (
     id                bigint   NOT NULL DEFAULT nextval('epoch_identities_id_seq'::regclass),
     epoch             bigint   NOT NULL,
@@ -309,11 +309,11 @@ CREATE TABLE IF NOT EXISTS public.epoch_identities
     CONSTRAINT epoch_identities_pkey PRIMARY KEY (id),
     CONSTRAINT epoch_identities_epoch_identity_id_key UNIQUE (epoch, address_state_id),
     CONSTRAINT epoch_identities_address_state_id_fkey FOREIGN KEY (address_state_id)
-        REFERENCES public.address_states (id) MATCH SIMPLE
+        REFERENCES address_states (id) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION,
     CONSTRAINT epoch_identities_epoch_id_fkey FOREIGN KEY (epoch)
-        REFERENCES public.epochs (epoch) MATCH SIMPLE
+        REFERENCES epochs (epoch) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION
 )
@@ -322,28 +322,28 @@ CREATE TABLE IF NOT EXISTS public.epoch_identities
     )
     TABLESPACE pg_default;
 
-ALTER TABLE public.epoch_identities
+ALTER TABLE epoch_identities
     OWNER to postgres;
 
--- SEQUENCE: public.flips_id_seq
+-- SEQUENCE: flips_id_seq
 
--- DROP SEQUENCE public.flips_id_seq;
+-- DROP SEQUENCE flips_id_seq;
 
-CREATE SEQUENCE IF NOT EXISTS public.flips_id_seq
+CREATE SEQUENCE IF NOT EXISTS flips_id_seq
     INCREMENT 1
     START 1
     MINVALUE 1
     MAXVALUE 9223372036854775807
     CACHE 1;
 
-ALTER SEQUENCE public.flips_id_seq
+ALTER SEQUENCE flips_id_seq
     OWNER TO postgres;
 
--- Table: public.flips
+-- Table: flips
 
--- DROP TABLE public.flips;
+-- DROP TABLE flips;
 
-CREATE TABLE IF NOT EXISTS public.flips
+CREATE TABLE IF NOT EXISTS flips
 (
     id                  bigint                                              NOT NULL DEFAULT nextval('flips_id_seq'::regclass),
     tx_id               bigint                                              NOT NULL,
@@ -354,11 +354,11 @@ CREATE TABLE IF NOT EXISTS public.flips
     status              character varying(20) COLLATE pg_catalog."default",
     CONSTRAINT flips_pkey PRIMARY KEY (id),
     CONSTRAINT flips_status_block_height_fkey FOREIGN KEY (status_block_height)
-        REFERENCES public.blocks (height) MATCH SIMPLE
+        REFERENCES blocks (height) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION,
     CONSTRAINT flips_tx_id_fkey FOREIGN KEY (tx_id)
-        REFERENCES public.transactions (id) MATCH SIMPLE
+        REFERENCES transactions (id) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION
 )
@@ -367,37 +367,37 @@ CREATE TABLE IF NOT EXISTS public.flips
     )
     TABLESPACE pg_default;
 
-ALTER TABLE public.flips
+ALTER TABLE flips
     OWNER to postgres;
 
 CREATE UNIQUE INDEX IF NOT EXISTS flips_cid_unique_idx on flips (LOWER(cid));
 
--- SEQUENCE: public.flip_keys_id_seq
+-- SEQUENCE: flip_keys_id_seq
 
--- DROP SEQUENCE public.flip_keys_id_seq;
+-- DROP SEQUENCE flip_keys_id_seq;
 
-CREATE SEQUENCE IF NOT EXISTS public.flip_keys_id_seq
+CREATE SEQUENCE IF NOT EXISTS flip_keys_id_seq
     INCREMENT 1
     START 1
     MINVALUE 1
     MAXVALUE 9223372036854775807
     CACHE 1;
 
-ALTER SEQUENCE public.flip_keys_id_seq
+ALTER SEQUENCE flip_keys_id_seq
     OWNER TO postgres;
 
--- Table: public.flip_keys
+-- Table: flip_keys
 
--- DROP TABLE public.flip_keys;
+-- DROP TABLE flip_keys;
 
-CREATE TABLE IF NOT EXISTS public.flip_keys
+CREATE TABLE IF NOT EXISTS flip_keys
 (
     id    bigint                                              NOT NULL DEFAULT nextval('flip_keys_id_seq'::regclass),
     tx_id bigint                                              NOT NULL,
     key   character varying(100) COLLATE pg_catalog."default" NOT NULL,
     CONSTRAINT flip_keys_pkey PRIMARY KEY (id),
     CONSTRAINT flip_keys_tx_id_fkey FOREIGN KEY (tx_id)
-        REFERENCES public.transactions (id) MATCH SIMPLE
+        REFERENCES transactions (id) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION
 )
@@ -406,28 +406,28 @@ CREATE TABLE IF NOT EXISTS public.flip_keys
     )
     TABLESPACE pg_default;
 
-ALTER TABLE public.flip_keys
+ALTER TABLE flip_keys
     OWNER to postgres;
 
--- SEQUENCE: public.answers_id_seq
+-- SEQUENCE: answers_id_seq
 
--- DROP SEQUENCE public.answers_id_seq;
+-- DROP SEQUENCE answers_id_seq;
 
-CREATE SEQUENCE IF NOT EXISTS public.answers_id_seq
+CREATE SEQUENCE IF NOT EXISTS answers_id_seq
     INCREMENT 1
     START 1
     MINVALUE 1
     MAXVALUE 9223372036854775807
     CACHE 1;
 
-ALTER SEQUENCE public.answers_id_seq
+ALTER SEQUENCE answers_id_seq
     OWNER TO postgres;
 
--- Table: public.answers
+-- Table: answers
 
--- DROP TABLE public.answers;
+-- DROP TABLE answers;
 
-CREATE TABLE IF NOT EXISTS public.answers
+CREATE TABLE IF NOT EXISTS answers
 (
     id                bigint                                             NOT NULL DEFAULT nextval('answers_id_seq'::regclass),
     flip_id           bigint                                             NOT NULL,
@@ -437,11 +437,11 @@ CREATE TABLE IF NOT EXISTS public.answers
     point             real                                               NOT NULL,
     CONSTRAINT answers_pkey PRIMARY KEY (id),
     CONSTRAINT answers_epoch_identity_id_fkey FOREIGN KEY (epoch_identity_id)
-        REFERENCES public.epoch_identities (id) MATCH SIMPLE
+        REFERENCES epoch_identities (id) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION,
     CONSTRAINT answers_flip_id_fkey FOREIGN KEY (flip_id)
-        REFERENCES public.flips (id) MATCH SIMPLE
+        REFERENCES flips (id) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION
 )
@@ -450,28 +450,28 @@ CREATE TABLE IF NOT EXISTS public.answers
     )
     TABLESPACE pg_default;
 
-ALTER TABLE public.answers
+ALTER TABLE answers
     OWNER to postgres;
 
--- SEQUENCE: public.flips_to_solve_id_seq
+-- SEQUENCE: flips_to_solve_id_seq
 
--- DROP SEQUENCE public.flips_to_solve_id_seq;
+-- DROP SEQUENCE flips_to_solve_id_seq;
 
-CREATE SEQUENCE IF NOT EXISTS public.flips_to_solve_id_seq
+CREATE SEQUENCE IF NOT EXISTS flips_to_solve_id_seq
     INCREMENT 1
     START 1
     MINVALUE 1
     MAXVALUE 9223372036854775807
     CACHE 1;
 
-ALTER SEQUENCE public.flips_to_solve_id_seq
+ALTER SEQUENCE flips_to_solve_id_seq
     OWNER TO postgres;
 
--- Table: public.flips_to_solve
+-- Table: flips_to_solve
 
--- DROP TABLE public.flips_to_solve;
+-- DROP TABLE flips_to_solve;
 
-CREATE TABLE IF NOT EXISTS public.flips_to_solve
+CREATE TABLE IF NOT EXISTS flips_to_solve
 (
     id                bigint  NOT NULL DEFAULT nextval('flips_to_solve_id_seq'::regclass),
     epoch_identity_id bigint  NOT NULL,
@@ -479,11 +479,11 @@ CREATE TABLE IF NOT EXISTS public.flips_to_solve
     is_short          boolean NOT NULL,
     CONSTRAINT flips_to_solve_pkey PRIMARY KEY (id),
     CONSTRAINT flips_to_solve_epoch_identity_id_fkey FOREIGN KEY (epoch_identity_id)
-        REFERENCES public.epoch_identities (id) MATCH SIMPLE
+        REFERENCES epoch_identities (id) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION,
     CONSTRAINT flips_to_solve_flip_id_fkey FOREIGN KEY (flip_id)
-        REFERENCES public.flips (id) MATCH SIMPLE
+        REFERENCES flips (id) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION
 )
@@ -492,47 +492,20 @@ CREATE TABLE IF NOT EXISTS public.flips_to_solve
     )
     TABLESPACE pg_default;
 
-ALTER TABLE public.flips_to_solve
+ALTER TABLE flips_to_solve
     OWNER to postgres;
 
--- SEQUENCE: public.balances_id_seq
+-- Table: balances
 
--- DROP SEQUENCE public.balances_id_seq;
+-- DROP TABLE balances;
 
-CREATE SEQUENCE IF NOT EXISTS public.balances_id_seq
-    INCREMENT 1
-    START 1
-    MINVALUE 1
-    MAXVALUE 9223372036854775807
-    CACHE 1;
-
-ALTER SEQUENCE public.balances_id_seq
-    OWNER TO postgres;
-
--- Table: public.balances
-
--- DROP TABLE public.balances;
-
-CREATE TABLE IF NOT EXISTS public.balances
+CREATE TABLE IF NOT EXISTS balances
 (
-    id           bigint  NOT NULL DEFAULT nextval('balances_id_seq'::regclass),
-    address_id   bigint  NOT NULL,
-    balance      numeric(30, 18),
-    stake        numeric(30, 18),
-    tx_id        bigint,
-    is_actual    boolean NOT NULL,
-    block_height bigint  NOT NULL,
-    CONSTRAINT balances_pkey PRIMARY KEY (id),
+    address_id bigint NOT NULL,
+    balance    numeric(30, 18),
+    stake      numeric(30, 18),
     CONSTRAINT balances_address_id_fkey FOREIGN KEY (address_id)
-        REFERENCES public.addresses (id) MATCH SIMPLE
-        ON UPDATE NO ACTION
-        ON DELETE NO ACTION,
-    CONSTRAINT balances_block_height_fkey FOREIGN KEY (block_height)
-        REFERENCES public.blocks (height) MATCH SIMPLE
-        ON UPDATE NO ACTION
-        ON DELETE NO ACTION,
-    CONSTRAINT balances_tx_id_fkey FOREIGN KEY (tx_id)
-        REFERENCES public.transactions (id) MATCH SIMPLE
+        REFERENCES addresses (id) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION
 )
@@ -541,14 +514,14 @@ CREATE TABLE IF NOT EXISTS public.balances
     )
     TABLESPACE pg_default;
 
-ALTER TABLE public.balances
+ALTER TABLE balances
     OWNER to postgres;
 
--- Table: public.coins
+-- Table: coins
 
--- DROP TABLE public.coins;
+-- DROP TABLE coins;
 
-CREATE TABLE IF NOT EXISTS public.coins
+CREATE TABLE IF NOT EXISTS coins
 (
     block_height   bigint NOT NULL,
     burnt_balance  numeric(30, 18),
@@ -559,7 +532,7 @@ CREATE TABLE IF NOT EXISTS public.coins
     total_stake    numeric(30, 18),
     CONSTRAINT coins_pkey PRIMARY KEY (block_height),
     CONSTRAINT coins_block_height_fkey FOREIGN KEY (block_height)
-        REFERENCES public.blocks (height) MATCH SIMPLE
+        REFERENCES blocks (height) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION
 )
@@ -568,28 +541,28 @@ CREATE TABLE IF NOT EXISTS public.coins
     )
     TABLESPACE pg_default;
 
-ALTER TABLE public.coins
+ALTER TABLE coins
     OWNER to postgres;
 
--- SEQUENCE: public.block_flags_id_seq
+-- SEQUENCE: block_flags_id_seq
 
--- DROP SEQUENCE public.block_flags_id_seq;
+-- DROP SEQUENCE block_flags_id_seq;
 
-CREATE SEQUENCE IF NOT EXISTS public.block_flags_id_seq
+CREATE SEQUENCE IF NOT EXISTS block_flags_id_seq
     INCREMENT 1
     START 1
     MINVALUE 1
     MAXVALUE 9223372036854775807
     CACHE 1;
 
-ALTER SEQUENCE public.block_flags_id_seq
+ALTER SEQUENCE block_flags_id_seq
     OWNER TO postgres;
 
--- Table: public.block_flags
+-- Table: block_flags
 
--- DROP TABLE public.block_flags;
+-- DROP TABLE block_flags;
 
-CREATE TABLE IF NOT EXISTS public.block_flags
+CREATE TABLE IF NOT EXISTS block_flags
 (
     id           bigint                                             NOT NULL DEFAULT nextval('block_flags_id_seq'::regclass),
     block_height bigint                                             NOT NULL,
@@ -597,7 +570,7 @@ CREATE TABLE IF NOT EXISTS public.block_flags
     CONSTRAINT block_flags_pkey PRIMARY KEY (id),
     CONSTRAINT block_flags_block_height_flag_key UNIQUE (block_height, flag),
     CONSTRAINT block_flags_block_height_fkey FOREIGN KEY (block_height)
-        REFERENCES public.blocks (height) MATCH SIMPLE
+        REFERENCES blocks (height) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION
 )
@@ -606,24 +579,24 @@ CREATE TABLE IF NOT EXISTS public.block_flags
     )
     TABLESPACE pg_default;
 
-ALTER TABLE public.block_flags
+ALTER TABLE block_flags
     OWNER to postgres;
 
--- Table: public.temporary_identities
+-- Table: temporary_identities
 
--- DROP TABLE public.temporary_identities;
+-- DROP TABLE temporary_identities;
 
-CREATE TABLE IF NOT EXISTS public.temporary_identities
+CREATE TABLE IF NOT EXISTS temporary_identities
 (
     address_id   bigint NOT NULL,
     block_height bigint NOT NULL,
     CONSTRAINT temporary_identities_pkey PRIMARY KEY (address_id),
     CONSTRAINT temporary_identities_address_id_fkey FOREIGN KEY (address_id)
-        REFERENCES public.addresses (id) MATCH SIMPLE
+        REFERENCES addresses (id) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION,
     CONSTRAINT temporary_identities_block_height_fkey FOREIGN KEY (block_height)
-        REFERENCES public.blocks (height) MATCH SIMPLE
+        REFERENCES blocks (height) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION
 )
@@ -632,28 +605,28 @@ CREATE TABLE IF NOT EXISTS public.temporary_identities
     )
     TABLESPACE pg_default;
 
-ALTER TABLE public.temporary_identities
+ALTER TABLE temporary_identities
     OWNER to postgres;
 
--- SEQUENCE: public.flips_data_id_seq
+-- SEQUENCE: flips_data_id_seq
 
--- DROP SEQUENCE public.flips_data_id_seq;
+-- DROP SEQUENCE flips_data_id_seq;
 
-CREATE SEQUENCE IF NOT EXISTS public.flips_data_id_seq
+CREATE SEQUENCE IF NOT EXISTS flips_data_id_seq
     INCREMENT 1
     START 1
     MINVALUE 1
     MAXVALUE 9223372036854775807
     CACHE 1;
 
-ALTER SEQUENCE public.flips_data_id_seq
+ALTER SEQUENCE flips_data_id_seq
     OWNER TO postgres;
 
--- Table: public.flips_data
+-- Table: flips_data
 
--- DROP TABLE public.flips_data;
+-- DROP TABLE flips_data;
 
-CREATE TABLE IF NOT EXISTS public.flips_data
+CREATE TABLE IF NOT EXISTS flips_data
 (
     id           bigint NOT NULL DEFAULT nextval('flips_data_id_seq'::regclass),
     flip_id      bigint NOT NULL,
@@ -662,15 +635,15 @@ CREATE TABLE IF NOT EXISTS public.flips_data
     CONSTRAINT flips_data_pkey PRIMARY KEY (id),
     CONSTRAINT flips_data_flip_id_key UNIQUE (flip_id),
     CONSTRAINT flips_data_block_height_fkey FOREIGN KEY (block_height)
-        REFERENCES public.blocks (height) MATCH SIMPLE
+        REFERENCES blocks (height) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION,
     CONSTRAINT flips_data_flip_id_fkey FOREIGN KEY (flip_id)
-        REFERENCES public.flips (id) MATCH SIMPLE
+        REFERENCES flips (id) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION,
     CONSTRAINT flips_data_tx_id_fkey1 FOREIGN KEY (tx_id)
-        REFERENCES public.transactions (id) MATCH SIMPLE
+        REFERENCES transactions (id) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION
 )
@@ -679,20 +652,20 @@ CREATE TABLE IF NOT EXISTS public.flips_data
     )
     TABLESPACE pg_default;
 
-ALTER TABLE public.flips_data
+ALTER TABLE flips_data
     OWNER to postgres;
 
--- Table: public.flip_pics
+-- Table: flip_pics
 
--- DROP TABLE public.flip_pics;
+-- DROP TABLE flip_pics;
 
-CREATE TABLE IF NOT EXISTS public.flip_pics
+CREATE TABLE IF NOT EXISTS flip_pics
 (
     flip_data_id bigint   NOT NULL,
     index        smallint NOT NULL,
     data         bytea    NOT NULL,
     CONSTRAINT flip_pics_flip_data_id_fkey FOREIGN KEY (flip_data_id)
-        REFERENCES public.flips_data (id) MATCH SIMPLE
+        REFERENCES flips_data (id) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION
 )
@@ -701,19 +674,19 @@ CREATE TABLE IF NOT EXISTS public.flip_pics
     )
     TABLESPACE pg_default;
 
-ALTER TABLE public.flip_pics
+ALTER TABLE flip_pics
     OWNER to postgres;
 
--- Table: public.flip_icons
+-- Table: flip_icons
 
--- DROP TABLE public.flip_icons;
+-- DROP TABLE flip_icons;
 
-CREATE TABLE IF NOT EXISTS public.flip_icons
+CREATE TABLE IF NOT EXISTS flip_icons
 (
     flip_data_id bigint NOT NULL,
     data         bytea  NOT NULL,
     CONSTRAINT flip_icons_flip_data_id_fkey FOREIGN KEY (flip_data_id)
-        REFERENCES public.flips_data (id) MATCH SIMPLE
+        REFERENCES flips_data (id) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION
 )
@@ -722,21 +695,21 @@ CREATE TABLE IF NOT EXISTS public.flip_icons
     )
     TABLESPACE pg_default;
 
-ALTER TABLE public.flip_icons
+ALTER TABLE flip_icons
     OWNER to postgres;
 
--- Table: public.flip_pic_orders
+-- Table: flip_pic_orders
 
--- DROP TABLE public.flip_pic_orders;
+-- DROP TABLE flip_pic_orders;
 
-CREATE TABLE IF NOT EXISTS public.flip_pic_orders
+CREATE TABLE IF NOT EXISTS flip_pic_orders
 (
     flip_data_id   bigint   NOT NULL,
     answer_index   smallint NOT NULL,
     pos_index      smallint NOT NULL,
     flip_pic_index smallint NOT NULL,
     CONSTRAINT flip_pic_orders_flip_data_id_fkey FOREIGN KEY (flip_data_id)
-        REFERENCES public.flips_data (id) MATCH SIMPLE
+        REFERENCES flips_data (id) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION
 )
@@ -745,28 +718,14 @@ CREATE TABLE IF NOT EXISTS public.flip_pic_orders
     )
     TABLESPACE pg_default;
 
-ALTER TABLE public.flip_pic_orders
+ALTER TABLE flip_pic_orders
     OWNER to postgres;
 
--- View: public.current_balances
+-- View: epoch_identity_states
 
--- DROP VIEW public.current_balances;
+-- DROP VIEW epoch_identity_states;
 
-CREATE OR REPLACE VIEW public.current_balances AS
-SELECT address_id,
-       balance,
-       stake
-FROM balances
-where is_actual;
-
-ALTER TABLE public.current_balances
-    OWNER TO postgres;
-
--- View: public.epoch_identity_states
-
--- DROP VIEW public.epoch_identity_states;
-
-CREATE OR REPLACE VIEW public.epoch_identity_states AS
+CREATE OR REPLACE VIEW epoch_identity_states AS
 SELECT s.id AS address_state_id,
        s.address_id,
        s.prev_id,
@@ -784,14 +743,14 @@ WHERE ti.address_id IS NULL
                    FROM epochs)) AND s.is_actual AND NOT (b.epoch <> e.epoch AND (s.state::text = ANY
                                                                                   (ARRAY ['Undefined'::character varying, 'Killed'::character varying]::text[]))));
 
-ALTER TABLE public.epoch_identity_states
+ALTER TABLE epoch_identity_states
     OWNER TO postgres;
 
--- View: public.used_invites
+-- View: used_invites
 
--- DROP VIEW public.used_invites;
+-- DROP VIEW used_invites;
 
-CREATE OR REPLACE VIEW public.used_invites AS
+CREATE OR REPLACE VIEW used_invites AS
 SELECT DISTINCT ON (b.epoch, it."to") it.id AS invite_tx_id,
                                       t.id  AS activation_tx_id
 FROM transactions t
@@ -801,14 +760,14 @@ FROM transactions t
 WHERE t.type::text = 'ActivationTx'::text
 ORDER BY b.epoch, it."to", ib.height DESC;
 
-ALTER TABLE public.used_invites
+ALTER TABLE used_invites
     OWNER TO postgres;
 
--- View: public.epochs_detail
+-- View: epochs_detail
 
--- DROP VIEW public.epochs_detail;
+-- DROP VIEW epochs_detail;
 
-CREATE OR REPLACE VIEW public.epochs_detail AS
+CREATE OR REPLACE VIEW epochs_detail AS
 SELECT e.epoch,
        COALESCE(es.validated_count::bigint, (SELECT count(*) AS count
                                              FROM epoch_identities ei
@@ -873,6 +832,6 @@ FROM epochs e
          LEFT JOIN epoch_summaries es ON es.epoch = e.epoch
 ORDER BY e.epoch DESC;
 
-ALTER TABLE public.epochs_detail
+ALTER TABLE epochs_detail
     OWNER TO postgres;
 

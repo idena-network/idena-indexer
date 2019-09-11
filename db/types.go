@@ -5,6 +5,10 @@ import (
 	"math/big"
 )
 
+type RestoredData struct {
+	Balances []Balance
+}
+
 type Data struct {
 	Epoch               uint64
 	ValidationTime      big.Int
