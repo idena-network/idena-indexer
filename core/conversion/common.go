@@ -1,4 +1,4 @@
-package common
+package conversion
 
 import "github.com/idena-network/idena-go/common"
 

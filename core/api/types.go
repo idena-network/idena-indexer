@@ -5,12 +5,9 @@ import (
 	"time"
 )
 
-type Activity struct {
-	Address string    `json:"address"`
-	Time    time.Time `json:"timestamp"`
-}
-
-type Penalty struct {
-	Address string          `json:"address"`
-	Penalty decimal.Decimal `json:"penalty"`
+type OnlineIdentity struct {
+	Address      string          `json:"address"`
+	LastActivity *time.Time      `json:"lastActivity"`
+	Penalty      decimal.Decimal `json:"penalty"`
+	Online       bool            `json:"online"`
 }

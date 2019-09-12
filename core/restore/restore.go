@@ -3,7 +3,7 @@ package restore
 import (
 	"github.com/idena-network/idena-go/blockchain"
 	"github.com/idena-network/idena-go/core/appstate"
-	"github.com/idena-network/idena-indexer/core/common"
+	"github.com/idena-network/idena-indexer/core/conversion"
 	"github.com/idena-network/idena-indexer/db"
 	"github.com/idena-network/idena-indexer/log"
 	"github.com/pkg/errors"
@@ -68,8 +68,8 @@ func (r *Restorer) collectBalances() ([]db.Balance, error) {
 		if key == nil {
 			return true
 		}
-		address := common.BytesToAddr(key)
-		convertedAddress := common.ConvertAddress(address)
+		address := conversion.BytesToAddr(key)
+		convertedAddress := conversion.ConvertAddress(address)
 		balances = append(balances, db.Balance{
 			Address: convertedAddress,
 			Balance: blockchain.ConvertToFloat(appState.State.GetBalance(address)),

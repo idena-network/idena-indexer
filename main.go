@@ -4,9 +4,8 @@ import (
 	"fmt"
 	nodeLog "github.com/idena-network/idena-go/log"
 	"github.com/idena-network/idena-indexer/config"
-	"github.com/idena-network/idena-indexer/core/activity"
 	"github.com/idena-network/idena-indexer/core/api"
-	"github.com/idena-network/idena-indexer/core/penalty"
+	"github.com/idena-network/idena-indexer/core/holder/online"
 	"github.com/idena-network/idena-indexer/core/restore"
 	"github.com/idena-network/idena-indexer/core/server"
 	"github.com/idena-network/idena-indexer/db"
@@ -52,15 +51,17 @@ func main() {
 		// Indexer
 		conf := config.LoadConfig(context.String("indexerConfig"))
 		initLog(conf.Verbosity, conf.NodeVerbosity)
-		indxr := initIndexer(conf)
+		indxr, listener := initIndexer(conf)
 		defer indxr.Destroy()
 		indxr.Start()
 
 		// Server for explorer & indexer api
-		lastActivities := activity.NewLastActivitiesCache(indxr.OfflineDetector())
-		currentPenalties := penalty.NewCurrentPenaltiesCache(indxr.AppState(), indxr.Blockchain())
+		currentOnlineIdentitiesHolder := online.NewCurrentOnlineIdentitiesCache(listener.AppState(),
+			listener.Blockchain(),
+			listener.OfflineDetector())
+
 		explorerRi := e.RouterInitializer()
-		indexerApi := api.NewApi(lastActivities, currentPenalties)
+		indexerApi := api.NewApi(currentOnlineIdentitiesHolder)
 		ownRi := server.NewRouterInitializer(indexerApi, e.Logger())
 		apiServer := server.NewServer(explorerConf.Port, e.Logger())
 		go apiServer.Start(explorerRi, ownRi)
@@ -85,7 +86,7 @@ func initLog(verbosity int, nodeVerbosity int) {
 	}
 }
 
-func initIndexer(config *config.Config) *indexer.Indexer {
+func initIndexer(config *config.Config) (*indexer.Indexer, incoming.Listener) {
 	listener := incoming.NewListener(config.NodeConfigFile)
 	dbAccessor := db.NewPostgresAccessor(config.Postgres.ConnStr, config.Postgres.ScriptsDir)
 	restorer := restore.NewRestorer(dbAccessor, listener.AppState(), listener.Blockchain())
@@ -100,7 +101,7 @@ func initIndexer(config *config.Config) *indexer.Indexer {
 		restoreInitially = migrated
 	}
 
-	return indexer.NewIndexer(listener, dbAccessor, restorer, sfs, uint64(config.GenesisBlockHeight), restoreInitially)
+	return indexer.NewIndexer(listener, dbAccessor, restorer, sfs, uint64(config.GenesisBlockHeight), restoreInitially), listener
 }
 
 func migrateDataIfNeeded(config *config.Config) (bool, error) {

@@ -25,57 +25,30 @@ func NewRouterInitializer(api *api.Api, logger log.Logger) RouterInitializer {
 }
 
 func (ri *routerInitializer) InitRouter(router *mux.Router) {
-	router.Path(strings.ToLower("/Activities/Count")).HandlerFunc(ri.activitiesCount)
-	router.Path(strings.ToLower("/Activities")).
+	router.Path(strings.ToLower("/OnlineIdentities/Count")).HandlerFunc(ri.onlineIdentitiesCount)
+	router.Path(strings.ToLower("/OnlineIdentities")).
 		Queries("skip", "{skip}", "limit", "{limit}").
-		HandlerFunc(ri.activities)
+		HandlerFunc(ri.onlineIdentities)
 
-	router.Path(strings.ToLower("/Activity/{address}")).HandlerFunc(ri.activity)
-
-	router.Path(strings.ToLower("/CurrentPenalties/Count")).HandlerFunc(ri.currentPenaltiesCount)
-	router.Path(strings.ToLower("/CurrentPenalties")).
-		Queries("skip", "{skip}", "limit", "{limit}").
-		HandlerFunc(ri.currentPenalties)
-
-	router.Path(strings.ToLower("/CurrentPenalty/{address}")).HandlerFunc(ri.currentPenalty)
+	router.Path(strings.ToLower("/OnlineIdentity/{address}")).HandlerFunc(ri.onlineIdentity)
 }
 
-func (ri *routerInitializer) activitiesCount(w http.ResponseWriter, r *http.Request) {
-	resp := ri.api.GetLastActivitiesCount()
+func (ri *routerInitializer) onlineIdentitiesCount(w http.ResponseWriter, r *http.Request) {
+	resp := ri.api.GetOnlineIdentitiesCount()
 	WriteResponse(w, resp, nil, ri.logger)
 }
 
-func (ri *routerInitializer) activities(w http.ResponseWriter, r *http.Request) {
+func (ri *routerInitializer) onlineIdentities(w http.ResponseWriter, r *http.Request) {
 	startIndex, count, err := ReadPaginatorParams(mux.Vars(r))
 	if err != nil {
 		WriteErrorResponse(w, err, ri.logger)
 		return
 	}
-	resp := ri.api.GetLastActivities(startIndex, count)
+	resp := ri.api.GetOnlineIdentities(startIndex, count)
 	WriteResponse(w, resp, nil, ri.logger)
 }
 
-func (ri *routerInitializer) activity(w http.ResponseWriter, r *http.Request) {
-	resp := ri.api.GetLastActivity(mux.Vars(r)["address"])
-	WriteResponse(w, resp, nil, ri.logger)
-}
-
-func (ri *routerInitializer) currentPenaltiesCount(w http.ResponseWriter, r *http.Request) {
-	resp := ri.api.GetCurrentPenaltiesCount()
-	WriteResponse(w, resp, nil, ri.logger)
-}
-
-func (ri *routerInitializer) currentPenalties(w http.ResponseWriter, r *http.Request) {
-	startIndex, count, err := ReadPaginatorParams(mux.Vars(r))
-	if err != nil {
-		WriteErrorResponse(w, err, ri.logger)
-		return
-	}
-	resp := ri.api.GetCurrentPenalties(startIndex, count)
-	WriteResponse(w, resp, nil, ri.logger)
-}
-
-func (ri *routerInitializer) currentPenalty(w http.ResponseWriter, r *http.Request) {
-	resp := ri.api.GetCurrentPenalty(mux.Vars(r)["address"])
+func (ri *routerInitializer) onlineIdentity(w http.ResponseWriter, r *http.Request) {
+	resp := ri.api.GetOnlineIdentity(mux.Vars(r)["address"])
 	WriteResponse(w, resp, nil, ri.logger)
 }

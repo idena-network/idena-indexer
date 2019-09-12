@@ -1,78 +1,50 @@
 package api
 
 import (
-	"github.com/idena-network/idena-indexer/core/activity"
-	"github.com/idena-network/idena-indexer/core/penalty"
+	"github.com/idena-network/idena-indexer/core/holder/online"
 )
 
 type Api struct {
-	lastActivities   activity.LastActivitiesHolder
-	currentPenalties penalty.CurrentPenaltiesHolder
+	onlineIdentities online.CurrentOnlineIdentitiesHolder
 }
 
-func NewApi(lastActivities activity.LastActivitiesHolder, currentPenalties penalty.CurrentPenaltiesHolder) *Api {
+func NewApi(onlineIdentities online.CurrentOnlineIdentitiesHolder) *Api {
 	return &Api{
-		lastActivities:   lastActivities,
-		currentPenalties: currentPenalties,
+		onlineIdentities: onlineIdentities,
 	}
 }
 
-func (a *Api) GetLastActivitiesCount() uint64 {
-	return uint64(len(a.lastActivities.GetAll()))
+func (a *Api) GetOnlineIdentitiesCount() uint64 {
+	return uint64(len(a.onlineIdentities.GetAll()))
 }
 
-func (a *Api) GetLastActivities(startIndex, count uint64) []*Activity {
-	var res []*Activity
-	all := a.lastActivities.GetAll()
+func (a *Api) GetOnlineIdentities(startIndex, count uint64) []*OnlineIdentity {
+	var res []*OnlineIdentity
+	all := a.onlineIdentities.GetAll()
 	if len(all) > 0 {
 		for i := startIndex; i >= 0 && i < startIndex+count && i < uint64(len(all)); i++ {
-			la := all[i]
-			res = append(res, &Activity{
-				Address: la.Address,
-				Time:    la.Time,
-			})
+			res = append(res, convertOnlineIdentity(all[i]))
 		}
 	}
 	return res
 }
 
-func (a *Api) GetLastActivity(address string) *Activity {
-	la := a.lastActivities.Get(address)
-	if la == nil {
+func (a *Api) GetOnlineIdentity(address string) *OnlineIdentity {
+	oi := a.onlineIdentities.Get(address)
+	if oi == nil {
 		return nil
 	}
-	return &Activity{
-		Address: la.Address,
-		Time:    la.Time,
-	}
+	return convertOnlineIdentity(oi)
 }
 
-func (a *Api) GetCurrentPenaltiesCount() uint64 {
-	return uint64(len(a.currentPenalties.GetAll()))
-}
-
-func (a *Api) GetCurrentPenalties(startIndex, count uint64) []*Penalty {
-	var res []*Penalty
-	all := a.currentPenalties.GetAll()
-	if len(all) > 0 {
-		for i := startIndex; i >= 0 && i < startIndex+count && i < uint64(len(all)); i++ {
-			la := all[i]
-			res = append(res, &Penalty{
-				Address: la.Address,
-				Penalty: la.Penalty,
-			})
-		}
-	}
-	return res
-}
-
-func (a *Api) GetCurrentPenalty(address string) *Penalty {
-	la := a.currentPenalties.Get(address)
-	if la == nil {
+func convertOnlineIdentity(oi *online.Identity) *OnlineIdentity {
+	if oi == nil {
 		return nil
 	}
-	return &Penalty{
-		Address: la.Address,
-		Penalty: la.Penalty,
+	return &OnlineIdentity{
+		Address:      oi.Address,
+		LastActivity: oi.LastActivity,
+		Penalty:      oi.Penalty,
+		Online:       oi.Online,
 	}
 }

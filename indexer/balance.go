@@ -8,7 +8,7 @@ import (
 	"github.com/idena-network/idena-go/core/appstate"
 	"github.com/idena-network/idena-go/core/state"
 	"github.com/idena-network/idena-go/core/validators"
-	indexerCommon "github.com/idena-network/idena-indexer/core/common"
+	"github.com/idena-network/idena-indexer/core/conversion"
 	"github.com/idena-network/idena-indexer/db"
 	"github.com/idena-network/idena-indexer/log"
 	"math/big"
@@ -54,9 +54,9 @@ func NewBlockBalanceUpdateDetector(block *types.Block, isFirstBlock bool, prevSt
 			if key == nil {
 				return true
 			}
-			addr := indexerCommon.BytesToAddr(key)
+			addr := conversion.BytesToAddr(key)
 			addresses = append(addresses, addr)
-			convertedAddress := indexerCommon.ConvertAddress(addr)
+			convertedAddress := conversion.ConvertAddress(addr)
 			ctx.addresses[convertedAddress] = &db.Address{
 				Address: convertedAddress,
 			}
@@ -96,7 +96,7 @@ func (d *BlockBalanceUpdateDetector) GetUpdates(state *appstate.AppState) ([]db.
 		var totalDiff *balanceDiff
 		for _, prevBalance := range d.detector.prevBalances {
 			res = append(res, db.Balance{
-				Address: indexerCommon.ConvertAddress(prevBalance.address),
+				Address: conversion.ConvertAddress(prevBalance.address),
 				Balance: blockchain.ConvertToFloat(prevBalance.balance),
 				Stake:   blockchain.ConvertToFloat(prevBalance.stake),
 			})
@@ -186,7 +186,7 @@ func (d *balanceUpdateDetector) detectUpdate(ab addrBalance, state *appstate.App
 		burntStake = burntStake.Sub(prevStake, stake)
 	}
 	return db.Balance{
-			Address: indexerCommon.ConvertAddress(ab.address),
+			Address: conversion.ConvertAddress(ab.address),
 			Balance: blockchain.ConvertToFloat(balance),
 			Stake:   blockchain.ConvertToFloat(stake),
 		}, balanceDiff{

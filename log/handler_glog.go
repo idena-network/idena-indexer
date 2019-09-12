@@ -181,7 +181,7 @@ func (h *GlogHandler) BacktraceAt(location string) error {
 func (h *GlogHandler) Log(r *Record) error {
 	// If backtracing is requested, check whether this is the callsite
 	if atomic.LoadUint32(&h.backtrace) > 0 {
-		// Everything below here is slow. Although we could cache the call sites the
+		// Everything below here is slow. Although we could holder the call sites the
 		// same way as for vmodule, backtracing is so rare it's not worth the extra
 		// complexity.
 		h.lock.RLock()
@@ -205,12 +205,12 @@ func (h *GlogHandler) Log(r *Record) error {
 	if atomic.LoadUint32(&h.override) == 0 {
 		return nil
 	}
-	// Check callsite cache for previously calculated log levels
+	// Check callsite holder for previously calculated log levels
 	h.lock.RLock()
 	lvl, ok := h.siteCache[r.Call.PC()]
 	h.lock.RUnlock()
 
-	// If we didn't cache the callsite yet, calculate it
+	// If we didn't holder the callsite yet, calculate it
 	if !ok {
 		h.lock.Lock()
 		for _, rule := range h.patterns {
