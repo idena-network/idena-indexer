@@ -42,14 +42,15 @@ select setval('flip_keys_id_seq', max(id))
 from flip_keys;
 
 -- flips
-insert into flips (select *
+insert into flips (select id,
+                          tx_id,
+                          cid,
+                          size,
+                          (case when status_block_height <= $1 then status_block_height else null end),
+                          (case when status_block_height <= $1 then answer else null end),
+                          (case when status_block_height <= $1 then status else null end)
                    from OLD_SCHEMA_TAG.flips
                    where tx_id in (select id from OLD_SCHEMA_TAG.transactions where block_height <= $1));
-update flips
-set status_block_height=null,
-    status=null,
-    answer=null
-where status_block_height > $1;
 -- flips sequence
 select setval('flips_id_seq', max(id))
 from flips;
