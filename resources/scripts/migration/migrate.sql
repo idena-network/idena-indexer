@@ -130,3 +130,6 @@ insert into coins (select * from OLD_SCHEMA_TAG.coins where block_height <= $1);
 
 -- epoch_summaries
 insert into epoch_summaries (select * from OLD_SCHEMA_TAG.epoch_summaries where block_height <= $1);
+
+-- penalties
+insert into penalties (select * from OLD_SCHEMA_TAG.penalties where block_height <= $1);

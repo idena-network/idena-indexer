@@ -721,6 +721,32 @@ CREATE TABLE IF NOT EXISTS flip_pic_orders
 ALTER TABLE flip_pic_orders
     OWNER to postgres;
 
+-- Table: penalties
+
+-- DROP TABLE penalties;
+
+CREATE TABLE IF NOT EXISTS penalties
+(
+    address_id   bigint          NOT NULL,
+    penalty      numeric(30, 18) NOT NULL,
+    block_height bigint          NOT NULL,
+    CONSTRAINT penalties_address_id_fkey FOREIGN KEY (address_id)
+        REFERENCES addresses (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT penalties_block_height_fkey FOREIGN KEY (block_height)
+        REFERENCES blocks (height) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+)
+    WITH (
+        OIDS = FALSE
+    )
+    TABLESPACE pg_default;
+
+ALTER TABLE penalties
+    OWNER to postgres;
+
 -- View: epoch_identity_states
 
 -- DROP VIEW epoch_identity_states;

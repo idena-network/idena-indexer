@@ -1,3 +1,8 @@
+-- penalties
+delete
+from penalties
+where block_height > $1;
+
 -- epoch_summaries
 delete
 from epoch_summaries

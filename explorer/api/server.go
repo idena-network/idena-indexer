@@ -163,6 +163,10 @@ func (s *httpServer) InitRouter(router *mux.Router) {
 	router.Path(strings.ToLower("/Address/{address}/Txs")).
 		Queries("skip", "{skip}", "limit", "{limit}").
 		HandlerFunc(s.identityTxs)
+	router.Path(strings.ToLower("/Address/{address}/Penalties/Count")).HandlerFunc(s.addressPenaltiesCount)
+	router.Path(strings.ToLower("/Address/{address}/Penalties")).
+		Queries("skip", "{skip}", "limit", "{limit}").
+		HandlerFunc(s.addressPenalties)
 
 	router.Path(strings.ToLower("/Balances/Count")).HandlerFunc(s.balancesCount)
 	router.Path(strings.ToLower("/Balances")).
@@ -653,6 +657,22 @@ func (s *httpServer) flipAnswers(w http.ResponseWriter, r *http.Request, isShort
 
 func (s *httpServer) address(w http.ResponseWriter, r *http.Request) {
 	resp, err := s.db.Address(mux.Vars(r)["address"])
+	server.WriteResponse(w, resp, err, s.log)
+}
+
+func (s *httpServer) addressPenaltiesCount(w http.ResponseWriter, r *http.Request) {
+	resp, err := s.db.AddressPenaltiesCount(mux.Vars(r)["address"])
+	server.WriteResponse(w, resp, err, s.log)
+}
+
+func (s *httpServer) addressPenalties(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	startIndex, count, err := server.ReadPaginatorParams(vars)
+	if err != nil {
+		server.WriteErrorResponse(w, err, s.log)
+		return
+	}
+	resp, err := s.db.AddressPenalties(vars["address"], startIndex, count)
 	server.WriteResponse(w, resp, err, s.log)
 }
 

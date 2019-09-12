@@ -25,6 +25,7 @@ type Data struct {
 	BalanceCoins        Coins
 	StakeCoins          Coins
 	SaveEpochSummary    bool
+	Penalty             *Penalty
 }
 
 type Block struct {
@@ -135,4 +136,9 @@ type Coins struct {
 type AddressFlipCid struct {
 	Address string
 	Cid     string
+}
+
+type Penalty struct {
+	Address string
+	Penalty decimal.Decimal
 }

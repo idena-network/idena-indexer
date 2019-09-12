@@ -204,3 +204,12 @@ type Balance struct {
 	Balance decimal.Decimal `json:"balance"`
 	Stake   decimal.Decimal `json:"stake"`
 }
+
+type Penalty struct {
+	Address     string          `json:"address"`
+	Penalty     decimal.Decimal `json:"penalty"`
+	BlockHeight uint64          `json:"blockHeight"`
+	BlockHash   string          `json:"blockHash"`
+	Timestamp   time.Time       `json:"timestamp"`
+	Epoch       uint64          `json:"epoch"`
+}

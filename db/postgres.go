@@ -55,6 +55,7 @@ const (
 	insertCoinsQuery                = "insertCoins.sql"
 	insertBlockFlagQuery            = "insertBlockFlag.sql"
 	insertEpochSummaryQuery         = "insertEpochSummary.sql"
+	insertPenaltyQuery              = "insertPenalty.sql"
 )
 
 func (a *postgresAccessor) getQuery(name string) string {
@@ -237,6 +238,10 @@ func (a *postgresAccessor) Save(data *Data) error {
 		if err = a.saveEpochSummary(ctx, data.BalanceCoins, data.StakeCoins); err != nil {
 			return err
 		}
+	}
+
+	if err = a.savePenalty(ctx, data.Penalty); err != nil {
+		return err
 	}
 
 	return tx.Commit()
@@ -704,6 +709,14 @@ func (a *postgresAccessor) saveFlipKey(ctx *context, txId int64, key FlipKey) er
 func (a *postgresAccessor) saveEpochSummary(ctx *context, balanceCoins Coins, stakeCoins Coins) error {
 	_, err := ctx.tx.Exec(a.getQuery(insertEpochSummaryQuery), ctx.epoch, ctx.blockHeight, balanceCoins.Total, stakeCoins.Total)
 	return errors.Wrapf(err, "unable to save epoch summary for %s", ctx.epoch)
+}
+
+func (a *postgresAccessor) savePenalty(ctx *context, penalty *Penalty) error {
+	if penalty == nil {
+		return nil
+	}
+	_, err := ctx.tx.Exec(a.getQuery(insertPenaltyQuery), penalty.Address, penalty.Penalty, ctx.blockHeight)
+	return errors.Wrapf(err, "unable to save penalty")
 }
 
 func (a *postgresAccessor) Destroy() {

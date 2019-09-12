@@ -144,7 +144,7 @@ func (indexer *Indexer) indexBlock(block *types.Block) {
 				indexer.waitForRetry()
 			} else {
 				log.Info(fmt.Sprintf("Indexer db has been reset to height=%d", height))
-				indexer.restore = true
+				indexer.restore = !indexer.isFirstBlockHeight(block.Height())
 			}
 			// retry in any case to ensure incoming height equals to expected height to index after reset
 			continue
@@ -248,6 +248,7 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) *db.Data
 		StakeCoins:          indexer.getStakeCoins(ctx),
 		SaveEpochSummary:    incomingBlock.Header.Flags().HasFlag(types.ValidationFinished),
 		PrevBlockValidators: indexer.convertPrevBlockValidators(incomingBlock, ctx),
+		Penalty:             indexer.determinePenalty(incomingBlock, ctx),
 	}
 }
 

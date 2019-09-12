@@ -65,7 +65,7 @@ func (cache *currentOnlineIdentitiesCache) initialize(appState *appstate.AppStat
 	chain *blockchain.Blockchain,
 	offlineDetector *blockchain.OfflineDetector) {
 	updater := currentOnlineIdentitiesCacheUpdater{
-		log:             log.New("cacheUpdater", "currentOnlineIdentities"),
+		log:             log.New("component", "currentOnlineIdentitiesCacheUpdater"),
 		cache:           cache,
 		appState:        appState,
 		chain:           chain,
