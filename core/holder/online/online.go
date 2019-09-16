@@ -98,6 +98,9 @@ func (updater *currentOnlineIdentitiesCacheUpdater) update() {
 
 	activityMap := updater.offlineDetector.GetActivityMap()
 	appState.State.IterateOverIdentities(func(address common.Address, identity state.Identity) {
+		if identity.State != state.Newbie && identity.State != state.Verified {
+			return
+		}
 		addressStr := conversion.ConvertAddress(address)
 		var lastActivity *time.Time
 		if t, present := activityMap[address]; present {
