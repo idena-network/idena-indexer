@@ -721,20 +721,63 @@ CREATE TABLE IF NOT EXISTS flip_pic_orders
 ALTER TABLE flip_pic_orders
     OWNER to postgres;
 
+-- SEQUENCE: penalties_id_seq
+
+-- DROP SEQUENCE penalties_id_seq;
+
+CREATE SEQUENCE IF NOT EXISTS penalties_id_seq
+    INCREMENT 1
+    START 1
+    MINVALUE 1
+    MAXVALUE 9223372036854775807
+    CACHE 1;
+
+ALTER SEQUENCE penalties_id_seq
+    OWNER TO postgres;
+
 -- Table: penalties
 
 -- DROP TABLE penalties;
 
 CREATE TABLE IF NOT EXISTS penalties
 (
+    id           bigint          NOT NULL DEFAULT nextval('penalties_id_seq'::regclass),
     address_id   bigint          NOT NULL,
     penalty      numeric(30, 18) NOT NULL,
     block_height bigint          NOT NULL,
+    CONSTRAINT penalties_pkey PRIMARY KEY (id),
     CONSTRAINT penalties_address_id_fkey FOREIGN KEY (address_id)
         REFERENCES addresses (id) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION,
     CONSTRAINT penalties_block_height_fkey FOREIGN KEY (block_height)
+        REFERENCES blocks (height) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+)
+    WITH (
+        OIDS = FALSE
+    )
+    TABLESPACE pg_default;
+
+ALTER TABLE penalties
+    OWNER to postgres;
+
+-- Table: paid_penalties
+
+-- DROP TABLE penalties;
+
+CREATE TABLE IF NOT EXISTS paid_penalties
+(
+    penalty_id   bigint          NOT NULL,
+    penalty      numeric(30, 18) NOT NULL,
+    block_height bigint          NOT NULL,
+    CONSTRAINT paid_penalties_pkey PRIMARY KEY (penalty_id),
+    CONSTRAINT paid_penalties_penalty_id_fkey FOREIGN KEY (penalty_id)
+        REFERENCES penalties (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT paid_penalties_block_height_fkey FOREIGN KEY (block_height)
         REFERENCES blocks (height) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION

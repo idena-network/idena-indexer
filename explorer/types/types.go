@@ -208,6 +208,7 @@ type Balance struct {
 type Penalty struct {
 	Address     string          `json:"address"`
 	Penalty     decimal.Decimal `json:"penalty"`
+	Paid        decimal.Decimal `json:"paid"`
 	BlockHeight uint64          `json:"blockHeight"`
 	BlockHash   string          `json:"blockHash"`
 	Timestamp   time.Time       `json:"timestamp"`

@@ -134,3 +134,10 @@ insert into epoch_summaries (select * from OLD_SCHEMA_TAG.epoch_summaries where 
 
 -- penalties
 insert into penalties (select * from OLD_SCHEMA_TAG.penalties where block_height <= $1);
+
+-- penalties sequence
+select setval('penalties_id_seq', max(id))
+from penalties;
+
+-- penalties
+insert into paid_penalties (select * from OLD_SCHEMA_TAG.paid_penalties where block_height <= $1);

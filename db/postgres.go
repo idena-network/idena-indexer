@@ -56,6 +56,8 @@ const (
 	insertBlockFlagQuery            = "insertBlockFlag.sql"
 	insertEpochSummaryQuery         = "insertEpochSummary.sql"
 	insertPenaltyQuery              = "insertPenalty.sql"
+	selectLastPenaltyQuery          = "selectLastPenalty.sql"
+	insertPaidPenaltyQuery          = "insertPaidPenalty.sql"
 )
 
 func (a *postgresAccessor) getQuery(name string) string {
@@ -241,6 +243,10 @@ func (a *postgresAccessor) Save(data *Data) error {
 	}
 
 	if err = a.savePenalty(ctx, data.Penalty); err != nil {
+		return err
+	}
+
+	if err = a.savePaidPenalties(ctx, data.BurntPenalties); err != nil {
 		return err
 	}
 
@@ -717,6 +723,30 @@ func (a *postgresAccessor) savePenalty(ctx *context, penalty *Penalty) error {
 	}
 	_, err := ctx.tx.Exec(a.getQuery(insertPenaltyQuery), penalty.Address, penalty.Penalty, ctx.blockHeight)
 	return errors.Wrapf(err, "unable to save penalty")
+}
+
+func (a *postgresAccessor) savePaidPenalties(ctx *context, burntPenalties []Penalty) error {
+	if len(burntPenalties) == 0 {
+		return nil
+	}
+	for _, burntPenalty := range burntPenalties {
+		if err := a.savePaidPenalty(ctx, burntPenalty); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (a *postgresAccessor) savePaidPenalty(ctx *context, burntPenalty Penalty) error {
+	var id int64
+	var penalty decimal.Decimal
+	err := ctx.tx.QueryRow(a.getQuery(selectLastPenaltyQuery), burntPenalty.Address).Scan(&id, &penalty)
+	if err != nil {
+		return errors.Wrapf(err, "unable to get last penalty")
+	}
+	paidPenalty := penalty.Sub(burntPenalty.Penalty)
+	_, err = ctx.tx.Exec(a.getQuery(insertPaidPenaltyQuery), id, paidPenalty, ctx.blockHeight)
+	return errors.Wrapf(err, "unable to save paid penalty")
 }
 
 func (a *postgresAccessor) Destroy() {

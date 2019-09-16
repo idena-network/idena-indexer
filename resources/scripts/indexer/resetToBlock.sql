@@ -1,3 +1,8 @@
+-- paid_penalties
+delete
+from paid_penalties
+where block_height > $1;
+
 -- penalties
 delete
 from penalties

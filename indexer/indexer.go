@@ -248,7 +248,9 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) *db.Data
 		StakeCoins:          indexer.getStakeCoins(ctx),
 		SaveEpochSummary:    incomingBlock.Header.Flags().HasFlag(types.ValidationFinished),
 		PrevBlockValidators: indexer.convertPrevBlockValidators(incomingBlock, ctx),
-		Penalty:             indexer.determinePenalty(incomingBlock, ctx),
+		Penalty:             detectChargedPenalty(incomingBlock, ctx.newStateReadOnly),
+		BurntPenalties: detectBurntPenalties(incomingBlock, ctx.prevStateReadOnly, ctx.newStateReadOnly,
+			indexer.listener.Blockchain()),
 	}
 }
 

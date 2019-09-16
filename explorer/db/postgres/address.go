@@ -27,6 +27,7 @@ func (a *postgresAccessor) AddressPenalties(address string, startIndex uint64, c
 		var timestamp int64
 		err = rows.Scan(&item.Address,
 			&item.Penalty,
+			&item.Paid,
 			&item.BlockHeight,
 			&item.BlockHash,
 			&timestamp,

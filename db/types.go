@@ -26,6 +26,7 @@ type Data struct {
 	StakeCoins          Coins
 	SaveEpochSummary    bool
 	Penalty             *Penalty
+	BurntPenalties      []Penalty
 }
 
 type Block struct {
