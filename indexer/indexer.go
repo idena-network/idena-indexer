@@ -343,6 +343,7 @@ func (indexer *Indexer) convertBlock(incomingBlock *types.Block, ctx *conversion
 		Proposer:     getProposer(incomingBlock),
 		Flags:        convertFlags(incomingBlock.Header.Flags()),
 		IsEmpty:      incomingBlock.IsEmpty(),
+		Size:         len(incomingBlock.Body.Bytes()),
 	}
 }
 
@@ -471,6 +472,7 @@ func (indexer *Indexer) convertTransaction(incomingTx *types.Transaction, ctx *c
 		To:      to,
 		Amount:  blockchain.ConvertToFloat(incomingTx.Amount),
 		Fee:     blockchain.ConvertToFloat(fee),
+		Size:    incomingTx.Size(),
 	}
 
 	return tx

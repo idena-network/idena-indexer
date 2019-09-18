@@ -38,6 +38,7 @@ type Block struct {
 	Proposer           string
 	Flags              []string
 	IsEmpty            bool
+	Size               int
 }
 
 type Transaction struct {
@@ -48,6 +49,7 @@ type Transaction struct {
 	Amount  decimal.Decimal
 	Fee     decimal.Decimal
 	Payload []byte
+	Size    int
 }
 
 type EpochIdentity struct {

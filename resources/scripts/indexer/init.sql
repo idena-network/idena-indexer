@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS blocks
     "timestamp"      bigint                                     NOT NULL,
     is_empty         boolean                                    NOT NULL,
     validators_count integer                                    NOT NULL,
+    size             integer                                    NOT NULL,
     CONSTRAINT blocks_pkey PRIMARY KEY (height),
     CONSTRAINT blocks_epoch_fkey FOREIGN KEY (epoch)
         REFERENCES epochs (epoch) MATCH SIMPLE
@@ -194,8 +195,9 @@ CREATE TABLE IF NOT EXISTS transactions
     type         character varying(20) COLLATE pg_catalog."default" NOT NULL,
     "from"       bigint                                             NOT NULL,
     "to"         bigint,
-    amount       numeric(30, 18),
-    fee          numeric(30, 18),
+    amount       numeric(30, 18)                                    NOT NULL,
+    fee          numeric(30, 18)                                    NOT NULL,
+    size         integer                                            NOT NULL,
     CONSTRAINT transactions_pkey PRIMARY KEY (id),
     CONSTRAINT transactions_block_height_fkey FOREIGN KEY (block_height)
         REFERENCES blocks (height) MATCH SIMPLE

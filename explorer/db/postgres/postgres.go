@@ -177,7 +177,7 @@ func (a *postgresAccessor) Transaction(hash string) (types.TransactionDetail, er
 	res := types.TransactionDetail{}
 	var timestamp int64
 	err := a.db.QueryRow(a.getQuery(transactionQuery), hash).Scan(&res.Epoch, &res.BlockHeight, &res.BlockHash,
-		&res.Hash, &res.Type, &timestamp, &res.From, &res.To, &res.Amount, &res.Fee)
+		&res.Hash, &res.Type, &timestamp, &res.From, &res.To, &res.Amount, &res.Fee, &res.Size)
 	if err == sql.ErrNoRows {
 		err = NoDataFound
 	}

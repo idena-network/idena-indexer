@@ -35,6 +35,7 @@ type BlockSummary struct {
 	Proposer  string    `json:"proposer"`
 	IsEmpty   bool      `json:"isEmpty"`
 	Coins     AllCoins  `json:"coins"`
+	Size      uint32    `json:"size"`
 }
 
 type BlockDetail struct {
@@ -45,6 +46,7 @@ type BlockDetail struct {
 	ValidatorsCount uint16    `json:"validatorsCount"`
 	Proposer        string    `json:"proposer"`
 	IsEmpty         bool      `json:"isEmpty"`
+	Size            uint32    `json:"size"`
 }
 
 type IdentityState struct {
@@ -64,6 +66,7 @@ type TransactionSummary struct {
 	To        string          `json:"to,omitempty"`
 	Amount    decimal.Decimal `json:"amount"`
 	Fee       decimal.Decimal `json:"fee"`
+	Size      uint32          `json:"size"`
 }
 
 type TransactionDetail struct {
@@ -77,6 +80,7 @@ type TransactionDetail struct {
 	To          string          `json:"to,omitempty"`
 	Amount      decimal.Decimal `json:"amount"`
 	Fee         decimal.Decimal `json:"fee"`
+	Size        uint32          `json:"size"`
 }
 
 type FlipSummary struct {

@@ -42,7 +42,14 @@ func (a *postgresAccessor) readTxs(rows *sql.Rows) ([]types.TransactionSummary, 
 	for rows.Next() {
 		item := types.TransactionSummary{}
 		var timestamp int64
-		if err := rows.Scan(&item.Hash, &item.Type, &timestamp, &item.From, &item.To, &item.Amount, &item.Fee); err != nil {
+		if err := rows.Scan(&item.Hash,
+			&item.Type,
+			&timestamp,
+			&item.From,
+			&item.To,
+			&item.Amount,
+			&item.Fee,
+			&item.Size); err != nil {
 			return nil, err
 		}
 		item.Timestamp = common.TimestampToTime(big.NewInt(timestamp))

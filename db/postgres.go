@@ -393,7 +393,14 @@ func (a *postgresAccessor) saveEpoch(ctx *context, epoch uint64, validationTime 
 }
 
 func (a *postgresAccessor) saveBlock(ctx *context, block Block) error {
-	_, err := ctx.tx.Exec(a.getQuery(insertBlockQuery), block.Height, block.Hash, ctx.epoch, block.Time.Int64(), block.IsEmpty, 0)
+	_, err := ctx.tx.Exec(a.getQuery(insertBlockQuery),
+		block.Height,
+		block.Hash,
+		ctx.epoch,
+		block.Time.Int64(),
+		block.IsEmpty,
+		0,
+		block.Size)
 	return err
 }
 
@@ -660,8 +667,15 @@ func (a *postgresAccessor) saveTransaction(ctx *context, tx Transaction) (int64,
 	} else {
 		to = nil
 	}
-	err = ctx.tx.QueryRow(a.getQuery(insertTransactionQuery), tx.Hash, ctx.blockHeight, tx.Type, from, to,
-		tx.Amount, tx.Fee).Scan(&id)
+	err = ctx.tx.QueryRow(a.getQuery(insertTransactionQuery),
+		tx.Hash,
+		ctx.blockHeight,
+		tx.Type,
+		from,
+		to,
+		tx.Amount,
+		tx.Fee,
+		tx.Size).Scan(&id)
 	return id, err
 }
 
