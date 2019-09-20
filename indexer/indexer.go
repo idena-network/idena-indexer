@@ -55,6 +55,7 @@ var (
 		types.ActivationTx:         "ActivationTx",
 		types.InviteTx:             "InviteTx",
 		types.KillTx:               "KillTx",
+		types.KillInviteeTx:        "KillInviteeTx",
 		types.SubmitFlipTx:         "SubmitFlipTx",
 		types.SubmitAnswersHashTx:  "SubmitAnswersHashTx",
 		types.SubmitShortAnswersTx: "SubmitShortAnswersTx",
@@ -67,6 +68,7 @@ var (
 		ceremony.NotQualified:    "NotQualified",
 		ceremony.Qualified:       "Qualified",
 		ceremony.WeaklyQualified: "WeaklyQualified",
+		ceremony.QualifiedByNone: "QualifiedByNone",
 	}
 
 	answers = map[types.Answer]string{
@@ -278,11 +280,11 @@ func (indexer *Indexer) getStakeCoins(ctx *conversionContext) db.Coins {
 }
 
 func getCoins(prevTotal decimal.Decimal, burnt decimal.Decimal, diff decimal.Decimal) db.Coins {
-	total := prevTotal.Add(blockchain.ConvertToFloat(math.ToInt(&diff)))
+	total := prevTotal.Add(blockchain.ConvertToFloat(math.ToInt(diff)))
 	minted := burnt.Add(diff)
 	res := db.Coins{
-		Minted: blockchain.ConvertToFloat(math.ToInt(&minted)),
-		Burnt:  blockchain.ConvertToFloat(math.ToInt(&burnt)),
+		Minted: blockchain.ConvertToFloat(math.ToInt(minted)),
+		Burnt:  blockchain.ConvertToFloat(math.ToInt(burnt)),
 		Total:  total,
 	}
 	return res
