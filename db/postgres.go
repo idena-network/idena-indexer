@@ -58,6 +58,11 @@ const (
 	insertPenaltyQuery              = "insertPenalty.sql"
 	selectLastPenaltyQuery          = "selectLastPenalty.sql"
 	insertPaidPenaltyQuery          = "insertPaidPenalty.sql"
+	insertBadAuthorQuery            = "insertBadAuthor.sql"
+	insertGoodAuthorQuery           = "insertGoodAuthor.sql"
+	insertTotalRewardsQuery         = "insertTotalRewards.sql"
+	insertValidationRewardQuery     = "insertValidationReward.sql"
+	insertFundRewardQuery           = "insertFundReward.sql"
 )
 
 func (a *postgresAccessor) getQuery(name string) string {
@@ -247,6 +252,10 @@ func (a *postgresAccessor) Save(data *Data) error {
 	}
 
 	if err = a.savePaidPenalties(ctx, data.BurntPenalties); err != nil {
+		return err
+	}
+
+	if err = a.saveEpochRewards(ctx, data.EpochRewards); err != nil {
 		return err
 	}
 
@@ -562,9 +571,6 @@ func (a *postgresAccessor) saveBalance(tx *sql.Tx, balance Balance) error {
 }
 
 func (a *postgresAccessor) saveIdentities(ctx *context, identities []EpochIdentity) error {
-	if len(identities) == 0 {
-		return nil
-	}
 	for _, identity := range identities {
 		identityStateId, err := a.saveIdentityState(ctx, identity)
 		if err != nil {
@@ -761,6 +767,111 @@ func (a *postgresAccessor) savePaidPenalty(ctx *context, burntPenalty Penalty) e
 	paidPenalty := penalty.Sub(burntPenalty.Penalty)
 	_, err = ctx.tx.Exec(a.getQuery(insertPaidPenaltyQuery), id, paidPenalty, ctx.blockHeight)
 	return errors.Wrapf(err, "unable to save paid penalty")
+}
+
+func (a *postgresAccessor) saveEpochRewards(ctx *context, epochRewards *EpochRewards) error {
+	if epochRewards == nil {
+		return nil
+	}
+	if err := a.saveBadAuthors(ctx, epochRewards.BadAuthors); err != nil {
+		return err
+	}
+	if err := a.saveGoodAuthors(ctx, epochRewards.GoodAuthors); err != nil {
+		return err
+	}
+	if err := a.saveTotalRewards(ctx, epochRewards.Total); err != nil {
+		return err
+	}
+	if err := a.saveValidationRewards(ctx, epochRewards.ValidationRewards); err != nil {
+		return err
+	}
+	if err := a.saveFundRewards(ctx, epochRewards.FundRewards); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (a *postgresAccessor) saveBadAuthors(ctx *context, badAuthors []string) error {
+	for _, badAuthor := range badAuthors {
+		if err := a.saveBadAuthor(ctx, badAuthor); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (a *postgresAccessor) saveBadAuthor(ctx *context, badAuthor string) error {
+	_, err := ctx.tx.Exec(a.getQuery(insertBadAuthorQuery), ctx.epochIdentityIdsPerAddr[badAuthor])
+	return errors.Wrapf(err, "unable to save bad author")
+}
+
+func (a *postgresAccessor) saveGoodAuthors(ctx *context, goodAuthors []*ValidationResult) error {
+	for _, goodAuthor := range goodAuthors {
+		if err := a.saveGoodAuthor(ctx, goodAuthor); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (a *postgresAccessor) saveGoodAuthor(ctx *context, goodAuthor *ValidationResult) error {
+	_, err := ctx.tx.Exec(a.getQuery(insertGoodAuthorQuery),
+		ctx.epochIdentityIdsPerAddr[goodAuthor.Address],
+		goodAuthor.StrongFlips,
+		goodAuthor.WeakFlips,
+		goodAuthor.SuccessfulInvites)
+	return errors.Wrapf(err, "unable to save good author")
+}
+
+func (a *postgresAccessor) saveTotalRewards(ctx *context, totalRewards *TotalRewards) error {
+	if totalRewards == nil {
+		return nil
+	}
+	_, err := ctx.tx.Exec(a.getQuery(insertTotalRewardsQuery),
+		ctx.blockHeight,
+		totalRewards.Total,
+		totalRewards.Validation,
+		totalRewards.Flips,
+		totalRewards.Invitations,
+		totalRewards.FoundationPayouts,
+		totalRewards.ZeroWalletFund)
+	return errors.Wrapf(err, "unable to save total rewards")
+}
+
+func (a *postgresAccessor) saveValidationRewards(ctx *context, rewards []*Reward) error {
+	for _, reward := range rewards {
+		if err := a.saveValidationReward(ctx, reward); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (a *postgresAccessor) saveValidationReward(ctx *context, reward *Reward) error {
+	_, err := ctx.tx.Exec(a.getQuery(insertValidationRewardQuery),
+		ctx.epochIdentityIdsPerAddr[reward.Address],
+		reward.Balance,
+		reward.Stake,
+		reward.Type)
+	return errors.Wrapf(err, "unable to save validation reward")
+}
+
+func (a *postgresAccessor) saveFundRewards(ctx *context, rewards []*Reward) error {
+	for _, reward := range rewards {
+		if err := a.saveFundReward(ctx, reward); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (a *postgresAccessor) saveFundReward(ctx *context, reward *Reward) error {
+	_, err := ctx.tx.Exec(a.getQuery(insertFundRewardQuery),
+		reward.Address,
+		ctx.blockHeight,
+		reward.Balance,
+		reward.Type)
+	return errors.Wrapf(err, "unable to save fund reward: %v", reward)
 }
 
 func (a *postgresAccessor) Destroy() {

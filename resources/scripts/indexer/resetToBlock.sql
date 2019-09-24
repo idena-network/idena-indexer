@@ -1,3 +1,13 @@
+-- fund_rewards
+delete
+from fund_rewards
+where block_height > $1;
+
+-- total_rewards
+delete
+from total_rewards
+where block_height > $1;
+
 -- paid_penalties
 delete
 from paid_penalties
@@ -35,6 +45,40 @@ where epoch_identity_id in
 -- answers
 delete
 from answers
+where epoch_identity_id in
+      (select id
+       from epoch_identities
+       where address_state_id in
+             (select id
+              from address_states
+              where block_height > $1));
+
+-- validation_rewards
+delete
+from validation_rewards
+where epoch_identity_id in
+      (select id
+       from epoch_identities
+       where address_state_id in
+             (select id
+              from address_states
+              where block_height > $1));
+
+
+-- bad_authors
+delete
+from bad_authors
+where epoch_identity_id in
+      (select id
+       from epoch_identities
+       where address_state_id in
+             (select id
+              from address_states
+              where block_height > $1));
+
+-- bad_authors
+delete
+from good_authors
 where epoch_identity_id in
       (select id
        from epoch_identities

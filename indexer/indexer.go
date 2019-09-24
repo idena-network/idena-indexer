@@ -17,8 +17,10 @@ import (
 	"github.com/idena-network/idena-go/crypto"
 	"github.com/idena-network/idena-go/crypto/ecies"
 	"github.com/idena-network/idena-go/rlp"
+	statsTypes "github.com/idena-network/idena-go/stats/types"
 	"github.com/idena-network/idena-indexer/core/conversion"
 	"github.com/idena-network/idena-indexer/core/restore"
+	"github.com/idena-network/idena-indexer/core/stats"
 	"github.com/idena-network/idena-indexer/db"
 	"github.com/idena-network/idena-indexer/incoming"
 	"github.com/idena-network/idena-indexer/log"
@@ -128,6 +130,10 @@ func (indexer *Indexer) WaitForNodeStop() {
 func (indexer *Indexer) Destroy() {
 	indexer.listener.Destroy()
 	indexer.db.Destroy()
+}
+
+func (indexer *Indexer) blockStatsHolder() stats.BlockStatsHolder {
+	return indexer.listener.BlockStatsCollector().(stats.BlockStatsHolder)
 }
 
 func (indexer *Indexer) indexBlock(block *types.Block) {
@@ -253,6 +259,7 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) *db.Data
 		Penalty:             detectChargedPenalty(incomingBlock, ctx.newStateReadOnly),
 		BurntPenalties: detectBurntPenalties(incomingBlock, ctx.prevStateReadOnly, ctx.newStateReadOnly,
 			indexer.listener.Blockchain()),
+		EpochRewards: indexer.detectEpochRewards(incomingBlock),
 	}
 }
 
@@ -303,7 +310,11 @@ func (indexer *Indexer) determineFirstAddresses(incomingBlock *types.Block, ctx 
 		return nil
 	}
 	var addresses []*db.Address
+	var withZeroWallet bool
 	ctx.newStateReadOnly.State.IterateOverIdentities(func(addr common.Address, identity state.Identity) {
+		if !withZeroWallet && addr == (common.Address{}) {
+			withZeroWallet = true
+		}
 		addresses = append(addresses, &db.Address{
 			Address: conversion.ConvertAddress(addr),
 			StateChanges: []db.AddressStateChange{
@@ -314,6 +325,17 @@ func (indexer *Indexer) determineFirstAddresses(incomingBlock *types.Block, ctx 
 			},
 		})
 	})
+	if !withZeroWallet {
+		addresses = append(addresses, &db.Address{
+			Address: conversion.ConvertAddress(common.Address{}),
+			StateChanges: []db.AddressStateChange{
+				{
+					PrevState: convertIdentityState(state.Undefined),
+					NewState:  convertIdentityState(state.Undefined),
+				},
+			},
+		})
+	}
 	return addresses
 }
 
@@ -508,7 +530,7 @@ func convertAnswer(answer types.Answer) string {
 	return fmt.Sprintf("Unknown answer %d", answer)
 }
 
-func convertStatsAnswers(incomingAnswers []ceremony.FlipAnswerStats) []db.Answer {
+func convertStatsAnswers(incomingAnswers []statsTypes.FlipAnswerStats) []db.Answer {
 	var answers []db.Answer
 	for _, answer := range incomingAnswers {
 		answers = append(answers, convertStatsAnswer(answer))
@@ -516,7 +538,7 @@ func convertStatsAnswers(incomingAnswers []ceremony.FlipAnswerStats) []db.Answer
 	return answers
 }
 
-func convertStatsAnswer(incomingAnswer ceremony.FlipAnswerStats) db.Answer {
+func convertStatsAnswer(incomingAnswer statsTypes.FlipAnswerStats) db.Answer {
 	return db.Answer{
 		Address: conversion.ConvertAddress(incomingAnswer.Respondent),
 		Answer:  convertAnswer(incomingAnswer.Answer),
@@ -538,7 +560,7 @@ func (indexer *Indexer) determineEpochResult(block *types.Block, ctx *conversion
 	}
 
 	var identities []db.EpochIdentity
-	validationStats := indexer.listener.Ceremony().GetValidationStats()
+	validationStats := indexer.blockStatsHolder().GetStats().ValidationStats
 
 	ctx.prevStateReadOnly.State.IterateOverIdentities(func(addr common.Address, identity state.Identity) {
 		convertedIdentity := db.EpochIdentity{}
@@ -575,7 +597,7 @@ func (indexer *Indexer) determineEpochResult(block *types.Block, ctx *conversion
 			Cid:          convertCid(flipCid),
 			ShortAnswers: convertStatsAnswers(stats.ShortAnswers),
 			LongAnswers:  convertStatsAnswers(stats.LongAnswers),
-			Status:       convertFlipStatus(stats.Status),
+			Status:       convertFlipStatus(ceremony.FlipStatus(stats.Status)),
 			Answer:       convertAnswer(stats.Answer),
 		}
 		flipsStats = append(flipsStats, flipStats)

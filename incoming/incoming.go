@@ -6,18 +6,20 @@ import (
 	"github.com/idena-network/idena-go/common/eventbus"
 	"github.com/idena-network/idena-go/config"
 	"github.com/idena-network/idena-go/core/appstate"
-	"github.com/idena-network/idena-go/core/ceremony"
 	"github.com/idena-network/idena-go/core/flip"
 	"github.com/idena-network/idena-go/core/mempool"
 	"github.com/idena-network/idena-go/events"
 	"github.com/idena-network/idena-go/node"
+	"github.com/idena-network/idena-go/stats/collector"
+	"github.com/idena-network/idena-indexer/core/stats"
 )
 
 type Listener interface {
 	Listen(handleBlock func(block *types.Block), expectedHeadHeight uint64)
 	AppStateReadonly(height uint64) *appstate.AppState
 	AppState() *appstate.AppState
-	Ceremony() *ceremony.ValidationCeremony
+	NodeCtx() *node.NodeCtx
+	BlockStatsCollector() collector.BlockStatsCollector
 	Blockchain() *blockchain.Blockchain
 	Flipper() *flip.Flipper
 	Config() *config.Config
@@ -28,15 +30,16 @@ type Listener interface {
 }
 
 type listenerImpl struct {
-	appState        *appstate.AppState
-	ceremony        *ceremony.ValidationCeremony
-	blockchain      *blockchain.Blockchain
-	flipper         *flip.Flipper
-	keysPool        *mempool.KeysPool
-	offlineDetector *blockchain.OfflineDetector
-	config          *config.Config
-	node            *node.Node
-	handleBlock     func(block *types.Block)
+	appState            *appstate.AppState
+	nodeCtx             *node.NodeCtx
+	blockStatsCollector collector.BlockStatsCollector
+	blockchain          *blockchain.Blockchain
+	flipper             *flip.Flipper
+	keysPool            *mempool.KeysPool
+	offlineDetector     *blockchain.OfflineDetector
+	config              *config.Config
+	node                *node.Node
+	handleBlock         func(block *types.Block)
 }
 
 func NewListener(nodeConfigFile string) Listener {
@@ -55,7 +58,8 @@ func NewListener(nodeConfigFile string) Listener {
 			l.handleBlock(newBlockEvent.Block)
 		})
 
-	nodeCtx, err := node.NewIndexerNode(cfg, bus)
+	blockStatsCollector := stats.NewBlockStatsCollector()
+	nodeCtx, err := node.NewNodeWithInjections(cfg, bus, blockStatsCollector)
 	if err != nil {
 		panic(err)
 	}
@@ -63,10 +67,11 @@ func NewListener(nodeConfigFile string) Listener {
 	l.appState = nodeCtx.AppState
 	l.flipper = nodeCtx.Flipper
 	l.blockchain = nodeCtx.Blockchain
-	l.ceremony = nodeCtx.Ceremony
 	l.keysPool = nodeCtx.KeysPool
 	l.offlineDetector = nodeCtx.OfflineDetector
 	l.config = cfg
+	l.nodeCtx = nodeCtx
+	l.blockStatsCollector = blockStatsCollector
 
 	l.node = nodeCtx.Node
 
@@ -81,8 +86,12 @@ func (l *listenerImpl) AppState() *appstate.AppState {
 	return l.appState
 }
 
-func (l *listenerImpl) Ceremony() *ceremony.ValidationCeremony {
-	return l.ceremony
+func (l *listenerImpl) NodeCtx() *node.NodeCtx {
+	return l.nodeCtx
+}
+
+func (l *listenerImpl) BlockStatsCollector() collector.BlockStatsCollector {
+	return l.blockStatsCollector
 }
 
 func (l *listenerImpl) Blockchain() *blockchain.Blockchain {

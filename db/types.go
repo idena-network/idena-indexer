@@ -27,6 +27,38 @@ type Data struct {
 	SaveEpochSummary    bool
 	Penalty             *Penalty
 	BurntPenalties      []Penalty
+	EpochRewards        *EpochRewards
+}
+
+type EpochRewards struct {
+	BadAuthors        []string
+	GoodAuthors       []*ValidationResult
+	Total             *TotalRewards
+	ValidationRewards []*Reward
+	FundRewards       []*Reward
+}
+
+type TotalRewards struct {
+	Total             decimal.Decimal
+	Validation        decimal.Decimal
+	Flips             decimal.Decimal
+	Invitations       decimal.Decimal
+	FoundationPayouts decimal.Decimal
+	ZeroWalletFund    decimal.Decimal
+}
+
+type Reward struct {
+	Address string
+	Balance decimal.Decimal
+	Stake   decimal.Decimal
+	Type    string
+}
+
+type ValidationResult struct {
+	Address           string
+	StrongFlips       int
+	WeakFlips         int
+	SuccessfulInvites int
 }
 
 type Block struct {

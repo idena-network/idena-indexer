@@ -792,6 +792,126 @@ CREATE TABLE IF NOT EXISTS paid_penalties
 ALTER TABLE penalties
     OWNER to postgres;
 
+-- Table: total_rewards
+
+-- DROP TABLE total_rewards;
+
+CREATE TABLE IF NOT EXISTS total_rewards
+(
+    block_height bigint          NOT NULL,
+    total        numeric(30, 18) NOT NULL,
+    validation   numeric(30, 18) NOT NULL,
+    flips        numeric(30, 18) NOT NULL,
+    invitations  numeric(30, 18) NOT NULL,
+    foundation   numeric(30, 18) NOT NULL,
+    zero_wallet  numeric(30, 18) NOT NULL,
+    CONSTRAINT total_validation_rewards_pkey UNIQUE (block_height),
+    CONSTRAINT total_validation_rewards_block_height_fkey FOREIGN KEY (block_height)
+        REFERENCES blocks (height) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+) WITH (
+      OIDS = FALSE
+    )
+  TABLESPACE pg_default;
+
+ALTER TABLE total_rewards
+    OWNER to postgres;
+
+-- Table: validation_rewards
+
+-- DROP TABLE validation_rewards;
+
+CREATE TABLE IF NOT EXISTS validation_rewards
+(
+    epoch_identity_id bigint                                             NOT NULL,
+    balance           numeric(30, 18)                                    NOT NULL,
+    stake             numeric(30, 18)                                    NOT NULL,
+    type              character varying(20) COLLATE pg_catalog."default" NOT NULL,
+    CONSTRAINT validation_rewards_epoch_identity_id_type_key UNIQUE (epoch_identity_id, type),
+    CONSTRAINT validation_rewards_epoch_identity_id_fkey FOREIGN KEY (epoch_identity_id)
+        REFERENCES epoch_identities (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+) WITH (
+      OIDS = FALSE
+    )
+  TABLESPACE pg_default;
+
+ALTER TABLE validation_rewards
+    OWNER to postgres;
+
+-- Table: fund_rewards
+
+-- DROP TABLE fund_rewards;
+
+CREATE TABLE IF NOT EXISTS fund_rewards
+(
+    address_id   bigint                                             NOT NULL,
+    block_height bigint                                             NOT NULL,
+    balance      numeric(30, 18)                                    NOT NULL,
+    type         character varying(20) COLLATE pg_catalog."default" NOT NULL,
+    CONSTRAINT fund_rewards_address_id_fkey FOREIGN KEY (address_id)
+        REFERENCES addresses (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT fund_rewards_block_height_fkey FOREIGN KEY (block_height)
+        REFERENCES blocks (height) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+) WITH (
+      OIDS = FALSE
+    )
+  TABLESPACE pg_default;
+
+ALTER TABLE fund_rewards
+    OWNER to postgres;
+
+-- Table: bad_authors
+
+-- DROP TABLE bad_authors;
+
+CREATE TABLE IF NOT EXISTS bad_authors
+(
+    epoch_identity_id bigint NOT NULL,
+    CONSTRAINT bad_authors_pkey UNIQUE (epoch_identity_id),
+    CONSTRAINT bad_authors_epoch_identity_id_fkey FOREIGN KEY (epoch_identity_id)
+        REFERENCES epoch_identities (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+)
+    WITH (
+        OIDS = FALSE
+    )
+    TABLESPACE pg_default;
+
+ALTER TABLE bad_authors
+    OWNER to postgres;
+
+-- Table: good_authors
+
+-- DROP TABLE good_authors;
+
+CREATE TABLE IF NOT EXISTS good_authors
+(
+    epoch_identity_id  bigint   NOT NULL,
+    strong_flips       smallint NOT NULL,
+    weak_flips         smallint NOT NULL,
+    successful_invites smallint NOT NULL,
+    CONSTRAINT good_authors_pkey UNIQUE (epoch_identity_id),
+    CONSTRAINT good_authors_epoch_identity_id_fkey FOREIGN KEY (epoch_identity_id)
+        REFERENCES epoch_identities (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+)
+    WITH (
+        OIDS = FALSE
+    )
+    TABLESPACE pg_default;
+
+ALTER TABLE good_authors
+    OWNER to postgres;
+
 -- View: epoch_identity_states
 
 -- DROP VIEW epoch_identity_states;

@@ -296,6 +296,10 @@ github.com/idena-network/idena-go v0.10.4 h1:a+x8umCd+98HzUXdZQAtDpe/Iv4ZVFHJy2+
 github.com/idena-network/idena-go v0.10.4/go.mod h1:Zj0FJbVkjacmkfhG5bvQqhy2/KgumLJRagptZKkw4K4=
 github.com/idena-network/idena-go v0.10.5-0.20190920085337-b8f58c59bf2a h1:QoIFxf33SrnGPvk4prmQ2oaFYBqs0h/7wpSarHypJDY=
 github.com/idena-network/idena-go v0.10.5-0.20190920085337-b8f58c59bf2a/go.mod h1:ml1onmWKrRbucAaA7QZjUnalXC8PpxVsS16I3iylbRc=
+github.com/idena-network/idena-go v0.11.0 h1:n2sNhSU9sJLxyFGuxDyFW4UWGXn1vZxIOJVF+rv7qx0=
+github.com/idena-network/idena-go v0.11.0/go.mod h1:vrH3t0wpzW2EPzPhdl62HQSRXguSq6IkthEqHK/KulE=
+github.com/idena-network/idena-go v0.11.1-0.20190924101325-773f28c120ee h1:264RhIdNHJ0dHMnL+YdiK89tWXV/1u40akazPCeyYOQ=
+github.com/idena-network/idena-go v0.11.1-0.20190924101325-773f28c120ee/go.mod h1:vrH3t0wpzW2EPzPhdl62HQSRXguSq6IkthEqHK/KulE=
 github.com/inconshreveable/mousetrap v1.0.0/go.mod h1:PxqpIevigyE2G7u3NXJIT2ANytuPF1OarO4DADm73n8=
 github.com/ipfs/bbloom v0.0.1 h1:s7KkiBPfxCeDVo47KySjK0ACPc5GJRUxFpdyWEuDjhw=
 github.com/ipfs/bbloom v0.0.1/go.mod h1:oqo8CVWsJFMOZqTglBG4wydCE4IQA/G2/SEofB0rjUI=
@@ -478,6 +482,7 @@ github.com/jessevdk/go-flags v1.4.0/go.mod h1:4FA24M0QyGHXBuZZK/XkWh8h0e1EYbRYJS
 github.com/jmhodges/levigo v1.0.0/go.mod h1:Q6Qx+uH3RAqyK4rFQroq9RL7mdkABMcfhEI+nNuzMJQ=
 github.com/jonboulle/clockwork v0.1.0/go.mod h1:Ii8DK3G1RaLaWxj9trq07+26W01tbo22gdxWY5EU2bo=
 github.com/jrick/logrotate v1.0.0/go.mod h1:LNinyqDIJnpAur+b8yyulnQw/wDuN1+BYKlTRt3OuAQ=
+github.com/jteeuwen/go-bindata v3.0.7+incompatible/go.mod h1:JVvhzYOiGBnFSYRyV00iY8q7/0PThjIYav1p9h5dmKs=
 github.com/jtolds/gls v4.2.1+incompatible/go.mod h1:QJZ7F/aHp+rZTRtaJ1ow/lLfFfVYBRgL+9YlvaHOwJU=
 github.com/jtolds/gls v4.20.0+incompatible/go.mod h1:QJZ7F/aHp+rZTRtaJ1ow/lLfFfVYBRgL+9YlvaHOwJU=
 github.com/julienschmidt/httprouter v1.2.0/go.mod h1:SYymIcj16QtmaHHD7aYtjjsJG7VTCxuUUipMqKk8s4w=

@@ -141,3 +141,36 @@ from penalties;
 
 -- penalties
 insert into paid_penalties (select * from OLD_SCHEMA_TAG.paid_penalties where block_height <= $1);
+
+-- total_rewards
+insert into total_rewards (select * from OLD_SCHEMA_TAG.total_rewards where block_height <= $1);
+
+-- fund_rewards
+insert into fund_rewards (select * from OLD_SCHEMA_TAG.fund_rewards where block_height <= $1);
+
+-- bad_authors
+insert into bad_authors
+    (select *
+     from OLD_SCHEMA_TAG.bad_authors
+     where epoch_identity_id in (select id
+                                 from OLD_SCHEMA_TAG.epoch_identities
+                                 where address_state_id in
+                                       (select id from OLD_SCHEMA_TAG.address_states where block_height <= $1)));
+
+-- total_rewards
+insert into good_authors
+    (select *
+     from OLD_SCHEMA_TAG.good_authors
+     where epoch_identity_id in (select id
+                                 from OLD_SCHEMA_TAG.epoch_identities
+                                 where address_state_id in
+                                       (select id from OLD_SCHEMA_TAG.address_states where block_height <= $1)));
+
+-- validation_rewards
+insert into validation_rewards
+    (select *
+     from OLD_SCHEMA_TAG.validation_rewards
+     where epoch_identity_id in (select id
+                                 from OLD_SCHEMA_TAG.epoch_identities
+                                 where address_state_id in
+                                       (select id from OLD_SCHEMA_TAG.address_states where block_height <= $1)));
