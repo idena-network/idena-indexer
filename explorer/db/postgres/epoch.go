@@ -9,6 +9,7 @@ import (
 
 const (
 	epochQuery                      = "epoch.sql"
+	lastEpochQuery                  = "lastEpoch.sql"
 	epochBlocksCountQuery           = "epochBlocksCount.sql"
 	epochBlocksQuery                = "epochBlocks.sql"
 	epochFlipsCountQuery            = "epochFlipsCount.sql"
@@ -26,10 +27,20 @@ const (
 	epochCoinsQuery                 = "epochCoins.sql"
 )
 
+func (a *postgresAccessor) LastEpoch() (types.EpochDetail, error) {
+	return a.epoch(lastEpochQuery)
+}
+
 func (a *postgresAccessor) Epoch(epoch uint64) (types.EpochDetail, error) {
+	return a.epoch(epochQuery, epoch)
+}
+
+func (a *postgresAccessor) epoch(queryName string, args ...interface{}) (types.EpochDetail, error) {
 	res := types.EpochDetail{}
 	var validationTime int64
-	err := a.db.QueryRow(a.getQuery(epochQuery), epoch).Scan(&validationTime, &res.ValidationFirstBlockHeight)
+	err := a.db.QueryRow(a.getQuery(queryName), args...).Scan(&res.Epoch,
+		&validationTime,
+		&res.ValidationFirstBlockHeight)
 	if err == sql.ErrNoRows {
 		err = NoDataFound
 	}

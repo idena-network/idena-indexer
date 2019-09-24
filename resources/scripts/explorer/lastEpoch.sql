@@ -7,4 +7,4 @@ select e.epoch,
                    and bf.flag = 'FlipLotteryStarted'
                 ), 0) firstBlockHeight
 from epochs e
-where e.epoch = $1
+where e.epoch = (select max(epoch) from epochs)

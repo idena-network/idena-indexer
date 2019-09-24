@@ -78,6 +78,7 @@ func (s *httpServer) InitRouter(router *mux.Router) {
 		Queries("skip", "{skip}", "limit", "{limit}").
 		HandlerFunc(s.epochs)
 
+	router.Path(strings.ToLower("/Epoch/Last")).HandlerFunc(s.lastEpoch)
 	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}")).HandlerFunc(s.epoch)
 	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Blocks/Count")).
 		HandlerFunc(s.epochBlocksCount)
@@ -196,6 +197,11 @@ func (s *httpServer) epochs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	resp, err := s.db.Epochs(startIndex, count)
+	server.WriteResponse(w, resp, err, s.log)
+}
+
+func (s *httpServer) lastEpoch(w http.ResponseWriter, r *http.Request) {
+	resp, err := s.db.LastEpoch()
 	server.WriteResponse(w, resp, err, s.log)
 }
 

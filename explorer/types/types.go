@@ -23,6 +23,7 @@ type EpochSummary struct {
 }
 
 type EpochDetail struct {
+	Epoch                      uint64    `json:"epoch"`
 	ValidationTime             time.Time `json:"validationTime"`
 	ValidationFirstBlockHeight uint64    `json:"validationFirstBlockHeight"`
 }
