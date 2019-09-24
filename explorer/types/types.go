@@ -219,3 +219,33 @@ type Penalty struct {
 	Timestamp   time.Time       `json:"timestamp"`
 	Epoch       uint64          `json:"epoch"`
 }
+
+type RewardsSummary struct {
+	Epoch             uint64          `json:"epoch"`
+	Total             decimal.Decimal `json:"total"`
+	Validation        decimal.Decimal `json:"validation"`
+	Flips             decimal.Decimal `json:"flips"`
+	Invitations       decimal.Decimal `json:"invitations"`
+	FoundationPayouts decimal.Decimal `json:"foundationPayouts"`
+	ZeroWalletFund    decimal.Decimal `json:"zeroWalletFund"`
+}
+
+type AuthorValidationSummary struct {
+	Address           string `json:"address"`
+	StrongFlips       uint16 `json:"strongFlips"`
+	WeakFlips         uint16 `json:"weakFlips"`
+	SuccessfulInvites uint16 `json:"successfulInvites"`
+}
+
+type Reward struct {
+	Address string          `json:"address"`
+	Balance decimal.Decimal `json:"balance"`
+	Stake   decimal.Decimal `json:"stake"`
+	Type    string          `json:"type"`
+}
+
+type FundPayment struct {
+	Address string          `json:"address"`
+	Balance decimal.Decimal `json:"balance"`
+	Type    string          `json:"type"`
+}

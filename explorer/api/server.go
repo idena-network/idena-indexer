@@ -111,6 +111,20 @@ func (s *httpServer) InitRouter(router *mux.Router) {
 		HandlerFunc(s.epochTxs)
 	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Coins")).
 		HandlerFunc(s.epochCoins)
+	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/RewardsSummary")).HandlerFunc(s.epochRewardsSummary)
+	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Authors/Bad/Count")).HandlerFunc(s.epochBadAuthorsCount)
+	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Authors/Bad")).
+		Queries("skip", "{skip}", "limit", "{limit}").
+		HandlerFunc(s.epochBadAuthors)
+	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Authors/Good/Count")).HandlerFunc(s.epochGoodAuthorsCount)
+	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Authors/Good")).
+		Queries("skip", "{skip}", "limit", "{limit}").
+		HandlerFunc(s.epochGoodAuthors)
+	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Rewards/Count")).HandlerFunc(s.epochRewardsCount)
+	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Rewards")).
+		Queries("skip", "{skip}", "limit", "{limit}").
+		HandlerFunc(s.epochRewards)
+	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/FundPayments")).HandlerFunc(s.epochFundPayments)
 
 	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Identity/{address}")).HandlerFunc(s.epochIdentity)
 	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Identity/{address}/FlipsToSolve/Short")).HandlerFunc(s.epochIdentityShortFlipsToSolve)
@@ -397,6 +411,106 @@ func (s *httpServer) epochCoins(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	resp, err := s.db.EpochCoins(epoch)
+	server.WriteResponse(w, resp, err, s.log)
+}
+
+func (s *httpServer) epochRewardsSummary(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	epoch, err := server.ToUint(vars, "epoch")
+	if err != nil {
+		server.WriteErrorResponse(w, err, s.log)
+		return
+	}
+	resp, err := s.db.EpochRewardsSummary(epoch)
+	server.WriteResponse(w, resp, err, s.log)
+}
+
+func (s *httpServer) epochBadAuthorsCount(w http.ResponseWriter, r *http.Request) {
+	epoch, err := server.ToUint(mux.Vars(r), "epoch")
+	if err != nil {
+		server.WriteErrorResponse(w, err, s.log)
+		return
+	}
+	resp, err := s.db.EpochBadAuthorsCount(epoch)
+	server.WriteResponse(w, resp, err, s.log)
+}
+
+func (s *httpServer) epochBadAuthors(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	epoch, err := server.ToUint(vars, "epoch")
+	if err != nil {
+		server.WriteErrorResponse(w, err, s.log)
+		return
+	}
+	startIndex, count, err := server.ReadPaginatorParams(vars)
+	if err != nil {
+		server.WriteErrorResponse(w, err, s.log)
+		return
+	}
+	resp, err := s.db.EpochBadAuthors(epoch, startIndex, count)
+	server.WriteResponse(w, resp, err, s.log)
+}
+
+func (s *httpServer) epochGoodAuthorsCount(w http.ResponseWriter, r *http.Request) {
+	epoch, err := server.ToUint(mux.Vars(r), "epoch")
+	if err != nil {
+		server.WriteErrorResponse(w, err, s.log)
+		return
+	}
+	resp, err := s.db.EpochGoodAuthorsCount(epoch)
+	server.WriteResponse(w, resp, err, s.log)
+}
+
+func (s *httpServer) epochGoodAuthors(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	epoch, err := server.ToUint(vars, "epoch")
+	if err != nil {
+		server.WriteErrorResponse(w, err, s.log)
+		return
+	}
+	startIndex, count, err := server.ReadPaginatorParams(vars)
+	if err != nil {
+		server.WriteErrorResponse(w, err, s.log)
+		return
+	}
+	resp, err := s.db.EpochGoodAuthors(epoch, startIndex, count)
+	server.WriteResponse(w, resp, err, s.log)
+}
+
+func (s *httpServer) epochRewardsCount(w http.ResponseWriter, r *http.Request) {
+	epoch, err := server.ToUint(mux.Vars(r), "epoch")
+	if err != nil {
+		server.WriteErrorResponse(w, err, s.log)
+		return
+	}
+	resp, err := s.db.EpochRewardsCount(epoch)
+	server.WriteResponse(w, resp, err, s.log)
+}
+
+func (s *httpServer) epochRewards(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	epoch, err := server.ToUint(vars, "epoch")
+	if err != nil {
+		server.WriteErrorResponse(w, err, s.log)
+		return
+	}
+	startIndex, count, err := server.ReadPaginatorParams(vars)
+	if err != nil {
+		server.WriteErrorResponse(w, err, s.log)
+		return
+	}
+	resp, err := s.db.EpochRewards(epoch, startIndex, count)
+	server.WriteResponse(w, resp, err, s.log)
+}
+
+func (s *httpServer) epochFundPayments(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	epoch, err := server.ToUint(vars, "epoch")
+	if err != nil {
+		server.WriteErrorResponse(w, err, s.log)
+		return
+	}
+	resp, err := s.db.EpochFundPayments(epoch)
 	server.WriteResponse(w, resp, err, s.log)
 }
 

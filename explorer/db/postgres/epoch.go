@@ -25,6 +25,14 @@ const (
 	epochTxsCountQuery              = "epochTxsCount.sql"
 	epochTxsQuery                   = "epochTxs.sql"
 	epochCoinsQuery                 = "epochCoins.sql"
+	epochRewardsSummaryQuery        = "epochRewardsSummary.sql"
+	epochBadAuthorsCountQuery       = "epochBadAuthorsCount.sql"
+	epochBadAuthorsQuery            = "epochBadAuthors.sql"
+	epochGoodAuthorsCountQuery      = "epochGoodAuthorsCount.sql"
+	epochGoodAuthorsQuery           = "epochGoodAuthors.sql"
+	epochRewardsCountQuery          = "epochRewardsCount.sql"
+	epochRewardsQuery               = "epochRewards.sql"
+	epochFundPaymentsQuery          = "epochFundPayments.sql"
 )
 
 func (a *postgresAccessor) LastEpoch() (types.EpochDetail, error) {
@@ -163,4 +171,106 @@ func (a *postgresAccessor) EpochTxs(epoch uint64, startIndex uint64, count uint6
 
 func (a *postgresAccessor) EpochCoins(epoch uint64) (types.AllCoins, error) {
 	return a.coins(epochCoinsQuery, epoch)
+}
+
+func (a *postgresAccessor) EpochRewardsSummary(epoch uint64) (types.RewardsSummary, error) {
+	res := types.RewardsSummary{}
+	err := a.db.QueryRow(a.getQuery(epochRewardsSummaryQuery), epoch).
+		Scan(&res.Epoch,
+			&res.Total,
+			&res.Validation,
+			&res.Flips,
+			&res.Invitations,
+			&res.FoundationPayouts,
+			&res.ZeroWalletFund)
+	if err == sql.ErrNoRows {
+		err = NoDataFound
+	}
+	if err != nil {
+		return types.RewardsSummary{}, err
+	}
+	return res, nil
+}
+
+func (a *postgresAccessor) EpochBadAuthorsCount(epoch uint64) (uint64, error) {
+	return a.count(epochBadAuthorsCountQuery, epoch)
+}
+
+func (a *postgresAccessor) EpochBadAuthors(epoch uint64, startIndex uint64, count uint64) ([]string, error) {
+	rows, err := a.db.Query(a.getQuery(epochBadAuthorsQuery), epoch, startIndex, count)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var res []string
+	for rows.Next() {
+		var item string
+		if err := rows.Scan(&item); err != nil {
+			return nil, err
+		}
+		res = append(res, item)
+	}
+	return res, nil
+}
+
+func (a *postgresAccessor) EpochGoodAuthorsCount(epoch uint64) (uint64, error) {
+	return a.count(epochGoodAuthorsCountQuery, epoch)
+}
+
+func (a *postgresAccessor) EpochGoodAuthors(epoch uint64, startIndex uint64, count uint64) ([]types.AuthorValidationSummary, error) {
+	rows, err := a.db.Query(a.getQuery(epochGoodAuthorsQuery), epoch, startIndex, count)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var res []types.AuthorValidationSummary
+	for rows.Next() {
+		item := types.AuthorValidationSummary{}
+		if err := rows.Scan(&item.Address,
+			&item.StrongFlips,
+			&item.WeakFlips,
+			&item.SuccessfulInvites); err != nil {
+			return nil, err
+		}
+		res = append(res, item)
+	}
+	return res, nil
+}
+
+func (a *postgresAccessor) EpochRewardsCount(epoch uint64) (uint64, error) {
+	return a.count(epochRewardsCountQuery, epoch)
+}
+
+func (a *postgresAccessor) EpochRewards(epoch uint64, startIndex uint64, count uint64) ([]types.Reward, error) {
+	rows, err := a.db.Query(a.getQuery(epochRewardsQuery), epoch, startIndex, count)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var res []types.Reward
+	for rows.Next() {
+		item := types.Reward{}
+		if err := rows.Scan(&item.Address, &item.Balance, &item.Stake, &item.Type); err != nil {
+			return nil, err
+		}
+		res = append(res, item)
+	}
+	return res, nil
+}
+
+func (a *postgresAccessor) EpochFundPayments(epoch uint64) ([]types.FundPayment, error) {
+	rows, err := a.db.Query(a.getQuery(epochFundPaymentsQuery), epoch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var res []types.FundPayment
+	for rows.Next() {
+		item := types.FundPayment{}
+		if err := rows.Scan(&item.Address, &item.Balance, &item.Type); err != nil {
+			return nil, err
+		}
+		res = append(res, item)
+	}
+	return res, nil
 }
