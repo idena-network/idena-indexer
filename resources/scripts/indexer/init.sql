@@ -102,6 +102,27 @@ CREATE TABLE IF NOT EXISTS epoch_summaries
 ALTER TABLE epoch_summaries
     OWNER to postgres;
 
+-- Table: failed_validations
+
+-- DROP TABLE failed_validations;
+
+CREATE TABLE IF NOT EXISTS failed_validations
+(
+    block_height bigint NOT NULL,
+    CONSTRAINT failed_validations_block_height_key UNIQUE (block_height),
+    CONSTRAINT failed_validations_block_height_fkey FOREIGN KEY (block_height)
+        REFERENCES blocks (height) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+)
+    WITH (
+        OIDS = FALSE
+    )
+    TABLESPACE pg_default;
+
+ALTER TABLE failed_validations
+    OWNER to postgres;
+
 -- SEQUENCE: addresses_id_seq
 
 -- DROP SEQUENCE addresses_id_seq;

@@ -64,6 +64,7 @@ const (
 	insertTotalRewardsQuery         = "insertTotalRewards.sql"
 	insertValidationRewardQuery     = "insertValidationReward.sql"
 	insertFundRewardQuery           = "insertFundReward.sql"
+	insertFailedValidationQuery     = "insertFailedValidation.sql"
 )
 
 func (a *postgresAccessor) getQuery(name string) string {
@@ -261,6 +262,10 @@ func (a *postgresAccessor) Save(data *Data) error {
 	}
 
 	if err = a.saveEpochRewards(ctx, data.EpochRewards); err != nil {
+		return err
+	}
+
+	if err = a.saveFailedValidation(ctx, data.FailedValidation); err != nil {
 		return err
 	}
 
@@ -895,6 +900,14 @@ func (a *postgresAccessor) saveFundReward(ctx *context, reward *Reward) error {
 		reward.Balance,
 		reward.Type)
 	return errors.Wrapf(err, "unable to save fund reward: %v", reward)
+}
+
+func (a *postgresAccessor) saveFailedValidation(ctx *context, failed bool) error {
+	if !failed {
+		return nil
+	}
+	_, err := ctx.tx.Exec(a.getQuery(insertFailedValidationQuery), ctx.blockHeight)
+	return errors.Wrapf(err, "unable to save failed validation")
 }
 
 func (a *postgresAccessor) Destroy() {

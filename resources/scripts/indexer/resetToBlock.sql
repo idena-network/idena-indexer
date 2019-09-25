@@ -1,3 +1,8 @@
+-- failed_validations
+delete
+from failed_validations
+where block_height > $1;
+
 -- fund_rewards
 delete
 from fund_rewards

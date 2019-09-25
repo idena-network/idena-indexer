@@ -229,7 +229,7 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) *db.Data
 	epoch := uint64(prevState.State.Epoch())
 
 	block := indexer.convertBlock(incomingBlock, ctx)
-	identities, flipStats, flipsMemPoolData := indexer.determineEpochResult(incomingBlock, ctx)
+	identities, flipStats, flipsMemPoolData, notFailedValidation := indexer.detectEpochResult(incomingBlock, ctx)
 
 	firstAddresses := indexer.determineFirstAddresses(incomingBlock, ctx)
 	for _, addr := range firstAddresses {
@@ -260,7 +260,8 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) *db.Data
 		Penalty:             detectChargedPenalty(incomingBlock, ctx.newStateReadOnly),
 		BurntPenalties: detectBurntPenalties(incomingBlock, ctx.prevStateReadOnly, ctx.newStateReadOnly,
 			indexer.listener.Blockchain()),
-		EpochRewards: indexer.detectEpochRewards(incomingBlock),
+		EpochRewards:     indexer.detectEpochRewards(incomingBlock),
+		FailedValidation: !notFailedValidation,
 	}
 }
 
@@ -555,9 +556,9 @@ func convertCid(cid cid.Cid) string {
 	return cid.String()
 }
 
-func (indexer *Indexer) determineEpochResult(block *types.Block, ctx *conversionContext) ([]db.EpochIdentity, []db.FlipStats, []db.FlipData) {
+func (indexer *Indexer) detectEpochResult(block *types.Block, ctx *conversionContext) ([]db.EpochIdentity, []db.FlipStats, []db.FlipData, bool) {
 	if !block.Header.Flags().HasFlag(types.ValidationFinished) {
-		return nil, nil, nil
+		return nil, nil, nil, true
 	}
 
 	var identities []db.EpochIdentity
@@ -606,7 +607,7 @@ func (indexer *Indexer) determineEpochResult(block *types.Block, ctx *conversion
 		flipsStats = append(flipsStats, flipStats)
 	}
 
-	return identities, flipsStats, indexer.getFlipsMemPoolKeyData(ctx)
+	return identities, flipsStats, indexer.getFlipsMemPoolKeyData(ctx), !validationStats.Failed
 }
 
 func (indexer *Indexer) getFlipsMemPoolKeyData(ctx *conversionContext) []db.FlipData {

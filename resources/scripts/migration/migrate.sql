@@ -145,7 +145,7 @@ insert into penalties (select * from OLD_SCHEMA_TAG.penalties where block_height
 select setval('penalties_id_seq', max(id))
 from penalties;
 
--- penalties
+-- paid_penalties
 insert into paid_penalties (select * from OLD_SCHEMA_TAG.paid_penalties where block_height <= $1);
 
 -- total_rewards
@@ -180,3 +180,6 @@ insert into validation_rewards
                                  from OLD_SCHEMA_TAG.epoch_identities
                                  where address_state_id in
                                        (select id from OLD_SCHEMA_TAG.address_states where block_height <= $1)));
+
+-- failed_validations
+insert into failed_validations (select * from OLD_SCHEMA_TAG.failed_validations where block_height <= $1);
