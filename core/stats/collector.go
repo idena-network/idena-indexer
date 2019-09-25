@@ -130,6 +130,9 @@ func (c *blockStatsCollector) addReward(addr common.Address, balance *big.Int, s
 	if !c.canCollect() {
 		return
 	}
+	if (balance == nil || balance.Sign() == 0) && (stake == nil || stake.Sign() == 0) {
+		return
+	}
 	c.initRewardStats()
 	c.stats.RewardsStats.Rewards = append(c.stats.RewardsStats.Rewards, &RewardStats{
 		Address: addr,

@@ -37,6 +37,12 @@ from transactions;
 insert into flip_keys (select *
                        from OLD_SCHEMA_TAG.flip_keys
                        where tx_id in (select id from OLD_SCHEMA_TAG.transactions where block_height <= $1));
+
+--flip_words
+insert into flip_words (select *
+                        from OLD_SCHEMA_TAG.flip_words
+                        where tx_id in (select id from OLD_SCHEMA_TAG.transactions where block_height <= $1));
+
 -- flip_keys sequence
 select setval('flip_keys_id_seq', max(id))
 from flip_keys;

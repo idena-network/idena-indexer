@@ -72,6 +72,7 @@ func (a *postgresAccessor) readFlips(rows *sql.Rows) ([]types.FlipSummary, error
 	for rows.Next() {
 		item := types.FlipSummary{}
 		var timestamp int64
+		words := types.FlipWords{}
 		err := rows.Scan(&item.Cid,
 			&item.Size,
 			&item.Author,
@@ -80,11 +81,20 @@ func (a *postgresAccessor) readFlips(rows *sql.Rows) ([]types.FlipSummary, error
 			&item.ShortRespCount,
 			&item.LongRespCount,
 			&timestamp,
-			&item.Icon)
+			&item.Icon,
+			&words.Word1.Index,
+			&words.Word1.Name,
+			&words.Word1.Desc,
+			&words.Word2.Index,
+			&words.Word2.Name,
+			&words.Word2.Desc)
 		if err != nil {
 			return nil, err
 		}
 		item.Timestamp = common.TimestampToTime(big.NewInt(timestamp))
+		if !words.IsEmpty() {
+			item.Words = &words
+		}
 		res = append(res, item)
 	}
 	return res, nil

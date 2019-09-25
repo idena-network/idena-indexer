@@ -140,6 +140,14 @@ delete
 from flips_data
 where block_height > $1;
 
+-- flip_words
+delete
+from flip_words
+where tx_id in
+      (select t.id
+       from transactions t
+       where t.block_height > $1);
+
 -- flips
 delete
 from flips

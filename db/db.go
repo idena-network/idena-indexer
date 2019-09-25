@@ -5,7 +5,7 @@ import "github.com/shopspring/decimal"
 type Accessor interface {
 	GetLastHeight() (uint64, error)
 	GetTotalCoins() (balance decimal.Decimal, stake decimal.Decimal, err error)
-	GetCurrentFlipCids(address string) ([]string, error)
+	GetCurrentFlips(address string) ([]Flip, error)
 	GetCurrentFlipsWithoutData(limit uint32) ([]AddressFlipCid, error)
 	Save(data *Data) error
 	SaveRestoredData(data *RestoredData) error

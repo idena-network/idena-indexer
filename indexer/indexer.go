@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"github.com/idena-network/idena-go/blockchain"
 	"github.com/idena-network/idena-go/blockchain/attachments"
@@ -26,6 +25,7 @@ import (
 	"github.com/idena-network/idena-indexer/log"
 	"github.com/idena-network/idena-indexer/migration/flip"
 	"github.com/ipfs/go-cid"
+	"github.com/pkg/errors"
 	"github.com/shopspring/decimal"
 	"golang.org/x/image/draw"
 	"image"
@@ -247,6 +247,7 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) *db.Data
 		Identities:          identities,
 		SubmittedFlips:      ctx.submittedFlips,
 		FlipKeys:            ctx.flipKeys,
+		FlipsWords:          ctx.flipsWords,
 		FlipsData:           append(ctx.flipsData, flipsMemPoolData...),
 		FlipSizeUpdates:     ctx.flipSizeUpdates,
 		FlipStats:           flipStats,
@@ -749,6 +750,7 @@ func (indexer *Indexer) determineSubmittedFlip(tx *types.Transaction, ctx *conve
 		TxHash: convertHash(tx.Hash()),
 		Cid:    convertCid(flipCid),
 		Size:   size,
+		Pair:   attachment.Pair,
 	}
 	return f
 }
@@ -762,35 +764,57 @@ func (indexer *Indexer) convertShortAnswers(tx *types.Transaction, ctx *conversi
 		log.Error("Unable to parse short answers payload. Skipped.", "tx", tx.Hash())
 		return
 	}
-	if len(attachment.Key) == 0 {
+
+	sender, _ := types.Sender(tx)
+	from := conversion.ConvertAddress(sender)
+	senderFlips, err := indexer.db.GetCurrentFlips(from)
+	if err != nil {
+		log.Error("Unable to get current flips. Skipped.", "err", err, "tx", tx.Hash())
 		return
 	}
 
-	flipsData, err := indexer.getFlipsData(tx, attachment, ctx)
-	if err != nil {
-		log.Error("Unable to get flips data. Skipped.", "tx", tx.Hash(), "err", err)
-	} else if flipsData != nil {
-		ctx.flipsData = append(ctx.flipsData, flipsData...)
+	if len(attachment.Key) > 0 {
+		flipsData, err := indexer.getFlipsData(tx, senderFlips, attachment, ctx)
+		if err != nil {
+			log.Error("Unable to get flips data. Skipped.", "tx", tx.Hash(), "err", err)
+		} else if flipsData != nil {
+			ctx.flipsData = append(ctx.flipsData, flipsData...)
+		}
+
+		ctx.flipKeys = append(ctx.flipKeys, db.FlipKey{
+			TxHash: convertHash(tx.Hash()),
+			Key:    hex.EncodeToString(attachment.Key),
+		})
 	}
 
-	ctx.flipKeys = append(ctx.flipKeys, db.FlipKey{
-		TxHash: convertHash(tx.Hash()),
-		Key:    hex.EncodeToString(attachment.Key),
-	})
+	if len(attachment.Proof) > 0 {
+		for _, f := range senderFlips {
+			word1, word2, err := getFlipWords(sender, attachment, int(f.Pair), ctx.prevStateReadOnly)
+			if err != nil {
+				log.Error("Unable to get flip words. Skipped.", "tx", tx.Hash(), "cid", f.Cid, "err", err)
+				continue
+			}
+			ctx.flipsWords = append(ctx.flipsWords, db.FlipWords{
+				FlipId: f.Id,
+				TxHash: convertHash(tx.Hash()),
+				Word1:  uint16(word1),
+				Word2:  uint16(word2),
+			})
+		}
+	} else {
+		log.Error("Empty proof for flip words. Skipped.", "tx", tx.Hash())
+	}
 }
 
-func (indexer *Indexer) getFlipsData(tx *types.Transaction, attachment *attachments.ShortAnswerAttachment, ctx *conversionContext) ([]db.FlipData, error) {
-	sender, _ := types.Sender(tx)
-	from := conversion.ConvertAddress(sender)
-	keyAuthorFlips, err := indexer.db.GetCurrentFlipCids(from)
-	if err != nil {
-		return nil, err
-	}
+func (indexer *Indexer) getFlipsData(tx *types.Transaction, keyAuthorFlips []db.Flip,
+	attachment *attachments.ShortAnswerAttachment, ctx *conversionContext) ([]db.FlipData, error) {
+
 	if len(keyAuthorFlips) == 0 {
 		return nil, nil
 	}
 	var flipsData []db.FlipData
-	for _, flipCidStr := range keyAuthorFlips {
+	for _, f := range keyAuthorFlips {
+		flipCidStr := f.Cid
 		flipCid, _ := cid.Decode(flipCidStr)
 		flipData, err := indexer.getFlipData(flipCid.Bytes(), attachment.Key, flipCidStr, ctx)
 		if err != nil {
@@ -809,6 +833,13 @@ func (indexer *Indexer) getFlipsData(tx *types.Transaction, attachment *attachme
 		})
 	}
 	return flipsData, nil
+}
+
+func getFlipWords(addr common.Address, attachment *attachments.ShortAnswerAttachment, pairId int, appState *appstate.AppState) (word1, word2 int, err error) {
+	seed := appState.State.FlipWordsSeed().Bytes()
+	proof := attachment.Proof
+	identity := appState.State.GetIdentity(addr)
+	return ceremony.GetWords(seed, proof, identity.PubKey, common.WordDictionarySize, identity.GetTotalWordPairsCount(), pairId)
 }
 
 func (indexer *Indexer) getFlipData(cid []byte, key []byte, cidStr string, ctx *conversionContext) ([]byte, error) {

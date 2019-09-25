@@ -10,6 +10,7 @@ type conversionContext struct {
 	blockHeight       uint64
 	submittedFlips    []db.Flip
 	flipKeys          []db.FlipKey
+	flipsWords        []db.FlipWords
 	flipsData         []db.FlipData
 	flipSizeUpdates   []db.FlipSizeUpdate
 	addresses         map[string]*db.Address

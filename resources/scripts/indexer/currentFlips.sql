@@ -1,4 +1,4 @@
-select f.cid
+select f.id, f.cid, f.pair
 from flips f
          join transactions t on t.id = f.tx_id
          join blocks b on b.height = t.block_height

@@ -20,6 +20,7 @@ const (
 
 func (a *postgresAccessor) Flip(hash string) (types.Flip, error) {
 	flip := types.Flip{}
+	words := types.FlipWords{}
 	var timestamp int64
 	err := a.db.QueryRow(a.getQuery(flipQuery), hash).
 		Scan(&flip.Author,
@@ -30,7 +31,13 @@ func (a *postgresAccessor) Flip(hash string) (types.Flip, error) {
 			&flip.TxHash,
 			&flip.BlockHash,
 			&flip.BlockHeight,
-			&flip.Epoch)
+			&flip.Epoch,
+			&words.Word1.Index,
+			&words.Word1.Name,
+			&words.Word1.Desc,
+			&words.Word2.Index,
+			&words.Word2.Name,
+			&words.Word2.Desc)
 	if err == sql.ErrNoRows {
 		err = NoDataFound
 	}
@@ -38,6 +45,9 @@ func (a *postgresAccessor) Flip(hash string) (types.Flip, error) {
 		return types.Flip{}, err
 	}
 	flip.Timestamp = common.TimestampToTime(big.NewInt(timestamp))
+	if !words.IsEmpty() {
+		flip.Words = &words
+	}
 	return flip, nil
 }
 

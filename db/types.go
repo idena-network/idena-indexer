@@ -17,6 +17,7 @@ type Data struct {
 	Identities          []EpochIdentity
 	SubmittedFlips      []Flip
 	FlipKeys            []FlipKey
+	FlipsWords          []FlipWords
 	FlipStats           []FlipStats
 	Addresses           []Address
 	FlipsData           []FlipData
@@ -102,9 +103,11 @@ type EpochIdentity struct {
 }
 
 type Flip struct {
+	Id     uint64
 	TxHash string
 	Cid    string
 	Size   uint32
+	Pair   uint8
 }
 
 type FlipStats struct {
@@ -124,6 +127,13 @@ type Answer struct {
 type FlipKey struct {
 	TxHash string
 	Key    string
+}
+
+type FlipWords struct {
+	FlipId uint64
+	TxHash string
+	Word1  uint16
+	Word2  uint16
 }
 
 type FlipData struct {

@@ -20,7 +20,7 @@ const (
 	initQuery                       = "init.sql"
 	maxHeightQuery                  = "maxHeight.sql"
 	currentTotalCoinsQuery          = "currentTotalCoins.sql"
-	currentFlipCidsQuery            = "currentFlipCids.sql"
+	currentFlipsQuery               = "currentFlips.sql"
 	currentFlipCidsWithoutDataQuery = "currentFlipCidsWithoutData.sql"
 	updateFlipStateQuery            = "updateFlipState.sql"
 	insertFlipDataQuery             = "insertFlipData.sql"
@@ -39,6 +39,7 @@ const (
 	insertTransactionQuery          = "insertTransaction.sql"
 	insertSubmittedFlipQuery        = "insertSubmittedFlip.sql"
 	insertFlipKeyQuery              = "insertFlipKey.sql"
+	insertFlipWordsQuery            = "insertFlipWords.sql"
 	selectEpochQuery                = "selectEpoch.sql"
 	insertEpochQuery                = "insertEpoch.sql"
 	insertFlipsToSolveQuery         = "insertFlipsToSolve.sql"
@@ -109,16 +110,16 @@ func (a *postgresAccessor) GetTotalCoins() (balance decimal.Decimal, stake decim
 	return
 }
 
-func (a *postgresAccessor) GetCurrentFlipCids(address string) ([]string, error) {
-	rows, err := a.db.Query(a.getQuery(currentFlipCidsQuery), address)
+func (a *postgresAccessor) GetCurrentFlips(address string) ([]Flip, error) {
+	rows, err := a.db.Query(a.getQuery(currentFlipsQuery), address)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var res []string
+	var res []Flip
 	for rows.Next() {
-		var item string
-		err = rows.Scan(&item)
+		var item Flip
+		err = rows.Scan(&item.Id, &item.Cid, &item.Pair)
 		if err != nil {
 			return nil, err
 		}
@@ -222,6 +223,10 @@ func (a *postgresAccessor) Save(data *Data) error {
 	}
 
 	if err := a.saveFlipKeys(ctx, data.FlipKeys); err != nil {
+		return err
+	}
+
+	if err := a.saveFlipsWords(ctx, data.FlipsWords); err != nil {
 		return err
 	}
 
@@ -706,7 +711,7 @@ func (a *postgresAccessor) saveSubmittedFlips(ctx *context, flips []Flip) (map[s
 
 func (a *postgresAccessor) saveSubmittedFlip(ctx *context, txId int64, flip Flip) (int64, error) {
 	var id int64
-	err := ctx.tx.QueryRow(a.getQuery(insertSubmittedFlipQuery), flip.Cid, txId, flip.Size).Scan(&id)
+	err := ctx.tx.QueryRow(a.getQuery(insertSubmittedFlipQuery), flip.Cid, txId, flip.Size, flip.Pair).Scan(&id)
 	return id, errors.Wrapf(err, "unable to save flip %s", flip.Cid)
 }
 
@@ -730,6 +735,24 @@ func (a *postgresAccessor) saveFlipKeys(ctx *context, keys []FlipKey) error {
 func (a *postgresAccessor) saveFlipKey(ctx *context, txId int64, key FlipKey) error {
 	_, err := ctx.tx.Exec(a.getQuery(insertFlipKeyQuery), txId, key.Key)
 	return errors.Wrapf(err, "unable to save flip key %s", key.Key)
+}
+
+func (a *postgresAccessor) saveFlipsWords(ctx *context, words []FlipWords) error {
+	for _, key := range words {
+		txId, err := ctx.txId(key.TxHash)
+		if err != nil {
+			return err
+		}
+		if err := a.saveFlipWords(ctx, txId, key); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (a *postgresAccessor) saveFlipWords(ctx *context, txId int64, words FlipWords) error {
+	_, err := ctx.tx.Exec(a.getQuery(insertFlipWordsQuery), words.FlipId, words.Word1, words.Word2, txId)
+	return errors.Wrapf(err, "unable to save flip words %v", words)
 }
 
 func (a *postgresAccessor) saveEpochSummary(ctx *context, balanceCoins Coins, stakeCoins Coins) error {

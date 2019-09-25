@@ -1,3 +1,22 @@
+-- Table: words_dictionary
+
+-- DROP TABLE words_dictionary;
+
+CREATE TABLE IF NOT EXISTS words_dictionary
+(
+    id          bigint                                              NOT NULL,
+    name        character varying(20) COLLATE pg_catalog."default"  NOT NULL,
+    description character varying(100) COLLATE pg_catalog."default" NOT NULL,
+    CONSTRAINT words_dictionary_pkey PRIMARY KEY (id)
+)
+    WITH (
+        OIDS = FALSE
+    )
+    TABLESPACE pg_default;
+
+ALTER TABLE words_dictionary
+    OWNER to postgres;
+
 -- Table: epochs
 
 -- DROP TABLE epochs;
@@ -351,6 +370,7 @@ CREATE TABLE IF NOT EXISTS flips
     tx_id               bigint                                              NOT NULL,
     cid                 character varying(100) COLLATE pg_catalog."default" NOT NULL,
     size                integer                                             NOT NULL,
+    pair                smallint                                            NOT NULL,
     status_block_height bigint,
     answer              character varying(20) COLLATE pg_catalog."default",
     status              character varying(20) COLLATE pg_catalog."default",
@@ -910,6 +930,35 @@ CREATE TABLE IF NOT EXISTS good_authors
     TABLESPACE pg_default;
 
 ALTER TABLE good_authors
+    OWNER to postgres;
+
+
+-- Table: flip_words
+
+-- DROP TABLE flip_words;
+
+CREATE TABLE IF NOT EXISTS flip_words
+(
+    flip_id bigint   NOT NULL,
+    word_1  smallint NOT NULL,
+    word_2  smallint NOT NULL,
+    tx_id   bigint   NOT NULL,
+    CONSTRAINT flip_words_flip_id_key UNIQUE (flip_id),
+    CONSTRAINT flip_words_flip_id_fkey FOREIGN KEY (flip_id)
+        REFERENCES flips (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT flip_words_tx_id_fkey FOREIGN KEY (tx_id)
+        REFERENCES transactions (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+)
+    WITH (
+        OIDS = FALSE
+    )
+    TABLESPACE pg_default;
+
+ALTER TABLE flip_words
     OWNER to postgres;
 
 -- View: epoch_identity_states

@@ -11,6 +11,7 @@ import (
 	"github.com/idena-network/idena-indexer/db"
 	"github.com/idena-network/idena-indexer/explorer"
 	explorerConfig "github.com/idena-network/idena-indexer/explorer/config"
+	"github.com/idena-network/idena-indexer/import/words"
 	"github.com/idena-network/idena-indexer/incoming"
 	"github.com/idena-network/idena-indexer/indexer"
 	"github.com/idena-network/idena-indexer/log"
@@ -87,8 +88,9 @@ func initLog(verbosity int, nodeVerbosity int) {
 }
 
 func initIndexer(config *config.Config) (*indexer.Indexer, incoming.Listener) {
+	wordsLoader := words.NewLoader(config.WordsFile)
 	listener := incoming.NewListener(config.NodeConfigFile)
-	dbAccessor := db.NewPostgresAccessor(config.Postgres.ConnStr, config.Postgres.ScriptsDir)
+	dbAccessor := db.NewPostgresAccessor(config.Postgres.ConnStr, config.Postgres.ScriptsDir, wordsLoader)
 	restorer := restore.NewRestorer(dbAccessor, listener.AppState(), listener.Blockchain())
 	var sfs *flip.SecondaryFlipStorage
 	if config.FlipMigrationPostgres != nil {

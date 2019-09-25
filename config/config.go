@@ -13,6 +13,7 @@ type Config struct {
 	FlipMigrationPostgres *PostgresConfig
 	Migration             *Migration
 	NodeConfigFile        string
+	WordsFile             string
 	Verbosity             int
 	NodeVerbosity         int
 	GenesisBlockHeight    int

@@ -94,6 +94,7 @@ type FlipSummary struct {
 	Timestamp      time.Time     `json:"timestamp"`
 	Size           uint32        `json:"size"`
 	Icon           hexutil.Bytes `json:"icon,omitempty"`
+	Words          *FlipWords    `json:"words"`
 }
 
 type Invite struct {
@@ -132,15 +133,35 @@ type EpochIdentity struct {
 }
 
 type Flip struct {
-	Author      string    `json:"author"`
-	Timestamp   time.Time `json:"timestamp"`
-	Size        uint32    `json:"size"`
-	Status      string    `json:"status"`
-	Answer      string    `json:"answer"`
-	TxHash      string    `json:"txHash"`
-	BlockHash   string    `json:"blockHash"`
-	BlockHeight uint64    `json:"blockHeight"`
-	Epoch       uint64    `json:"epoch"`
+	Author      string     `json:"author"`
+	Timestamp   time.Time  `json:"timestamp"`
+	Size        uint32     `json:"size"`
+	Status      string     `json:"status"`
+	Answer      string     `json:"answer"`
+	TxHash      string     `json:"txHash"`
+	BlockHash   string     `json:"blockHash"`
+	BlockHeight uint64     `json:"blockHeight"`
+	Epoch       uint64     `json:"epoch"`
+	Words       *FlipWords `json:"words"`
+}
+
+type FlipWords struct {
+	Word1 FlipWord `json:"word1"`
+	Word2 FlipWord `json:"word2"`
+}
+
+func (w FlipWords) IsEmpty() bool {
+	return w.Word1.isEmpty() && w.Word2.isEmpty()
+}
+
+type FlipWord struct {
+	Index uint16 `json:"index"`
+	Name  string `json:"name"`
+	Desc  string `json:"desc"`
+}
+
+func (w FlipWord) isEmpty() bool {
+	return w.Index == 0 && len(w.Name) == 0 && len(w.Desc) == 0
 }
 
 type FlipContent struct {
