@@ -567,19 +567,21 @@ func (indexer *Indexer) determineEpochResult(block *types.Block, ctx *conversion
 		convertedIdentity := db.EpochIdentity{}
 		convertedIdentity.Address = conversion.ConvertAddress(addr)
 		convertedIdentity.State = convertIdentityState(ctx.newStateReadOnly.State.GetIdentityState(addr))
-		convertedIdentity.TotalShortPoint = ctx.newStateReadOnly.State.GetShortFlipPoints(addr)
-		convertedIdentity.TotalShortFlips = ctx.newStateReadOnly.State.GetQualifiedFlipsCount(addr)
+		convertedIdentity.TotalShortPoint = ctx.prevStateReadOnly.State.GetShortFlipPoints(addr)
+		convertedIdentity.TotalShortFlips = ctx.prevStateReadOnly.State.GetQualifiedFlipsCount(addr)
 		convertedIdentity.RequiredFlips = ctx.prevStateReadOnly.State.GetRequiredFlips(addr)
 		convertedIdentity.MadeFlips = ctx.prevStateReadOnly.State.GetMadeFlips(addr)
-		if stats, present := validationStats.IdentitiesPerAddr[addr]; present {
-			convertedIdentity.ShortPoint = stats.ShortPoint
-			convertedIdentity.ShortFlips = stats.ShortFlips
-			convertedIdentity.LongPoint = stats.LongPoint
-			convertedIdentity.LongFlips = stats.LongFlips
-			convertedIdentity.Approved = stats.Approved
-			convertedIdentity.Missed = stats.Missed
-			convertedIdentity.ShortFlipCidsToSolve = convertCids(stats.ShortFlipsToSolve, validationStats.FlipCids, block)
-			convertedIdentity.LongFlipCidsToSolve = convertCids(stats.LongFlipsToSolve, validationStats.FlipCids, block)
+		if identityStats, present := validationStats.IdentitiesPerAddr[addr]; present {
+			convertedIdentity.ShortPoint = identityStats.ShortPoint
+			convertedIdentity.TotalShortPoint += identityStats.ShortPoint
+			convertedIdentity.ShortFlips = identityStats.ShortFlips
+			convertedIdentity.TotalShortFlips += identityStats.ShortFlips
+			convertedIdentity.LongPoint = identityStats.LongPoint
+			convertedIdentity.LongFlips = identityStats.LongFlips
+			convertedIdentity.Approved = identityStats.Approved
+			convertedIdentity.Missed = identityStats.Missed
+			convertedIdentity.ShortFlipCidsToSolve = convertCids(identityStats.ShortFlipsToSolve, validationStats.FlipCids, block)
+			convertedIdentity.LongFlipCidsToSolve = convertCids(identityStats.LongFlipsToSolve, validationStats.FlipCids, block)
 		} else {
 			convertedIdentity.Approved = false
 			convertedIdentity.Missed = true
@@ -588,7 +590,7 @@ func (indexer *Indexer) determineEpochResult(block *types.Block, ctx *conversion
 	})
 
 	var flipsStats []db.FlipStats
-	for flipIdx, stats := range validationStats.FlipsPerIdx {
+	for flipIdx, flipStats := range validationStats.FlipsPerIdx {
 		flipCid, err := cid.Parse(validationStats.FlipCids[flipIdx])
 		if err != nil {
 			log.Error("Unable to parse flip cid. Skipped.", "b", block.Height(), "idx", flipIdx, "err", err)
@@ -596,10 +598,10 @@ func (indexer *Indexer) determineEpochResult(block *types.Block, ctx *conversion
 		}
 		flipStats := db.FlipStats{
 			Cid:          convertCid(flipCid),
-			ShortAnswers: convertStatsAnswers(stats.ShortAnswers),
-			LongAnswers:  convertStatsAnswers(stats.LongAnswers),
-			Status:       convertFlipStatus(ceremony.FlipStatus(stats.Status)),
-			Answer:       convertAnswer(stats.Answer),
+			ShortAnswers: convertStatsAnswers(flipStats.ShortAnswers),
+			LongAnswers:  convertStatsAnswers(flipStats.LongAnswers),
+			Status:       convertFlipStatus(ceremony.FlipStatus(flipStats.Status)),
+			Answer:       convertAnswer(flipStats.Answer),
 		}
 		flipsStats = append(flipsStats, flipStats)
 	}
