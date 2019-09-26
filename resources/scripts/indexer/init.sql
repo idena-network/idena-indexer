@@ -547,6 +547,7 @@ CREATE TABLE IF NOT EXISTS balances
     address_id bigint NOT NULL,
     balance    numeric(30, 18),
     stake      numeric(30, 18),
+    CONSTRAINT balances_address_id_key UNIQUE (address_id),
     CONSTRAINT balances_address_id_fkey FOREIGN KEY (address_id)
         REFERENCES addresses (id) MATCH SIMPLE
         ON UPDATE NO ACTION
@@ -558,6 +559,28 @@ CREATE TABLE IF NOT EXISTS balances
     TABLESPACE pg_default;
 
 ALTER TABLE balances
+    OWNER to postgres;
+
+-- Table: birthdays
+
+-- DROP TABLE birthdays;
+
+CREATE TABLE IF NOT EXISTS birthdays
+(
+    address_id  bigint  NOT NULL,
+    birth_epoch integer NOT NULL,
+    CONSTRAINT birthdays_address_id_key UNIQUE (address_id),
+    CONSTRAINT birthdays_address_id_fkey FOREIGN KEY (address_id)
+        REFERENCES addresses (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+)
+    WITH (
+        OIDS = FALSE
+    )
+    TABLESPACE pg_default;
+
+ALTER TABLE birthdays
     OWNER to postgres;
 
 -- Table: coins

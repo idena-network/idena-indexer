@@ -17,6 +17,7 @@ type Config struct {
 	Verbosity             int
 	NodeVerbosity         int
 	GenesisBlockHeight    int
+	RestoreInitially      bool
 }
 
 type PostgresConfig struct {

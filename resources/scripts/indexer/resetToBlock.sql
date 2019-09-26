@@ -31,6 +31,9 @@ where block_height > $1;
 -- balances
 delete from balances;
 
+-- birthdays
+delete from birthdays;
+
 -- coins
 delete
 from coins

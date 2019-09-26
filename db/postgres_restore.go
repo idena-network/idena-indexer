@@ -11,5 +11,9 @@ func (a *postgresAccessor) SaveRestoredData(data *RestoredData) error {
 		return err
 	}
 
+	if err := a.saveBirthdays(tx, data.Birthdays); err != nil {
+		return err
+	}
+
 	return tx.Commit()
 }

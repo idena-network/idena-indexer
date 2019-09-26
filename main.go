@@ -96,11 +96,11 @@ func initIndexer(config *config.Config) (*indexer.Indexer, incoming.Listener) {
 	if config.FlipMigrationPostgres != nil {
 		sfs = flip.NewSecondaryFlipStorage(flipMigrationDb.NewPostgresAccessor(config.FlipMigrationPostgres.ConnStr, config.FlipMigrationPostgres.ScriptsDir))
 	}
-	var restoreInitially bool
+	restoreInitially := config.RestoreInitially
 	if migrated, err := migrateDataIfNeeded(config); err != nil {
 		panic(fmt.Sprintf("Unable to migrate data: %v", err))
 	} else {
-		restoreInitially = migrated
+		restoreInitially = restoreInitially || migrated
 	}
 
 	return indexer.NewIndexer(listener, dbAccessor, restorer, sfs, uint64(config.GenesisBlockHeight), restoreInitially), listener

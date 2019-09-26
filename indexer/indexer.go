@@ -152,7 +152,7 @@ func (indexer *Indexer) indexBlock(block *types.Block) {
 				indexer.waitForRetry()
 			} else {
 				log.Info(fmt.Sprintf("Indexer db has been reset to height=%d", height))
-				indexer.restore = !indexer.isFirstBlockHeight(block.Height())
+				indexer.restore = indexer.restore || !indexer.isFirstBlockHeight(block.Height())
 			}
 			// retry in any case to ensure incoming height equals to expected height to index after reset
 			continue
@@ -229,7 +229,7 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) *db.Data
 	epoch := uint64(prevState.State.Epoch())
 
 	block := indexer.convertBlock(incomingBlock, ctx)
-	identities, flipStats, flipsMemPoolData, notFailedValidation := indexer.detectEpochResult(incomingBlock, ctx)
+	identities, flipStats, flipsMemPoolData, birthdays, notFailedValidation := indexer.detectEpochResult(incomingBlock, ctx)
 
 	firstAddresses := indexer.determineFirstAddresses(incomingBlock, ctx)
 	for _, addr := range firstAddresses {
@@ -253,6 +253,7 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) *db.Data
 		FlipStats:           flipStats,
 		Addresses:           ctx.getAddresses(),
 		BalanceUpdates:      ctx.balanceUpdates,
+		Birthdays:           birthdays,
 		BalanceCoins:        indexer.getBalanceCoins(ctx),
 		StakeCoins:          indexer.getStakeCoins(ctx),
 		SaveEpochSummary:    incomingBlock.Header.Flags().HasFlag(types.ValidationFinished),
@@ -556,11 +557,13 @@ func convertCid(cid cid.Cid) string {
 	return cid.String()
 }
 
-func (indexer *Indexer) detectEpochResult(block *types.Block, ctx *conversionContext) ([]db.EpochIdentity, []db.FlipStats, []db.FlipData, bool) {
+func (indexer *Indexer) detectEpochResult(block *types.Block, ctx *conversionContext) ([]db.EpochIdentity,
+	[]db.FlipStats, []db.FlipData, []db.Birthday, bool) {
 	if !block.Header.Flags().HasFlag(types.ValidationFinished) {
-		return nil, nil, nil, true
+		return nil, nil, nil, nil, true
 	}
 
+	var birthdays []db.Birthday
 	var identities []db.EpochIdentity
 	validationStats := indexer.blockStatsHolder().GetStats().ValidationStats
 
@@ -588,6 +591,11 @@ func (indexer *Indexer) detectEpochResult(block *types.Block, ctx *conversionCon
 			convertedIdentity.Missed = true
 		}
 		identities = append(identities, convertedIdentity)
+
+		birthday := detectBirthday(addr, identity.Birthday, ctx.newStateReadOnly.State.GetIdentity(addr).Birthday)
+		if birthday != nil {
+			birthdays = append(birthdays, *birthday)
+		}
 	})
 
 	var flipsStats []db.FlipStats
@@ -607,7 +615,17 @@ func (indexer *Indexer) detectEpochResult(block *types.Block, ctx *conversionCon
 		flipsStats = append(flipsStats, flipStats)
 	}
 
-	return identities, flipsStats, indexer.getFlipsMemPoolKeyData(ctx), !validationStats.Failed
+	return identities, flipsStats, indexer.getFlipsMemPoolKeyData(ctx), birthdays, !validationStats.Failed
+}
+
+func detectBirthday(address common.Address, prevBirthday, newBirthday uint16) *db.Birthday {
+	if prevBirthday == newBirthday {
+		return nil
+	}
+	return &db.Birthday{
+		Address:    conversion.ConvertAddress(address),
+		BirthEpoch: uint64(newBirthday),
+	}
 }
 
 func (indexer *Indexer) getFlipsMemPoolKeyData(ctx *conversionContext) []db.FlipData {

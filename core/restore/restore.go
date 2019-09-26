@@ -2,7 +2,9 @@ package restore
 
 import (
 	"github.com/idena-network/idena-go/blockchain"
+	"github.com/idena-network/idena-go/common"
 	"github.com/idena-network/idena-go/core/appstate"
+	"github.com/idena-network/idena-go/core/state"
 	"github.com/idena-network/idena-indexer/core/conversion"
 	"github.com/idena-network/idena-indexer/db"
 	"github.com/idena-network/idena-indexer/log"
@@ -50,6 +52,9 @@ func (r *Restorer) collectData() (*db.RestoredData, error) {
 	if res.Balances, err = r.collectBalances(); err != nil {
 		return nil, err
 	}
+	if res.Birthdays, err = r.collectBirthdays(); err != nil {
+		return nil, err
+	}
 	return res, nil
 }
 
@@ -78,4 +83,24 @@ func (r *Restorer) collectBalances() ([]db.Balance, error) {
 		return false
 	})
 	return balances, nil
+}
+
+func (r *Restorer) collectBirthdays() ([]db.Birthday, error) {
+	head := r.chain.Head
+	if head == nil {
+		return nil, errors.New("blockchain header is nil")
+	}
+	height := head.Height() - 1
+	appState := r.appState.Readonly(height)
+	if appState == nil {
+		return nil, errors.Errorf("appState for height=%d is absent", height)
+	}
+	var res []db.Birthday
+	appState.State.IterateOverIdentities(func(addr common.Address, identity state.Identity) {
+		res = append(res, db.Birthday{
+			Address:    conversion.ConvertAddress(addr),
+			BirthEpoch: uint64(identity.Birthday),
+		})
+	})
+	return res, nil
 }

@@ -6,7 +6,8 @@ import (
 )
 
 type RestoredData struct {
-	Balances []Balance
+	Balances  []Balance
+	Birthdays []Birthday
 }
 
 type Data struct {
@@ -23,6 +24,7 @@ type Data struct {
 	FlipsData           []FlipData
 	FlipSizeUpdates     []FlipSizeUpdate
 	BalanceUpdates      []Balance
+	Birthdays           []Birthday
 	BalanceCoins        Coins
 	StakeCoins          Coins
 	SaveEpochSummary    bool
@@ -187,4 +189,9 @@ type AddressFlipCid struct {
 type Penalty struct {
 	Address string
 	Penalty decimal.Decimal
+}
+
+type Birthday struct {
+	Address    string
+	BirthEpoch uint64
 }
