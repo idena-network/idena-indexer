@@ -49,6 +49,12 @@ func NewListener(nodeConfigFile string) Listener {
 	if err != nil {
 		panic(err)
 	}
+	cfg.P2P.MaxPeers = config.LowPowerMaxPeers
+	cfg.IpfsConf.LowWater = 5
+	cfg.IpfsConf.HighWater = 10
+	cfg.IpfsConf.GracePeriod = "1m0s"
+	cfg.IpfsConf.ReproviderInterval = "0"
+	cfg.IpfsConf.Routing = "dhtclient"
 	cfg.Sync.FastSync = false
 
 	bus := eventbus.New()
