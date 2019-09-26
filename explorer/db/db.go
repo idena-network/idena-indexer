@@ -36,6 +36,8 @@ type Accessor interface {
 	EpochGoodAuthors(epoch uint64, startIndex uint64, count uint64) ([]types.AuthorValidationSummary, error)
 	EpochRewardsCount(epoch uint64) (uint64, error)
 	EpochRewards(epoch uint64, startIndex uint64, count uint64) ([]types.Reward, error)
+	EpochIdentityRewardsCount(epoch uint64) (uint64, error)
+	EpochIdentityRewards(epoch uint64, startIndex uint64, count uint64) ([]types.IdentityRewards, error)
 	EpochFundPayments(epoch uint64) ([]types.FundPayment, error)
 
 	EpochIdentity(epoch uint64, address string) (types.EpochIdentity, error)

@@ -32,6 +32,8 @@ const (
 	epochGoodAuthorsQuery           = "epochGoodAuthors.sql"
 	epochRewardsCountQuery          = "epochRewardsCount.sql"
 	epochRewardsQuery               = "epochRewards.sql"
+	epochIdentityRewardsCountQuery  = "epochIdentityRewardsCount.sql"
+	epochIdentityRewardsQuery       = "epochIdentityRewards.sql"
 	epochFundPaymentsQuery          = "epochFundPayments.sql"
 )
 
@@ -254,6 +256,40 @@ func (a *postgresAccessor) EpochRewards(epoch uint64, startIndex uint64, count u
 			return nil, err
 		}
 		res = append(res, item)
+	}
+	return res, nil
+}
+
+func (a *postgresAccessor) EpochIdentityRewardsCount(epoch uint64) (uint64, error) {
+	return a.count(epochIdentityRewardsCountQuery, epoch)
+}
+
+func (a *postgresAccessor) EpochIdentityRewards(epoch uint64, startIndex uint64, count uint64) ([]types.IdentityRewards, error) {
+	rows, err := a.db.Query(a.getQuery(epochIdentityRewardsQuery), epoch, startIndex, count)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var res []types.IdentityRewards
+	var item *types.IdentityRewards
+	for rows.Next() {
+		reward := types.Reward{}
+		var address string
+		if err := rows.Scan(&address, &reward.Balance, &reward.Stake, &reward.Type); err != nil {
+			return nil, err
+		}
+		if item == nil || item.Address != address {
+			if item != nil {
+				res = append(res, *item)
+			}
+			item = &types.IdentityRewards{
+				Address: address,
+			}
+		}
+		item.Rewards = append(item.Rewards, reward)
+	}
+	if item != nil {
+		res = append(res, *item)
 	}
 	return res, nil
 }

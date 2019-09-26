@@ -124,6 +124,10 @@ func (s *httpServer) InitRouter(router *mux.Router) {
 	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Rewards")).
 		Queries("skip", "{skip}", "limit", "{limit}").
 		HandlerFunc(s.epochRewards)
+	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/IdentityRewards/Count")).HandlerFunc(s.epochIdentityRewardsCount)
+	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/IdentityRewards")).
+		Queries("skip", "{skip}", "limit", "{limit}").
+		HandlerFunc(s.epochIdentityRewards)
 	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/FundPayments")).HandlerFunc(s.epochFundPayments)
 
 	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Identity/{address}")).HandlerFunc(s.epochIdentity)
@@ -500,6 +504,32 @@ func (s *httpServer) epochRewards(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	resp, err := s.db.EpochRewards(epoch, startIndex, count)
+	server.WriteResponse(w, resp, err, s.log)
+}
+
+func (s *httpServer) epochIdentityRewardsCount(w http.ResponseWriter, r *http.Request) {
+	epoch, err := server.ToUint(mux.Vars(r), "epoch")
+	if err != nil {
+		server.WriteErrorResponse(w, err, s.log)
+		return
+	}
+	resp, err := s.db.EpochIdentityRewardsCount(epoch)
+	server.WriteResponse(w, resp, err, s.log)
+}
+
+func (s *httpServer) epochIdentityRewards(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	epoch, err := server.ToUint(vars, "epoch")
+	if err != nil {
+		server.WriteErrorResponse(w, err, s.log)
+		return
+	}
+	startIndex, count, err := server.ReadPaginatorParams(vars)
+	if err != nil {
+		server.WriteErrorResponse(w, err, s.log)
+		return
+	}
+	resp, err := s.db.EpochIdentityRewards(epoch, startIndex, count)
 	server.WriteResponse(w, resp, err, s.log)
 }
 
