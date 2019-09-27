@@ -161,3 +161,20 @@ func (a *postgresAccessor) coins(queryName string, args ...interface{}) (types.A
 	}
 	return res, nil
 }
+
+func (a *postgresAccessor) rewards(queryName string, args ...interface{}) ([]types.Reward, error) {
+	rows, err := a.db.Query(a.getQuery(queryName), args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var res []types.Reward
+	for rows.Next() {
+		item := types.Reward{}
+		if err := rows.Scan(&item.Address, &item.Epoch, &item.Balance, &item.Stake, &item.Type); err != nil {
+			return nil, err
+		}
+		res = append(res, item)
+	}
+	return res, nil
+}

@@ -260,13 +260,15 @@ type AuthorValidationSummary struct {
 
 type Reward struct {
 	Address string          `json:"address,omitempty"`
+	Epoch   uint64          `json:"epoch,omitempty"`
 	Balance decimal.Decimal `json:"balance"`
 	Stake   decimal.Decimal `json:"stake"`
 	Type    string          `json:"type"`
 }
 
-type IdentityRewards struct {
-	Address string   `json:"address"`
+type Rewards struct {
+	Address string   `json:"address,omitempty"`
+	Epoch   uint64   `json:"epoch,omitempty"`
 	Rewards []Reward `json:"rewards"`
 }
 

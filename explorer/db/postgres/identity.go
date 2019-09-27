@@ -8,20 +8,24 @@ import (
 )
 
 const (
-	identityQuery                 = "identity.sql"
-	identityAgeQuery              = "identityAge.sql"
-	identityAnswerPointsQuery     = "identityAnswerPoints.sql"
-	identityCurrentFlipsQuery     = "identityCurrentFlips.sql"
-	identityEpochsCountQuery      = "identityEpochsCount.sql"
-	identityEpochsQuery           = "identityEpochs.sql"
-	identityFlipStatesQuery       = "identityFlipStates.sql"
-	identityFlipRightAnswersQuery = "identityFlipRightAnswers.sql"
-	identityInvitesCountQuery     = "identityInvitesCount.sql"
-	identityInvitesQuery          = "identityInvites.sql"
-	identityStatesCountQuery      = "identityStatesCount.sql"
-	identityStatesQuery           = "identityStates.sql"
-	identityTxsCountQuery         = "identityTxsCount.sql"
-	identityTxsQuery              = "identityTxs.sql"
+	identityQuery                  = "identity.sql"
+	identityAgeQuery               = "identityAge.sql"
+	identityAnswerPointsQuery      = "identityAnswerPoints.sql"
+	identityCurrentFlipsQuery      = "identityCurrentFlips.sql"
+	identityEpochsCountQuery       = "identityEpochsCount.sql"
+	identityEpochsQuery            = "identityEpochs.sql"
+	identityFlipStatesQuery        = "identityFlipStates.sql"
+	identityFlipRightAnswersQuery  = "identityFlipRightAnswers.sql"
+	identityInvitesCountQuery      = "identityInvitesCount.sql"
+	identityInvitesQuery           = "identityInvites.sql"
+	identityStatesCountQuery       = "identityStatesCount.sql"
+	identityStatesQuery            = "identityStates.sql"
+	identityTxsCountQuery          = "identityTxsCount.sql"
+	identityTxsQuery               = "identityTxs.sql"
+	identityRewardsCountQuery      = "identityRewardsCount.sql"
+	identityRewardsQuery           = "identityRewards.sql"
+	identityEpochRewardsCountQuery = "identityEpochRewardsCount.sql"
+	identityEpochRewardsQuery      = "identityEpochRewards.sql"
 )
 
 func (a *postgresAccessor) Identity(address string) (types.Identity, error) {
@@ -159,4 +163,46 @@ func (a *postgresAccessor) IdentityTxs(address string, startIndex uint64, count 
 		return nil, err
 	}
 	return a.readTxs(rows)
+}
+
+func (a *postgresAccessor) IdentityRewardsCount(address string) (uint64, error) {
+	return a.count(identityRewardsCountQuery, address)
+}
+
+func (a *postgresAccessor) IdentityRewards(address string, startIndex uint64, count uint64) ([]types.Reward, error) {
+	return a.rewards(identityRewardsQuery, address, startIndex, count)
+}
+
+func (a *postgresAccessor) IdentityEpochRewardsCount(address string) (uint64, error) {
+	return a.count(identityEpochRewardsCountQuery, address)
+}
+
+func (a *postgresAccessor) IdentityEpochRewards(address string, startIndex uint64, count uint64) ([]types.Rewards, error) {
+	rows, err := a.db.Query(a.getQuery(identityEpochRewardsQuery), address, startIndex, count)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var res []types.Rewards
+	var item *types.Rewards
+	for rows.Next() {
+		reward := types.Reward{}
+		var epoch uint64
+		if err := rows.Scan(&epoch, &reward.Balance, &reward.Stake, &reward.Type); err != nil {
+			return nil, err
+		}
+		if item == nil || item.Epoch != epoch {
+			if item != nil {
+				res = append(res, *item)
+			}
+			item = &types.Rewards{
+				Epoch: epoch,
+			}
+		}
+		item.Rewards = append(item.Rewards, reward)
+	}
+	if item != nil {
+		res = append(res, *item)
+	}
+	return res, nil
 }

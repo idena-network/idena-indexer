@@ -11,6 +11,8 @@ const (
 	epochIdentityFlipsToSolveQuery  = "epochIdentityFlipsToSolve.sql"
 	epochIdentityFlipsQuery         = "epochIdentityFlips.sql"
 	epochIdentityValidationTxsQuery = "epochIdentityValidationTxs.sql"
+	epochIdentityRewardsCountQuery  = "epochIdentityRewardsCount.sql"
+	epochIdentityRewardsQuery       = "epochIdentityRewards.sql"
 )
 
 func (a *postgresAccessor) EpochIdentity(epoch uint64, address string) (types.EpochIdentity, error) {
@@ -92,4 +94,8 @@ func (a *postgresAccessor) EpochIdentityValidationTxs(epoch uint64, address stri
 		return nil, err
 	}
 	return a.readTxs(rows)
+}
+
+func (a *postgresAccessor) EpochIdentityRewards(epoch uint64, address string) ([]types.Reward, error) {
+	return a.rewards(epochIdentityRewardsQuery, epoch, address)
 }

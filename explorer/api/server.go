@@ -1,8 +1,6 @@
 package api
 
 import (
-	"fmt"
-	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/idena-network/idena-indexer/core/server"
 	"github.com/idena-network/idena-indexer/explorer/db"
@@ -17,12 +15,11 @@ type Server interface {
 }
 
 func NewServer(port int, db db.Accessor, logger log.Logger) Server {
-	server := &httpServer{
+	return &httpServer{
 		port: port,
 		db:   db,
 		log:  logger,
 	}
-	return server
 }
 
 type httpServer struct {
@@ -47,15 +44,13 @@ func (s *httpServer) requestFilter(next http.Handler) http.Handler {
 
 func (s *httpServer) Start() {
 	// todo Currently indexer starts its own server for explorer
-	return
-
-	headersOk := handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type"})
-	originsOk := handlers.AllowedOrigins([]string{"*"})
-	methodsOk := handlers.AllowedMethods([]string{"GET", "HEAD", "POST", "PUT", "OPTIONS"})
-	err := http.ListenAndServe(fmt.Sprintf(":%d", s.port), handlers.CORS(originsOk, headersOk, methodsOk)(s.initHandler()))
-	if err != nil {
-		panic(err)
-	}
+	//headersOk := handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type"})
+	//originsOk := handlers.AllowedOrigins([]string{"*"})
+	//methodsOk := handlers.AllowedMethods([]string{"GET", "HEAD", "POST", "PUT", "OPTIONS"})
+	//err := http.ListenAndServe(fmt.Sprintf(":%d", s.port), handlers.CORS(originsOk, headersOk, methodsOk)(s.initHandler()))
+	//if err != nil {
+	//	panic(err)
+	//}
 }
 
 func (s *httpServer) initHandler() http.Handler {
@@ -124,19 +119,26 @@ func (s *httpServer) InitRouter(router *mux.Router) {
 	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Rewards")).
 		Queries("skip", "{skip}", "limit", "{limit}").
 		HandlerFunc(s.epochRewards)
-	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/IdentityRewards/Count")).HandlerFunc(s.epochIdentityRewardsCount)
+	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/IdentityRewards/Count")).HandlerFunc(s.epochIdentitiesRewardsCount)
 	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/IdentityRewards")).
 		Queries("skip", "{skip}", "limit", "{limit}").
-		HandlerFunc(s.epochIdentityRewards)
+		HandlerFunc(s.epochIdentitiesRewards)
 	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/FundPayments")).HandlerFunc(s.epochFundPayments)
 
 	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Identity/{address}")).HandlerFunc(s.epochIdentity)
-	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Identity/{address}/FlipsToSolve/Short")).HandlerFunc(s.epochIdentityShortFlipsToSolve)
-	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Identity/{address}/FlipsToSolve/Long")).HandlerFunc(s.epochIdentityLongFlipsToSolve)
-	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Identity/{address}/Answers/Short")).HandlerFunc(s.epochIdentityShortAnswes)
-	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Identity/{address}/Answers/Long")).HandlerFunc(s.epochIdentityLongAnswers)
+	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Identity/{address}/FlipsToSolve/Short")).
+		HandlerFunc(s.epochIdentityShortFlipsToSolve)
+	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Identity/{address}/FlipsToSolve/Long")).
+		HandlerFunc(s.epochIdentityLongFlipsToSolve)
+	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Identity/{address}/Answers/Short")).
+		HandlerFunc(s.epochIdentityShortAnswes)
+	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Identity/{address}/Answers/Long")).
+		HandlerFunc(s.epochIdentityLongAnswers)
 	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Identity/{address}/Flips")).HandlerFunc(s.epochIdentityFlips)
-	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Identity/{address}/ValidationTxs")).HandlerFunc(s.epochIdentityValidationTxs)
+	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Identity/{address}/ValidationTxs")).
+		HandlerFunc(s.epochIdentityValidationTxs)
+	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Identity/{address}/Rewards")).
+		HandlerFunc(s.epochIdentityRewards)
 
 	router.Path(strings.ToLower("/Block/{id}")).HandlerFunc(s.block)
 	router.Path(strings.ToLower("/Block/{id}/Txs/Count")).HandlerFunc(s.blockTxsCount)
@@ -163,6 +165,14 @@ func (s *httpServer) InitRouter(router *mux.Router) {
 	router.Path(strings.ToLower("/Identity/{address}/States")).
 		Queries("skip", "{skip}", "limit", "{limit}").
 		HandlerFunc(s.identityStates)
+	router.Path(strings.ToLower("/Identity/{address}/Rewards/Count")).HandlerFunc(s.identityRewardsCount)
+	router.Path(strings.ToLower("/Identity/{address}/Rewards")).
+		Queries("skip", "{skip}", "limit", "{limit}").
+		HandlerFunc(s.identityRewards)
+	router.Path(strings.ToLower("/Identity/{address}/EpochRewards/Count")).HandlerFunc(s.identityEpochRewardsCount)
+	router.Path(strings.ToLower("/Identity/{address}/EpochRewards")).
+		Queries("skip", "{skip}", "limit", "{limit}").
+		HandlerFunc(s.identityEpochRewards)
 
 	router.Path(strings.ToLower("/Flip/{hash}")).HandlerFunc(s.flip)
 	router.Path(strings.ToLower("/Flip/{hash}/Content")).HandlerFunc(s.flipContent)
@@ -507,17 +517,17 @@ func (s *httpServer) epochRewards(w http.ResponseWriter, r *http.Request) {
 	server.WriteResponse(w, resp, err, s.log)
 }
 
-func (s *httpServer) epochIdentityRewardsCount(w http.ResponseWriter, r *http.Request) {
+func (s *httpServer) epochIdentitiesRewardsCount(w http.ResponseWriter, r *http.Request) {
 	epoch, err := server.ToUint(mux.Vars(r), "epoch")
 	if err != nil {
 		server.WriteErrorResponse(w, err, s.log)
 		return
 	}
-	resp, err := s.db.EpochIdentityRewardsCount(epoch)
+	resp, err := s.db.EpochIdentitiesRewardsCount(epoch)
 	server.WriteResponse(w, resp, err, s.log)
 }
 
-func (s *httpServer) epochIdentityRewards(w http.ResponseWriter, r *http.Request) {
+func (s *httpServer) epochIdentitiesRewards(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	epoch, err := server.ToUint(vars, "epoch")
 	if err != nil {
@@ -529,7 +539,7 @@ func (s *httpServer) epochIdentityRewards(w http.ResponseWriter, r *http.Request
 		server.WriteErrorResponse(w, err, s.log)
 		return
 	}
-	resp, err := s.db.EpochIdentityRewards(epoch, startIndex, count)
+	resp, err := s.db.EpochIdentitiesRewards(epoch, startIndex, count)
 	server.WriteResponse(w, resp, err, s.log)
 }
 
@@ -618,6 +628,17 @@ func (s *httpServer) epochIdentityValidationTxs(w http.ResponseWriter, r *http.R
 		return
 	}
 	resp, err := s.db.EpochIdentityValidationTxs(epoch, vars["address"])
+	server.WriteResponse(w, resp, err, s.log)
+}
+
+func (s *httpServer) epochIdentityRewards(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	epoch, err := server.ToUint(vars, "epoch")
+	if err != nil {
+		server.WriteErrorResponse(w, err, s.log)
+		return
+	}
+	resp, err := s.db.EpochIdentityRewards(epoch, vars["address"])
 	server.WriteResponse(w, resp, err, s.log)
 }
 
@@ -760,6 +781,38 @@ func (s *httpServer) identityTxs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	resp, err := s.db.IdentityTxs(vars["address"], startIndex, count)
+	server.WriteResponse(w, resp, err, s.log)
+}
+
+func (s *httpServer) identityRewardsCount(w http.ResponseWriter, r *http.Request) {
+	resp, err := s.db.IdentityRewardsCount(mux.Vars(r)["address"])
+	server.WriteResponse(w, resp, err, s.log)
+}
+
+func (s *httpServer) identityRewards(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	startIndex, count, err := server.ReadPaginatorParams(vars)
+	if err != nil {
+		server.WriteErrorResponse(w, err, s.log)
+		return
+	}
+	resp, err := s.db.IdentityRewards(vars["address"], startIndex, count)
+	server.WriteResponse(w, resp, err, s.log)
+}
+
+func (s *httpServer) identityEpochRewardsCount(w http.ResponseWriter, r *http.Request) {
+	resp, err := s.db.IdentityEpochRewardsCount(mux.Vars(r)["address"])
+	server.WriteResponse(w, resp, err, s.log)
+}
+
+func (s *httpServer) identityEpochRewards(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	startIndex, count, err := server.ReadPaginatorParams(vars)
+	if err != nil {
+		server.WriteErrorResponse(w, err, s.log)
+		return
+	}
+	resp, err := s.db.IdentityEpochRewards(vars["address"], startIndex, count)
 	server.WriteResponse(w, resp, err, s.log)
 }
 

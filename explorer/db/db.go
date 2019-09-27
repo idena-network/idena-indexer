@@ -36,8 +36,8 @@ type Accessor interface {
 	EpochGoodAuthors(epoch uint64, startIndex uint64, count uint64) ([]types.AuthorValidationSummary, error)
 	EpochRewardsCount(epoch uint64) (uint64, error)
 	EpochRewards(epoch uint64, startIndex uint64, count uint64) ([]types.Reward, error)
-	EpochIdentityRewardsCount(epoch uint64) (uint64, error)
-	EpochIdentityRewards(epoch uint64, startIndex uint64, count uint64) ([]types.IdentityRewards, error)
+	EpochIdentitiesRewardsCount(epoch uint64) (uint64, error)
+	EpochIdentitiesRewards(epoch uint64, startIndex uint64, count uint64) ([]types.Rewards, error)
 	EpochFundPayments(epoch uint64) ([]types.FundPayment, error)
 
 	EpochIdentity(epoch uint64, address string) (types.EpochIdentity, error)
@@ -47,6 +47,7 @@ type Accessor interface {
 	EpochIdentityLongAnswers(epoch uint64, address string) ([]types.Answer, error)
 	EpochIdentityFlips(epoch uint64, address string) ([]types.FlipSummary, error)
 	EpochIdentityValidationTxs(epoch uint64, address string) ([]types.TransactionSummary, error)
+	EpochIdentityRewards(epoch uint64, address string) ([]types.Reward, error)
 
 	BlockByHeight(height uint64) (types.BlockDetail, error)
 	BlockTxsCountByHeight(height uint64) (uint64, error)
@@ -75,6 +76,10 @@ type Accessor interface {
 	IdentityStates(address string, startIndex uint64, count uint64) ([]types.IdentityState, error)
 	IdentityTxsCount(address string) (uint64, error)
 	IdentityTxs(address string, startIndex uint64, count uint64) ([]types.TransactionSummary, error)
+	IdentityRewardsCount(address string) (uint64, error)
+	IdentityRewards(address string, startIndex uint64, count uint64) ([]types.Reward, error)
+	IdentityEpochRewardsCount(address string) (uint64, error)
+	IdentityEpochRewards(address string, startIndex uint64, count uint64) ([]types.Rewards, error)
 
 	Address(address string) (types.Address, error)
 	AddressPenaltiesCount(address string) (uint64, error)
