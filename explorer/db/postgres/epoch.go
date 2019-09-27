@@ -258,7 +258,8 @@ func (a *postgresAccessor) EpochIdentitiesRewards(epoch uint64, startIndex uint6
 	for rows.Next() {
 		reward := types.Reward{}
 		var address string
-		if err := rows.Scan(&address, &reward.Balance, &reward.Stake, &reward.Type); err != nil {
+		var prevState, state string
+		if err := rows.Scan(&address, &reward.Balance, &reward.Stake, &reward.Type, &prevState, &state); err != nil {
 			return nil, err
 		}
 		if item == nil || item.Address != address {
@@ -266,7 +267,9 @@ func (a *postgresAccessor) EpochIdentitiesRewards(epoch uint64, startIndex uint6
 				res = append(res, *item)
 			}
 			item = &types.Rewards{
-				Address: address,
+				Address:   address,
+				PrevState: prevState,
+				State:     state,
 			}
 		}
 		item.Rewards = append(item.Rewards, reward)

@@ -110,8 +110,8 @@ type Invite struct {
 type EpochIdentitySummary struct {
 	Address           string                 `json:"address"`
 	Epoch             uint64                 `json:"epoch"`
-	State             string                 `json:"state"`
 	PrevState         string                 `json:"prevState"`
+	State             string                 `json:"state"`
 	ShortAnswers      IdentityAnswersSummary `json:"shortAnswers"`
 	TotalShortAnswers IdentityAnswersSummary `json:"totalShortAnswers"`
 	LongAnswers       IdentityAnswersSummary `json:"longAnswers"`
@@ -122,8 +122,8 @@ type EpochIdentitySummary struct {
 }
 
 type EpochIdentity struct {
-	State             string                 `json:"state"`
 	PrevState         string                 `json:"prevState"`
+	State             string                 `json:"state"`
 	ShortAnswers      IdentityAnswersSummary `json:"shortAnswers"`
 	TotalShortAnswers IdentityAnswersSummary `json:"totalShortAnswers"`
 	LongAnswers       IdentityAnswersSummary `json:"longAnswers"`
@@ -268,9 +268,12 @@ type Reward struct {
 }
 
 type Rewards struct {
-	Address string   `json:"address,omitempty"`
-	Epoch   uint64   `json:"epoch,omitempty"`
-	Rewards []Reward `json:"rewards"`
+	Address   string   `json:"address,omitempty"`
+	Epoch     uint64   `json:"epoch,omitempty"`
+	PrevState string   `json:"prevState"`
+	State     string   `json:"state"`
+	Age       uint64   `json:"age"` // todo
+	Rewards   []Reward `json:"rewards"`
 }
 
 type FundPayment struct {
