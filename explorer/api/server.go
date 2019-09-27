@@ -196,6 +196,10 @@ func (s *httpServer) InitRouter(router *mux.Router) {
 	router.Path(strings.ToLower("/Address/{address}/Penalties")).
 		Queries("skip", "{skip}", "limit", "{limit}").
 		HandlerFunc(s.addressPenalties)
+	router.Path(strings.ToLower("/Address/{address}/Flips/Count")).HandlerFunc(s.identityFlipsCount)
+	router.Path(strings.ToLower("/Address/{address}/Flips")).
+		Queries("skip", "{skip}", "limit", "{limit}").
+		HandlerFunc(s.identityFlips)
 
 	router.Path(strings.ToLower("/Balances/Count")).HandlerFunc(s.balancesCount)
 	router.Path(strings.ToLower("/Balances")).
@@ -723,6 +727,22 @@ func (s *httpServer) identityEpochs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	resp, err := s.db.IdentityEpochs(vars["address"], startIndex, count)
+	server.WriteResponse(w, resp, err, s.log)
+}
+
+func (s *httpServer) identityFlipsCount(w http.ResponseWriter, r *http.Request) {
+	resp, err := s.db.IdentityFlipsCount(mux.Vars(r)["address"])
+	server.WriteResponse(w, resp, err, s.log)
+}
+
+func (s *httpServer) identityFlips(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	startIndex, count, err := server.ReadPaginatorParams(vars)
+	if err != nil {
+		server.WriteErrorResponse(w, err, s.log)
+		return
+	}
+	resp, err := s.db.IdentityFlips(vars["address"], startIndex, count)
 	server.WriteResponse(w, resp, err, s.log)
 }
 

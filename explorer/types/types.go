@@ -87,6 +87,7 @@ type TransactionDetail struct {
 type FlipSummary struct {
 	Cid            string        `json:"cid"`
 	Author         string        `json:"author"`
+	Epoch          uint64        `json:"epoch"`
 	ShortRespCount uint32        `json:"shortRespCount"`
 	LongRespCount  uint32        `json:"longRespCount"`
 	Status         string        `json:"status"`

@@ -68,6 +68,8 @@ type Accessor interface {
 	IdentityCurrentFlipCids(address string) ([]string, error)
 	IdentityEpochsCount(address string) (uint64, error)
 	IdentityEpochs(address string, startIndex uint64, count uint64) ([]types.EpochIdentitySummary, error)
+	IdentityFlipsCount(address string) (uint64, error)
+	IdentityFlips(address string, startIndex uint64, count uint64) ([]types.FlipSummary, error)
 	IdentityFlipQualifiedAnswers(address string) ([]types.StrValueCount, error)
 	IdentityFlipStates(address string) ([]types.StrValueCount, error)
 	IdentityInvitesCount(address string) (uint64, error)

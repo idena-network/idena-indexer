@@ -66,7 +66,11 @@ func (a *postgresAccessor) strValueCounts(queryName string, args ...interface{})
 	return a.readStrValueCounts(rows)
 }
 
-func (a *postgresAccessor) readFlips(rows *sql.Rows) ([]types.FlipSummary, error) {
+func (a *postgresAccessor) flips(queryName string, args ...interface{}) ([]types.FlipSummary, error) {
+	rows, err := a.db.Query(a.getQuery(queryName), args...)
+	if err != nil {
+		return nil, err
+	}
 	defer rows.Close()
 	var res []types.FlipSummary
 	for rows.Next() {
@@ -76,6 +80,7 @@ func (a *postgresAccessor) readFlips(rows *sql.Rows) ([]types.FlipSummary, error
 		err := rows.Scan(&item.Cid,
 			&item.Size,
 			&item.Author,
+			&item.Epoch,
 			&item.Status,
 			&item.Answer,
 			&item.ShortRespCount,

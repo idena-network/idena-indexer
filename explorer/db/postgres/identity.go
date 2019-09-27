@@ -26,6 +26,8 @@ const (
 	identityRewardsQuery           = "identityRewards.sql"
 	identityEpochRewardsCountQuery = "identityEpochRewardsCount.sql"
 	identityEpochRewardsQuery      = "identityEpochRewards.sql"
+	identityFlipsCountQuery        = "identityFlipsCount.sql"
+	identityFlipsQuery             = "identityFlips.sql"
 )
 
 func (a *postgresAccessor) Identity(address string) (types.Identity, error) {
@@ -205,4 +207,12 @@ func (a *postgresAccessor) IdentityEpochRewards(address string, startIndex uint6
 		res = append(res, *item)
 	}
 	return res, nil
+}
+
+func (a *postgresAccessor) IdentityFlipsCount(address string) (uint64, error) {
+	return a.count(identityFlipsCountQuery, address)
+}
+
+func (a *postgresAccessor) IdentityFlips(address string, startIndex uint64, count uint64) ([]types.FlipSummary, error) {
+	return a.flips(identityFlipsQuery, address, startIndex, count)
 }

@@ -81,11 +81,7 @@ func (a *postgresAccessor) epochIdentityAnswers(epoch uint64, address string, is
 }
 
 func (a *postgresAccessor) EpochIdentityFlips(epoch uint64, address string) ([]types.FlipSummary, error) {
-	rows, err := a.db.Query(a.getQuery(epochIdentityFlipsQuery), epoch, address)
-	if err != nil {
-		return nil, err
-	}
-	return a.readFlips(rows)
+	return a.flips(epochIdentityFlipsQuery, epoch, address)
 }
 
 func (a *postgresAccessor) EpochIdentityValidationTxs(epoch uint64, address string) ([]types.TransactionSummary, error) {

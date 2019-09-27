@@ -104,11 +104,7 @@ func (a *postgresAccessor) EpochFlipsCount(epoch uint64) (uint64, error) {
 }
 
 func (a *postgresAccessor) EpochFlips(epoch uint64, startIndex uint64, count uint64) ([]types.FlipSummary, error) {
-	rows, err := a.db.Query(a.getQuery(epochFlipsQuery), epoch, startIndex, count)
-	if err != nil {
-		return nil, err
-	}
-	return a.readFlips(rows)
+	return a.flips(epochFlipsQuery, epoch, startIndex, count)
 }
 
 func (a *postgresAccessor) EpochFlipAnswersSummary(epoch uint64) ([]types.StrValueCount, error) {

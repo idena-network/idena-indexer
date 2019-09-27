@@ -27,6 +27,8 @@ from flips f
          left join flip_words fw on fw.flip_id = f.id
          left join words_dictionary wd1 on wd1.id = fw.word_1
          left join words_dictionary wd2 on wd2.id = fw.word_2
-where b.epoch = $1
-  and lower(a.address) = lower($2)
-order by b.height
+where lower(a.address) = lower($1)
+order by b.height desc
+limit $3
+offset
+$2
