@@ -38,11 +38,6 @@ insert into flip_keys (select *
                        from OLD_SCHEMA_TAG.flip_keys
                        where tx_id in (select id from OLD_SCHEMA_TAG.transactions where block_height <= $1));
 
---flip_words
-insert into flip_words (select *
-                        from OLD_SCHEMA_TAG.flip_words
-                        where tx_id in (select id from OLD_SCHEMA_TAG.transactions where block_height <= $1));
-
 -- flip_keys sequence
 select setval('flip_keys_id_seq', max(id))
 from flip_keys;
@@ -52,6 +47,7 @@ insert into flips (select id,
                           tx_id,
                           cid,
                           size,
+                          pair,
                           (case when status_block_height <= $1 then status_block_height else null end),
                           (case when status_block_height <= $1 then answer else null end),
                           (case when status_block_height <= $1 then status else null end)
@@ -60,6 +56,11 @@ insert into flips (select id,
 -- flips sequence
 select setval('flips_id_seq', max(id))
 from flips;
+
+--flip_words
+insert into flip_words (select *
+                        from OLD_SCHEMA_TAG.flip_words
+                        where tx_id in (select id from OLD_SCHEMA_TAG.transactions where block_height <= $1));
 
 -- flips_data
 insert into flips_data (select * from OLD_SCHEMA_TAG.flips_data where block_height <= $1);
