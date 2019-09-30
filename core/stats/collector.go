@@ -1,12 +1,19 @@
 package stats
 
 import (
+	"github.com/idena-network/idena-go/blockchain"
 	"github.com/idena-network/idena-go/blockchain/types"
 	"github.com/idena-network/idena-go/common"
 	"github.com/idena-network/idena-go/stats/collector"
 	statsTypes "github.com/idena-network/idena-go/stats/types"
 	"github.com/idena-network/idena-indexer/core/conversion"
+	"github.com/idena-network/idena-indexer/db"
 	"math/big"
+)
+
+const (
+	proposerReward       = "Proposer"
+	finalCommitteeReward = "FinalCommittee"
 )
 
 type blockStatsCollector struct {
@@ -21,6 +28,7 @@ func NewBlockStatsCollector() collector.BlockStatsCollector {
 }
 
 func (c *blockStatsCollector) EnableCollecting() {
+	c.initStats()
 	c.collect = true
 }
 
@@ -36,7 +44,6 @@ func (c *blockStatsCollector) initStats() {
 }
 
 func (c *blockStatsCollector) initRewardStats() {
-	c.initStats()
 	if c.stats.RewardsStats != nil {
 		return
 	}
@@ -47,7 +54,6 @@ func (c *blockStatsCollector) SetValidation(validation *statsTypes.ValidationSta
 	if !c.canCollect() {
 		return
 	}
-	c.initStats()
 	c.stats.ValidationStats = validation
 }
 
@@ -156,6 +162,29 @@ func (c *blockStatsCollector) addReward(addr common.Address, balance *big.Int, s
 		Balance: balance,
 		Stake:   stake,
 		Type:    rewardType,
+	})
+}
+
+func (c *blockStatsCollector) AddProposerReward(addr common.Address, balance *big.Int, stake *big.Int) {
+	if !c.canCollect() {
+		return
+	}
+	c.addMiningReward(addr, balance, stake, proposerReward)
+}
+
+func (c *blockStatsCollector) AddFinalCommitteeReward(addr common.Address, balance *big.Int, stake *big.Int) {
+	if !c.canCollect() {
+		return
+	}
+	c.addMiningReward(addr, balance, stake, finalCommitteeReward)
+}
+
+func (c *blockStatsCollector) addMiningReward(addr common.Address, balance *big.Int, stake *big.Int, rType string) {
+	c.stats.MiningRewards = append(c.stats.MiningRewards, &db.Reward{
+		Address: conversion.ConvertAddress(addr),
+		Balance: blockchain.ConvertToFloat(balance),
+		Stake:   blockchain.ConvertToFloat(stake),
+		Type:    rType,
 	})
 }
 

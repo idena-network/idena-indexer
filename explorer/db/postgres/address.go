@@ -7,8 +7,12 @@ import (
 )
 
 const (
-	addressPenaltiesCountQuery = "addressPenaltiesCount.sql"
-	addressPenaltiesQuery      = "addressPenalties.sql"
+	addressPenaltiesCountQuery          = "addressPenaltiesCount.sql"
+	addressPenaltiesQuery               = "addressPenalties.sql"
+	addressMiningRewardsCountQuery      = "addressMiningRewardsCount.sql"
+	addressMiningRewardsQuery           = "addressMiningRewards.sql"
+	addressBlockMiningRewardsCountQuery = "addressBlockMiningRewardsCount.sql"
+	addressBlockMiningRewardsQuery      = "addressBlockMiningRewards.sql"
 )
 
 func (a *postgresAccessor) AddressPenaltiesCount(address string) (uint64, error) {
@@ -37,6 +41,51 @@ func (a *postgresAccessor) AddressPenalties(address string, startIndex uint64, c
 		}
 		item.Timestamp = common.TimestampToTime(big.NewInt(timestamp))
 		res = append(res, item)
+	}
+	return res, nil
+}
+
+func (a *postgresAccessor) AddressMiningRewardsCount(address string) (uint64, error) {
+	return a.count(addressMiningRewardsCountQuery, address)
+}
+
+func (a *postgresAccessor) AddressMiningRewards(address string, startIndex uint64, count uint64) (
+	[]types.Reward, error) {
+	return a.rewards(addressMiningRewardsQuery, address, startIndex, count)
+}
+
+func (a *postgresAccessor) AddressBlockMiningRewardsCount(address string) (uint64, error) {
+	return a.count(addressBlockMiningRewardsCountQuery, address)
+}
+
+func (a *postgresAccessor) AddressBlockMiningRewards(address string, startIndex uint64, count uint64) (
+	[]types.BlockRewards, error) {
+	rows, err := a.db.Query(a.getQuery(addressBlockMiningRewardsQuery), address, startIndex, count)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var res []types.BlockRewards
+	var item *types.BlockRewards
+	for rows.Next() {
+		reward := types.Reward{}
+		var blockHeight, epoch uint64
+		if err := rows.Scan(&blockHeight, &epoch, &reward.Balance, &reward.Stake, &reward.Type); err != nil {
+			return nil, err
+		}
+		if item == nil || item.Height != blockHeight {
+			if item != nil {
+				res = append(res, *item)
+			}
+			item = &types.BlockRewards{
+				Height: blockHeight,
+				Epoch:  epoch,
+			}
+		}
+		item.Rewards = append(item.Rewards, reward)
+	}
+	if item != nil {
+		res = append(res, *item)
 	}
 	return res, nil
 }

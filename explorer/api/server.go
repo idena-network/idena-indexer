@@ -200,6 +200,15 @@ func (s *httpServer) InitRouter(router *mux.Router) {
 	router.Path(strings.ToLower("/Address/{address}/Flips")).
 		Queries("skip", "{skip}", "limit", "{limit}").
 		HandlerFunc(s.identityFlips)
+	router.Path(strings.ToLower("/Address/{address}/MiningRewards/Count")).HandlerFunc(s.addressMiningRewardsCount)
+	router.Path(strings.ToLower("/Address/{address}/MiningRewards")).
+		Queries("skip", "{skip}", "limit", "{limit}").
+		HandlerFunc(s.addressMiningRewards)
+	router.Path(strings.ToLower("/Address/{address}/BlockMiningRewards/Count")).
+		HandlerFunc(s.addressBlockMiningRewardsCount)
+	router.Path(strings.ToLower("/Address/{address}/BlockMiningRewards")).
+		Queries("skip", "{skip}", "limit", "{limit}").
+		HandlerFunc(s.addressBlockMiningRewards)
 
 	router.Path(strings.ToLower("/Balances/Count")).HandlerFunc(s.balancesCount)
 	router.Path(strings.ToLower("/Balances")).
@@ -896,6 +905,38 @@ func (s *httpServer) addressPenalties(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	resp, err := s.db.AddressPenalties(vars["address"], startIndex, count)
+	server.WriteResponse(w, resp, err, s.log)
+}
+
+func (s *httpServer) addressMiningRewardsCount(w http.ResponseWriter, r *http.Request) {
+	resp, err := s.db.AddressMiningRewardsCount(mux.Vars(r)["address"])
+	server.WriteResponse(w, resp, err, s.log)
+}
+
+func (s *httpServer) addressMiningRewards(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	startIndex, count, err := server.ReadPaginatorParams(vars)
+	if err != nil {
+		server.WriteErrorResponse(w, err, s.log)
+		return
+	}
+	resp, err := s.db.AddressMiningRewards(vars["address"], startIndex, count)
+	server.WriteResponse(w, resp, err, s.log)
+}
+
+func (s *httpServer) addressBlockMiningRewardsCount(w http.ResponseWriter, r *http.Request) {
+	resp, err := s.db.AddressBlockMiningRewardsCount(mux.Vars(r)["address"])
+	server.WriteResponse(w, resp, err, s.log)
+}
+
+func (s *httpServer) addressBlockMiningRewards(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	startIndex, count, err := server.ReadPaginatorParams(vars)
+	if err != nil {
+		server.WriteErrorResponse(w, err, s.log)
+		return
+	}
+	resp, err := s.db.AddressBlockMiningRewards(vars["address"], startIndex, count)
 	server.WriteResponse(w, resp, err, s.log)
 }
 

@@ -1,5 +1,6 @@
 select a.address,
        ei.epoch,
+       0 block_height,
        vr.balance,
        vr.stake,
        vr.type

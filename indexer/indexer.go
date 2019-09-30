@@ -262,6 +262,7 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) *db.Data
 		BurntPenalties: detectBurntPenalties(incomingBlock, ctx.prevStateReadOnly, ctx.newStateReadOnly,
 			indexer.listener.Blockchain()),
 		EpochRewards:     indexer.detectEpochRewards(incomingBlock),
+		MiningRewards:    indexer.detectMiningRewards(incomingBlock),
 		FailedValidation: !notFailedValidation,
 	}
 }

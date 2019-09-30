@@ -29,10 +29,12 @@ from epoch_summaries
 where block_height > $1;
 
 -- balances
-delete from balances;
+delete
+from balances;
 
 -- birthdays
-delete from birthdays;
+delete
+from birthdays;
 
 -- coins
 delete
@@ -200,6 +202,11 @@ where block_height > $1;
 -- block_validators
 delete
 from block_validators
+where block_height > $1;
+
+-- mining_rewards
+delete
+from mining_rewards
 where block_height > $1;
 
 -- temporary_identities

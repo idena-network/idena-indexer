@@ -68,6 +68,7 @@ const (
 	insertRewardAgeQuery            = "insertRewardAge.sql"
 	insertFundRewardQuery           = "insertFundReward.sql"
 	insertFailedValidationQuery     = "insertFailedValidation.sql"
+	insertMiningRewardQuery         = "insertMiningReward.sql"
 )
 
 func (a *postgresAccessor) getQuery(name string) string {
@@ -269,6 +270,10 @@ func (a *postgresAccessor) Save(data *Data) error {
 	}
 
 	if err = a.saveEpochRewards(ctx, data.EpochRewards); err != nil {
+		return err
+	}
+
+	if err = a.saveMiningRewards(ctx, data.MiningRewards); err != nil {
 		return err
 	}
 
@@ -943,6 +948,25 @@ func (a *postgresAccessor) saveFundReward(ctx *context, reward *Reward) error {
 		reward.Balance,
 		reward.Type)
 	return errors.Wrapf(err, "unable to save fund reward: %v", reward)
+}
+
+func (a *postgresAccessor) saveMiningRewards(ctx *context, rewards []*Reward) error {
+	for _, reward := range rewards {
+		if err := a.saveMiningReward(ctx, reward); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (a *postgresAccessor) saveMiningReward(ctx *context, reward *Reward) error {
+	_, err := ctx.tx.Exec(a.getQuery(insertMiningRewardQuery),
+		reward.Address,
+		ctx.blockHeight,
+		reward.Balance,
+		reward.Stake,
+		reward.Type)
+	return errors.Wrapf(err, "unable to save mining reward: %v", reward)
 }
 
 func (a *postgresAccessor) saveFailedValidation(ctx *context, failed bool) error {

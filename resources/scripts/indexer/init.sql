@@ -209,6 +209,33 @@ CREATE TABLE IF NOT EXISTS block_validators
 ALTER TABLE block_validators
     OWNER to postgres;
 
+-- Table: mining_rewards
+
+-- DROP TABLE mining_rewards;
+
+CREATE TABLE IF NOT EXISTS mining_rewards
+(
+    address_id   bigint                                             NOT NULL,
+    block_height bigint                                             NOT NULL,
+    balance      numeric(30, 18)                                    NOT NULL,
+    stake        numeric(30, 18)                                    NOT NULL,
+    type         character varying(20) COLLATE pg_catalog."default" NOT NULL,
+    CONSTRAINT mining_rewards_address_id_fkey FOREIGN KEY (address_id)
+        REFERENCES addresses (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT mining_rewards_block_height_fkey FOREIGN KEY (block_height)
+        REFERENCES blocks (height) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+) WITH (
+      OIDS = FALSE
+    )
+  TABLESPACE pg_default;
+
+ALTER TABLE mining_rewards
+    OWNER to postgres;
+
 -- SEQUENCE: transactions_id_seq
 
 -- DROP SEQUENCE transactions_id_seq;
@@ -996,7 +1023,6 @@ CREATE TABLE IF NOT EXISTS good_authors
 
 ALTER TABLE good_authors
     OWNER to postgres;
-
 
 -- Table: flip_words
 

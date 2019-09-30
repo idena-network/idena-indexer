@@ -27,6 +27,9 @@ insert into block_validators (select * from OLD_SCHEMA_TAG.block_validators wher
 -- block_proposers
 insert into block_proposers (select * from OLD_SCHEMA_TAG.block_proposers where block_height <= $1);
 
+-- mining_rewards
+insert into mining_rewards (select * from OLD_SCHEMA_TAG.mining_rewards where block_height <= $1);
+
 -- transactions
 insert into transactions (select * from OLD_SCHEMA_TAG.transactions where block_height <= $1);
 -- transactions sequence

@@ -260,11 +260,12 @@ type AuthorValidationSummary struct {
 }
 
 type Reward struct {
-	Address string          `json:"address,omitempty"`
-	Epoch   uint64          `json:"epoch,omitempty"`
-	Balance decimal.Decimal `json:"balance"`
-	Stake   decimal.Decimal `json:"stake"`
-	Type    string          `json:"type"`
+	Address     string          `json:"address,omitempty"`
+	Epoch       uint64          `json:"epoch,omitempty"`
+	BlockHeight uint64          `json:"blockHeight,omitempty"`
+	Balance     decimal.Decimal `json:"balance"`
+	Stake       decimal.Decimal `json:"stake"`
+	Type        string          `json:"type"`
 }
 
 type Rewards struct {
@@ -274,6 +275,12 @@ type Rewards struct {
 	State     string   `json:"state"`
 	Age       uint16   `json:"age"`
 	Rewards   []Reward `json:"rewards"`
+}
+
+type BlockRewards struct {
+	Height  uint64   `json:"height"`
+	Epoch   uint64   `json:"epoch"`
+	Rewards []Reward `json:"rewards"`
 }
 
 type FundPayment struct {

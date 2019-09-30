@@ -86,6 +86,10 @@ type Accessor interface {
 	Address(address string) (types.Address, error)
 	AddressPenaltiesCount(address string) (uint64, error)
 	AddressPenalties(address string, startIndex uint64, count uint64) ([]types.Penalty, error)
+	AddressMiningRewardsCount(address string) (uint64, error)
+	AddressMiningRewards(address string, startIndex uint64, count uint64) ([]types.Reward, error)
+	AddressBlockMiningRewardsCount(address string) (uint64, error)
+	AddressBlockMiningRewards(address string, startIndex uint64, count uint64) ([]types.BlockRewards, error)
 
 	Transaction(hash string) (types.TransactionDetail, error)
 

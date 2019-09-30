@@ -31,6 +31,7 @@ type Data struct {
 	Penalty             *Penalty
 	BurntPenalties      []Penalty
 	EpochRewards        *EpochRewards
+	MiningRewards       []*Reward
 	FailedValidation    bool
 }
 

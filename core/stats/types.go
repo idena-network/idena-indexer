@@ -4,6 +4,7 @@ import (
 	"github.com/idena-network/idena-go/blockchain/types"
 	"github.com/idena-network/idena-go/common"
 	statsTypes "github.com/idena-network/idena-go/stats/types"
+	"github.com/idena-network/idena-indexer/db"
 	"math/big"
 )
 
@@ -20,6 +21,7 @@ const (
 type Stats struct {
 	ValidationStats *statsTypes.ValidationStats
 	RewardsStats    *RewardsStats
+	MiningRewards   []*db.Reward
 }
 
 type RewardsStats struct {

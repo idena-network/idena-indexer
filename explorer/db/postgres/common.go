@@ -176,7 +176,7 @@ func (a *postgresAccessor) rewards(queryName string, args ...interface{}) ([]typ
 	var res []types.Reward
 	for rows.Next() {
 		item := types.Reward{}
-		if err := rows.Scan(&item.Address, &item.Epoch, &item.Balance, &item.Stake, &item.Type); err != nil {
+		if err := rows.Scan(&item.Address, &item.Epoch, &item.BlockHeight, &item.Balance, &item.Stake, &item.Type); err != nil {
 			return nil, err
 		}
 		res = append(res, item)
