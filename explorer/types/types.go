@@ -92,6 +92,7 @@ type FlipSummary struct {
 	LongRespCount  uint32        `json:"longRespCount"`
 	Status         string        `json:"status"`
 	Answer         string        `json:"answer"`
+	WrongWords     bool          `json:"wrongWords"`
 	Timestamp      time.Time     `json:"timestamp"`
 	Size           uint32        `json:"size"`
 	Icon           hexutil.Bytes `json:"icon,omitempty"`
@@ -139,6 +140,7 @@ type Flip struct {
 	Size        uint32     `json:"size"`
 	Status      string     `json:"status"`
 	Answer      string     `json:"answer"`
+	WrongWords  bool       `json:"wrongWords"`
 	TxHash      string     `json:"txHash"`
 	BlockHash   string     `json:"blockHash"`
 	BlockHeight uint64     `json:"blockHeight"`
@@ -172,12 +174,14 @@ type FlipContent struct {
 }
 
 type Answer struct {
-	Cid        string  `json:"cid,omitempty"`
-	Address    string  `json:"address,omitempty"`
-	RespAnswer string  `json:"respAnswer"`
-	FlipAnswer string  `json:"flipAnswer"`
-	FlipStatus string  `json:"flipStatus"`
-	Point      float32 `json:"point"`
+	Cid            string  `json:"cid,omitempty"`
+	Address        string  `json:"address,omitempty"`
+	RespAnswer     string  `json:"respAnswer"`
+	RespWrongWords bool    `json:"respWrongWords"`
+	FlipAnswer     string  `json:"flipAnswer"`
+	FlipWrongWords bool    `json:"flipWrongWords"`
+	FlipStatus     string  `json:"flipStatus"`
+	Point          float32 `json:"point"`
 }
 
 type Identity struct {

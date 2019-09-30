@@ -544,9 +544,10 @@ func convertStatsAnswers(incomingAnswers []statsTypes.FlipAnswerStats) []db.Answ
 
 func convertStatsAnswer(incomingAnswer statsTypes.FlipAnswerStats) db.Answer {
 	return db.Answer{
-		Address: conversion.ConvertAddress(incomingAnswer.Respondent),
-		Answer:  convertAnswer(incomingAnswer.Answer),
-		Point:   incomingAnswer.Point,
+		Address:    conversion.ConvertAddress(incomingAnswer.Respondent),
+		Answer:     convertAnswer(incomingAnswer.Answer),
+		WrongWords: incomingAnswer.WrongWords,
+		Point:      incomingAnswer.Point,
 	}
 }
 
@@ -612,6 +613,7 @@ func (indexer *Indexer) detectEpochResult(block *types.Block, ctx *conversionCon
 			LongAnswers:  convertStatsAnswers(flipStats.LongAnswers),
 			Status:       convertFlipStatus(ceremony.FlipStatus(flipStats.Status)),
 			Answer:       convertAnswer(flipStats.Answer),
+			WrongWords:   flipStats.WrongWords,
 		}
 		flipsStats = append(flipsStats, flipStats)
 	}

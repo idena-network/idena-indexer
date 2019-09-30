@@ -121,12 +121,14 @@ type FlipStats struct {
 	LongAnswers  []Answer
 	Status       string
 	Answer       string
+	WrongWords   bool
 }
 
 type Answer struct {
-	Address string
-	Answer  string
-	Point   float32
+	Address    string
+	Answer     string
+	WrongWords bool
+	Point      float32
 }
 
 type FlipKey struct {

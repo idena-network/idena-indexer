@@ -421,6 +421,7 @@ CREATE TABLE IF NOT EXISTS flips
     pair                smallint                                            NOT NULL,
     status_block_height bigint,
     answer              character varying(20) COLLATE pg_catalog."default",
+    wrong_words         boolean,
     status              character varying(20) COLLATE pg_catalog."default",
     CONSTRAINT flips_pkey PRIMARY KEY (id),
     CONSTRAINT flips_status_block_height_fkey FOREIGN KEY (status_block_height)
@@ -504,6 +505,7 @@ CREATE TABLE IF NOT EXISTS answers
     epoch_identity_id bigint                                             NOT NULL,
     is_short          boolean                                            NOT NULL,
     answer            character varying(20) COLLATE pg_catalog."default" NOT NULL,
+    wrong_words       boolean                                            NOT NULL,
     point             real                                               NOT NULL,
     CONSTRAINT answers_pkey PRIMARY KEY (id),
     CONSTRAINT answers_epoch_identity_id_fkey FOREIGN KEY (epoch_identity_id)

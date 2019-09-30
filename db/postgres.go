@@ -300,7 +300,12 @@ func (a *postgresAccessor) saveFlipStats(ctx *context, flipStats FlipStats) erro
 	if err := a.saveAnswers(ctx, flipStats.Cid, flipStats.LongAnswers, false); err != nil {
 		return err
 	}
-	if _, err := ctx.tx.Exec(a.getQuery(updateFlipStateQuery), flipStats.Status, flipStats.Answer, ctx.blockHeight, flipStats.Cid); err != nil {
+	if _, err := ctx.tx.Exec(a.getQuery(updateFlipStateQuery),
+		flipStats.Status,
+		flipStats.Answer,
+		flipStats.WrongWords,
+		ctx.blockHeight,
+		flipStats.Cid); err != nil {
 		return err
 	}
 	return nil
@@ -406,7 +411,13 @@ func (a *postgresAccessor) saveAnswer(ctx *context, cid string, answer Answer, i
 	if err != nil {
 		return 0, err
 	}
-	err = ctx.tx.QueryRow(a.getQuery(insertAnswersQuery), flipId, epochIdentityId, isShort, answer.Answer, answer.Point).Scan(&id)
+	err = ctx.tx.QueryRow(a.getQuery(insertAnswersQuery),
+		flipId,
+		epochIdentityId,
+		isShort,
+		answer.Answer,
+		answer.WrongWords,
+		answer.Point).Scan(&id)
 	return id, err
 }
 

@@ -1,5 +1,6 @@
 UPDATE FLIPS
 SET STATUS=$1,
     ANSWER=$2,
-    STATUS_BLOCK_HEIGHT=$3
-WHERE lower(CID) = lower($4)
+    WRONG_WORDS=$3,
+    STATUS_BLOCK_HEIGHT=$4
+WHERE lower(CID) = lower($5)

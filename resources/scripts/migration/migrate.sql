@@ -53,6 +53,7 @@ insert into flips (select id,
                           pair,
                           (case when status_block_height <= $1 then status_block_height else null end),
                           (case when status_block_height <= $1 then answer else null end),
+                          (case when status_block_height <= $1 then wrong_words else null end),
                           (case when status_block_height <= $1 then status else null end)
                    from OLD_SCHEMA_TAG.flips
                    where tx_id in (select id from OLD_SCHEMA_TAG.transactions where block_height <= $1));

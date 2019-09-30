@@ -83,6 +83,7 @@ func (a *postgresAccessor) flips(queryName string, args ...interface{}) ([]types
 			&item.Epoch,
 			&item.Status,
 			&item.Answer,
+			&item.WrongWords,
 			&item.ShortRespCount,
 			&item.LongRespCount,
 			&timestamp,
@@ -137,7 +138,14 @@ func (a *postgresAccessor) readAnswers(rows *sql.Rows) ([]types.Answer, error) {
 	var res []types.Answer
 	for rows.Next() {
 		item := types.Answer{}
-		err := rows.Scan(&item.Cid, &item.Address, &item.RespAnswer, &item.FlipAnswer, &item.FlipStatus, &item.Point)
+		err := rows.Scan(&item.Cid,
+			&item.Address,
+			&item.RespAnswer,
+			&item.RespWrongWords,
+			&item.FlipAnswer,
+			&item.FlipWrongWords,
+			&item.FlipStatus,
+			&item.Point)
 		if err != nil {
 			return nil, err
 		}

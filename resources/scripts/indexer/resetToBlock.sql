@@ -178,7 +178,8 @@ where tx_id in
 update flips
 set status_block_height=null,
     status=null,
-    answer=null
+    answer=null,
+    wrong_words=null
 where status_block_height > $1;
 
 -- flip_keys

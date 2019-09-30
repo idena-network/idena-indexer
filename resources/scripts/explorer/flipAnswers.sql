@@ -1,4 +1,11 @@
-select '' cid, ad.address, a.answer, coalesce(f.answer), coalesce(f.status), a.point
+select '' cid,
+       ad.address,
+       a.answer,
+       a.wrong_words,
+       coalesce(f.answer),
+       coalesce(f.wrong_words, false),
+       coalesce(f.status),
+       a.point
 from answers a
          join epoch_identities ei on ei.id = a.epoch_identity_id
          join address_states s on s.id = ei.address_state_id
@@ -7,4 +14,5 @@ from answers a
 where lower(f.cid) = lower($1)
   and a.is_short = $2
 limit $4
-    offset $3
+offset
+$3
