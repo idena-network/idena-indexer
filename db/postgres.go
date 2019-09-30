@@ -65,6 +65,7 @@ const (
 	insertGoodAuthorQuery           = "insertGoodAuthor.sql"
 	insertTotalRewardsQuery         = "insertTotalRewards.sql"
 	insertValidationRewardQuery     = "insertValidationReward.sql"
+	insertRewardAgeQuery            = "insertRewardAge.sql"
 	insertFundRewardQuery           = "insertFundReward.sql"
 	insertFailedValidationQuery     = "insertFailedValidation.sql"
 )
@@ -838,6 +839,9 @@ func (a *postgresAccessor) saveEpochRewards(ctx *context, epochRewards *EpochRew
 	if err := a.saveValidationRewards(ctx, epochRewards.ValidationRewards); err != nil {
 		return err
 	}
+	if err := a.saveRewardAges(ctx, epochRewards.AgesByAddress); err != nil {
+		return err
+	}
 	if err := a.saveFundRewards(ctx, epochRewards.FundRewards); err != nil {
 		return err
 	}
@@ -907,6 +911,20 @@ func (a *postgresAccessor) saveValidationReward(ctx *context, reward *Reward) er
 		reward.Stake,
 		reward.Type)
 	return errors.Wrapf(err, "unable to save validation reward")
+}
+
+func (a *postgresAccessor) saveRewardAges(ctx *context, agesByAddress map[string]uint16) error {
+	for address, age := range agesByAddress {
+		if err := a.saveRewardAge(ctx, address, age); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (a *postgresAccessor) saveRewardAge(ctx *context, address string, age uint16) error {
+	_, err := ctx.tx.Exec(a.getQuery(insertRewardAgeQuery), ctx.epochIdentityIdsPerAddr[address], age)
+	return errors.Wrapf(err, "unable to save reward age")
 }
 
 func (a *postgresAccessor) saveFundRewards(ctx *context, rewards []*Reward) error {

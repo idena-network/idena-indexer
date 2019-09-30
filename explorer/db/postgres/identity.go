@@ -191,7 +191,8 @@ func (a *postgresAccessor) IdentityEpochRewards(address string, startIndex uint6
 		reward := types.Reward{}
 		var epoch uint64
 		var prevState, state string
-		if err := rows.Scan(&epoch, &reward.Balance, &reward.Stake, &reward.Type, &prevState, &state); err != nil {
+		var age uint16
+		if err := rows.Scan(&epoch, &reward.Balance, &reward.Stake, &reward.Type, &prevState, &state, &age); err != nil {
 			return nil, err
 		}
 		if item == nil || item.Epoch != epoch {
@@ -202,6 +203,7 @@ func (a *postgresAccessor) IdentityEpochRewards(address string, startIndex uint6
 				Epoch:     epoch,
 				PrevState: prevState,
 				State:     state,
+				Age:       age,
 			}
 		}
 		item.Rewards = append(item.Rewards, reward)

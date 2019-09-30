@@ -72,6 +72,16 @@ where epoch_identity_id in
               from address_states
               where block_height > $1));
 
+-- reward_ages
+delete
+from reward_ages
+where epoch_identity_id in
+      (select id
+       from epoch_identities
+       where address_state_id in
+             (select id
+              from address_states
+              where block_height > $1));
 
 -- bad_authors
 delete

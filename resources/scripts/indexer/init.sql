@@ -905,6 +905,27 @@ CREATE TABLE IF NOT EXISTS validation_rewards
 ALTER TABLE validation_rewards
     OWNER to postgres;
 
+-- Table: reward_ages
+
+-- DROP TABLE reward_ages;
+
+CREATE TABLE IF NOT EXISTS reward_ages
+(
+    epoch_identity_id bigint  NOT NULL,
+    age               integer NOT NULL,
+    CONSTRAINT reward_ages_epoch_identity_id_type_key UNIQUE (epoch_identity_id),
+    CONSTRAINT reward_ages_epoch_identity_id_fkey FOREIGN KEY (epoch_identity_id)
+        REFERENCES epoch_identities (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+) WITH (
+      OIDS = FALSE
+    )
+  TABLESPACE pg_default;
+
+ALTER TABLE reward_ages
+    OWNER to postgres;
+
 -- Table: fund_rewards
 
 -- DROP TABLE fund_rewards;

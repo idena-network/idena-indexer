@@ -31,6 +31,7 @@ type RewardsStats struct {
 	FoundationPayouts *big.Int
 	ZeroWalletFund    *big.Int
 	Rewards           []*RewardStats
+	AgesByAddress     map[string]uint16
 }
 
 type RewardStats struct {

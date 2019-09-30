@@ -182,5 +182,14 @@ insert into validation_rewards
                                  where address_state_id in
                                        (select id from OLD_SCHEMA_TAG.address_states where block_height <= $1)));
 
+-- reward_ages
+insert into reward_ages
+    (select *
+     from OLD_SCHEMA_TAG.reward_ages
+     where epoch_identity_id in (select id
+                                 from OLD_SCHEMA_TAG.epoch_identities
+                                 where address_state_id in
+                                       (select id from OLD_SCHEMA_TAG.address_states where block_height <= $1)));
+
 -- failed_validations
 insert into failed_validations (select * from OLD_SCHEMA_TAG.failed_validations where block_height <= $1);

@@ -272,7 +272,7 @@ type Rewards struct {
 	Epoch     uint64   `json:"epoch,omitempty"`
 	PrevState string   `json:"prevState"`
 	State     string   `json:"state"`
-	Age       uint64   `json:"age"` // todo
+	Age       uint16   `json:"age"`
 	Rewards   []Reward `json:"rewards"`
 }
 

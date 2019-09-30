@@ -33,6 +33,7 @@ func (indexer *Indexer) detectEpochRewards(block *types.Block) *db.EpochRewards 
 	epochRewards.GoodAuthors = convertGoodAuthors(rewardsStats.Authors.GoodAuthors)
 	epochRewards.ValidationRewards, epochRewards.FundRewards = convertRewards(rewardsStats.Rewards)
 	epochRewards.Total = convertTotalRewards(rewardsStats)
+	epochRewards.AgesByAddress = rewardsStats.AgesByAddress
 
 	return epochRewards
 }

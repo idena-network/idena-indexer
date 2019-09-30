@@ -40,6 +40,7 @@ type EpochRewards struct {
 	Total             *TotalRewards
 	ValidationRewards []*Reward
 	FundRewards       []*Reward
+	AgesByAddress     map[string]uint16
 }
 
 type TotalRewards struct {

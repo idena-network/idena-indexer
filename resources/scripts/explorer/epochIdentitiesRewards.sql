@@ -3,7 +3,8 @@ select a.address,
        vr.stake,
        vr.type,
        coalesce(prev_states.state) prev_state,
-       s.state
+       s.state,
+       ra.age
 from validation_rewards vr
          join epoch_identities ei on ei.id = vr.epoch_identity_id
          join address_states s on s.id = ei.address_state_id
@@ -24,4 +25,5 @@ from validation_rewards vr
                offset
                $2) filtered on filtered.epoch_identity_id = vr.epoch_identity_id
          left join address_states prev_states on prev_states.id = s.prev_id
+         join reward_ages ra on ra.epoch_identity_id = vr.epoch_identity_id
 order by filtered.total_reward desc, a.address

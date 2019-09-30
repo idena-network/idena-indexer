@@ -5,6 +5,7 @@ import (
 	"github.com/idena-network/idena-go/common"
 	"github.com/idena-network/idena-go/stats/collector"
 	statsTypes "github.com/idena-network/idena-go/stats/types"
+	"github.com/idena-network/idena-indexer/core/conversion"
 	"math/big"
 )
 
@@ -106,30 +107,46 @@ func (c *blockStatsCollector) SetTotalZeroWalletFund(amount *big.Int) {
 	c.stats.RewardsStats.ZeroWalletFund = amount
 }
 
-func (c *blockStatsCollector) AddValidationReward(addr common.Address, balance *big.Int, stake *big.Int) {
+func (c *blockStatsCollector) AddValidationReward(addr common.Address, age uint16, balance *big.Int, stake *big.Int) {
+	if !c.canCollect() {
+		return
+	}
 	c.addReward(addr, balance, stake, Validation)
+	if c.stats.RewardsStats.AgesByAddress == nil {
+		c.stats.RewardsStats.AgesByAddress = make(map[string]uint16)
+	}
+	c.stats.RewardsStats.AgesByAddress[conversion.ConvertAddress(addr)] = age + 1
 }
 
 func (c *blockStatsCollector) AddFlipsReward(addr common.Address, balance *big.Int, stake *big.Int) {
+	if !c.canCollect() {
+		return
+	}
 	c.addReward(addr, balance, stake, Flips)
 }
 
 func (c *blockStatsCollector) AddInvitationsReward(addr common.Address, balance *big.Int, stake *big.Int) {
+	if !c.canCollect() {
+		return
+	}
 	c.addReward(addr, balance, stake, Invitations)
 }
 
 func (c *blockStatsCollector) AddFoundationPayout(addr common.Address, balance *big.Int) {
+	if !c.canCollect() {
+		return
+	}
 	c.addReward(addr, balance, nil, FoundationPayouts)
 }
 
 func (c *blockStatsCollector) AddZeroWalletFund(addr common.Address, balance *big.Int) {
+	if !c.canCollect() {
+		return
+	}
 	c.addReward(addr, balance, nil, ZeroWalletFund)
 }
 
 func (c *blockStatsCollector) addReward(addr common.Address, balance *big.Int, stake *big.Int, rewardType RewardType) {
-	if !c.canCollect() {
-		return
-	}
 	if (balance == nil || balance.Sign() == 0) && (stake == nil || stake.Sign() == 0) {
 		return
 	}
