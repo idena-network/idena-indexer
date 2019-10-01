@@ -184,31 +184,6 @@ CREATE TABLE IF NOT EXISTS block_proposers
 ALTER TABLE block_proposers
     OWNER to postgres;
 
--- Table: block_validators
-
--- DROP TABLE block_validators;
-
-CREATE TABLE IF NOT EXISTS block_validators
-(
-    block_height bigint NOT NULL,
-    address_id   bigint NOT NULL,
-    CONSTRAINT block_validators_address_id_fkey FOREIGN KEY (address_id)
-        REFERENCES addresses (id) MATCH SIMPLE
-        ON UPDATE NO ACTION
-        ON DELETE NO ACTION,
-    CONSTRAINT block_validators_block_height_fkey FOREIGN KEY (block_height)
-        REFERENCES blocks (height) MATCH SIMPLE
-        ON UPDATE NO ACTION
-        ON DELETE NO ACTION
-)
-    WITH (
-        OIDS = FALSE
-    )
-    TABLESPACE pg_default;
-
-ALTER TABLE block_validators
-    OWNER to postgres;
-
 -- Table: mining_rewards
 
 -- DROP TABLE mining_rewards;

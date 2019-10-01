@@ -22,6 +22,7 @@ type Stats struct {
 	ValidationStats *statsTypes.ValidationStats
 	RewardsStats    *RewardsStats
 	MiningRewards   []*db.Reward
+	FinalCommittee  []common.Address
 }
 
 type RewardsStats struct {

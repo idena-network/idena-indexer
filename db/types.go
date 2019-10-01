@@ -11,28 +11,27 @@ type RestoredData struct {
 }
 
 type Data struct {
-	Epoch               uint64
-	ValidationTime      big.Int
-	Block               Block
-	PrevBlockValidators []string
-	Identities          []EpochIdentity
-	SubmittedFlips      []Flip
-	FlipKeys            []FlipKey
-	FlipsWords          []FlipWords
-	FlipStats           []FlipStats
-	Addresses           []Address
-	FlipsData           []FlipData
-	FlipSizeUpdates     []FlipSizeUpdate
-	BalanceUpdates      []Balance
-	Birthdays           []Birthday
-	BalanceCoins        Coins
-	StakeCoins          Coins
-	SaveEpochSummary    bool
-	Penalty             *Penalty
-	BurntPenalties      []Penalty
-	EpochRewards        *EpochRewards
-	MiningRewards       []*Reward
-	FailedValidation    bool
+	Epoch            uint64
+	ValidationTime   big.Int
+	Block            Block
+	Identities       []EpochIdentity
+	SubmittedFlips   []Flip
+	FlipKeys         []FlipKey
+	FlipsWords       []FlipWords
+	FlipStats        []FlipStats
+	Addresses        []Address
+	FlipsData        []FlipData
+	FlipSizeUpdates  []FlipSizeUpdate
+	BalanceUpdates   []Balance
+	Birthdays        []Birthday
+	BalanceCoins     Coins
+	StakeCoins       Coins
+	SaveEpochSummary bool
+	Penalty          *Penalty
+	BurntPenalties   []Penalty
+	EpochRewards     *EpochRewards
+	MiningRewards    []*Reward
+	FailedValidation bool
 }
 
 type EpochRewards struct {
@@ -77,6 +76,7 @@ type Block struct {
 	Flags              []string
 	IsEmpty            bool
 	Size               int
+	ValidatorsCount    int
 }
 
 type Transaction struct {

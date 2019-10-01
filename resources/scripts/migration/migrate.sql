@@ -21,9 +21,6 @@ from addresses;
 -- temporary_identities
 insert into temporary_identities (select * from OLD_SCHEMA_TAG.temporary_identities where block_height <= $1);
 
--- block_validators
-insert into block_validators (select * from OLD_SCHEMA_TAG.block_validators where block_height <= $1);
-
 -- block_proposers
 insert into block_proposers (select * from OLD_SCHEMA_TAG.block_proposers where block_height <= $1);
 

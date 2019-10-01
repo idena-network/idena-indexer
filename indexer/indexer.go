@@ -241,24 +241,23 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) *db.Data
 	}
 
 	return &db.Data{
-		Epoch:               epoch,
-		ValidationTime:      *big.NewInt(ctx.newStateReadOnly.State.NextValidationTime().Unix()),
-		Block:               block,
-		Identities:          identities,
-		SubmittedFlips:      ctx.submittedFlips,
-		FlipKeys:            ctx.flipKeys,
-		FlipsWords:          ctx.flipsWords,
-		FlipsData:           append(ctx.flipsData, flipsMemPoolData...),
-		FlipSizeUpdates:     ctx.flipSizeUpdates,
-		FlipStats:           flipStats,
-		Addresses:           ctx.getAddresses(),
-		BalanceUpdates:      ctx.balanceUpdates,
-		Birthdays:           birthdays,
-		BalanceCoins:        indexer.getBalanceCoins(ctx),
-		StakeCoins:          indexer.getStakeCoins(ctx),
-		SaveEpochSummary:    incomingBlock.Header.Flags().HasFlag(types.ValidationFinished),
-		PrevBlockValidators: indexer.convertPrevBlockValidators(incomingBlock, ctx),
-		Penalty:             detectChargedPenalty(incomingBlock, ctx.newStateReadOnly),
+		Epoch:            epoch,
+		ValidationTime:   *big.NewInt(ctx.newStateReadOnly.State.NextValidationTime().Unix()),
+		Block:            block,
+		Identities:       identities,
+		SubmittedFlips:   ctx.submittedFlips,
+		FlipKeys:         ctx.flipKeys,
+		FlipsWords:       ctx.flipsWords,
+		FlipsData:        append(ctx.flipsData, flipsMemPoolData...),
+		FlipSizeUpdates:  ctx.flipSizeUpdates,
+		FlipStats:        flipStats,
+		Addresses:        ctx.getAddresses(),
+		BalanceUpdates:   ctx.balanceUpdates,
+		Birthdays:        birthdays,
+		BalanceCoins:     indexer.getBalanceCoins(ctx),
+		StakeCoins:       indexer.getStakeCoins(ctx),
+		SaveEpochSummary: incomingBlock.Header.Flags().HasFlag(types.ValidationFinished),
+		Penalty:          detectChargedPenalty(incomingBlock, ctx.newStateReadOnly),
 		BurntPenalties: detectBurntPenalties(incomingBlock, ctx.prevStateReadOnly, ctx.newStateReadOnly,
 			indexer.listener.Blockchain()),
 		EpochRewards:     indexer.detectEpochRewards(incomingBlock),
@@ -364,14 +363,15 @@ func (indexer *Indexer) convertBlock(incomingBlock *types.Block, ctx *conversion
 
 	incomingBlock.Header.Flags()
 	return db.Block{
-		Height:       incomingBlock.Height(),
-		Hash:         convertHash(incomingBlock.Hash()),
-		Time:         *incomingBlock.Header.Time(),
-		Transactions: txs,
-		Proposer:     getProposer(incomingBlock),
-		Flags:        convertFlags(incomingBlock.Header.Flags()),
-		IsEmpty:      incomingBlock.IsEmpty(),
-		Size:         len(incomingBlock.Body.Bytes()),
+		Height:          incomingBlock.Height(),
+		Hash:            convertHash(incomingBlock.Hash()),
+		Time:            *incomingBlock.Header.Time(),
+		Transactions:    txs,
+		Proposer:        getProposer(incomingBlock),
+		Flags:           convertFlags(incomingBlock.Header.Flags()),
+		IsEmpty:         incomingBlock.IsEmpty(),
+		Size:            len(incomingBlock.Body.Bytes()),
+		ValidatorsCount: len(indexer.blockStatsHolder().GetStats().FinalCommittee),
 	}
 }
 
@@ -390,22 +390,6 @@ func getProposer(block *types.Block) string {
 		return ""
 	}
 	return conversion.ConvertAddress(block.Header.ProposedHeader.Coinbase)
-}
-
-func (indexer *Indexer) convertPrevBlockValidators(block *types.Block, ctx *conversionContext) []string {
-	prevBlock := indexer.listener.Blockchain().GetBlockByHeight(block.Height() - 1)
-	if prevBlock == nil {
-		return nil
-	}
-	cert := indexer.listener.Blockchain().GetCertificate(prevBlock.Hash())
-	if cert == nil {
-		return nil
-	}
-	var res []string
-	for _, vote := range cert.Votes {
-		res = append(res, conversion.ConvertAddress(vote.VoterAddr()))
-	}
-	return res
 }
 
 func (indexer *Indexer) convertTransactions(incomingTxs []*types.Transaction, stateToApply *appstate.AppState, ctx *conversionContext) []db.Transaction {

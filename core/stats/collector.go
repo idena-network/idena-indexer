@@ -177,6 +177,7 @@ func (c *blockStatsCollector) AddFinalCommitteeReward(addr common.Address, balan
 		return
 	}
 	c.addMiningReward(addr, balance, stake, finalCommitteeReward)
+	c.stats.FinalCommittee = append(c.stats.FinalCommittee, addr)
 }
 
 func (c *blockStatsCollector) addMiningReward(addr common.Address, balance *big.Int, stake *big.Int, rType string) {

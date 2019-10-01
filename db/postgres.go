@@ -31,8 +31,6 @@ const (
 	insertAnswersQuery              = "insertAnswers.sql"
 	insertBlockQuery                = "insertBlock.sql"
 	insertBlockProposerQuery        = "insertBlockProposer.sql"
-	insertBlockValidatorQuery       = "insertBlockValidator.sql"
-	updateBlockValidatorsCountQuery = "updateBlockValidatorsCount.sql"
 	selectIdentityQuery             = "selectIdentity.sql"
 	selectFlipQuery                 = "selectFlip.sql"
 	insertEpochIdentityQuery        = "insertEpochIdentity.sql"
@@ -199,10 +197,6 @@ func (a *postgresAccessor) Save(data *Data) error {
 	}
 
 	if err = a.saveProposer(ctx, data.Block.Proposer); err != nil {
-		return err
-	}
-
-	if err = a.saveValidators(ctx, data.PrevBlockValidators); err != nil {
 		return err
 	}
 
@@ -441,7 +435,7 @@ func (a *postgresAccessor) saveBlock(ctx *context, block Block) error {
 		ctx.epoch,
 		block.Time.Int64(),
 		block.IsEmpty,
-		0,
+		block.ValidatorsCount,
 		block.Size)
 	return err
 }
@@ -468,28 +462,6 @@ func (a *postgresAccessor) saveProposer(ctx *context, proposer string) error {
 		return nil
 	}
 	_, err := ctx.tx.Exec(a.getQuery(insertBlockProposerQuery), ctx.blockHeight, proposer)
-	return err
-}
-
-func (a *postgresAccessor) saveValidators(ctx *context, validators []string) error {
-	for _, validator := range validators {
-		if err := a.savePrevBlockValidator(ctx, validator); err != nil {
-			return errors.Wrapf(err, "unable to save prev block validator")
-		}
-	}
-	if err := a.savePrevBlockValidatorsCount(ctx, len(validators)); err != nil {
-		return errors.Wrapf(err, "unable to save prev block validators count")
-	}
-	return nil
-}
-
-func (a *postgresAccessor) savePrevBlockValidator(ctx *context, validator string) error {
-	_, err := ctx.tx.Exec(a.getQuery(insertBlockValidatorQuery), ctx.blockHeight-1, validator)
-	return err
-}
-
-func (a *postgresAccessor) savePrevBlockValidatorsCount(ctx *context, count int) error {
-	_, err := ctx.tx.Exec(a.getQuery(updateBlockValidatorsCountQuery), ctx.blockHeight-1, count)
 	return err
 }
 

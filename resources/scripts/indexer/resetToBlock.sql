@@ -200,11 +200,6 @@ delete
 from block_proposers
 where block_height > $1;
 
--- block_validators
-delete
-from block_validators
-where block_height > $1;
-
 -- mining_rewards
 delete
 from mining_rewards
