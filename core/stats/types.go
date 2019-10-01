@@ -19,10 +19,11 @@ const (
 )
 
 type Stats struct {
-	ValidationStats *statsTypes.ValidationStats
-	RewardsStats    *RewardsStats
-	MiningRewards   []*db.Reward
-	FinalCommittee  []common.Address
+	ValidationStats      *statsTypes.ValidationStats
+	RewardsStats         *RewardsStats
+	MiningRewards        []*db.Reward
+	FinalCommittee       []common.Address
+	BurntPenaltiesByAddr map[common.Address]*big.Int
 }
 
 type RewardsStats struct {

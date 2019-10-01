@@ -4,6 +4,7 @@ import (
 	"github.com/idena-network/idena-go/blockchain"
 	"github.com/idena-network/idena-go/blockchain/types"
 	"github.com/idena-network/idena-go/common"
+	"github.com/idena-network/idena-go/core/appstate"
 	"github.com/idena-network/idena-go/stats/collector"
 	statsTypes "github.com/idena-network/idena-go/stats/types"
 	"github.com/idena-network/idena-indexer/core/conversion"
@@ -187,6 +188,55 @@ func (c *blockStatsCollector) addMiningReward(addr common.Address, balance *big.
 		Stake:   blockchain.ConvertToFloat(stake),
 		Type:    rType,
 	})
+}
+
+func (c *blockStatsCollector) AfterSubPenalty(addr common.Address, amount *big.Int, appState *appstate.AppState) {
+	if !c.canCollect() {
+		return
+	}
+	if amount == nil || amount.Sign() != 1 {
+		return
+	}
+	c.detectAndCollectCompletedPenalty(addr, appState)
+}
+
+func (c *blockStatsCollector) detectAndCollectCompletedPenalty(addr common.Address, appState *appstate.AppState) {
+	updatedPenalty := appState.State.GetPenalty(addr)
+	if updatedPenalty != nil && updatedPenalty.Sign() == 1 {
+		return
+	}
+	c.initBurntPenaltiesByAddr()
+	c.stats.BurntPenaltiesByAddr[addr] = updatedPenalty
+}
+
+func (c *blockStatsCollector) BeforeClearPenalty(addr common.Address, appState *appstate.AppState) {
+	if !c.canCollect() {
+		return
+	}
+	c.detectAndCollectBurntPenalty(addr, appState)
+}
+
+func (c *blockStatsCollector) BeforeSetPenalty(addr common.Address, appState *appstate.AppState) {
+	if !c.canCollect() {
+		return
+	}
+	c.detectAndCollectBurntPenalty(addr, appState)
+}
+
+func (c *blockStatsCollector) detectAndCollectBurntPenalty(addr common.Address, appState *appstate.AppState) {
+	curPenalty := appState.State.GetPenalty(addr)
+	if curPenalty == nil || curPenalty.Sign() != 1 {
+		return
+	}
+	c.initBurntPenaltiesByAddr()
+	c.stats.BurntPenaltiesByAddr[addr] = curPenalty
+}
+
+func (c *blockStatsCollector) initBurntPenaltiesByAddr() {
+	if c.stats.BurntPenaltiesByAddr != nil {
+		return
+	}
+	c.stats.BurntPenaltiesByAddr = make(map[common.Address]*big.Int)
 }
 
 func (c *blockStatsCollector) GetStats() *Stats {
