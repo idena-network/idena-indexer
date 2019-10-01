@@ -50,11 +50,11 @@ func NewListener(nodeConfigFile string) Listener {
 		panic(err)
 	}
 	cfg.P2P.MaxPeers = config.LowPowerMaxPeers
-	cfg.IpfsConf.LowWater = 5
-	cfg.IpfsConf.HighWater = 10
-	cfg.IpfsConf.GracePeriod = "1m0s"
-	cfg.IpfsConf.ReproviderInterval = "0"
-	cfg.IpfsConf.Routing = "dhtclient"
+	cfg.IpfsConf.LowWater = 50
+	cfg.IpfsConf.HighWater = 100
+	cfg.IpfsConf.GracePeriod = "20s"
+	cfg.IpfsConf.ReproviderInterval = "12h"
+	cfg.IpfsConf.Routing = "dht"
 	cfg.Sync.FastSync = false
 
 	bus := eventbus.New()
