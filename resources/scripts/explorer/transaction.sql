@@ -7,6 +7,8 @@ select b.epoch,
        afrom.Address             "from",
        COALESCE(ato.Address, '') "to",
        t.Amount,
+       t.Tips,
+       t.max_fee,
        t.Fee,
        t.size
 from transactions t

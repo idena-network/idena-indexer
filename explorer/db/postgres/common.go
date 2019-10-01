@@ -48,6 +48,8 @@ func (a *postgresAccessor) readTxs(rows *sql.Rows) ([]types.TransactionSummary, 
 			&item.From,
 			&item.To,
 			&item.Amount,
+			&item.Tips,
+			&item.MaxFee,
 			&item.Fee,
 			&item.Size); err != nil {
 			return nil, err

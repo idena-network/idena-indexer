@@ -238,6 +238,8 @@ CREATE TABLE IF NOT EXISTS transactions
     "from"       bigint                                             NOT NULL,
     "to"         bigint,
     amount       numeric(30, 18)                                    NOT NULL,
+    tips         numeric(30, 18)                                    NOT NULL,
+    max_fee      numeric(30, 18)                                    NOT NULL,
     fee          numeric(30, 18)                                    NOT NULL,
     size         integer                                            NOT NULL,
     CONSTRAINT transactions_pkey PRIMARY KEY (id),

@@ -85,6 +85,8 @@ type Transaction struct {
 	From    string
 	To      string
 	Amount  decimal.Decimal
+	Tips    decimal.Decimal
+	MaxFee  decimal.Decimal
 	Fee     decimal.Decimal
 	Payload []byte
 	Size    int

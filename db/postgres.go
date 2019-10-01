@@ -704,6 +704,8 @@ func (a *postgresAccessor) saveTransaction(ctx *context, tx Transaction) (int64,
 		from,
 		to,
 		tx.Amount,
+		tx.Tips,
+		tx.MaxFee,
 		tx.Fee,
 		tx.Size).Scan(&id)
 	return id, err

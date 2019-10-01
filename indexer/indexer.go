@@ -483,6 +483,8 @@ func (indexer *Indexer) convertTransaction(incomingTx *types.Transaction, ctx *c
 		From:    from,
 		To:      to,
 		Amount:  blockchain.ConvertToFloat(incomingTx.Amount),
+		Tips:    blockchain.ConvertToFloat(incomingTx.Tips),
+		MaxFee:  blockchain.ConvertToFloat(incomingTx.MaxFee),
 		Fee:     blockchain.ConvertToFloat(fee),
 		Size:    incomingTx.Size(),
 	}

@@ -66,6 +66,8 @@ type TransactionSummary struct {
 	From      string          `json:"from"`
 	To        string          `json:"to,omitempty"`
 	Amount    decimal.Decimal `json:"amount"`
+	Tips      decimal.Decimal `json:"tips"`
+	MaxFee    decimal.Decimal `json:"maxFee"`
 	Fee       decimal.Decimal `json:"fee"`
 	Size      uint32          `json:"size"`
 }
@@ -80,6 +82,8 @@ type TransactionDetail struct {
 	From        string          `json:"from"`
 	To          string          `json:"to,omitempty"`
 	Amount      decimal.Decimal `json:"amount"`
+	Tips        decimal.Decimal `json:"tips"`
+	MaxFee      decimal.Decimal `json:"maxFee"`
 	Fee         decimal.Decimal `json:"fee"`
 	Size        uint32          `json:"size"`
 }
