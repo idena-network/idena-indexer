@@ -1,8 +1,6 @@
-select burnt_balance,
-       minted_balance,
+select burnt,
+       minted,
        total_balance,
-       burnt_stake,
-       minted_stake,
        total_stake
 from coins c
          join blocks b on b.height = c.block_height

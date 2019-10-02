@@ -239,6 +239,32 @@ func (c *blockStatsCollector) initBurntPenaltiesByAddr() {
 	c.stats.BurntPenaltiesByAddr = make(map[common.Address]*big.Int)
 }
 
+func (c *blockStatsCollector) AddMintedCoins(amount *big.Int) {
+	if !c.canCollect() {
+		return
+	}
+	if amount == nil {
+		return
+	}
+	if c.stats.MintedCoins == nil {
+		c.stats.MintedCoins = big.NewInt(0)
+	}
+	c.stats.MintedCoins.Add(c.stats.MintedCoins, amount)
+}
+
+func (c *blockStatsCollector) AddBurntCoins(amount *big.Int) {
+	if !c.canCollect() {
+		return
+	}
+	if amount == nil {
+		return
+	}
+	if c.stats.BurntCoins == nil {
+		c.stats.BurntCoins = big.NewInt(0)
+	}
+	c.stats.BurntCoins.Add(c.stats.BurntCoins, amount)
+}
+
 func (c *blockStatsCollector) GetStats() *Stats {
 	return c.stats
 }

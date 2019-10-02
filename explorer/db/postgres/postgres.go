@@ -7,6 +7,7 @@ import (
 	"github.com/idena-network/idena-go/common"
 	"github.com/idena-network/idena-indexer/explorer/types"
 	"github.com/idena-network/idena-indexer/log"
+	"github.com/shopspring/decimal"
 	"math/big"
 	"strconv"
 )
@@ -103,11 +104,8 @@ func (a *postgresAccessor) Search(value string) ([]types.Entity, error) {
 }
 
 func (a *postgresAccessor) Coins() (types.AllCoins, error) {
-	res := types.AllCoins{
-		Balance: types.Coins{},
-		Stake:   types.Coins{},
-	}
-	err := a.db.QueryRow(a.getQuery(coinsTotalQuery)).Scan(&res.Balance.Total, &res.Stake.Total)
+	res := types.AllCoins{}
+	err := a.db.QueryRow(a.getQuery(coinsTotalQuery)).Scan(&res.TotalBalance, &res.TotalStake)
 	if err == sql.ErrNoRows {
 		err = NoDataFound
 	}
@@ -115,16 +113,27 @@ func (a *postgresAccessor) Coins() (types.AllCoins, error) {
 		return types.AllCoins{}, err
 	}
 	err = a.db.QueryRow(a.getQuery(coinsBurntAndMintedQuery)).
-		Scan(&res.Balance.Burnt,
-			&res.Balance.Minted,
-			&res.Stake.Burnt,
-			&res.Stake.Minted)
+		Scan(&res.Burnt,
+			&res.Minted)
 	if err == sql.ErrNoRows {
 		err = NoDataFound
 	}
 	if err != nil {
 		return types.AllCoins{}, err
 	}
+
+	// todo tmp for backward compatibility
+	res.Balance = types.Coins{
+		Minted: res.Minted,
+		Burnt:  res.Burnt,
+		Total:  res.TotalBalance,
+	}
+	res.Stake = types.Coins{
+		Minted: decimal.Zero,
+		Burnt:  decimal.Zero,
+		Total:  res.TotalStake,
+	}
+
 	return res, nil
 }
 

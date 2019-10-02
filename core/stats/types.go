@@ -24,6 +24,8 @@ type Stats struct {
 	MiningRewards        []*db.Reward
 	FinalCommittee       []common.Address
 	BurntPenaltiesByAddr map[common.Address]*big.Int
+	BurntCoins           *big.Int
+	MintedCoins          *big.Int
 }
 
 type RewardsStats struct {

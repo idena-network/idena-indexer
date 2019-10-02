@@ -209,7 +209,7 @@ func (a *postgresAccessor) Save(data *Data) error {
 		return err
 	}
 
-	if err := a.saveCoins(ctx, data.BalanceCoins, data.StakeCoins); err != nil {
+	if err := a.saveCoins(ctx, data.Coins); err != nil {
 		return err
 	}
 
@@ -250,7 +250,7 @@ func (a *postgresAccessor) Save(data *Data) error {
 	}
 
 	if data.SaveEpochSummary {
-		if err = a.saveEpochSummary(ctx, data.BalanceCoins, data.StakeCoins); err != nil {
+		if err = a.saveEpochSummary(ctx, data.Coins); err != nil {
 			return err
 		}
 	}
@@ -535,17 +535,15 @@ func (a *postgresAccessor) saveAddressState(ctx *context, addressId int64, state
 	return id, err
 }
 
-func (a *postgresAccessor) saveCoins(ctx *context, balanceCoins Coins, stakeCoins Coins) error {
+func (a *postgresAccessor) saveCoins(ctx *context, coins Coins) error {
 	_, err := ctx.tx.Exec(a.getQuery(insertCoinsQuery),
 		ctx.blockHeight,
-		balanceCoins.Burnt,
-		balanceCoins.Minted,
-		balanceCoins.Total,
-		stakeCoins.Burnt,
-		stakeCoins.Minted,
-		stakeCoins.Total)
+		coins.Burnt,
+		coins.Minted,
+		coins.TotalBalance,
+		coins.TotalStake)
 
-	return errors.Wrapf(err, "unable to save coins %v, %v", balanceCoins, stakeCoins)
+	return errors.Wrapf(err, "unable to save coins %v", coins)
 }
 
 func (a *postgresAccessor) saveBalances(tx *sql.Tx, balances []Balance) error {
@@ -776,8 +774,8 @@ func (a *postgresAccessor) saveFlipWords(ctx *context, txId int64, words FlipWor
 	return errors.Wrapf(err, "unable to save flip words %v", words)
 }
 
-func (a *postgresAccessor) saveEpochSummary(ctx *context, balanceCoins Coins, stakeCoins Coins) error {
-	_, err := ctx.tx.Exec(a.getQuery(insertEpochSummaryQuery), ctx.epoch, ctx.blockHeight, balanceCoins.Total, stakeCoins.Total)
+func (a *postgresAccessor) saveEpochSummary(ctx *context, coins Coins) error {
+	_, err := ctx.tx.Exec(a.getQuery(insertEpochSummaryQuery), ctx.epoch, ctx.blockHeight, coins.TotalBalance, coins.TotalStake)
 	return errors.Wrapf(err, "unable to save epoch summary for %s", ctx.epoch)
 }
 

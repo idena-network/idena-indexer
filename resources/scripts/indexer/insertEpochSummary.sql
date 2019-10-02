@@ -6,11 +6,9 @@ insert into epoch_summaries
  tx_count,
  invite_count,
  flip_count,
- burnt_balance,
- minted_balance,
+ burnt,
+ minted,
  total_balance,
- burnt_stake,
- minted_stake,
  total_stake,
  block_height)
 values ($1,
@@ -44,22 +42,14 @@ values ($1,
          where f.tx_id = t.id
            and t.block_height = b.height
            and b.epoch = $1),
-        (select coalesce(sum(burnt_balance), 0)
+        (select coalesce(sum(burnt), 0)
          from coins c
                   join blocks b on b.height = c.block_height
          where b.epoch = $1),
-        (select coalesce(sum(minted_balance), 0)
+        (select coalesce(sum(minted), 0)
          from coins c
                   join blocks b on b.height = c.block_height
          where b.epoch = $1),
         $3,
-        (select coalesce(sum(burnt_stake), 0)
-         from coins c
-                  join blocks b on b.height = c.block_height
-         where b.epoch = $1),
-        (select coalesce(sum(minted_stake), 0) minted_stake
-         from coins c
-                  join blocks b on b.height = c.block_height
-         where b.epoch = $1),
         $4,
         $2)

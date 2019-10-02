@@ -24,8 +24,7 @@ type Data struct {
 	FlipSizeUpdates  []FlipSizeUpdate
 	BalanceUpdates   []Balance
 	Birthdays        []Birthday
-	BalanceCoins     Coins
-	StakeCoins       Coins
+	Coins            Coins
 	SaveEpochSummary bool
 	Penalty          *Penalty
 	BurntPenalties   []Penalty
@@ -182,9 +181,10 @@ type Balance struct {
 }
 
 type Coins struct {
-	Minted decimal.Decimal
-	Burnt  decimal.Decimal
-	Total  decimal.Decimal
+	Minted       decimal.Decimal
+	Burnt        decimal.Decimal
+	TotalBalance decimal.Decimal
+	TotalStake   decimal.Decimal
 }
 
 type AddressFlipCid struct {

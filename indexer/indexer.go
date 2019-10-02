@@ -9,7 +9,6 @@ import (
 	"github.com/idena-network/idena-go/blockchain/attachments"
 	"github.com/idena-network/idena-go/blockchain/types"
 	"github.com/idena-network/idena-go/common"
-	"github.com/idena-network/idena-go/common/math"
 	"github.com/idena-network/idena-go/core/appstate"
 	"github.com/idena-network/idena-go/core/ceremony"
 	"github.com/idena-network/idena-go/core/state"
@@ -26,7 +25,6 @@ import (
 	"github.com/idena-network/idena-indexer/migration/flip"
 	"github.com/ipfs/go-cid"
 	"github.com/pkg/errors"
-	"github.com/shopspring/decimal"
 	"golang.org/x/image/draw"
 	"image"
 	"image/jpeg"
@@ -254,8 +252,7 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) *db.Data
 		Addresses:        ctx.getAddresses(),
 		BalanceUpdates:   ctx.balanceUpdates,
 		Birthdays:        birthdays,
-		BalanceCoins:     indexer.getBalanceCoins(ctx),
-		StakeCoins:       indexer.getStakeCoins(ctx),
+		Coins:            indexer.getCoins(ctx, indexer.isFirstBlock(incomingBlock)),
 		SaveEpochSummary: incomingBlock.Header.Flags().HasFlag(types.ValidationFinished),
 		Penalty:          detectChargedPenalty(incomingBlock, ctx.newStateReadOnly),
 		BurntPenalties:   convertBurntPenalties(indexer.blockStatsHolder().GetStats().BurntPenaltiesByAddr),
@@ -265,38 +262,30 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) *db.Data
 	}
 }
 
-func (indexer *Indexer) getBalanceCoins(ctx *conversionContext) db.Coins {
-	burnt := decimal.Zero
-	if ctx.totalFee != nil {
-		burnt = decimal.NewFromBigInt(ctx.totalFee, 0)
-		burnt = burnt.Mul(decimal.NewFromFloat32(indexer.listener.Config().Consensus.FeeBurnRate))
+func (indexer *Indexer) getCoins(ctx *conversionContext, isFirstBlock bool) db.Coins {
+	minted := indexer.blockStatsHolder().GetStats().MintedCoins
+	// Genesis minted coins
+	if isFirstBlock && ctx.totalBalanceDiff != nil {
+		if minted == nil {
+			minted = big.NewInt(0)
+		}
+		minted.Add(minted, ctx.totalBalanceDiff.balance)
+		minted.Add(minted, ctx.totalBalanceDiff.stake)
 	}
-	diff := decimal.Zero
+	totalBalance := indexer.state.totalBalance
 	if ctx.totalBalanceDiff != nil {
-		diff = decimal.NewFromBigInt(ctx.totalBalanceDiff.balance, 0)
+		totalBalance = totalBalance.Add(blockchain.ConvertToFloat(ctx.totalBalanceDiff.balance))
 	}
-	return getCoins(indexer.state.totalBalance, burnt, diff)
-}
-
-func (indexer *Indexer) getStakeCoins(ctx *conversionContext) db.Coins {
-	burnt := decimal.Zero
-	diff := decimal.Zero
+	totalStake := indexer.state.totalStake
 	if ctx.totalBalanceDiff != nil {
-		diff = decimal.NewFromBigInt(ctx.totalBalanceDiff.stake, 0)
-		burnt = decimal.NewFromBigInt(ctx.totalBalanceDiff.burntStake, 0)
+		totalStake = totalStake.Add(blockchain.ConvertToFloat(ctx.totalBalanceDiff.stake))
 	}
-	return getCoins(indexer.state.totalStake, burnt, diff)
-}
-
-func getCoins(prevTotal decimal.Decimal, burnt decimal.Decimal, diff decimal.Decimal) db.Coins {
-	total := prevTotal.Add(blockchain.ConvertToFloat(math.ToInt(diff)))
-	minted := burnt.Add(diff)
-	res := db.Coins{
-		Minted: blockchain.ConvertToFloat(math.ToInt(minted)),
-		Burnt:  blockchain.ConvertToFloat(math.ToInt(burnt)),
-		Total:  total,
+	return db.Coins{
+		Minted:       blockchain.ConvertToFloat(minted),
+		Burnt:        blockchain.ConvertToFloat(indexer.blockStatsHolder().GetStats().BurntCoins),
+		TotalBalance: totalBalance,
+		TotalStake:   totalStake,
 	}
-	return res
 }
 
 func (indexer *Indexer) isFirstBlock(incomingBlock *types.Block) bool {
@@ -895,8 +884,8 @@ func (indexer *Indexer) saveData(data *db.Data) {
 
 func (indexer *Indexer) applyOnState(data *db.Data) {
 	indexer.state.lastHeight = data.Block.Height
-	indexer.state.totalBalance = data.BalanceCoins.Total
-	indexer.state.totalStake = data.StakeCoins.Total
+	indexer.state.totalBalance = data.Coins.TotalBalance
+	indexer.state.totalStake = data.Coins.TotalStake
 }
 
 func (indexer *Indexer) waitForRetry() {

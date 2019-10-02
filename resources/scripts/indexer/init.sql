@@ -77,11 +77,9 @@ CREATE TABLE IF NOT EXISTS epoch_summaries
     tx_count          bigint          NOT NULL,
     invite_count      bigint          NOT NULL,
     flip_count        integer         NOT NULL,
-    burnt_balance     numeric(30, 18) NOT NULL,
-    minted_balance    numeric(30, 18) NOT NULL,
+    burnt             numeric(30, 18) NOT NULL,
+    minted            numeric(30, 18) NOT NULL,
     total_balance     numeric(30, 18) NOT NULL,
-    burnt_stake       numeric(30, 18) NOT NULL,
-    minted_stake      numeric(30, 18) NOT NULL,
     total_stake       numeric(30, 18) NOT NULL,
     block_height      bigint          NOT NULL,
     CONSTRAINT epoch_summaries_pkey PRIMARY KEY (epoch),
@@ -595,13 +593,11 @@ ALTER TABLE birthdays
 
 CREATE TABLE IF NOT EXISTS coins
 (
-    block_height   bigint NOT NULL,
-    burnt_balance  numeric(30, 18),
-    minted_balance numeric(30, 18),
-    total_balance  numeric(30, 18),
-    burnt_stake    numeric(30, 18),
-    minted_stake   numeric(30, 18),
-    total_stake    numeric(30, 18),
+    block_height  bigint NOT NULL,
+    burnt         numeric(30, 18),
+    minted        numeric(30, 18),
+    total_balance numeric(30, 18),
+    total_stake   numeric(30, 18),
     CONSTRAINT coins_pkey PRIMARY KEY (block_height),
     CONSTRAINT coins_block_height_fkey FOREIGN KEY (block_height)
         REFERENCES blocks (height) MATCH SIMPLE
@@ -1110,28 +1106,20 @@ SELECT e.epoch,
                                         WHERE f.tx_id = t.id
                                           AND t.block_height = b.height
                                           AND b.epoch = e.epoch))                                                                   AS flip_count,
-       COALESCE(es.burnt_balance, (SELECT COALESCE(sum(c.burnt_balance), 0::numeric) AS "coalesce"
-                                   FROM coins c
-                                            JOIN blocks b ON b.height = c.block_height
-                                   WHERE b.epoch = e.epoch))                                                                        AS burnt_balance,
-       COALESCE(es.minted_balance, (SELECT COALESCE(sum(c.minted_balance), 0::numeric) AS "coalesce"
-                                    FROM coins c
-                                             JOIN blocks b ON b.height = c.block_height
-                                    WHERE b.epoch = e.epoch))                                                                       AS minted_balance,
+       COALESCE(es.burnt, (SELECT COALESCE(sum(c.burnt), 0::numeric) AS "coalesce"
+                           FROM coins c
+                                    JOIN blocks b ON b.height = c.block_height
+                           WHERE b.epoch = e.epoch))                                                                                AS burnt,
+       COALESCE(es.minted, (SELECT COALESCE(sum(c.minted), 0::numeric) AS "coalesce"
+                            FROM coins c
+                                     JOIN blocks b ON b.height = c.block_height
+                            WHERE b.epoch = e.epoch))                                                                               AS minted,
        COALESCE(es.total_balance, (SELECT c.total_balance
                                    FROM coins c
                                             JOIN blocks b ON b.height = c.block_height
                                    WHERE b.epoch = e.epoch
                                    ORDER BY c.block_height DESC
                                    LIMIT 1))                                                                                        AS total_balance,
-       COALESCE(es.burnt_stake, (SELECT COALESCE(sum(c.burnt_stake), 0::numeric) AS "coalesce"
-                                 FROM coins c
-                                          JOIN blocks b ON b.height = c.block_height
-                                 WHERE b.epoch = e.epoch))                                                                          AS burnt_stake,
-       COALESCE(es.minted_stake, (SELECT COALESCE(sum(c.minted_stake), 0::numeric) AS minted_stake
-                                  FROM coins c
-                                           JOIN blocks b ON b.height = c.block_height
-                                  WHERE b.epoch = e.epoch))                                                                         AS minted_stake,
        COALESCE(es.total_stake, (SELECT c.total_stake
                                  FROM coins c
                                           JOIN blocks b ON b.height = c.block_height

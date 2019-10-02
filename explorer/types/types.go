@@ -224,6 +224,12 @@ type Address struct {
 }
 
 type AllCoins struct {
+	Minted       decimal.Decimal `json:"minted"`
+	Burnt        decimal.Decimal `json:"burnt"`
+	TotalBalance decimal.Decimal `json:"totalBalance"`
+	TotalStake   decimal.Decimal `json:"totalStake"`
+
+	// todo tmp for backward compatibility
 	Balance Coins `json:"balance"`
 	Stake   Coins `json:"stake"`
 }

@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"github.com/idena-network/idena-go/common"
 	"github.com/idena-network/idena-indexer/explorer/types"
+	"github.com/shopspring/decimal"
 	"math/big"
 )
 
@@ -157,23 +158,31 @@ func (a *postgresAccessor) readAnswers(rows *sql.Rows) ([]types.Answer, error) {
 }
 
 func (a *postgresAccessor) coins(queryName string, args ...interface{}) (types.AllCoins, error) {
-	res := types.AllCoins{
-		Balance: types.Coins{},
-		Stake:   types.Coins{},
-	}
+	res := types.AllCoins{}
 	err := a.db.QueryRow(a.getQuery(queryName), args...).
-		Scan(&res.Balance.Burnt,
-			&res.Balance.Minted,
-			&res.Balance.Total,
-			&res.Stake.Burnt,
-			&res.Stake.Minted,
-			&res.Stake.Total)
+		Scan(&res.Burnt,
+			&res.Minted,
+			&res.TotalBalance,
+			&res.TotalStake)
 	if err == sql.ErrNoRows {
 		err = NoDataFound
 	}
 	if err != nil {
 		return types.AllCoins{}, err
 	}
+
+	// todo tmp for backward compatibility
+	res.Balance = types.Coins{
+		Minted: res.Minted,
+		Burnt:  res.Burnt,
+		Total:  res.TotalBalance,
+	}
+	res.Stake = types.Coins{
+		Minted: decimal.Zero,
+		Burnt:  decimal.Zero,
+		Total:  res.TotalStake,
+	}
+
 	return res, nil
 }
 

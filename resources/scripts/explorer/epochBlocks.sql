@@ -5,11 +5,9 @@ select b.height,
        coalesce(a.address, '')                                           proposer,
        b.is_empty,
        b.size,
-       c.burnt_balance,
-       c.minted_balance,
+       c.burnt,
+       c.minted,
        c.total_balance,
-       c.burnt_stake,
-       c.minted_stake,
        c.total_stake
 from blocks b
          left join block_proposers p on p.block_height = b.height
@@ -18,4 +16,5 @@ from blocks b
 where b.epoch = $1
 order by b.height desc
 limit $3
-    offset $2
+offset
+$2

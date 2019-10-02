@@ -1,6 +1,9 @@
 package postgres
 
-import "github.com/idena-network/idena-indexer/explorer/types"
+import (
+	"github.com/idena-network/idena-indexer/explorer/types"
+	"github.com/shopspring/decimal"
+)
 
 const (
 	epochsCountQuery = "epochsCount.sql"
@@ -29,14 +32,23 @@ func (a *postgresAccessor) Epochs(startIndex uint64, count uint64) ([]types.Epoc
 			&epoch.TxCount,
 			&epoch.InviteCount,
 			&epoch.FlipCount,
-			&epoch.Coins.Balance.Burnt,
-			&epoch.Coins.Balance.Minted,
-			&epoch.Coins.Balance.Total,
-			&epoch.Coins.Stake.Burnt,
-			&epoch.Coins.Stake.Minted,
-			&epoch.Coins.Stake.Total)
+			&epoch.Coins.Burnt,
+			&epoch.Coins.Minted,
+			&epoch.Coins.TotalBalance,
+			&epoch.Coins.TotalStake)
 		if err != nil {
 			return nil, err
+		}
+		// todo tmp for backward compatibility
+		epoch.Coins.Balance = types.Coins{
+			Minted: epoch.Coins.Minted,
+			Burnt:  epoch.Coins.Burnt,
+			Total:  epoch.Coins.TotalBalance,
+		}
+		epoch.Coins.Stake = types.Coins{
+			Minted: decimal.Zero,
+			Burnt:  decimal.Zero,
+			Total:  epoch.Coins.TotalStake,
 		}
 		epochs = append(epochs, epoch)
 	}

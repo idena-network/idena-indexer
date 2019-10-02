@@ -1,5 +1,3 @@
-select coalesce(sum(burnt_balance), 0)  burnt_balance,
-       coalesce(sum(minted_balance), 0) minted_balance,
-       coalesce(sum(burnt_stake), 0)    burnt_stake,
-       coalesce(sum(minted_stake), 0)   minted_stake
+select coalesce(sum(burnt), 0)  burnt,
+       coalesce(sum(minted), 0) minted
 from epochs_detail
