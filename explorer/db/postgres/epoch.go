@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"github.com/idena-network/idena-go/common"
 	"github.com/idena-network/idena-indexer/explorer/types"
-	"github.com/shopspring/decimal"
 	"math/big"
 )
 
@@ -93,19 +92,6 @@ func (a *postgresAccessor) EpochBlocks(epoch uint64, startIndex uint64, count ui
 			return nil, err
 		}
 		block.Timestamp = common.TimestampToTime(big.NewInt(timestamp))
-
-		// todo tmp for backward compatibility
-		block.Coins.Balance = types.Coins{
-			Minted: block.Coins.Minted,
-			Burnt:  block.Coins.Burnt,
-			Total:  block.Coins.TotalBalance,
-		}
-		block.Coins.Stake = types.Coins{
-			Minted: decimal.Zero,
-			Burnt:  decimal.Zero,
-			Total:  block.Coins.TotalStake,
-		}
-
 		blocks = append(blocks, block)
 	}
 	return blocks, nil

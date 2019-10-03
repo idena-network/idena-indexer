@@ -7,7 +7,6 @@ import (
 	"github.com/idena-network/idena-go/common"
 	"github.com/idena-network/idena-indexer/explorer/types"
 	"github.com/idena-network/idena-indexer/log"
-	"github.com/shopspring/decimal"
 	"math/big"
 	"strconv"
 )
@@ -121,19 +120,6 @@ func (a *postgresAccessor) Coins() (types.AllCoins, error) {
 	if err != nil {
 		return types.AllCoins{}, err
 	}
-
-	// todo tmp for backward compatibility
-	res.Balance = types.Coins{
-		Minted: res.Minted,
-		Burnt:  res.Burnt,
-		Total:  res.TotalBalance,
-	}
-	res.Stake = types.Coins{
-		Minted: decimal.Zero,
-		Burnt:  decimal.Zero,
-		Total:  res.TotalStake,
-	}
-
 	return res, nil
 }
 

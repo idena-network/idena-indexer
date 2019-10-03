@@ -228,10 +228,6 @@ type AllCoins struct {
 	Burnt        decimal.Decimal `json:"burnt"`
 	TotalBalance decimal.Decimal `json:"totalBalance"`
 	TotalStake   decimal.Decimal `json:"totalStake"`
-
-	// todo tmp for backward compatibility
-	Balance Coins `json:"balance"`
-	Stake   Coins `json:"stake"`
 }
 
 type Coins struct {
