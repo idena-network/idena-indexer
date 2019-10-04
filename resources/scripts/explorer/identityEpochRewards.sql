@@ -2,7 +2,7 @@ select ei.epoch,
        vr.balance,
        vr.stake,
        vr.type,
-       coalesce(prev_states.state) prev_state,
+       coalesce(prev_states.state, '') prev_state,
        s.state,
        coalesce(ra.age, 0)
 from validation_rewards vr
