@@ -1,6 +1,7 @@
 package stats
 
 import (
+	mapset "github.com/deckarep/golang-set"
 	"github.com/idena-network/idena-go/blockchain"
 	"github.com/idena-network/idena-go/blockchain/types"
 	"github.com/idena-network/idena-go/common"
@@ -17,107 +18,65 @@ const (
 	finalCommitteeReward = "FinalCommittee"
 )
 
-type blockStatsCollector struct {
-	collect bool
-	stats   *Stats
+type statsCollector struct {
+	stats *Stats
 }
 
-func NewBlockStatsCollector() collector.BlockStatsCollector {
-	return &blockStatsCollector{
-		collect: false,
-	}
+func NewStatsCollector() collector.StatsCollector {
+	return &statsCollector{}
 }
 
-func (c *blockStatsCollector) EnableCollecting() {
-	c.initStats()
-	c.collect = true
-}
-
-func (c *blockStatsCollector) canCollect() bool {
-	return c.collect
-}
-
-func (c *blockStatsCollector) initStats() {
-	if c.stats != nil {
-		return
-	}
+func (c *statsCollector) EnableCollecting() {
 	c.stats = &Stats{}
 }
 
-func (c *blockStatsCollector) initRewardStats() {
+func (c *statsCollector) initRewardStats() {
 	if c.stats.RewardsStats != nil {
 		return
 	}
 	c.stats.RewardsStats = &RewardsStats{}
 }
 
-func (c *blockStatsCollector) SetValidation(validation *statsTypes.ValidationStats) {
-	if !c.canCollect() {
-		return
-	}
+func (c *statsCollector) SetValidation(validation *statsTypes.ValidationStats) {
 	c.stats.ValidationStats = validation
 }
 
-func (c *blockStatsCollector) SetAuthors(authors *types.ValidationAuthors) {
-	if !c.canCollect() {
-		return
-	}
+func (c *statsCollector) SetAuthors(authors *types.ValidationAuthors) {
 	c.initRewardStats()
 	c.stats.RewardsStats.Authors = authors
 }
 
-func (c *blockStatsCollector) SetTotalReward(amount *big.Int) {
-	if !c.canCollect() {
-		return
-	}
+func (c *statsCollector) SetTotalReward(amount *big.Int) {
 	c.initRewardStats()
 	c.stats.RewardsStats.Total = amount
 }
 
-func (c *blockStatsCollector) SetTotalValidationReward(amount *big.Int) {
-	if !c.canCollect() {
-		return
-	}
+func (c *statsCollector) SetTotalValidationReward(amount *big.Int) {
 	c.initRewardStats()
 	c.stats.RewardsStats.Validation = amount
 }
 
-func (c *blockStatsCollector) SetTotalFlipsReward(amount *big.Int) {
-	if !c.canCollect() {
-		return
-	}
+func (c *statsCollector) SetTotalFlipsReward(amount *big.Int) {
 	c.initRewardStats()
 	c.stats.RewardsStats.Flips = amount
 }
 
-func (c *blockStatsCollector) SetTotalInvitationsReward(amount *big.Int) {
-	if !c.canCollect() {
-		return
-	}
+func (c *statsCollector) SetTotalInvitationsReward(amount *big.Int) {
 	c.initRewardStats()
 	c.stats.RewardsStats.Invitations = amount
 }
 
-func (c *blockStatsCollector) SetTotalFoundationPayouts(amount *big.Int) {
-	if !c.canCollect() {
-		return
-	}
+func (c *statsCollector) SetTotalFoundationPayouts(amount *big.Int) {
 	c.initRewardStats()
 	c.stats.RewardsStats.FoundationPayouts = amount
 }
 
-func (c *blockStatsCollector) SetTotalZeroWalletFund(amount *big.Int) {
-	if !c.canCollect() {
-		return
-	}
+func (c *statsCollector) SetTotalZeroWalletFund(amount *big.Int) {
 	c.initRewardStats()
 	c.stats.RewardsStats.ZeroWalletFund = amount
 }
 
-func (c *blockStatsCollector) AddValidationReward(addr common.Address, age uint16, balance *big.Int, stake *big.Int) {
-	if !c.canCollect() {
-		return
-	}
+func (c *statsCollector) AddValidationReward(addr common.Address, age uint16, balance *big.Int, stake *big.Int) {
 	c.addReward(addr, balance, stake, Validation)
 	if c.stats.RewardsStats.AgesByAddress == nil {
 		c.stats.RewardsStats.AgesByAddress = make(map[string]uint16)
@@ -125,35 +84,23 @@ func (c *blockStatsCollector) AddValidationReward(addr common.Address, age uint1
 	c.stats.RewardsStats.AgesByAddress[conversion.ConvertAddress(addr)] = age + 1
 }
 
-func (c *blockStatsCollector) AddFlipsReward(addr common.Address, balance *big.Int, stake *big.Int) {
-	if !c.canCollect() {
-		return
-	}
+func (c *statsCollector) AddFlipsReward(addr common.Address, balance *big.Int, stake *big.Int) {
 	c.addReward(addr, balance, stake, Flips)
 }
 
-func (c *blockStatsCollector) AddInvitationsReward(addr common.Address, balance *big.Int, stake *big.Int) {
-	if !c.canCollect() {
-		return
-	}
+func (c *statsCollector) AddInvitationsReward(addr common.Address, balance *big.Int, stake *big.Int) {
 	c.addReward(addr, balance, stake, Invitations)
 }
 
-func (c *blockStatsCollector) AddFoundationPayout(addr common.Address, balance *big.Int) {
-	if !c.canCollect() {
-		return
-	}
+func (c *statsCollector) AddFoundationPayout(addr common.Address, balance *big.Int) {
 	c.addReward(addr, balance, nil, FoundationPayouts)
 }
 
-func (c *blockStatsCollector) AddZeroWalletFund(addr common.Address, balance *big.Int) {
-	if !c.canCollect() {
-		return
-	}
+func (c *statsCollector) AddZeroWalletFund(addr common.Address, balance *big.Int) {
 	c.addReward(addr, balance, nil, ZeroWalletFund)
 }
 
-func (c *blockStatsCollector) addReward(addr common.Address, balance *big.Int, stake *big.Int, rewardType RewardType) {
+func (c *statsCollector) addReward(addr common.Address, balance *big.Int, stake *big.Int, rewardType RewardType) {
 	if (balance == nil || balance.Sign() == 0) && (stake == nil || stake.Sign() == 0) {
 		return
 	}
@@ -166,22 +113,16 @@ func (c *blockStatsCollector) addReward(addr common.Address, balance *big.Int, s
 	})
 }
 
-func (c *blockStatsCollector) AddProposerReward(addr common.Address, balance *big.Int, stake *big.Int) {
-	if !c.canCollect() {
-		return
-	}
+func (c *statsCollector) AddProposerReward(addr common.Address, balance *big.Int, stake *big.Int) {
 	c.addMiningReward(addr, balance, stake, proposerReward)
 }
 
-func (c *blockStatsCollector) AddFinalCommitteeReward(addr common.Address, balance *big.Int, stake *big.Int) {
-	if !c.canCollect() {
-		return
-	}
+func (c *statsCollector) AddFinalCommitteeReward(addr common.Address, balance *big.Int, stake *big.Int) {
 	c.addMiningReward(addr, balance, stake, finalCommitteeReward)
 	c.stats.FinalCommittee = append(c.stats.FinalCommittee, addr)
 }
 
-func (c *blockStatsCollector) addMiningReward(addr common.Address, balance *big.Int, stake *big.Int, rType string) {
+func (c *statsCollector) addMiningReward(addr common.Address, balance *big.Int, stake *big.Int, rType string) {
 	c.stats.MiningRewards = append(c.stats.MiningRewards, &db.Reward{
 		Address: conversion.ConvertAddress(addr),
 		Balance: blockchain.ConvertToFloat(balance),
@@ -190,17 +131,14 @@ func (c *blockStatsCollector) addMiningReward(addr common.Address, balance *big.
 	})
 }
 
-func (c *blockStatsCollector) AfterSubPenalty(addr common.Address, amount *big.Int, appState *appstate.AppState) {
-	if !c.canCollect() {
-		return
-	}
+func (c *statsCollector) AfterSubPenalty(addr common.Address, amount *big.Int, appState *appstate.AppState) {
 	if amount == nil || amount.Sign() != 1 {
 		return
 	}
 	c.detectAndCollectCompletedPenalty(addr, appState)
 }
 
-func (c *blockStatsCollector) detectAndCollectCompletedPenalty(addr common.Address, appState *appstate.AppState) {
+func (c *statsCollector) detectAndCollectCompletedPenalty(addr common.Address, appState *appstate.AppState) {
 	updatedPenalty := appState.State.GetPenalty(addr)
 	if updatedPenalty != nil && updatedPenalty.Sign() == 1 {
 		return
@@ -209,21 +147,15 @@ func (c *blockStatsCollector) detectAndCollectCompletedPenalty(addr common.Addre
 	c.stats.BurntPenaltiesByAddr[addr] = updatedPenalty
 }
 
-func (c *blockStatsCollector) BeforeClearPenalty(addr common.Address, appState *appstate.AppState) {
-	if !c.canCollect() {
-		return
-	}
+func (c *statsCollector) BeforeClearPenalty(addr common.Address, appState *appstate.AppState) {
 	c.detectAndCollectBurntPenalty(addr, appState)
 }
 
-func (c *blockStatsCollector) BeforeSetPenalty(addr common.Address, appState *appstate.AppState) {
-	if !c.canCollect() {
-		return
-	}
+func (c *statsCollector) BeforeSetPenalty(addr common.Address, appState *appstate.AppState) {
 	c.detectAndCollectBurntPenalty(addr, appState)
 }
 
-func (c *blockStatsCollector) detectAndCollectBurntPenalty(addr common.Address, appState *appstate.AppState) {
+func (c *statsCollector) detectAndCollectBurntPenalty(addr common.Address, appState *appstate.AppState) {
 	curPenalty := appState.State.GetPenalty(addr)
 	if curPenalty == nil || curPenalty.Sign() != 1 {
 		return
@@ -232,17 +164,14 @@ func (c *blockStatsCollector) detectAndCollectBurntPenalty(addr common.Address, 
 	c.stats.BurntPenaltiesByAddr[addr] = curPenalty
 }
 
-func (c *blockStatsCollector) initBurntPenaltiesByAddr() {
+func (c *statsCollector) initBurntPenaltiesByAddr() {
 	if c.stats.BurntPenaltiesByAddr != nil {
 		return
 	}
 	c.stats.BurntPenaltiesByAddr = make(map[common.Address]*big.Int)
 }
 
-func (c *blockStatsCollector) AddMintedCoins(amount *big.Int) {
-	if !c.canCollect() {
-		return
-	}
+func (c *statsCollector) AddMintedCoins(amount *big.Int) {
 	if amount == nil {
 		return
 	}
@@ -252,10 +181,7 @@ func (c *blockStatsCollector) AddMintedCoins(amount *big.Int) {
 	c.stats.MintedCoins.Add(c.stats.MintedCoins, amount)
 }
 
-func (c *blockStatsCollector) AddBurntCoins(amount *big.Int) {
-	if !c.canCollect() {
-		return
-	}
+func (c *statsCollector) AddBurntCoins(amount *big.Int) {
 	if amount == nil {
 		return
 	}
@@ -265,11 +191,41 @@ func (c *blockStatsCollector) AddBurntCoins(amount *big.Int) {
 	c.stats.BurntCoins.Add(c.stats.BurntCoins, amount)
 }
 
-func (c *blockStatsCollector) GetStats() *Stats {
+func (c *statsCollector) AfterBalanceUpdate(addr common.Address, appState *appstate.AppState) {
+	c.initBalanceUpdatesByAddr()
+	c.stats.BalanceUpdateAddrs.Add(addr)
+}
+
+func (c *statsCollector) initBalanceUpdatesByAddr() {
+	if c.stats.BalanceUpdateAddrs != nil {
+		return
+	}
+	c.stats.BalanceUpdateAddrs = mapset.NewSet()
+}
+
+func (c *statsCollector) GetStats() *Stats {
 	return c.stats
 }
 
-func (c *blockStatsCollector) CompleteCollecting() {
+func (c *statsCollector) CompleteCollecting() {
 	c.stats = nil
-	c.collect = false
+}
+
+func (c *statsCollector) AfterKillIdentity(addr common.Address, appState *appstate.AppState) {
+	c.initKilledAddrs()
+	c.stats.KilledAddrs.Add(addr)
+}
+
+func (c *statsCollector) initKilledAddrs() {
+	if c.stats.KilledAddrs != nil {
+		return
+	}
+	c.stats.KilledAddrs = mapset.NewSet()
+}
+
+func (c *statsCollector) AfterAddStake(addr common.Address, amount *big.Int) {
+	if c.stats.KilledAddrs == nil || !c.stats.KilledAddrs.Contains(addr) {
+		return
+	}
+	c.AddBurntCoins(amount)
 }

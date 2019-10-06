@@ -19,7 +19,6 @@ type postgresAccessor struct {
 const (
 	initQuery                       = "init.sql"
 	maxHeightQuery                  = "maxHeight.sql"
-	currentTotalCoinsQuery          = "currentTotalCoins.sql"
 	currentFlipsQuery               = "currentFlips.sql"
 	currentFlipCidsWithoutDataQuery = "currentFlipCidsWithoutData.sql"
 	updateFlipStateQuery            = "updateFlipState.sql"
@@ -101,16 +100,6 @@ func (a *postgresAccessor) GetLastHeight() (uint64, error) {
 		return 0, err
 	}
 	return uint64(maxHeight), nil
-}
-
-func (a *postgresAccessor) GetTotalCoins() (balance decimal.Decimal, stake decimal.Decimal, err error) {
-	err = a.db.QueryRow(a.getQuery(currentTotalCoinsQuery)).Scan(&balance, &stake)
-	if err == sql.ErrNoRows {
-		err = nil
-		balance = decimal.Zero
-		stake = decimal.Zero
-	}
-	return
 }
 
 func (a *postgresAccessor) GetCurrentFlips(address string) ([]Flip, error) {

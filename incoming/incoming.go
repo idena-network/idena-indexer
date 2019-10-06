@@ -19,7 +19,7 @@ type Listener interface {
 	AppStateReadonly(height uint64) *appstate.AppState
 	AppState() *appstate.AppState
 	NodeCtx() *node.NodeCtx
-	BlockStatsCollector() collector.BlockStatsCollector
+	StatsCollector() collector.StatsCollector
 	Blockchain() *blockchain.Blockchain
 	Flipper() *flip.Flipper
 	Config() *config.Config
@@ -30,16 +30,16 @@ type Listener interface {
 }
 
 type listenerImpl struct {
-	appState            *appstate.AppState
-	nodeCtx             *node.NodeCtx
-	blockStatsCollector collector.BlockStatsCollector
-	blockchain          *blockchain.Blockchain
-	flipper             *flip.Flipper
-	keysPool            *mempool.KeysPool
-	offlineDetector     *blockchain.OfflineDetector
-	config              *config.Config
-	node                *node.Node
-	handleBlock         func(block *types.Block)
+	appState        *appstate.AppState
+	nodeCtx         *node.NodeCtx
+	statsCollector  collector.StatsCollector
+	blockchain      *blockchain.Blockchain
+	flipper         *flip.Flipper
+	keysPool        *mempool.KeysPool
+	offlineDetector *blockchain.OfflineDetector
+	config          *config.Config
+	node            *node.Node
+	handleBlock     func(block *types.Block)
 }
 
 func NewListener(nodeConfigFile string) Listener {
@@ -64,8 +64,8 @@ func NewListener(nodeConfigFile string) Listener {
 			l.handleBlock(newBlockEvent.Block)
 		})
 
-	blockStatsCollector := stats.NewBlockStatsCollector()
-	nodeCtx, err := node.NewNodeWithInjections(cfg, bus, blockStatsCollector)
+	statsCollector := stats.NewStatsCollector()
+	nodeCtx, err := node.NewNodeWithInjections(cfg, bus, statsCollector)
 	if err != nil {
 		panic(err)
 	}
@@ -77,7 +77,7 @@ func NewListener(nodeConfigFile string) Listener {
 	l.offlineDetector = nodeCtx.OfflineDetector
 	l.config = cfg
 	l.nodeCtx = nodeCtx
-	l.blockStatsCollector = blockStatsCollector
+	l.statsCollector = statsCollector
 
 	l.node = nodeCtx.Node
 
@@ -96,8 +96,8 @@ func (l *listenerImpl) NodeCtx() *node.NodeCtx {
 	return l.nodeCtx
 }
 
-func (l *listenerImpl) BlockStatsCollector() collector.BlockStatsCollector {
-	return l.blockStatsCollector
+func (l *listenerImpl) StatsCollector() collector.StatsCollector {
+	return l.statsCollector
 }
 
 func (l *listenerImpl) Blockchain() *blockchain.Blockchain {

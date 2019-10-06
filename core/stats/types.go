@@ -1,6 +1,7 @@
 package stats
 
 import (
+	mapset "github.com/deckarep/golang-set"
 	"github.com/idena-network/idena-go/blockchain/types"
 	"github.com/idena-network/idena-go/common"
 	statsTypes "github.com/idena-network/idena-go/stats/types"
@@ -26,6 +27,8 @@ type Stats struct {
 	BurntPenaltiesByAddr map[common.Address]*big.Int
 	BurntCoins           *big.Int
 	MintedCoins          *big.Int
+	BalanceUpdateAddrs   mapset.Set
+	KilledAddrs          mapset.Set
 }
 
 type RewardsStats struct {
@@ -45,4 +48,9 @@ type RewardStats struct {
 	Balance *big.Int
 	Stake   *big.Int
 	Type    RewardType
+}
+
+type BalanceUpdate struct {
+	Balance *big.Int
+	Stake   *big.Int
 }

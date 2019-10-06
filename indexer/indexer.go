@@ -101,6 +101,16 @@ type Indexer struct {
 	restore            bool
 }
 
+type result struct {
+	dbData  *db.Data
+	resData *resultData
+}
+
+type resultData struct {
+	totalBalance *big.Int
+	totalStake   *big.Int
+}
+
 func NewIndexer(listener incoming.Listener,
 	db db.Accessor,
 	restorer *restore.Restorer,
@@ -130,8 +140,8 @@ func (indexer *Indexer) Destroy() {
 	indexer.db.Destroy()
 }
 
-func (indexer *Indexer) blockStatsHolder() stats.BlockStatsHolder {
-	return indexer.listener.BlockStatsCollector().(stats.BlockStatsHolder)
+func (indexer *Indexer) statsHolder() stats.StatsHolder {
+	return indexer.listener.StatsCollector().(stats.StatsHolder)
 }
 
 func (indexer *Indexer) indexBlock(block *types.Block) {
@@ -163,14 +173,15 @@ func (indexer *Indexer) indexBlock(block *types.Block) {
 			indexer.restore = false
 		}
 
-		data := indexer.convertIncomingData(block)
-		indexer.saveData(data)
-		indexer.applyOnState(data)
+		indexer.initializeStateIfNeeded(block)
+		res := indexer.convertIncomingData(block)
+		indexer.saveData(res.dbData)
+		indexer.applyOnState(res)
 
-		if data.Block.Height%1000 == 0 {
-			log.Info(fmt.Sprintf("Processed block %d", data.Block.Height))
+		if block.Height()%1000 == 0 {
+			log.Info(fmt.Sprintf("Processed block %d", block.Height()))
 		} else {
-			log.Debug(fmt.Sprintf("Processed block %d", data.Block.Height))
+			log.Debug(fmt.Sprintf("Processed block %d", block.Height()))
 		}
 
 		return
@@ -201,21 +212,41 @@ func (indexer *Indexer) loadState() *indexerState {
 			indexer.waitForRetry()
 			continue
 		}
-		totalBalance, totalStake, err := indexer.db.GetTotalCoins()
-		if err != nil {
-			log.Error(fmt.Sprintf("Unable to get current total coins: %v", err))
-			indexer.waitForRetry()
-			continue
-		}
+		//totalBalance, totalStake, err := indexer.db.GetTotalCoins()
+		//if err != nil {
+		//	log.Error(fmt.Sprintf("Unable to get current total coins: %v", err))
+		//	indexer.waitForRetry()
+		//	continue
+		//}
 		return &indexerState{
-			lastHeight:   lastHeight,
-			totalBalance: totalBalance,
-			totalStake:   totalStake,
+			lastHeight: lastHeight,
+			//totalBalance: totalBalance,
+			//totalStake:   totalStake,
 		}
 	}
 }
 
-func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) *db.Data {
+func (indexer *Indexer) initializeStateIfNeeded(block *types.Block) {
+	if indexer.state.totalStake != nil && indexer.state.totalBalance != nil {
+		return
+	}
+	prevState := indexer.listener.AppStateReadonly(block.Height() - 1)
+	totalBalance := big.NewInt(0)
+	totalStake := big.NewInt(0)
+	prevState.State.IterateAccounts(func(key []byte, _ []byte) bool {
+		if key == nil {
+			return true
+		}
+		addr := conversion.BytesToAddr(key)
+		totalBalance.Add(totalBalance, prevState.State.GetBalance(addr))
+		totalStake.Add(totalStake, prevState.State.GetStakeBalance(addr))
+		return false
+	})
+	indexer.state.totalBalance = totalBalance
+	indexer.state.totalStake = totalStake
+}
+
+func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) *result {
 	prevState := indexer.listener.AppStateReadonly(incomingBlock.Height() - 1)
 	newState := indexer.listener.AppStateReadonly(incomingBlock.Height())
 	ctx := &conversionContext{
@@ -229,7 +260,7 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) *db.Data
 	block := indexer.convertBlock(incomingBlock, ctx)
 	identities, flipStats, flipsMemPoolData, birthdays, notFailedValidation := indexer.detectEpochResult(incomingBlock, ctx)
 
-	firstAddresses := indexer.determineFirstAddresses(incomingBlock, ctx)
+	firstAddresses := indexer.detectFirstAddresses(incomingBlock, ctx)
 	for _, addr := range firstAddresses {
 		if curAddr, present := ctx.addresses[addr.Address]; present {
 			curAddr.StateChanges = append(curAddr.StateChanges, addr.StateChanges...)
@@ -238,7 +269,14 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) *db.Data
 		}
 	}
 
-	return &db.Data{
+	balanceUpdates, diff := determineBalanceUpdates(indexer.isFirstBlock(incomingBlock),
+		indexer.statsHolder().GetStats().BalanceUpdateAddrs,
+		ctx.prevStateReadOnly,
+		ctx.newStateReadOnly)
+
+	coins, totalBalance, totalStake := indexer.getCoins(ctx, indexer.isFirstBlock(incomingBlock), diff)
+
+	dbData := &db.Data{
 		Epoch:            epoch,
 		ValidationTime:   *big.NewInt(ctx.newStateReadOnly.State.NextValidationTime().Unix()),
 		Block:            block,
@@ -250,42 +288,50 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) *db.Data
 		FlipSizeUpdates:  ctx.flipSizeUpdates,
 		FlipStats:        flipStats,
 		Addresses:        ctx.getAddresses(),
-		BalanceUpdates:   ctx.balanceUpdates,
+		BalanceUpdates:   balanceUpdates,
 		Birthdays:        birthdays,
-		Coins:            indexer.getCoins(ctx, indexer.isFirstBlock(incomingBlock)),
+		Coins:            coins,
 		SaveEpochSummary: incomingBlock.Header.Flags().HasFlag(types.ValidationFinished),
 		Penalty:          detectChargedPenalty(incomingBlock, ctx.newStateReadOnly),
-		BurntPenalties:   convertBurntPenalties(indexer.blockStatsHolder().GetStats().BurntPenaltiesByAddr),
+		BurntPenalties:   convertBurntPenalties(indexer.statsHolder().GetStats().BurntPenaltiesByAddr),
 		EpochRewards:     indexer.detectEpochRewards(incomingBlock),
 		MiningRewards:    indexer.detectMiningRewards(incomingBlock),
 		FailedValidation: !notFailedValidation,
 	}
+	resData := &resultData{
+		totalBalance: totalBalance,
+		totalStake:   totalStake,
+	}
+	return &result{
+		dbData:  dbData,
+		resData: resData,
+	}
 }
 
-func (indexer *Indexer) getCoins(ctx *conversionContext, isFirstBlock bool) db.Coins {
-	minted := indexer.blockStatsHolder().GetStats().MintedCoins
+func (indexer *Indexer) getCoins(
+	ctx *conversionContext,
+	isFirstBlock bool,
+	diff balanceDiff,
+) (dbCoins db.Coins, totalBalance, totalStake *big.Int) {
+
+	minted := indexer.statsHolder().GetStats().MintedCoins
 	// Genesis minted coins
-	if isFirstBlock && ctx.totalBalanceDiff != nil {
+	if isFirstBlock {
 		if minted == nil {
 			minted = big.NewInt(0)
 		}
-		minted.Add(minted, ctx.totalBalanceDiff.balance)
-		minted.Add(minted, ctx.totalBalanceDiff.stake)
+		minted.Add(minted, indexer.state.totalBalance)
+		minted.Add(minted, indexer.state.totalStake)
 	}
-	totalBalance := indexer.state.totalBalance
-	if ctx.totalBalanceDiff != nil {
-		totalBalance = totalBalance.Add(blockchain.ConvertToFloat(ctx.totalBalanceDiff.balance))
-	}
-	totalStake := indexer.state.totalStake
-	if ctx.totalBalanceDiff != nil {
-		totalStake = totalStake.Add(blockchain.ConvertToFloat(ctx.totalBalanceDiff.stake))
-	}
-	return db.Coins{
+	totalBalance = new(big.Int).Add(indexer.state.totalBalance, diff.balance)
+	totalStake = new(big.Int).Add(indexer.state.totalStake, diff.stake)
+	dbCoins = db.Coins{
 		Minted:       blockchain.ConvertToFloat(minted),
-		Burnt:        blockchain.ConvertToFloat(indexer.blockStatsHolder().GetStats().BurntCoins),
-		TotalBalance: totalBalance,
-		TotalStake:   totalStake,
+		Burnt:        blockchain.ConvertToFloat(indexer.statsHolder().GetStats().BurntCoins),
+		TotalBalance: blockchain.ConvertToFloat(totalBalance),
+		TotalStake:   blockchain.ConvertToFloat(totalStake),
 	}
+	return
 }
 
 func (indexer *Indexer) isFirstBlock(incomingBlock *types.Block) bool {
@@ -296,7 +342,7 @@ func (indexer *Indexer) isFirstBlockHeight(height uint64) bool {
 	return height == indexer.genesisBlockHeight+1
 }
 
-func (indexer *Indexer) determineFirstAddresses(incomingBlock *types.Block, ctx *conversionContext) []*db.Address {
+func (indexer *Indexer) detectFirstAddresses(incomingBlock *types.Block, ctx *conversionContext) []*db.Address {
 	if !indexer.isFirstBlock(incomingBlock) {
 		return nil
 	}
@@ -334,21 +380,6 @@ func (indexer *Indexer) convertBlock(incomingBlock *types.Block, ctx *conversion
 	stateToApply := ctx.newStateReadOnly.Readonly(ctx.blockHeight - 1)
 	txs := indexer.convertTransactions(incomingBlock.Body.Transactions, stateToApply, ctx)
 
-	blockBalanceUpdateDetector := NewBlockBalanceUpdateDetector(incomingBlock,
-		indexer.isFirstBlock(incomingBlock),
-		stateToApply,
-		indexer.listener.Blockchain(),
-		ctx)
-	balanceUpdates, diff := blockBalanceUpdateDetector.GetUpdates(ctx.newStateReadOnly)
-	if len(balanceUpdates) > 0 {
-		ctx.balanceUpdates = append(ctx.balanceUpdates, balanceUpdates...)
-		if ctx.totalBalanceDiff == nil {
-			ctx.totalBalanceDiff = diff
-		} else {
-			ctx.totalBalanceDiff.Add(diff)
-		}
-	}
-
 	incomingBlock.Header.Flags()
 	return db.Block{
 		Height:          incomingBlock.Height(),
@@ -359,7 +390,7 @@ func (indexer *Indexer) convertBlock(incomingBlock *types.Block, ctx *conversion
 		Flags:           convertFlags(incomingBlock.Header.Flags()),
 		IsEmpty:         incomingBlock.IsEmpty(),
 		Size:            len(incomingBlock.Body.Bytes()),
-		ValidatorsCount: len(indexer.blockStatsHolder().GetStats().FinalCommittee),
+		ValidatorsCount: len(indexer.statsHolder().GetStats().FinalCommittee),
 	}
 }
 
@@ -392,7 +423,7 @@ func (indexer *Indexer) convertTransactions(incomingTxs []*types.Transaction, st
 }
 
 func (indexer *Indexer) convertTransaction(incomingTx *types.Transaction, ctx *conversionContext, stateToApply *appstate.AppState) db.Transaction {
-	if f := indexer.determineSubmittedFlip(incomingTx, ctx); f != nil {
+	if f := indexer.detectSubmittedFlip(incomingTx, ctx); f != nil {
 		ctx.submittedFlips = append(ctx.submittedFlips, *f)
 	}
 
@@ -420,27 +451,12 @@ func (indexer *Indexer) convertTransaction(incomingTx *types.Transaction, ctx *c
 		recipientPrevState = &st
 	}
 
-	txBalanceUpdateDetector := NewTxBalanceUpdateDetector(incomingTx, stateToApply)
 	senderPrevState := stateToApply.State.GetIdentityState(sender)
-	fee, err := indexer.listener.Blockchain().ApplyTxOnState(stateToApply, incomingTx)
+	fee, err := indexer.listener.Blockchain().ApplyTxOnState(stateToApply, incomingTx, nil)
 	if err != nil {
 		log.Error("Unable to apply tx on state", "tx", incomingTx.Hash(), "err", err)
 	}
 
-	if ctx.totalFee == nil {
-		ctx.totalFee = new(big.Int)
-	}
-	ctx.totalFee = new(big.Int).Add(ctx.totalFee, fee)
-
-	balanceUpdates, diff := txBalanceUpdateDetector.GetUpdates(stateToApply)
-	if len(balanceUpdates) > 0 {
-		ctx.balanceUpdates = append(ctx.balanceUpdates, balanceUpdates...)
-		if ctx.totalBalanceDiff == nil {
-			ctx.totalBalanceDiff = diff
-		} else {
-			ctx.totalBalanceDiff.Add(diff)
-		}
-	}
 	senderNewState := stateToApply.State.GetIdentityState(sender)
 
 	if senderNewState != senderPrevState {
@@ -541,7 +557,7 @@ func (indexer *Indexer) detectEpochResult(block *types.Block, ctx *conversionCon
 
 	var birthdays []db.Birthday
 	var identities []db.EpochIdentity
-	validationStats := indexer.blockStatsHolder().GetStats().ValidationStats
+	validationStats := indexer.statsHolder().GetStats().ValidationStats
 
 	ctx.prevStateReadOnly.State.IterateOverIdentities(func(addr common.Address, identity state.Identity) {
 		convertedIdentity := db.EpochIdentity{}
@@ -723,7 +739,7 @@ func compressPic(src []byte) ([]byte, error) {
 	return res.Bytes(), nil
 }
 
-func (indexer *Indexer) determineSubmittedFlip(tx *types.Transaction, ctx *conversionContext) *db.Flip {
+func (indexer *Indexer) detectSubmittedFlip(tx *types.Transaction, ctx *conversionContext) *db.Flip {
 	if tx.Type != types.SubmitFlipTx {
 		return nil
 	}
@@ -882,10 +898,10 @@ func (indexer *Indexer) saveData(data *db.Data) {
 	}
 }
 
-func (indexer *Indexer) applyOnState(data *db.Data) {
-	indexer.state.lastHeight = data.Block.Height
-	indexer.state.totalBalance = data.Coins.TotalBalance
-	indexer.state.totalStake = data.Coins.TotalStake
+func (indexer *Indexer) applyOnState(data *result) {
+	indexer.state.lastHeight = data.dbData.Block.Height
+	indexer.state.totalBalance = data.resData.totalBalance
+	indexer.state.totalStake = data.resData.totalStake
 }
 
 func (indexer *Indexer) waitForRetry() {

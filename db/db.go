@@ -1,10 +1,7 @@
 package db
 
-import "github.com/shopspring/decimal"
-
 type Accessor interface {
 	GetLastHeight() (uint64, error)
-	GetTotalCoins() (balance decimal.Decimal, stake decimal.Decimal, err error)
 	GetCurrentFlips(address string) ([]Flip, error)
 	GetCurrentFlipsWithoutData(limit uint32) ([]AddressFlipCid, error)
 	Save(data *Data) error

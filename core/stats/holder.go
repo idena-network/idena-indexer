@@ -1,5 +1,5 @@
 package stats
 
-type BlockStatsHolder interface {
+type StatsHolder interface {
 	GetStats() *Stats
 }

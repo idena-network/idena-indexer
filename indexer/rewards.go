@@ -19,7 +19,7 @@ var rewardTypes = map[stats.RewardType]string{
 }
 
 func (indexer *Indexer) detectMiningRewards(block *types.Block) []*db.Reward {
-	return indexer.blockStatsHolder().GetStats().MiningRewards
+	return indexer.statsHolder().GetStats().MiningRewards
 }
 
 func (indexer *Indexer) detectEpochRewards(block *types.Block) *db.EpochRewards {
@@ -27,7 +27,7 @@ func (indexer *Indexer) detectEpochRewards(block *types.Block) *db.EpochRewards 
 		return nil
 	}
 
-	rewardsStats := indexer.blockStatsHolder().GetStats().RewardsStats
+	rewardsStats := indexer.statsHolder().GetStats().RewardsStats
 	if rewardsStats == nil {
 		return nil
 	}

@@ -1,11 +1,11 @@
 package indexer
 
 import (
-	"github.com/shopspring/decimal"
+	"math/big"
 )
 
 type indexerState struct {
 	lastHeight   uint64
-	totalBalance decimal.Decimal
-	totalStake   decimal.Decimal
+	totalBalance *big.Int
+	totalStake   *big.Int
 }

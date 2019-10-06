@@ -3,7 +3,6 @@ package indexer
 import (
 	"github.com/idena-network/idena-go/core/appstate"
 	"github.com/idena-network/idena-indexer/db"
-	"math/big"
 )
 
 type conversionContext struct {
@@ -14,9 +13,6 @@ type conversionContext struct {
 	flipsData         []db.FlipData
 	flipSizeUpdates   []db.FlipSizeUpdate
 	addresses         map[string]*db.Address
-	balanceUpdates    []db.Balance
-	totalBalanceDiff  *balanceDiff
-	totalFee          *big.Int
 	prevStateReadOnly *appstate.AppState
 	newStateReadOnly  *appstate.AppState
 }
