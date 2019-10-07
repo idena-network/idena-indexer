@@ -28,6 +28,7 @@ func (a *postgresAccessor) Flip(hash string) (types.Flip, error) {
 			&timestamp,
 			&flip.Answer,
 			&flip.WrongWords,
+			&flip.WrongWordsVotes,
 			&flip.Status,
 			&flip.TxHash,
 			&flip.BlockHash,

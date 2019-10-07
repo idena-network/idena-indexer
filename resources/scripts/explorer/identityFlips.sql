@@ -5,6 +5,7 @@ select f.Cid,
        COALESCE(f.Status, '')         status,
        COALESCE(f.Answer, '')         answer,
        COALESCE(f.wrong_words, false) wrongWords,
+       COALESCE(ww.cnt, 0)            wrong_words_votes,
        COALESCE(short.answers, 0),
        COALESCE(long.answers, 0),
        b.timestamp,
@@ -23,6 +24,12 @@ from flips f
                    on short.flip_id = f.id
          left join (select a.flip_id, count(*) answers from answers a where a.is_short = false group by a.flip_id) long
                    on long.flip_id = f.id
+         left join (select a.flip_id, count(*) cnt
+                    from answers a
+                    where not a.is_short
+                      and a.wrong_words
+                    group by a.flip_id) ww
+                   on ww.flip_id = f.id
          left join flips_data fd on fd.flip_id = f.id
          left join flip_icons fi on fi.flip_data_id = fd.id
          left join flip_words fw on fw.flip_id = f.id

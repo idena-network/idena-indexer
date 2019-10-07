@@ -89,18 +89,19 @@ type TransactionDetail struct {
 }
 
 type FlipSummary struct {
-	Cid            string        `json:"cid"`
-	Author         string        `json:"author"`
-	Epoch          uint64        `json:"epoch"`
-	ShortRespCount uint32        `json:"shortRespCount"`
-	LongRespCount  uint32        `json:"longRespCount"`
-	Status         string        `json:"status"`
-	Answer         string        `json:"answer"`
-	WrongWords     bool          `json:"wrongWords"`
-	Timestamp      time.Time     `json:"timestamp"`
-	Size           uint32        `json:"size"`
-	Icon           hexutil.Bytes `json:"icon,omitempty"`
-	Words          *FlipWords    `json:"words"`
+	Cid             string        `json:"cid"`
+	Author          string        `json:"author"`
+	Epoch           uint64        `json:"epoch"`
+	ShortRespCount  uint32        `json:"shortRespCount"`
+	LongRespCount   uint32        `json:"longRespCount"`
+	Status          string        `json:"status"`
+	Answer          string        `json:"answer"`
+	WrongWords      bool          `json:"wrongWords"`
+	WrongWordsVotes uint32        `json:"wrongWordsVotes"`
+	Timestamp       time.Time     `json:"timestamp"`
+	Size            uint32        `json:"size"`
+	Icon            hexutil.Bytes `json:"icon,omitempty"`
+	Words           *FlipWords    `json:"words"`
 }
 
 type Invite struct {
@@ -139,17 +140,18 @@ type EpochIdentity struct {
 }
 
 type Flip struct {
-	Author      string     `json:"author"`
-	Timestamp   time.Time  `json:"timestamp"`
-	Size        uint32     `json:"size"`
-	Status      string     `json:"status"`
-	Answer      string     `json:"answer"`
-	WrongWords  bool       `json:"wrongWords"`
-	TxHash      string     `json:"txHash"`
-	BlockHash   string     `json:"blockHash"`
-	BlockHeight uint64     `json:"blockHeight"`
-	Epoch       uint64     `json:"epoch"`
-	Words       *FlipWords `json:"words"`
+	Author          string     `json:"author"`
+	Timestamp       time.Time  `json:"timestamp"`
+	Size            uint32     `json:"size"`
+	Status          string     `json:"status"`
+	Answer          string     `json:"answer"`
+	WrongWords      bool       `json:"wrongWords"`
+	WrongWordsVotes uint32     `json:"wrongWordsVotes"`
+	TxHash          string     `json:"txHash"`
+	BlockHash       string     `json:"blockHash"`
+	BlockHeight     uint64     `json:"blockHeight"`
+	Epoch           uint64     `json:"epoch"`
+	Words           *FlipWords `json:"words"`
 }
 
 type FlipWords struct {

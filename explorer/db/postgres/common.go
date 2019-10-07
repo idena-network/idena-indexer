@@ -86,6 +86,7 @@ func (a *postgresAccessor) flips(queryName string, args ...interface{}) ([]types
 			&item.Status,
 			&item.Answer,
 			&item.WrongWords,
+			&item.WrongWordsVotes,
 			&item.ShortRespCount,
 			&item.LongRespCount,
 			&timestamp,
