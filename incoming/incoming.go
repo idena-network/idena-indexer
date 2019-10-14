@@ -65,7 +65,7 @@ func NewListener(nodeConfigFile string) Listener {
 		})
 
 	statsCollector := stats.NewStatsCollector()
-	nodeCtx, err := node.NewNodeWithInjections(cfg, bus, statsCollector)
+	nodeCtx, err := node.NewNodeWithInjections(cfg, bus, statsCollector, "0.0.1")
 	if err != nil {
 		panic(err)
 	}
