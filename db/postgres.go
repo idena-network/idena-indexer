@@ -23,6 +23,7 @@ const (
 	currentFlipCidsWithoutDataQuery = "currentFlipCidsWithoutData.sql"
 	updateFlipStateQuery            = "updateFlipState.sql"
 	insertFlipDataQuery             = "insertFlipData.sql"
+	flipDataCountQuery              = "flipDataCount.sql"
 	updateFlipSizeQuery             = "updateFlipSize.sql"
 	insertFlipPicQuery              = "insertFlipPic.sql"
 	insertFlipIconQuery             = "insertFlipIcon.sql"
@@ -37,6 +38,7 @@ const (
 	insertSubmittedFlipQuery        = "insertSubmittedFlip.sql"
 	insertFlipKeyQuery              = "insertFlipKey.sql"
 	insertFlipWordsQuery            = "insertFlipWords.sql"
+	flipWordsCountQuery             = "flipWordsCount.sql"
 	selectEpochQuery                = "selectEpoch.sql"
 	insertEpochQuery                = "insertEpoch.sql"
 	insertFlipsToSolveQuery         = "insertFlipsToSolve.sql"
@@ -129,7 +131,7 @@ func (a *postgresAccessor) GetCurrentFlipsWithoutData(limit uint32) ([]AddressFl
 	var res []AddressFlipCid
 	for rows.Next() {
 		item := AddressFlipCid{}
-		err = rows.Scan(&item.Cid, &item.Address)
+		err = rows.Scan(&item.FlipId, &item.Cid, &item.Address)
 		if err != nil {
 			return nil, err
 		}
@@ -295,9 +297,6 @@ func (a *postgresAccessor) saveFlipStats(ctx *context, flipStats FlipStats) erro
 }
 
 func (a *postgresAccessor) saveFlipsData(ctx *context, flipsData []FlipData) error {
-	if len(flipsData) == 0 {
-		return nil
-	}
 	for _, flipData := range flipsData {
 		if err := a.saveFlipData(ctx, flipData); err != nil {
 			return err
@@ -307,6 +306,14 @@ func (a *postgresAccessor) saveFlipsData(ctx *context, flipsData []FlipData) err
 }
 
 func (a *postgresAccessor) saveFlipData(ctx *context, flipData FlipData) error {
+	count, err := a.getFlipDataCount(ctx, flipData.FlipId)
+	if err != nil {
+		return err
+	}
+	if count > 0 {
+		log.Warn(fmt.Sprintf("ignored duplicated flip data, flip id: %v, tx: %v", flipData.FlipId, flipData.TxHash))
+		return nil
+	}
 	var txId *int64
 	if len(flipData.TxHash) > 0 {
 		id, err := ctx.txId(flipData.TxHash)
@@ -316,8 +323,8 @@ func (a *postgresAccessor) saveFlipData(ctx *context, flipData FlipData) error {
 		txId = &id
 	}
 	var flipDataId int64
-	if err := ctx.tx.QueryRow(a.getQuery(insertFlipDataQuery), flipData.Cid, ctx.blockHeight, txId).Scan(&flipDataId); err != nil {
-		return err
+	if err := ctx.tx.QueryRow(a.getQuery(insertFlipDataQuery), flipData.FlipId, ctx.blockHeight, txId).Scan(&flipDataId); err != nil {
+		return errors.Wrapf(err, "unable to save flip data, flip id: %v, tx: %v", flipData.FlipId, flipData.TxHash)
 	}
 	for picIndex, pic := range flipData.Content.Pics {
 		if err := a.saveFlipPic(ctx, byte(picIndex), pic, flipDataId); err != nil {
@@ -337,6 +344,12 @@ func (a *postgresAccessor) saveFlipData(ctx *context, flipData FlipData) error {
 		}
 	}
 	return nil
+}
+
+func (a *postgresAccessor) getFlipDataCount(ctx *context, flipId uint64) (int, error) {
+	var count int
+	err := ctx.tx.QueryRow(a.getQuery(flipDataCountQuery), flipId).Scan(&count)
+	return count, errors.Wrapf(err, "unable to get flip data count for flip id %v", flipId)
 }
 
 func (a *postgresAccessor) updateFlipSizes(ctx *context, flipSizeUpdates []FlipSizeUpdate) error {
@@ -759,8 +772,22 @@ func (a *postgresAccessor) saveFlipsWords(ctx *context, words []FlipWords) error
 }
 
 func (a *postgresAccessor) saveFlipWords(ctx *context, txId int64, words FlipWords) error {
-	_, err := ctx.tx.Exec(a.getQuery(insertFlipWordsQuery), words.FlipId, words.Word1, words.Word2, txId)
+	count, err := a.getFlipWordsCount(ctx, words.FlipId)
+	if err != nil {
+		return err
+	}
+	if count > 0 {
+		log.Warn(fmt.Sprintf("ignored duplicated flip words: %v", words))
+		return nil
+	}
+	_, err = ctx.tx.Exec(a.getQuery(insertFlipWordsQuery), words.FlipId, words.Word1, words.Word2, txId)
 	return errors.Wrapf(err, "unable to save flip words %v", words)
+}
+
+func (a *postgresAccessor) getFlipWordsCount(ctx *context, flipId uint64) (int, error) {
+	var count int
+	err := ctx.tx.QueryRow(a.getQuery(flipWordsCountQuery), flipId).Scan(&count)
+	return count, errors.Wrapf(err, "unable to get flip words count for flip id %v", flipId)
 }
 
 func (a *postgresAccessor) saveEpochSummary(ctx *context, coins Coins) error {

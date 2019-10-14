@@ -665,7 +665,7 @@ func (indexer *Indexer) getFlipsMemPoolKeyData(ctx *conversionContext) []db.Flip
 			log.Info("Migrated flip content from previous db", "cid", addrFlipCid)
 		}
 		flipsMemPoolKeyData = append(flipsMemPoolKeyData, db.FlipData{
-			Cid:     addrFlipCid.Cid,
+			FlipId:  addrFlipCid.FlipId,
 			Content: parsedData,
 		})
 	}
@@ -841,7 +841,7 @@ func (indexer *Indexer) getFlipsData(tx *types.Transaction, keyAuthorFlips []db.
 			continue
 		}
 		flipsData = append(flipsData, db.FlipData{
-			Cid:     flipCidStr,
+			FlipId:  f.Id,
 			TxHash:  convertHash(tx.Hash()),
 			Content: parsedData,
 		})

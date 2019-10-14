@@ -145,7 +145,7 @@ type FlipWords struct {
 }
 
 type FlipData struct {
-	Cid     string
+	FlipId  uint64
 	TxHash  string
 	Content FlipContent
 }
@@ -188,6 +188,7 @@ type Coins struct {
 }
 
 type AddressFlipCid struct {
+	FlipId  uint64
 	Address string
 	Cid     string
 }
