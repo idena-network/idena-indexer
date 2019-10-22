@@ -209,6 +209,8 @@ CREATE TABLE IF NOT EXISTS mining_rewards
 ALTER TABLE mining_rewards
     OWNER to postgres;
 
+CREATE INDEX IF NOT EXISTS mining_rewards_block_height_desc_idx on mining_rewards (block_height desc);
+
 -- SEQUENCE: transactions_id_seq
 
 -- DROP SEQUENCE transactions_id_seq;
