@@ -12,6 +12,7 @@ import (
 	"github.com/idena-network/idena-go/node"
 	"github.com/idena-network/idena-go/stats/collector"
 	"github.com/idena-network/idena-indexer/core/stats"
+	"github.com/idena-network/idena-indexer/monitoring"
 )
 
 type Listener interface {
@@ -42,7 +43,7 @@ type listenerImpl struct {
 	handleBlock     func(block *types.Block)
 }
 
-func NewListener(nodeConfigFile string) Listener {
+func NewListener(nodeConfigFile string, pm monitoring.PerformanceMonitor) Listener {
 	l := &listenerImpl{}
 
 	cfg, err := config.MakeConfigFromFile(nodeConfigFile)
@@ -58,10 +59,22 @@ func NewListener(nodeConfigFile string) Listener {
 	cfg.Sync.FastSync = false
 
 	bus := eventbus.New()
+
+	pm.Start("Full")
+	pm.Start("Node")
+
 	bus.Subscribe(events.AddBlockEventID,
 		func(e eventbus.Event) {
+			pm.Complete("Node")
+			pm.Start("Index")
+
 			newBlockEvent := e.(*events.NewBlockEvent)
 			l.handleBlock(newBlockEvent.Block)
+
+			pm.Complete("Index")
+			pm.Complete("Full")
+			pm.Start("Full")
+			pm.Start("Node")
 		})
 
 	statsCollector := stats.NewStatsCollector()

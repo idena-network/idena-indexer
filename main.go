@@ -18,6 +18,7 @@ import (
 	migrationDb "github.com/idena-network/idena-indexer/migration/db"
 	"github.com/idena-network/idena-indexer/migration/flip"
 	flipMigrationDb "github.com/idena-network/idena-indexer/migration/flip/db"
+	"github.com/idena-network/idena-indexer/monitoring"
 	"gopkg.in/urfave/cli.v1"
 	"os"
 	"path/filepath"
@@ -88,9 +89,10 @@ func initLog(verbosity int, nodeVerbosity int) {
 }
 
 func initIndexer(config *config.Config) (*indexer.Indexer, incoming.Listener) {
+	performanceMonitor := initPerformanceMonitor(config.PerformanceMonitor)
 	wordsLoader := words.NewLoader(config.WordsFile)
-	listener := incoming.NewListener(config.NodeConfigFile)
-	dbAccessor := db.NewPostgresAccessor(config.Postgres.ConnStr, config.Postgres.ScriptsDir, wordsLoader)
+	listener := incoming.NewListener(config.NodeConfigFile, performanceMonitor)
+	dbAccessor := db.NewPostgresAccessor(config.Postgres.ConnStr, config.Postgres.ScriptsDir, wordsLoader, performanceMonitor)
 	restorer := restore.NewRestorer(dbAccessor, listener.AppState(), listener.Blockchain())
 	var sfs *flip.SecondaryFlipStorage
 	if config.FlipMigrationPostgres != nil {
@@ -103,7 +105,21 @@ func initIndexer(config *config.Config) (*indexer.Indexer, incoming.Listener) {
 		restoreInitially = restoreInitially || migrated
 	}
 
-	return indexer.NewIndexer(listener, dbAccessor, restorer, sfs, uint64(config.GenesisBlockHeight), restoreInitially), listener
+	return indexer.NewIndexer(listener,
+			dbAccessor,
+			restorer,
+			sfs,
+			uint64(config.GenesisBlockHeight),
+			restoreInitially,
+			performanceMonitor),
+		listener
+}
+
+func initPerformanceMonitor(config *config.PerformanceMonitorConfig) monitoring.PerformanceMonitor {
+	if config == nil || !config.Enabled {
+		return monitoring.NewEmptyPerformanceMonitor()
+	}
+	return monitoring.NewPerformanceMonitor(config.BlocksToLog, log.New("component", "pm"))
 }
 
 func migrateDataIfNeeded(config *config.Config) (bool, error) {

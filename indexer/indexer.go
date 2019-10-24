@@ -23,6 +23,7 @@ import (
 	"github.com/idena-network/idena-indexer/incoming"
 	"github.com/idena-network/idena-indexer/log"
 	"github.com/idena-network/idena-indexer/migration/flip"
+	"github.com/idena-network/idena-indexer/monitoring"
 	"github.com/ipfs/go-cid"
 	"github.com/pkg/errors"
 	"golang.org/x/image/draw"
@@ -99,6 +100,7 @@ type Indexer struct {
 	sfs                *flip.SecondaryFlipStorage
 	genesisBlockHeight uint64
 	restore            bool
+	pm                 monitoring.PerformanceMonitor
 }
 
 type result struct {
@@ -116,7 +118,9 @@ func NewIndexer(listener incoming.Listener,
 	restorer *restore.Restorer,
 	sfs *flip.SecondaryFlipStorage,
 	genesisBlockHeight uint64,
-	restoreInitially bool) *Indexer {
+	restoreInitially bool,
+	pm monitoring.PerformanceMonitor,
+) *Indexer {
 	return &Indexer{
 		listener:           listener,
 		db:                 db,
@@ -124,6 +128,7 @@ func NewIndexer(listener incoming.Listener,
 		sfs:                sfs,
 		genesisBlockHeight: genesisBlockHeight,
 		restore:            restoreInitially,
+		pm:                 pm,
 	}
 }
 
@@ -173,9 +178,13 @@ func (indexer *Indexer) indexBlock(block *types.Block) {
 			indexer.restore = false
 		}
 
+		indexer.pm.Start("Convert")
 		indexer.initializeStateIfNeeded(block)
 		res := indexer.convertIncomingData(block)
+		indexer.pm.Complete("Convert")
+		indexer.pm.Start("Save")
 		indexer.saveData(res.dbData)
+		indexer.pm.Complete("Save")
 		indexer.applyOnState(res)
 
 		if block.Height()%1000 == 0 {
@@ -212,16 +221,8 @@ func (indexer *Indexer) loadState() *indexerState {
 			indexer.waitForRetry()
 			continue
 		}
-		//totalBalance, totalStake, err := indexer.db.GetTotalCoins()
-		//if err != nil {
-		//	log.Error(fmt.Sprintf("Unable to get current total coins: %v", err))
-		//	indexer.waitForRetry()
-		//	continue
-		//}
 		return &indexerState{
 			lastHeight: lastHeight,
-			//totalBalance: totalBalance,
-			//totalStake:   totalStake,
 		}
 	}
 }
@@ -247,6 +248,7 @@ func (indexer *Indexer) initializeStateIfNeeded(block *types.Block) {
 }
 
 func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) *result {
+	indexer.pm.Start("InitCtx")
 	prevState := indexer.listener.AppStateReadonly(incomingBlock.Height() - 1)
 	newState := indexer.listener.AppStateReadonly(incomingBlock.Height())
 	ctx := &conversionContext{
@@ -257,7 +259,10 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) *result 
 	}
 	epoch := uint64(prevState.State.Epoch())
 
+	indexer.pm.Complete("InitCtx")
+	indexer.pm.Start("ConvertBlock")
 	block := indexer.convertBlock(incomingBlock, ctx)
+	indexer.pm.Complete("ConvertBlock")
 	identities, flipStats, flipsMemPoolData, birthdays, notFailedValidation := indexer.detectEpochResult(incomingBlock, ctx)
 
 	firstAddresses := indexer.detectFirstAddresses(incomingBlock, ctx)

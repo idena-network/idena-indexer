@@ -4,10 +4,15 @@ import (
 	"database/sql"
 	"github.com/idena-network/idena-indexer/import/words"
 	"github.com/idena-network/idena-indexer/log"
+	"github.com/idena-network/idena-indexer/monitoring"
 	"time"
 )
 
-func NewPostgresAccessor(connStr string, scriptsDirPath string, wordsLoader words.Loader) Accessor {
+func NewPostgresAccessor(
+	connStr string,
+	scriptsDirPath string,
+	wordsLoader words.Loader, pm monitoring.PerformanceMonitor,
+) Accessor {
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
 		panic(err)
@@ -15,6 +20,7 @@ func NewPostgresAccessor(connStr string, scriptsDirPath string, wordsLoader word
 
 	a := &postgresAccessor{
 		db:      db,
+		pm:      pm,
 		queries: ReadQueries(scriptsDirPath),
 	}
 	for {

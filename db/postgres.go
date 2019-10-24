@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/idena-network/idena-indexer/log"
+	"github.com/idena-network/idena-indexer/monitoring"
 	_ "github.com/lib/pq"
 	"github.com/pkg/errors"
 	"github.com/shopspring/decimal"
@@ -13,6 +14,7 @@ import (
 
 type postgresAccessor struct {
 	db      *sql.DB
+	pm      monitoring.PerformanceMonitor
 	queries map[string]string
 }
 
@@ -163,12 +165,15 @@ func (a *postgresAccessor) ResetTo(height uint64) error {
 }
 
 func (a *postgresAccessor) Save(data *Data) error {
+	a.pm.Start("InitTx")
 	tx, err := a.db.Begin()
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
 
+	a.pm.Complete("InitTx")
+	a.pm.Start("RunTx")
 	ctx := newContext(a, tx, data.Epoch, data.Block.Height)
 
 	if err = a.saveEpoch(ctx, data.Epoch, data.ValidationTime); err != nil {
@@ -258,14 +263,18 @@ func (a *postgresAccessor) Save(data *Data) error {
 		return err
 	}
 
+	a.pm.Start("saveMiningRewards")
 	if err = a.saveMiningRewards(ctx, data.MiningRewards); err != nil {
 		return err
 	}
+	a.pm.Complete("saveMiningRewards")
 
 	if err = a.saveFailedValidation(ctx, data.FailedValidation); err != nil {
 		return err
 	}
-
+	a.pm.Complete("RunTx")
+	a.pm.Start("CommitTx")
+	defer a.pm.Complete("CommitTx")
 	return tx.Commit()
 }
 

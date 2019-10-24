@@ -77,7 +77,7 @@ func (cache *currentOnlineIdentitiesCache) initialize(appState *appstate.AppStat
 func (updater *currentOnlineIdentitiesCacheUpdater) loop() {
 	for {
 		updater.update()
-		time.Sleep(time.Second * 10)
+		time.Sleep(time.Second * 30)
 	}
 }
 

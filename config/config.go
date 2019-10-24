@@ -18,6 +18,12 @@ type Config struct {
 	NodeVerbosity         int
 	GenesisBlockHeight    int
 	RestoreInitially      bool
+	PerformanceMonitor    *PerformanceMonitorConfig
+}
+
+type PerformanceMonitorConfig struct {
+	Enabled     bool
+	BlocksToLog int
 }
 
 type PostgresConfig struct {
