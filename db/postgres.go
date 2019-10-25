@@ -10,12 +10,14 @@ import (
 	"github.com/shopspring/decimal"
 	"math/big"
 	"strings"
+	"sync"
 )
 
 type postgresAccessor struct {
 	db      *sql.DB
 	pm      monitoring.PerformanceMonitor
 	queries map[string]string
+	mutex   sync.Mutex
 }
 
 const (
@@ -165,6 +167,9 @@ func (a *postgresAccessor) ResetTo(height uint64) error {
 }
 
 func (a *postgresAccessor) Save(data *Data) error {
+	a.mutex.Lock()
+	defer a.mutex.Unlock()
+
 	a.pm.Start("InitTx")
 	tx, err := a.db.Begin()
 	if err != nil {

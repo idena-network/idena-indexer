@@ -17,6 +17,7 @@ import (
 	"github.com/idena-network/idena-go/rlp"
 	statsTypes "github.com/idena-network/idena-go/stats/types"
 	"github.com/idena-network/idena-indexer/core/conversion"
+	"github.com/idena-network/idena-indexer/core/mempool"
 	"github.com/idena-network/idena-indexer/core/restore"
 	"github.com/idena-network/idena-indexer/core/stats"
 	"github.com/idena-network/idena-indexer/db"
@@ -94,6 +95,7 @@ var (
 
 type Indexer struct {
 	listener           incoming.Listener
+	memPoolIndexer     *mempool.Indexer
 	db                 db.Accessor
 	restorer           *restore.Restorer
 	state              *indexerState
@@ -113,7 +115,9 @@ type resultData struct {
 	totalStake   *big.Int
 }
 
-func NewIndexer(listener incoming.Listener,
+func NewIndexer(
+	listener incoming.Listener,
+	mempoolIndexer *mempool.Indexer,
 	db db.Accessor,
 	restorer *restore.Restorer,
 	sfs *flip.SecondaryFlipStorage,
@@ -123,6 +127,7 @@ func NewIndexer(listener incoming.Listener,
 ) *Indexer {
 	return &Indexer{
 		listener:           listener,
+		memPoolIndexer:     mempoolIndexer,
 		db:                 db,
 		restorer:           restorer,
 		sfs:                sfs,
@@ -133,6 +138,7 @@ func NewIndexer(listener incoming.Listener,
 }
 
 func (indexer *Indexer) Start() {
+	indexer.memPoolIndexer.Initialize(indexer.listener.NodeEventBus())
 	indexer.listener.Listen(indexer.indexBlock, indexer.getHeightToIndex()-1)
 }
 
@@ -142,6 +148,7 @@ func (indexer *Indexer) WaitForNodeStop() {
 
 func (indexer *Indexer) Destroy() {
 	indexer.listener.Destroy()
+	indexer.memPoolIndexer.Destroy()
 	indexer.db.Destroy()
 }
 

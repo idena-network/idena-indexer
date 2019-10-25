@@ -202,3 +202,14 @@ type Birthday struct {
 	Address    string
 	BirthEpoch uint64
 }
+
+type MemPoolData struct {
+	FlipKeyTimestamps       []*MemPoolActionTimestamp
+	AnswersHashTxTimestamps []*MemPoolActionTimestamp
+}
+
+type MemPoolActionTimestamp struct {
+	Address string
+	Epoch   uint64
+	Time    *big.Int
+}

@@ -194,3 +194,13 @@ insert into reward_ages
 
 -- failed_validations
 insert into failed_validations (select * from OLD_SCHEMA_TAG.failed_validations where block_height <= $1);
+
+-- flip_key_timestamps (mem pool data)
+insert into flip_key_timestamps (select *
+                                 from OLD_SCHEMA_TAG.flip_key_timestamps
+                                 where epoch in (select epoch from epochs));
+
+-- answers_hash_tx_timestamps (mem pool data)
+insert into answers_hash_tx_timestamps (select *
+                                        from OLD_SCHEMA_TAG.answers_hash_tx_timestamps
+                                        where epoch in (select epoch from epochs));

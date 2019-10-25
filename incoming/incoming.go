@@ -26,11 +26,13 @@ type Listener interface {
 	Config() *config.Config
 	KeysPool() *mempool.KeysPool
 	OfflineDetector() *blockchain.OfflineDetector
+	NodeEventBus() eventbus.Bus
 	Destroy()
 	WaitForStop()
 }
 
 type listenerImpl struct {
+	bus             eventbus.Bus
 	appState        *appstate.AppState
 	nodeCtx         *node.NodeCtx
 	statsCollector  collector.StatsCollector
@@ -83,6 +85,7 @@ func NewListener(nodeConfigFile string, pm monitoring.PerformanceMonitor) Listen
 		panic(err)
 	}
 
+	l.bus = bus
 	l.appState = nodeCtx.AppState
 	l.flipper = nodeCtx.Flipper
 	l.blockchain = nodeCtx.Blockchain
@@ -136,6 +139,10 @@ func (l *listenerImpl) Config() *config.Config {
 func (l *listenerImpl) Listen(handleBlock func(block *types.Block), expectedHeadHeight uint64) {
 	l.handleBlock = handleBlock
 	l.node.StartWithHeight(expectedHeadHeight)
+}
+
+func (l *listenerImpl) NodeEventBus() eventbus.Bus {
+	return l.bus
 }
 
 func (l *listenerImpl) WaitForStop() {

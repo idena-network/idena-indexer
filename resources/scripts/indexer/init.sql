@@ -1029,6 +1029,48 @@ CREATE TABLE IF NOT EXISTS flip_words
 ALTER TABLE flip_words
     OWNER to postgres;
 
+-- Table: flip_key_timestamps
+
+-- DROP TABLE flip_key_timestamps;
+
+CREATE TABLE IF NOT EXISTS flip_key_timestamps
+(
+    address     character(42) COLLATE pg_catalog."default" NOT NULL,
+    epoch       bigint                                     NOT NULL,
+    "timestamp" bigint                                     NOT NULL
+)
+    WITH (
+        OIDS = FALSE
+    )
+    TABLESPACE pg_default;
+
+ALTER TABLE flip_key_timestamps
+    OWNER to postgres;
+
+CREATE UNIQUE INDEX IF NOT EXISTS flip_key_timestamps_address_epoch_unique_idx on flip_key_timestamps
+    (LOWER(address), epoch);
+
+-- Table: answers_hash_tx_timestamps
+
+-- DROP TABLE answers_hash_tx_timestamps;
+
+CREATE TABLE IF NOT EXISTS answers_hash_tx_timestamps
+(
+    address     character(42) COLLATE pg_catalog."default" NOT NULL,
+    epoch       bigint                                     NOT NULL,
+    "timestamp" bigint                                     NOT NULL
+)
+    WITH (
+        OIDS = FALSE
+    )
+    TABLESPACE pg_default;
+
+ALTER TABLE answers_hash_tx_timestamps
+    OWNER to postgres;
+
+CREATE UNIQUE INDEX IF NOT EXISTS answers_hash_tx_timestamps_address_epoch_unique_idx on answers_hash_tx_timestamps
+    (LOWER(address), epoch);
+
 -- View: epoch_identity_states
 
 -- DROP VIEW epoch_identity_states;

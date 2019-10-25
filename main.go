@@ -6,6 +6,7 @@ import (
 	"github.com/idena-network/idena-indexer/config"
 	"github.com/idena-network/idena-indexer/core/api"
 	"github.com/idena-network/idena-indexer/core/holder/online"
+	"github.com/idena-network/idena-indexer/core/mempool"
 	"github.com/idena-network/idena-indexer/core/restore"
 	"github.com/idena-network/idena-indexer/core/server"
 	"github.com/idena-network/idena-indexer/db"
@@ -105,7 +106,10 @@ func initIndexer(config *config.Config) (*indexer.Indexer, incoming.Listener) {
 		restoreInitially = restoreInitially || migrated
 	}
 
+	memPoolIndexer := mempool.NewIndexer(dbAccessor, log.New("component", "mpi"))
+
 	return indexer.NewIndexer(listener,
+			memPoolIndexer,
 			dbAccessor,
 			restorer,
 			sfs,

@@ -6,6 +6,7 @@ type Accessor interface {
 	GetCurrentFlipsWithoutData(limit uint32) ([]AddressFlipCid, error)
 	Save(data *Data) error
 	SaveRestoredData(data *RestoredData) error
+	SaveMemPoolData(data *MemPoolData) error
 	Destroy()
 	ResetTo(height uint64) error
 }
