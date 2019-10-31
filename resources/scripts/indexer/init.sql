@@ -63,6 +63,7 @@ ALTER TABLE blocks
     OWNER to postgres;
 
 CREATE UNIQUE INDEX IF NOT EXISTS blocks_hash_unique_idx on blocks (LOWER(hash));
+CREATE INDEX IF NOT EXISTS blocks_epoch_idx on blocks (epoch);
 
 -- Table: epoch_summaries
 
