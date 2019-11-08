@@ -46,14 +46,16 @@ func main() {
 
 	app.Action = func(context *cli.Context) error {
 
+		conf := config.LoadConfig(context.String("indexerConfig"))
+		initLog(conf.Verbosity, conf.NodeVerbosity)
+		log.Info("Starting app...")
+
 		// Explorer
 		explorerConf := explorerConfig.LoadConfig(context.String("explorerConfig"))
 		e := explorer.NewExplorer(explorerConf)
 		defer e.Destroy()
 
 		// Indexer
-		conf := config.LoadConfig(context.String("indexerConfig"))
-		initLog(conf.Verbosity, conf.NodeVerbosity)
 		indxr, listener := initIndexer(conf)
 		defer indxr.Destroy()
 		indxr.Start()
