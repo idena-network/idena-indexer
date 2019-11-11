@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/idena-network/idena-indexer/log"
 	"github.com/idena-network/idena-indexer/monitoring"
+	"github.com/lib/pq"
 	_ "github.com/lib/pq"
 	"github.com/pkg/errors"
 	"github.com/shopspring/decimal"
@@ -71,7 +72,7 @@ const (
 	insertRewardAgeQuery            = "insertRewardAge.sql"
 	insertFundRewardQuery           = "insertFundReward.sql"
 	insertFailedValidationQuery     = "insertFailedValidation.sql"
-	insertMiningRewardQuery         = "insertMiningReward.sql"
+	insertMiningRewardsQuery        = "insertMiningRewards.sql"
 )
 
 func (a *postgresAccessor) getQuery(name string) string {
@@ -964,22 +965,13 @@ func (a *postgresAccessor) saveFundReward(ctx *context, reward *Reward) error {
 }
 
 func (a *postgresAccessor) saveMiningRewards(ctx *context, rewards []*Reward) error {
-	for _, reward := range rewards {
-		if err := a.saveMiningReward(ctx, reward); err != nil {
-			return err
-		}
+	if len(rewards) == 0 {
+		return nil
+	}
+	if _, err := ctx.tx.Exec(a.getQuery(insertMiningRewardsQuery), ctx.blockHeight, pq.Array(rewards)); err != nil {
+		return err
 	}
 	return nil
-}
-
-func (a *postgresAccessor) saveMiningReward(ctx *context, reward *Reward) error {
-	_, err := ctx.tx.Exec(a.getQuery(insertMiningRewardQuery),
-		reward.Address,
-		ctx.blockHeight,
-		reward.Balance,
-		reward.Stake,
-		reward.Type)
-	return errors.Wrapf(err, "unable to save mining reward: %v", reward)
 }
 
 func (a *postgresAccessor) saveFailedValidation(ctx *context, failed bool) error {

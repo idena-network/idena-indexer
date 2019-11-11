@@ -1,0 +1,1 @@
+call save_mining_rewards($1, $2);

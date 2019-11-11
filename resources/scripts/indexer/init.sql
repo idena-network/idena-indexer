@@ -1188,3 +1188,41 @@ ORDER BY e.epoch DESC;
 ALTER TABLE epochs_detail
     OWNER TO postgres;
 
+-- Types
+DO
+$$
+    BEGIN
+        IF NOT EXISTS(SELECT 1 FROM pg_type WHERE typname = 'tp_mining_reward') THEN
+            -- Type: tp_mining_reward
+            CREATE TYPE tp_mining_reward AS
+                (
+                address character(42),
+                balance numeric(30, 18),
+                stake numeric(30, 18),
+                type character varying(20)
+                );
+
+            ALTER TYPE tp_mining_reward
+                OWNER TO postgres;
+        END IF;
+    END
+$$;
+
+-- PROCEDURE: save_mining_rewards
+
+CREATE OR REPLACE PROCEDURE save_mining_rewards(height bigint, mr tp_mining_reward[])
+    LANGUAGE 'plpgsql'
+AS
+$BODY$
+DECLARE
+    mr_row tp_mining_reward;
+BEGIN
+    for i in 1..cardinality(mr)
+        loop
+            mr_row = mr[i];
+            insert into mining_rewards (address_id, block_height, balance, stake, type)
+            values ((select id from addresses where lower(address) = lower(mr_row.address)), height,
+                    mr_row.balance, mr_row.stake, mr_row.type);
+        end loop;
+END
+$BODY$;
