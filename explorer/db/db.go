@@ -74,8 +74,6 @@ type Accessor interface {
 	IdentityFlipStates(address string) ([]types.StrValueCount, error)
 	IdentityInvitesCount(address string) (uint64, error)
 	IdentityInvites(address string, startIndex uint64, count uint64) ([]types.Invite, error)
-	IdentityStatesCount(address string) (uint64, error)
-	IdentityStates(address string, startIndex uint64, count uint64) ([]types.IdentityState, error)
 	IdentityTxsCount(address string) (uint64, error)
 	IdentityTxs(address string, startIndex uint64, count uint64) ([]types.TransactionSummary, error)
 	IdentityRewardsCount(address string) (uint64, error)
@@ -90,6 +88,8 @@ type Accessor interface {
 	AddressMiningRewards(address string, startIndex uint64, count uint64) ([]types.Reward, error)
 	AddressBlockMiningRewardsCount(address string) (uint64, error)
 	AddressBlockMiningRewards(address string, startIndex uint64, count uint64) ([]types.BlockRewards, error)
+	AddressStatesCount(address string) (uint64, error)
+	AddressStates(address string, startIndex uint64, count uint64) ([]types.AddressState, error)
 
 	Transaction(hash string) (types.TransactionDetail, error)
 

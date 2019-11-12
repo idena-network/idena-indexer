@@ -161,10 +161,6 @@ func (s *httpServer) InitRouter(router *mux.Router) {
 	router.Path(strings.ToLower("/Identity/{address}/Invites")).
 		Queries("skip", "{skip}", "limit", "{limit}").
 		HandlerFunc(s.identityInvites)
-	router.Path(strings.ToLower("/Identity/{address}/States/Count")).HandlerFunc(s.identityStatesCount)
-	router.Path(strings.ToLower("/Identity/{address}/States")).
-		Queries("skip", "{skip}", "limit", "{limit}").
-		HandlerFunc(s.identityStates)
 	router.Path(strings.ToLower("/Identity/{address}/Rewards/Count")).HandlerFunc(s.identityRewardsCount)
 	router.Path(strings.ToLower("/Identity/{address}/Rewards")).
 		Queries("skip", "{skip}", "limit", "{limit}").
@@ -209,6 +205,11 @@ func (s *httpServer) InitRouter(router *mux.Router) {
 	router.Path(strings.ToLower("/Address/{address}/BlockMiningRewards")).
 		Queries("skip", "{skip}", "limit", "{limit}").
 		HandlerFunc(s.addressBlockMiningRewards)
+	router.Path(strings.ToLower("/Address/{address}/States/Count")).
+		HandlerFunc(s.addressStatesCount)
+	router.Path(strings.ToLower("/Address/{address}/States")).
+		Queries("skip", "{skip}", "limit", "{limit}").
+		HandlerFunc(s.addressStates)
 
 	router.Path(strings.ToLower("/Balances/Count")).HandlerFunc(s.balancesCount)
 	router.Path(strings.ToLower("/Balances")).
@@ -781,22 +782,6 @@ func (s *httpServer) identityInvites(w http.ResponseWriter, r *http.Request) {
 	server.WriteResponse(w, resp, err, s.log)
 }
 
-func (s *httpServer) identityStatesCount(w http.ResponseWriter, r *http.Request) {
-	resp, err := s.db.IdentityStatesCount(mux.Vars(r)["address"])
-	server.WriteResponse(w, resp, err, s.log)
-}
-
-func (s *httpServer) identityStates(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	startIndex, count, err := server.ReadPaginatorParams(vars)
-	if err != nil {
-		server.WriteErrorResponse(w, err, s.log)
-		return
-	}
-	resp, err := s.db.IdentityStates(vars["address"], startIndex, count)
-	server.WriteResponse(w, resp, err, s.log)
-}
-
 func (s *httpServer) identityTxsCount(w http.ResponseWriter, r *http.Request) {
 	resp, err := s.db.IdentityTxsCount(mux.Vars(r)["address"])
 	server.WriteResponse(w, resp, err, s.log)
@@ -937,6 +922,22 @@ func (s *httpServer) addressBlockMiningRewards(w http.ResponseWriter, r *http.Re
 		return
 	}
 	resp, err := s.db.AddressBlockMiningRewards(vars["address"], startIndex, count)
+	server.WriteResponse(w, resp, err, s.log)
+}
+
+func (s *httpServer) addressStatesCount(w http.ResponseWriter, r *http.Request) {
+	resp, err := s.db.AddressStatesCount(mux.Vars(r)["address"])
+	server.WriteResponse(w, resp, err, s.log)
+}
+
+func (s *httpServer) addressStates(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	startIndex, count, err := server.ReadPaginatorParams(vars)
+	if err != nil {
+		server.WriteErrorResponse(w, err, s.log)
+		return
+	}
+	resp, err := s.db.AddressStates(vars["address"], startIndex, count)
 	server.WriteResponse(w, resp, err, s.log)
 }
 

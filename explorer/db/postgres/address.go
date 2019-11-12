@@ -13,6 +13,8 @@ const (
 	addressMiningRewardsQuery           = "addressMiningRewards.sql"
 	addressBlockMiningRewardsCountQuery = "addressBlockMiningRewardsCount.sql"
 	addressBlockMiningRewardsQuery      = "addressBlockMiningRewards.sql"
+	addressStatesCountQuery             = "addressStatesCount.sql"
+	addressStatesQuery                  = "addressStates.sql"
 )
 
 func (a *postgresAccessor) AddressPenaltiesCount(address string) (uint64, error) {
@@ -86,6 +88,36 @@ func (a *postgresAccessor) AddressBlockMiningRewards(address string, startIndex 
 	}
 	if item != nil {
 		res = append(res, *item)
+	}
+	return res, nil
+}
+
+func (a *postgresAccessor) AddressStatesCount(address string) (uint64, error) {
+	return a.count(addressStatesCountQuery, address)
+}
+
+func (a *postgresAccessor) AddressStates(address string, startIndex uint64, count uint64) ([]types.AddressState, error) {
+	rows, err := a.db.Query(a.getQuery(addressStatesQuery), address, startIndex, count)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var res []types.AddressState
+	for rows.Next() {
+		item := types.AddressState{}
+		var timestamp int64
+		err = rows.Scan(&item.State,
+			&item.Epoch,
+			&item.BlockHeight,
+			&item.BlockHash,
+			&item.TxHash,
+			&timestamp,
+			&item.IsValidation)
+		if err != nil {
+			return nil, err
+		}
+		item.Timestamp = common.TimestampToTime(big.NewInt(timestamp))
+		res = append(res, item)
 	}
 	return res, nil
 }

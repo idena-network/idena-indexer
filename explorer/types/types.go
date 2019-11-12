@@ -50,15 +50,6 @@ type BlockDetail struct {
 	Size            uint32    `json:"size"`
 }
 
-type IdentityState struct {
-	State       string    `json:"state"`
-	Epoch       uint64    `json:"epoch"`
-	BlockHeight uint64    `json:"blockHeight"`
-	BlockHash   string    `json:"blockHash"`
-	TxHash      string    `json:"txHash,omitempty"`
-	Timestamp   time.Time `json:"timestamp"`
-}
-
 type TransactionSummary struct {
 	Hash      string          `json:"hash"`
 	Type      string          `json:"type"`
@@ -299,4 +290,14 @@ type FundPayment struct {
 	Address string          `json:"address"`
 	Balance decimal.Decimal `json:"balance"`
 	Type    string          `json:"type"`
+}
+
+type AddressState struct {
+	State        string    `json:"state"`
+	Epoch        uint64    `json:"epoch"`
+	BlockHeight  uint64    `json:"blockHeight"`
+	BlockHash    string    `json:"blockHash"`
+	TxHash       string    `json:"txHash,omitempty"`
+	Timestamp    time.Time `json:"timestamp"`
+	IsValidation bool      `json:"isValidation"`
 }

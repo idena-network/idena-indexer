@@ -2,9 +2,7 @@ package postgres
 
 import (
 	"database/sql"
-	"github.com/idena-network/idena-go/common"
 	"github.com/idena-network/idena-indexer/explorer/types"
-	"math/big"
 )
 
 const (
@@ -18,8 +16,6 @@ const (
 	identityFlipRightAnswersQuery  = "identityFlipRightAnswers.sql"
 	identityInvitesCountQuery      = "identityInvitesCount.sql"
 	identityInvitesQuery           = "identityInvites.sql"
-	identityStatesCountQuery       = "identityStatesCount.sql"
-	identityStatesQuery            = "identityStates.sql"
 	identityTxsCountQuery          = "identityTxsCount.sql"
 	identityTxsQuery               = "identityTxs.sql"
 	identityRewardsCountQuery      = "identityRewardsCount.sql"
@@ -129,30 +125,6 @@ func (a *postgresAccessor) IdentityInvites(address string, startIndex uint64, co
 		return nil, err
 	}
 	return a.readInvites(rows)
-}
-
-func (a *postgresAccessor) IdentityStatesCount(address string) (uint64, error) {
-	return a.count(identityStatesCountQuery, address)
-}
-
-func (a *postgresAccessor) IdentityStates(address string, startIndex uint64, count uint64) ([]types.IdentityState, error) {
-	rows, err := a.db.Query(a.getQuery(identityStatesQuery), address, startIndex, count)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var res []types.IdentityState
-	for rows.Next() {
-		item := types.IdentityState{}
-		var timestamp int64
-		err = rows.Scan(&item.State, &item.Epoch, &item.BlockHeight, &item.BlockHash, &item.TxHash, &timestamp)
-		if err != nil {
-			return nil, err
-		}
-		item.Timestamp = common.TimestampToTime(big.NewInt(timestamp))
-		res = append(res, item)
-	}
-	return res, nil
 }
 
 func (a *postgresAccessor) IdentityTxsCount(address string) (uint64, error) {
