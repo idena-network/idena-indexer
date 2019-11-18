@@ -14,18 +14,20 @@ type Server interface {
 	InitRouter(router *mux.Router)
 }
 
-func NewServer(port int, db db.Accessor, logger log.Logger) Server {
+func NewServer(port int, latestBlocks int, db db.Accessor, logger log.Logger) Server {
 	return &httpServer{
-		port: port,
-		db:   db,
-		log:  logger,
+		port:         port,
+		db:           db,
+		log:          logger,
+		latestBlocks: latestBlocks,
 	}
 }
 
 type httpServer struct {
-	port int
-	db   db.Accessor
-	log  log.Logger
+	port         int
+	latestBlocks int
+	db           db.Accessor
+	log          log.Logger
 }
 
 func (s *httpServer) requestFilter(next http.Handler) http.Handler {
@@ -210,11 +212,18 @@ func (s *httpServer) InitRouter(router *mux.Router) {
 	router.Path(strings.ToLower("/Address/{address}/States")).
 		Queries("skip", "{skip}", "limit", "{limit}").
 		HandlerFunc(s.addressStates)
+	router.Path(strings.ToLower("/Address/{address}/TotalLatestMiningReward")).
+		HandlerFunc(s.addressTotalLatestMiningReward)
 
 	router.Path(strings.ToLower("/Balances/Count")).HandlerFunc(s.balancesCount)
 	router.Path(strings.ToLower("/Balances")).
 		Queries("skip", "{skip}", "limit", "{limit}").
 		HandlerFunc(s.balances)
+
+	router.Path(strings.ToLower("/TotalLatestMiningRewards/Count")).HandlerFunc(s.totalLatestMiningRewardsCount)
+	router.Path(strings.ToLower("/TotalLatestMiningRewards")).
+		Queries("skip", "{skip}", "limit", "{limit}").
+		HandlerFunc(s.totalLatestMiningRewards)
 }
 
 func (s *httpServer) search(w http.ResponseWriter, r *http.Request) {
@@ -941,6 +950,11 @@ func (s *httpServer) addressStates(w http.ResponseWriter, r *http.Request) {
 	server.WriteResponse(w, resp, err, s.log)
 }
 
+func (s *httpServer) addressTotalLatestMiningReward(w http.ResponseWriter, r *http.Request) {
+	resp, err := s.db.AddressTotalLatestMiningReward(s.latestBlocks, mux.Vars(r)["address"])
+	server.WriteResponse(w, resp, err, s.log)
+}
+
 func (s *httpServer) transaction(w http.ResponseWriter, r *http.Request) {
 	resp, err := s.db.Transaction(mux.Vars(r)["hash"])
 	server.WriteResponse(w, resp, err, s.log)
@@ -959,5 +973,20 @@ func (s *httpServer) balances(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	resp, err := s.db.Balances(startIndex, count)
+	server.WriteResponse(w, resp, err, s.log)
+}
+
+func (s *httpServer) totalLatestMiningRewardsCount(w http.ResponseWriter, r *http.Request) {
+	resp, err := s.db.TotalLatestMiningRewardsCount(s.latestBlocks)
+	server.WriteResponse(w, resp, err, s.log)
+}
+
+func (s *httpServer) totalLatestMiningRewards(w http.ResponseWriter, r *http.Request) {
+	startIndex, count, err := server.ReadPaginatorParams(mux.Vars(r))
+	if err != nil {
+		server.WriteErrorResponse(w, err, s.log)
+		return
+	}
+	resp, err := s.db.TotalLatestMiningRewards(s.latestBlocks, startIndex, count)
 	server.WriteResponse(w, resp, err, s.log)
 }

@@ -1,12 +1,14 @@
 package postgres
 
 import (
+	"database/sql"
 	"github.com/idena-network/idena-go/common"
 	"github.com/idena-network/idena-indexer/explorer/types"
 	"math/big"
 )
 
 const (
+	addressQuery                        = "address.sql"
 	addressPenaltiesCountQuery          = "addressPenaltiesCount.sql"
 	addressPenaltiesQuery               = "addressPenalties.sql"
 	addressMiningRewardsCountQuery      = "addressMiningRewardsCount.sql"
@@ -15,7 +17,20 @@ const (
 	addressBlockMiningRewardsQuery      = "addressBlockMiningRewards.sql"
 	addressStatesCountQuery             = "addressStatesCount.sql"
 	addressStatesQuery                  = "addressStates.sql"
+	addressTotalLatestMiningRewardQuery = "addressTotalLatestMiningReward.sql"
 )
+
+func (a *postgresAccessor) Address(address string) (types.Address, error) {
+	res := types.Address{}
+	err := a.db.QueryRow(a.getQuery(addressQuery), address).Scan(&res.Address, &res.Balance, &res.Stake, &res.TxCount)
+	if err == sql.ErrNoRows {
+		err = NoDataFound
+	}
+	if err != nil {
+		return types.Address{}, err
+	}
+	return res, nil
+}
 
 func (a *postgresAccessor) AddressPenaltiesCount(address string) (uint64, error) {
 	return a.count(addressPenaltiesCountQuery, address)
@@ -118,6 +133,16 @@ func (a *postgresAccessor) AddressStates(address string, startIndex uint64, coun
 		}
 		item.Timestamp = common.TimestampToTime(big.NewInt(timestamp))
 		res = append(res, item)
+	}
+	return res, nil
+}
+
+func (a *postgresAccessor) AddressTotalLatestMiningReward(latestBlocks int, address string) (types.TotalMiningReward, error) {
+	res := types.TotalMiningReward{}
+	err := a.db.QueryRow(a.getQuery(addressTotalLatestMiningRewardQuery), latestBlocks, address).
+		Scan(&res.Balance, &res.Stake, &res.Proposer, &res.FinalCommittee)
+	if err != nil {
+		return types.TotalMiningReward{}, err
 	}
 	return res, nil
 }

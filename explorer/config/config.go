@@ -13,6 +13,7 @@ type Config struct {
 	Verbosity       int
 	PostgresConnStr string
 	ScriptsDir      string
+	LatestBlocks    int
 }
 
 func LoadConfig(configPath string) *Config {
@@ -34,7 +35,8 @@ func LoadConfig(configPath string) *Config {
 
 func newDefaultConfig() *Config {
 	return &Config{
-		ScriptsDir: filepath.Join("resources", "scripts", "explorer"),
-		Verbosity:  3,
+		ScriptsDir:   filepath.Join("resources", "scripts", "explorer"),
+		Verbosity:    3,
+		LatestBlocks: 24 * 60 * 3,
 	}
 }

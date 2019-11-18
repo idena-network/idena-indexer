@@ -68,6 +68,19 @@ func (a *postgresAccessor) strValueCounts(queryName string, args ...interface{})
 	return a.readStrValueCounts(rows)
 }
 
+func (a *postgresAccessor) readStrValueCounts(rows *sql.Rows) ([]types.StrValueCount, error) {
+	defer rows.Close()
+	var res []types.StrValueCount
+	for rows.Next() {
+		item := types.StrValueCount{}
+		if err := rows.Scan(&item.Value, &item.Count); err != nil {
+			return nil, err
+		}
+		res = append(res, item)
+	}
+	return res, nil
+}
+
 func (a *postgresAccessor) flips(queryName string, args ...interface{}) ([]types.FlipSummary, error) {
 	rows, err := a.db.Query(a.getQuery(queryName), args...)
 	if err != nil {

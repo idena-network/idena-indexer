@@ -3,8 +3,10 @@ package postgres
 import "github.com/idena-network/idena-indexer/explorer/types"
 
 const (
-	balancesCountQuery = "balancesCount.sql"
-	balancesQuery      = "balances.sql"
+	balancesCountQuery                 = "balancesCount.sql"
+	balancesQuery                      = "balances.sql"
+	totalLatestMiningRewardsCountQuery = "totalLatestMiningRewardsCount.sql"
+	totalLatestMiningRewardsQuery      = "totalLatestMiningRewards.sql"
 )
 
 func (a *postgresAccessor) BalancesCount() (uint64, error) {
@@ -23,6 +25,32 @@ func (a *postgresAccessor) Balances(startIndex uint64, count uint64) ([]types.Ba
 		err = rows.Scan(&item.Address,
 			&item.Balance,
 			&item.Stake)
+		if err != nil {
+			return nil, err
+		}
+		res = append(res, item)
+	}
+	return res, nil
+}
+
+func (a *postgresAccessor) TotalLatestMiningRewardsCount(latestBlocks int) (uint64, error) {
+	return a.count(totalLatestMiningRewardsCountQuery, latestBlocks)
+}
+
+func (a *postgresAccessor) TotalLatestMiningRewards(latestBlocks int, startIndex uint64, count uint64) ([]types.TotalMiningReward, error) {
+	rows, err := a.db.Query(a.getQuery(totalLatestMiningRewardsQuery), latestBlocks, startIndex, count)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var res []types.TotalMiningReward
+	for rows.Next() {
+		item := types.TotalMiningReward{}
+		err = rows.Scan(&item.Address,
+			&item.Balance,
+			&item.Stake,
+			&item.Proposer,
+			&item.FinalCommittee)
 		if err != nil {
 			return nil, err
 		}

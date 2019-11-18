@@ -18,9 +18,7 @@ type postgresAccessor struct {
 }
 
 const (
-	addressQuery             = "address.sql"
 	transactionQuery         = "transaction.sql"
-	currentEpochQuery        = "currentEpoch.sql"
 	isAddressQuery           = "isAddress.sql"
 	isBlockHashQuery         = "isBlockHash.sql"
 	isBlockHeightQuery       = "isBlockHeight.sql"
@@ -139,35 +137,6 @@ func (a *postgresAccessor) getQuery(name string) string {
 	panic(fmt.Sprintf("There is no query '%s'", name))
 }
 
-func (a *postgresAccessor) getCurrentEpoch() (int64, error) {
-	var epoch int64
-	err := a.db.QueryRow(a.getQuery(currentEpochQuery)).Scan(&epoch)
-	if err != nil {
-		return 0, err
-	}
-	return epoch, nil
-}
-
-func (a *postgresAccessor) identityStates(queryName string, args ...interface{}) ([]types.StrValueCount, error) {
-	rows, err := a.db.Query(a.getQuery(queryName), args...)
-	if err != nil {
-		return nil, err
-	}
-	return a.readStrValueCounts(rows)
-}
-
-func (a *postgresAccessor) Address(address string) (types.Address, error) {
-	res := types.Address{}
-	err := a.db.QueryRow(a.getQuery(addressQuery), address).Scan(&res.Address, &res.Balance, &res.Stake, &res.TxCount)
-	if err == sql.ErrNoRows {
-		err = NoDataFound
-	}
-	if err != nil {
-		return types.Address{}, err
-	}
-	return res, nil
-}
-
 func (a *postgresAccessor) Transaction(hash string) (types.TransactionDetail, error) {
 	res := types.TransactionDetail{}
 	var timestamp int64
@@ -180,19 +149,6 @@ func (a *postgresAccessor) Transaction(hash string) (types.TransactionDetail, er
 		return types.TransactionDetail{}, err
 	}
 	res.Timestamp = common.TimestampToTime(big.NewInt(timestamp))
-	return res, nil
-}
-
-func (a *postgresAccessor) readStrValueCounts(rows *sql.Rows) ([]types.StrValueCount, error) {
-	defer rows.Close()
-	var res []types.StrValueCount
-	for rows.Next() {
-		item := types.StrValueCount{}
-		if err := rows.Scan(&item.Value, &item.Count); err != nil {
-			return nil, err
-		}
-		res = append(res, item)
-	}
 	return res, nil
 }
 

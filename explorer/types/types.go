@@ -235,6 +235,14 @@ type Balance struct {
 	Stake   decimal.Decimal `json:"stake"`
 }
 
+type TotalMiningReward struct {
+	Address        string          `json:"address,omitempty"`
+	Balance        decimal.Decimal `json:"balance"`
+	Stake          decimal.Decimal `json:"stake"`
+	Proposer       uint64          `json:"proposer"`
+	FinalCommittee uint64          `json:"finalCommittee"`
+}
+
 type Penalty struct {
 	Address     string          `json:"address"`
 	Penalty     decimal.Decimal `json:"penalty"`

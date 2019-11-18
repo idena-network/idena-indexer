@@ -90,11 +90,15 @@ type Accessor interface {
 	AddressBlockMiningRewards(address string, startIndex uint64, count uint64) ([]types.BlockRewards, error)
 	AddressStatesCount(address string) (uint64, error)
 	AddressStates(address string, startIndex uint64, count uint64) ([]types.AddressState, error)
+	AddressTotalLatestMiningReward(latestBlocks int, address string) (types.TotalMiningReward, error)
 
 	Transaction(hash string) (types.TransactionDetail, error)
 
 	BalancesCount() (uint64, error)
 	Balances(startIndex uint64, count uint64) ([]types.Balance, error)
+
+	TotalLatestMiningRewardsCount(latestBlocks int) (uint64, error)
+	TotalLatestMiningRewards(latestBlocks int, startIndex uint64, count uint64) ([]types.TotalMiningReward, error)
 
 	Destroy()
 }
