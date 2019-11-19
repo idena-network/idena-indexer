@@ -37,6 +37,10 @@ func (a *Api) GetOnlineIdentity(address string) *OnlineIdentity {
 	return convertOnlineIdentity(oi)
 }
 
+func (a *Api) GetOnlineCount() uint64 {
+	return uint64(a.onlineIdentities.GetOnlineCount())
+}
+
 func convertOnlineIdentity(oi *online.Identity) *OnlineIdentity {
 	if oi == nil {
 		return nil

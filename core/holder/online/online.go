@@ -24,18 +24,20 @@ type Identity struct {
 type CurrentOnlineIdentitiesHolder interface {
 	GetAll() []*Identity
 	Get(address string) *Identity
+	GetOnlineCount() int
 }
 
 type currentOnlineIdentitiesCache struct {
 	identities           []*Identity
 	identitiesPerAddress map[string]*Identity
+	onlineCount          int
 }
 
 func NewCurrentOnlineIdentitiesCache(appState *appstate.AppState,
 	chain *blockchain.Blockchain,
 	offlineDetector *blockchain.OfflineDetector) CurrentOnlineIdentitiesHolder {
 	cache := &currentOnlineIdentitiesCache{}
-	cache.set(nil, make(map[string]*Identity))
+	cache.set(nil, make(map[string]*Identity), 0)
 	cache.initialize(appState, chain, offlineDetector)
 	return cache
 }
@@ -56,9 +58,18 @@ func (cache *currentOnlineIdentitiesCache) Get(address string) *Identity {
 	return cache.identitiesPerAddress[strings.ToLower(address)]
 }
 
-func (cache *currentOnlineIdentitiesCache) set(identities []*Identity, identitiesPerAddress map[string]*Identity) {
+func (cache *currentOnlineIdentitiesCache) GetOnlineCount() int {
+	return cache.onlineCount
+}
+
+func (cache *currentOnlineIdentitiesCache) set(
+	identities []*Identity,
+	identitiesPerAddress map[string]*Identity,
+	onlineCount int,
+) {
 	cache.identities = identities
 	cache.identitiesPerAddress = identitiesPerAddress
+	cache.onlineCount = onlineCount
 }
 
 func (cache *currentOnlineIdentitiesCache) initialize(appState *appstate.AppState,
@@ -97,6 +108,7 @@ func (updater *currentOnlineIdentitiesCacheUpdater) update() {
 	}
 
 	activityMap := updater.offlineDetector.GetActivityMap()
+	var onlineCount int
 	appState.State.IterateOverIdentities(func(address common.Address, identity state.Identity) {
 		if identity.State != state.Newbie && identity.State != state.Verified {
 			return
@@ -114,6 +126,9 @@ func (updater *currentOnlineIdentitiesCacheUpdater) update() {
 		}
 		identities = append(identities, onlineIdentity)
 		identitiesPerAddress[strings.ToLower(addressStr)] = onlineIdentity
+		if onlineIdentity.Online {
+			onlineCount++
+		}
 	})
 
 	if len(identities) > 0 {
@@ -130,7 +145,7 @@ func (updater *currentOnlineIdentitiesCacheUpdater) update() {
 		})
 	}
 
-	updater.cache.set(identities, identitiesPerAddress)
+	updater.cache.set(identities, identitiesPerAddress, onlineCount)
 	finishTime := time.Now()
 	updater.log.Debug("Updated", "duration", finishTime.Sub(startTime))
 }

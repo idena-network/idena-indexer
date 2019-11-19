@@ -31,6 +31,8 @@ func (ri *routerInitializer) InitRouter(router *mux.Router) {
 		HandlerFunc(ri.onlineIdentities)
 
 	router.Path(strings.ToLower("/OnlineIdentity/{address}")).HandlerFunc(ri.onlineIdentity)
+
+	router.Path(strings.ToLower("/OnlineMiners/Count")).HandlerFunc(ri.onlineCount)
 }
 
 func (ri *routerInitializer) onlineIdentitiesCount(w http.ResponseWriter, r *http.Request) {
@@ -50,5 +52,10 @@ func (ri *routerInitializer) onlineIdentities(w http.ResponseWriter, r *http.Req
 
 func (ri *routerInitializer) onlineIdentity(w http.ResponseWriter, r *http.Request) {
 	resp := ri.api.GetOnlineIdentity(mux.Vars(r)["address"])
+	WriteResponse(w, resp, nil, ri.logger)
+}
+
+func (ri *routerInitializer) onlineCount(w http.ResponseWriter, r *http.Request) {
+	resp := ri.api.GetOnlineCount()
 	WriteResponse(w, resp, nil, ri.logger)
 }

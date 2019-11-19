@@ -1192,19 +1192,19 @@ ALTER TABLE epochs_detail
 DO
 $$
     BEGIN
-        IF NOT EXISTS(SELECT 1 FROM pg_type WHERE typname = 'tp_mining_reward') THEN
-            -- Type: tp_mining_reward
-            CREATE TYPE tp_mining_reward AS
-                (
-                address character(42),
-                balance numeric(30, 18),
-                stake numeric(30, 18),
-                type character varying(20)
-                );
+        -- Type: tp_mining_reward
+        CREATE TYPE tp_mining_reward AS
+            (
+            address character(42),
+            balance numeric(30, 18),
+            stake numeric(30, 18),
+            type character varying(20)
+            );
 
-            ALTER TYPE tp_mining_reward
-                OWNER TO postgres;
-        END IF;
+        ALTER TYPE tp_mining_reward
+            OWNER TO postgres;
+    EXCEPTION
+        WHEN duplicate_object THEN null;
     END
 $$;
 
