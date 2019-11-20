@@ -1,4 +1,5 @@
 select epoch,
+       validation_time,
        validated_count,
        block_count,
        empty_block_count,

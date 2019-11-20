@@ -1181,7 +1181,8 @@ SELECT e.epoch,
                                           JOIN blocks b ON b.height = c.block_height
                                  WHERE b.epoch = e.epoch
                                  ORDER BY c.block_height DESC
-                                 LIMIT 1))                                                                                          AS total_stake
+                                 LIMIT 1))                                                                                          AS total_stake,
+       e.validation_time                                                                                                               validation_time
 FROM epochs e
          LEFT JOIN epoch_summaries es ON es.epoch = e.epoch
 ORDER BY e.epoch DESC;

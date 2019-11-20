@@ -1,7 +1,9 @@
 package postgres
 
 import (
+	"github.com/idena-network/idena-go/common"
 	"github.com/idena-network/idena-indexer/explorer/types"
+	"math/big"
 )
 
 const (
@@ -24,7 +26,9 @@ func (a *postgresAccessor) Epochs(startIndex uint64, count uint64) ([]types.Epoc
 		epoch := types.EpochSummary{
 			Coins: types.AllCoins{},
 		}
+		var validationTime int64
 		err = rows.Scan(&epoch.Epoch,
+			&validationTime,
 			&epoch.ValidatedCount,
 			&epoch.BlockCount,
 			&epoch.EmptyBlockCount,
@@ -38,6 +42,7 @@ func (a *postgresAccessor) Epochs(startIndex uint64, count uint64) ([]types.Epoc
 		if err != nil {
 			return nil, err
 		}
+		epoch.ValidationTime = common.TimestampToTime(big.NewInt(validationTime))
 		epochs = append(epochs, epoch)
 	}
 	return epochs, nil
