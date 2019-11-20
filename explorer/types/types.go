@@ -12,15 +12,16 @@ type Entity struct {
 }
 
 type EpochSummary struct {
-	Epoch           uint64    `json:"epoch"`
-	ValidationTime  time.Time `json:"validationTime"`
-	ValidatedCount  uint32    `json:"validatedCount"`
-	BlockCount      uint32    `json:"blockCount"`
-	EmptyBlockCount uint32    `json:"emptyBlockCount"`
-	TxCount         uint32    `json:"txCount"`
-	InviteCount     uint32    `json:"inviteCount"`
-	FlipCount       uint32    `json:"flipCount"`
-	Coins           AllCoins  `json:"coins"`
+	Epoch           uint64         `json:"epoch"`
+	ValidationTime  time.Time      `json:"validationTime"`
+	ValidatedCount  uint32         `json:"validatedCount"`
+	BlockCount      uint32         `json:"blockCount"`
+	EmptyBlockCount uint32         `json:"emptyBlockCount"`
+	TxCount         uint32         `json:"txCount"`
+	InviteCount     uint32         `json:"inviteCount"`
+	FlipCount       uint32         `json:"flipCount"`
+	Coins           AllCoins       `json:"coins"`
+	Rewards         RewardsSummary `json:"rewards"`
 }
 
 type EpochDetail struct {
@@ -255,7 +256,7 @@ type Penalty struct {
 }
 
 type RewardsSummary struct {
-	Epoch             uint64          `json:"epoch"`
+	Epoch             uint64          `json:"epoch,omitempty"`
 	Total             decimal.Decimal `json:"total"`
 	Validation        decimal.Decimal `json:"validation"`
 	Flips             decimal.Decimal `json:"flips"`

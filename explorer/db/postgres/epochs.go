@@ -24,7 +24,8 @@ func (a *postgresAccessor) Epochs(startIndex uint64, count uint64) ([]types.Epoc
 	var epochs []types.EpochSummary
 	for rows.Next() {
 		epoch := types.EpochSummary{
-			Coins: types.AllCoins{},
+			Coins:   types.AllCoins{},
+			Rewards: types.RewardsSummary{},
 		}
 		var validationTime int64
 		err = rows.Scan(&epoch.Epoch,
@@ -38,7 +39,13 @@ func (a *postgresAccessor) Epochs(startIndex uint64, count uint64) ([]types.Epoc
 			&epoch.Coins.Burnt,
 			&epoch.Coins.Minted,
 			&epoch.Coins.TotalBalance,
-			&epoch.Coins.TotalStake)
+			&epoch.Coins.TotalStake,
+			&epoch.Rewards.Total,
+			&epoch.Rewards.Validation,
+			&epoch.Rewards.Flips,
+			&epoch.Rewards.Invitations,
+			&epoch.Rewards.FoundationPayouts,
+			&epoch.Rewards.ZeroWalletFund)
 		if err != nil {
 			return nil, err
 		}

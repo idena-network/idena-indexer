@@ -1182,9 +1182,24 @@ SELECT e.epoch,
                                  WHERE b.epoch = e.epoch
                                  ORDER BY c.block_height DESC
                                  LIMIT 1))                                                                                          AS total_stake,
-       e.validation_time                                                                                                               validation_time
+       e.validation_time                                                                                                               validation_time,
+       coalesce(trew.total, 0)                                                                                                         total_reward,
+       coalesce(trew.validation, 0)                                                                                                    validation_reward,
+       coalesce(trew.flips, 0)                                                                                                         flips_reward,
+       coalesce(trew.invitations, 0)                                                                                                   invitations_reward,
+       coalesce(trew.foundation, 0)                                                                                                    foundation_payout,
+       coalesce(trew.zero_wallet, 0)                                                                                                   zero_wallet_payout
 FROM epochs e
          LEFT JOIN epoch_summaries es ON es.epoch = e.epoch
+         left join (select b.epoch,
+                           trew.total,
+                           trew.validation,
+                           trew.flips,
+                           trew.invitations,
+                           trew.foundation,
+                           trew.zero_wallet
+                    from total_rewards trew
+                             join blocks b on b.height = trew.block_height) trew on trew.epoch = e.epoch
 ORDER BY e.epoch DESC;
 
 ALTER TABLE epochs_detail
