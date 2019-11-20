@@ -1,16 +1,16 @@
-select a.address,
-       tlr.balance,
-       tlr.stake,
-       proposer,
-       final_committee
+select coalesce(a.address, identities.address) address,
+       coalesce(tlr.balance, 0)                balance,
+       coalesce(tlr.stake, 0)                  stake,
+       coalesce(proposer, 0)                   proposer,
+       coalesce(final_committee, 0)            final_committee
 from (select lr.address_id,
              sum(lr.balance)      balance,
              sum(lr.stake)        stake,
              sum(proposer)        proposer,
              sum(final_committee) final_committee
       from (select mr.address_id,
-                   mr.balance,
-                   mr.stake,
+                   coalesce(mr.balance, 0)                                    balance,
+                   coalesce(mr.stake, 0)                                      stake,
                    (case when mr."type" = 'Proposer' then 1 else 0 end)       proposer,
                    (case when mr."type" = 'FinalCommittee' then 1 else 0 end) final_committee
             from mining_rewards mr
@@ -18,7 +18,12 @@ from (select lr.address_id,
             where b."timestamp" > $1) lr
       group by lr.address_id) tlr
          join addresses a on a.id = tlr.address_id
-order by tlr.balance + tlr.stake desc
+         full outer join (select a.address, a.id
+                          from address_states s
+                                   join addresses a on a.id = s.address_id
+                          where is_actual
+                            and "state" in ('Verified', 'Newbie')) identities on identities.id = tlr.address_id
+order by tlr.balance + tlr.stake desc nulls last
 limit $3
 offset
 $2
