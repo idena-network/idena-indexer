@@ -4,5 +4,6 @@ select coalesce(sum(mr.balance), 0)                                  balance,
        sum(case when mr."type" = 'FinalCommittee' then 1 else 0 end) final_committee
 from mining_rewards mr
          join addresses a on a.id = mr.address_id
-where mr.block_height > (select max(height) from blocks) - $1
+         join blocks b on b.height = mr.block_height
+where b."timestamp" > $1
   and lower(a.address) = lower($2);

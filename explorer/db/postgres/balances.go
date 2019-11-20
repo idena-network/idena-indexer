@@ -1,6 +1,9 @@
 package postgres
 
-import "github.com/idena-network/idena-indexer/explorer/types"
+import (
+	"github.com/idena-network/idena-indexer/explorer/types"
+	"time"
+)
 
 const (
 	balancesCountQuery                 = "balancesCount.sql"
@@ -33,12 +36,12 @@ func (a *postgresAccessor) Balances(startIndex uint64, count uint64) ([]types.Ba
 	return res, nil
 }
 
-func (a *postgresAccessor) TotalLatestMiningRewardsCount(latestBlocks int) (uint64, error) {
-	return a.count(totalLatestMiningRewardsCountQuery, latestBlocks)
+func (a *postgresAccessor) TotalLatestMiningRewardsCount(afterTime time.Time) (uint64, error) {
+	return a.count(totalLatestMiningRewardsCountQuery, afterTime.Unix())
 }
 
-func (a *postgresAccessor) TotalLatestMiningRewards(latestBlocks int, startIndex uint64, count uint64) ([]types.TotalMiningReward, error) {
-	rows, err := a.db.Query(a.getQuery(totalLatestMiningRewardsQuery), latestBlocks, startIndex, count)
+func (a *postgresAccessor) TotalLatestMiningRewards(afterTime time.Time, startIndex uint64, count uint64) ([]types.TotalMiningReward, error) {
+	rows, err := a.db.Query(a.getQuery(totalLatestMiningRewardsQuery), afterTime.Unix(), startIndex, count)
 	if err != nil {
 		return nil, err
 	}

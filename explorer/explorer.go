@@ -22,7 +22,7 @@ func NewExplorer(c *config.Config) Explorer {
 	logger := initLog(c.Verbosity)
 	accessor := postgres.NewPostgresAccessor(c.PostgresConnStr, c.ScriptsDir, logger)
 	e := &explorer{
-		server: api.NewServer(c.Port, c.LatestBlocks, accessor, logger),
+		server: api.NewServer(c.Port, c.LatestHours, accessor, logger),
 		db:     accessor,
 		logger: logger,
 	}

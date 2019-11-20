@@ -7,6 +7,7 @@ import (
 	"github.com/idena-network/idena-indexer/log"
 	"net/http"
 	"strings"
+	"time"
 )
 
 type Server interface {
@@ -14,20 +15,20 @@ type Server interface {
 	InitRouter(router *mux.Router)
 }
 
-func NewServer(port int, latestBlocks int, db db.Accessor, logger log.Logger) Server {
+func NewServer(port int, latestHours int, db db.Accessor, logger log.Logger) Server {
 	return &httpServer{
-		port:         port,
-		db:           db,
-		log:          logger,
-		latestBlocks: latestBlocks,
+		port:        port,
+		db:          db,
+		log:         logger,
+		latestHours: latestHours,
 	}
 }
 
 type httpServer struct {
-	port         int
-	latestBlocks int
-	db           db.Accessor
-	log          log.Logger
+	port        int
+	latestHours int
+	db          db.Accessor
+	log         log.Logger
 }
 
 func (s *httpServer) requestFilter(next http.Handler) http.Handler {
@@ -951,7 +952,7 @@ func (s *httpServer) addressStates(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *httpServer) addressTotalLatestMiningReward(w http.ResponseWriter, r *http.Request) {
-	resp, err := s.db.AddressTotalLatestMiningReward(s.latestBlocks, mux.Vars(r)["address"])
+	resp, err := s.db.AddressTotalLatestMiningReward(s.getOffsetUTC(), mux.Vars(r)["address"])
 	server.WriteResponse(w, resp, err, s.log)
 }
 
@@ -977,7 +978,7 @@ func (s *httpServer) balances(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *httpServer) totalLatestMiningRewardsCount(w http.ResponseWriter, r *http.Request) {
-	resp, err := s.db.TotalLatestMiningRewardsCount(s.latestBlocks)
+	resp, err := s.db.TotalLatestMiningRewardsCount(s.getOffsetUTC())
 	server.WriteResponse(w, resp, err, s.log)
 }
 
@@ -987,6 +988,10 @@ func (s *httpServer) totalLatestMiningRewards(w http.ResponseWriter, r *http.Req
 		server.WriteErrorResponse(w, err, s.log)
 		return
 	}
-	resp, err := s.db.TotalLatestMiningRewards(s.latestBlocks, startIndex, count)
+	resp, err := s.db.TotalLatestMiningRewards(s.getOffsetUTC(), startIndex, count)
 	server.WriteResponse(w, resp, err, s.log)
+}
+
+func (s *httpServer) getOffsetUTC() time.Time {
+	return time.Now().UTC().Add(-time.Hour * time.Duration(s.latestHours))
 }

@@ -64,6 +64,7 @@ ALTER TABLE blocks
 
 CREATE UNIQUE INDEX IF NOT EXISTS blocks_hash_unique_idx on blocks (LOWER(hash));
 CREATE INDEX IF NOT EXISTS blocks_epoch_idx on blocks (epoch);
+CREATE INDEX IF NOT EXISTS blocks_timestamp_idx on blocks ("timestamp" desc);
 
 -- Table: epoch_summaries
 

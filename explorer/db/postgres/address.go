@@ -5,6 +5,7 @@ import (
 	"github.com/idena-network/idena-go/common"
 	"github.com/idena-network/idena-indexer/explorer/types"
 	"math/big"
+	"time"
 )
 
 const (
@@ -137,9 +138,9 @@ func (a *postgresAccessor) AddressStates(address string, startIndex uint64, coun
 	return res, nil
 }
 
-func (a *postgresAccessor) AddressTotalLatestMiningReward(latestBlocks int, address string) (types.TotalMiningReward, error) {
+func (a *postgresAccessor) AddressTotalLatestMiningReward(afterTime time.Time, address string) (types.TotalMiningReward, error) {
 	res := types.TotalMiningReward{}
-	err := a.db.QueryRow(a.getQuery(addressTotalLatestMiningRewardQuery), latestBlocks, address).
+	err := a.db.QueryRow(a.getQuery(addressTotalLatestMiningRewardQuery), afterTime.Unix(), address).
 		Scan(&res.Balance, &res.Stake, &res.Proposer, &res.FinalCommittee)
 	if err != nil {
 		return types.TotalMiningReward{}, err
