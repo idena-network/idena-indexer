@@ -205,6 +205,11 @@ delete
 from mining_rewards
 where block_height > $1;
 
+-- burnt_coins
+delete
+from burnt_coins
+where block_height > $1;
+
 -- temporary_identities
 delete
 from temporary_identities

@@ -5,11 +5,13 @@ import (
 	"github.com/idena-network/idena-go/blockchain"
 	"github.com/idena-network/idena-go/blockchain/types"
 	"github.com/idena-network/idena-go/common"
+	"github.com/idena-network/idena-go/common/math"
 	"github.com/idena-network/idena-go/core/appstate"
 	"github.com/idena-network/idena-go/stats/collector"
 	statsTypes "github.com/idena-network/idena-go/stats/types"
 	"github.com/idena-network/idena-indexer/core/conversion"
 	"github.com/idena-network/idena-indexer/db"
+	"github.com/shopspring/decimal"
 	"math/big"
 )
 
@@ -181,14 +183,47 @@ func (c *statsCollector) AddMintedCoins(amount *big.Int) {
 	c.stats.MintedCoins.Add(c.stats.MintedCoins, amount)
 }
 
-func (c *statsCollector) AddBurntCoins(amount *big.Int) {
-	if amount == nil {
+func (c *statsCollector) addBurntCoins(addr common.Address, amount *big.Int, reason db.BurntCoinsReason, tx *types.Transaction) {
+	if amount == nil || amount.Sign() == 0 {
 		return
 	}
 	if c.stats.BurntCoins == nil {
 		c.stats.BurntCoins = big.NewInt(0)
 	}
+	if c.stats.BurntCoinsByAddr == nil {
+		c.stats.BurntCoinsByAddr = make(map[common.Address][]*db.BurntCoins)
+	}
 	c.stats.BurntCoins.Add(c.stats.BurntCoins, amount)
+	var txHash string
+	if tx != nil {
+		txHash = tx.Hash().Hex()
+	}
+	c.stats.BurntCoinsByAddr[addr] = append(c.stats.BurntCoinsByAddr[addr], &db.BurntCoins{
+		Amount: blockchain.ConvertToFloat(amount),
+		Reason: reason,
+		TxHash: txHash,
+	})
+}
+
+func (c *statsCollector) AddPenaltyBurntCoins(addr common.Address, amount *big.Int) {
+	c.addBurntCoins(addr, amount, db.PenaltyBurntCoins, nil)
+}
+
+func (c *statsCollector) AddInviteBurntCoins(addr common.Address, amount *big.Int, tx *types.Transaction) {
+	c.addBurntCoins(addr, amount, db.InviteBurntCoins, tx)
+}
+
+func (c *statsCollector) AddFeeBurntCoins(addr common.Address, feeAmount *big.Int, burntRate float32, tx *types.Transaction) {
+	if feeAmount == nil || feeAmount.Sign() == 0 {
+		return
+	}
+	burntFee := decimal.NewFromBigInt(feeAmount, 0)
+	burntFee = burntFee.Mul(decimal.NewFromFloat32(burntRate))
+	c.addBurntCoins(addr, math.ToInt(burntFee), db.FeeBurntCoins, tx)
+}
+
+func (c *statsCollector) AddKilledBurntCoins(addr common.Address, amount *big.Int) {
+	c.addBurntCoins(addr, amount, db.KilledBurntCoins, nil)
 }
 
 func (c *statsCollector) AfterBalanceUpdate(addr common.Address, appState *appstate.AppState) {
@@ -227,5 +262,5 @@ func (c *statsCollector) AfterAddStake(addr common.Address, amount *big.Int) {
 	if c.stats.KilledAddrs == nil || !c.stats.KilledAddrs.Contains(addr) {
 		return
 	}
-	c.AddBurntCoins(amount)
+	c.addBurntCoins(addr, amount, db.KilledBurntCoins, nil)
 }

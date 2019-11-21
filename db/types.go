@@ -1,8 +1,18 @@
 package db
 
 import (
+	"github.com/idena-network/idena-go/common"
 	"github.com/shopspring/decimal"
 	"math/big"
+)
+
+type BurntCoinsReason = uint8
+
+const (
+	PenaltyBurntCoins BurntCoinsReason = 0x0
+	InviteBurntCoins  BurntCoinsReason = 0x1
+	FeeBurntCoins     BurntCoinsReason = 0x2
+	KilledBurntCoins  BurntCoinsReason = 0x4
 )
 
 type RestoredData struct {
@@ -11,26 +21,27 @@ type RestoredData struct {
 }
 
 type Data struct {
-	Epoch            uint64
-	ValidationTime   big.Int
-	Block            Block
-	Identities       []EpochIdentity
-	SubmittedFlips   []Flip
-	FlipKeys         []FlipKey
-	FlipsWords       []FlipWords
-	FlipStats        []FlipStats
-	Addresses        []Address
-	FlipsData        []FlipData
-	FlipSizeUpdates  []FlipSizeUpdate
-	BalanceUpdates   []Balance
-	Birthdays        []Birthday
-	Coins            Coins
-	SaveEpochSummary bool
-	Penalty          *Penalty
-	BurntPenalties   []Penalty
-	EpochRewards     *EpochRewards
-	MiningRewards    []*Reward
-	FailedValidation bool
+	Epoch             uint64
+	ValidationTime    big.Int
+	Block             Block
+	Identities        []EpochIdentity
+	SubmittedFlips    []Flip
+	FlipKeys          []FlipKey
+	FlipsWords        []FlipWords
+	FlipStats         []FlipStats
+	Addresses         []Address
+	FlipsData         []FlipData
+	FlipSizeUpdates   []FlipSizeUpdate
+	BalanceUpdates    []Balance
+	Birthdays         []Birthday
+	Coins             Coins
+	SaveEpochSummary  bool
+	Penalty           *Penalty
+	BurntPenalties    []Penalty
+	EpochRewards      *EpochRewards
+	MiningRewards     []*Reward
+	BurntCoinsPerAddr map[common.Address][]*BurntCoins
+	FailedValidation  bool
 }
 
 type EpochRewards struct {
@@ -201,6 +212,12 @@ type Penalty struct {
 type Birthday struct {
 	Address    string
 	BirthEpoch uint64
+}
+
+type BurntCoins struct {
+	Amount decimal.Decimal
+	Reason BurntCoinsReason
+	TxHash string
 }
 
 type MemPoolData struct {

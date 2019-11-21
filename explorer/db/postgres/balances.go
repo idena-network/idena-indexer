@@ -10,6 +10,8 @@ const (
 	balancesQuery                      = "balances.sql"
 	totalLatestMiningRewardsCountQuery = "totalLatestMiningRewardsCount.sql"
 	totalLatestMiningRewardsQuery      = "totalLatestMiningRewards.sql"
+	totalLatestBurntCoinsCountQuery    = "totalLatestBurntCoinsCount.sql"
+	totalLatestBurntCoinsQuery         = "totalLatestBurntCoins.sql"
 )
 
 func (a *postgresAccessor) BalancesCount() (uint64, error) {
@@ -54,6 +56,29 @@ func (a *postgresAccessor) TotalLatestMiningRewards(afterTime time.Time, startIn
 			&item.Stake,
 			&item.Proposer,
 			&item.FinalCommittee)
+		if err != nil {
+			return nil, err
+		}
+		res = append(res, item)
+	}
+	return res, nil
+}
+
+func (a *postgresAccessor) TotalLatestBurntCoinsCount(afterTime time.Time) (uint64, error) {
+	return a.count(totalLatestBurntCoinsCountQuery, afterTime.Unix())
+}
+
+func (a *postgresAccessor) TotalLatestBurntCoins(afterTime time.Time, startIndex uint64, count uint64) ([]types.AddressBurntCoins, error) {
+	rows, err := a.db.Query(a.getQuery(totalLatestBurntCoinsQuery), afterTime.Unix(), startIndex, count)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var res []types.AddressBurntCoins
+	for rows.Next() {
+		item := types.AddressBurntCoins{}
+		err = rows.Scan(&item.Address,
+			&item.Amount)
 		if err != nil {
 			return nil, err
 		}

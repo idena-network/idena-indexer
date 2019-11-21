@@ -311,3 +311,8 @@ type AddressState struct {
 	Timestamp    time.Time `json:"timestamp"`
 	IsValidation bool      `json:"isValidation"`
 }
+
+type AddressBurntCoins struct {
+	Address string          `json:"address,omitempty"`
+	Amount  decimal.Decimal `json:"amount"`
+}

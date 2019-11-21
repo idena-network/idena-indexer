@@ -19,6 +19,7 @@ const (
 	addressStatesCountQuery             = "addressStatesCount.sql"
 	addressStatesQuery                  = "addressStates.sql"
 	addressTotalLatestMiningRewardQuery = "addressTotalLatestMiningReward.sql"
+	addressTotalLatestBurntCoinsQuery   = "addressTotalLatestBurntCoins.sql"
 )
 
 func (a *postgresAccessor) Address(address string) (types.Address, error) {
@@ -144,6 +145,16 @@ func (a *postgresAccessor) AddressTotalLatestMiningReward(afterTime time.Time, a
 		Scan(&res.Balance, &res.Stake, &res.Proposer, &res.FinalCommittee)
 	if err != nil {
 		return types.TotalMiningReward{}, err
+	}
+	return res, nil
+}
+
+func (a *postgresAccessor) AddressTotalLatestBurntCoins(afterTime time.Time, address string) (types.AddressBurntCoins, error) {
+	res := types.AddressBurntCoins{}
+	err := a.db.QueryRow(a.getQuery(addressTotalLatestBurntCoinsQuery), afterTime.Unix(), address).
+		Scan(&res.Amount)
+	if err != nil {
+		return types.AddressBurntCoins{}, err
 	}
 	return res, nil
 }

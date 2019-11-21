@@ -1,0 +1,1 @@
+call save_burnt_coins($1, $2);

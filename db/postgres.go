@@ -3,6 +3,7 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"github.com/idena-network/idena-go/common"
 	"github.com/idena-network/idena-indexer/log"
 	"github.com/idena-network/idena-indexer/monitoring"
 	"github.com/lib/pq"
@@ -73,6 +74,7 @@ const (
 	insertFundRewardQuery           = "insertFundReward.sql"
 	insertFailedValidationQuery     = "insertFailedValidation.sql"
 	insertMiningRewardsQuery        = "insertMiningRewards.sql"
+	insertBurntCoinsQuery           = "insertBurntCoins.sql"
 )
 
 func (a *postgresAccessor) getQuery(name string) string {
@@ -274,6 +276,10 @@ func (a *postgresAccessor) Save(data *Data) error {
 		return err
 	}
 	a.pm.Complete("saveMiningRewards")
+
+	if err = a.saveBurntCoins(ctx, data.BurntCoinsPerAddr); err != nil {
+		return err
+	}
 
 	if err = a.saveFailedValidation(ctx, data.FailedValidation); err != nil {
 		return err
@@ -970,6 +976,17 @@ func (a *postgresAccessor) saveMiningRewards(ctx *context, rewards []*Reward) er
 	}
 	if _, err := ctx.tx.Exec(a.getQuery(insertMiningRewardsQuery), ctx.blockHeight, pq.Array(rewards)); err != nil {
 		return err
+	}
+	return nil
+}
+
+func (a *postgresAccessor) saveBurntCoins(ctx *context, burntCoinsByAddr map[common.Address][]*BurntCoins) error {
+	if len(burntCoinsByAddr) == 0 {
+		return nil
+	}
+	if _, err := ctx.tx.Exec(a.getQuery(insertBurntCoinsQuery),
+		ctx.blockHeight, pq.Array(getPostgresBurntCoins(burntCoinsByAddr, ctx.txId))); err != nil {
+		return errors.Wrap(err, "unable to save burnt coins")
 	}
 	return nil
 }

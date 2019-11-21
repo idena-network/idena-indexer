@@ -92,6 +92,7 @@ type Accessor interface {
 	AddressStatesCount(address string) (uint64, error)
 	AddressStates(address string, startIndex uint64, count uint64) ([]types.AddressState, error)
 	AddressTotalLatestMiningReward(afterTime time.Time, address string) (types.TotalMiningReward, error)
+	AddressTotalLatestBurntCoins(afterTime time.Time, address string) (types.AddressBurntCoins, error)
 
 	Transaction(hash string) (types.TransactionDetail, error)
 
@@ -100,6 +101,8 @@ type Accessor interface {
 
 	TotalLatestMiningRewardsCount(afterTime time.Time) (uint64, error)
 	TotalLatestMiningRewards(afterTime time.Time, startIndex uint64, count uint64) ([]types.TotalMiningReward, error)
+	TotalLatestBurntCoinsCount(afterTime time.Time) (uint64, error)
+	TotalLatestBurntCoins(afterTime time.Time, startIndex uint64, count uint64) ([]types.AddressBurntCoins, error)
 
 	Destroy()
 }

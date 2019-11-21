@@ -215,6 +215,8 @@ func (s *httpServer) InitRouter(router *mux.Router) {
 		HandlerFunc(s.addressStates)
 	router.Path(strings.ToLower("/Address/{address}/TotalLatestMiningReward")).
 		HandlerFunc(s.addressTotalLatestMiningReward)
+	router.Path(strings.ToLower("/Address/{address}/TotalLatestBurntCoins")).
+		HandlerFunc(s.addressTotalLatestBurntCoins)
 
 	router.Path(strings.ToLower("/Balances/Count")).HandlerFunc(s.balancesCount)
 	router.Path(strings.ToLower("/Balances")).
@@ -225,6 +227,11 @@ func (s *httpServer) InitRouter(router *mux.Router) {
 	router.Path(strings.ToLower("/TotalLatestMiningRewards")).
 		Queries("skip", "{skip}", "limit", "{limit}").
 		HandlerFunc(s.totalLatestMiningRewards)
+
+	router.Path(strings.ToLower("/TotalLatestBurntCoins/Count")).HandlerFunc(s.totalLatestBurntCoinsCount)
+	router.Path(strings.ToLower("/TotalLatestBurntCoins")).
+		Queries("skip", "{skip}", "limit", "{limit}").
+		HandlerFunc(s.totalLatestBurntCoins)
 }
 
 func (s *httpServer) search(w http.ResponseWriter, r *http.Request) {
@@ -956,6 +963,11 @@ func (s *httpServer) addressTotalLatestMiningReward(w http.ResponseWriter, r *ht
 	server.WriteResponse(w, resp, err, s.log)
 }
 
+func (s *httpServer) addressTotalLatestBurntCoins(w http.ResponseWriter, r *http.Request) {
+	resp, err := s.db.AddressTotalLatestBurntCoins(s.getOffsetUTC(), mux.Vars(r)["address"])
+	server.WriteResponse(w, resp, err, s.log)
+}
+
 func (s *httpServer) transaction(w http.ResponseWriter, r *http.Request) {
 	resp, err := s.db.Transaction(mux.Vars(r)["hash"])
 	server.WriteResponse(w, resp, err, s.log)
@@ -989,6 +1001,21 @@ func (s *httpServer) totalLatestMiningRewards(w http.ResponseWriter, r *http.Req
 		return
 	}
 	resp, err := s.db.TotalLatestMiningRewards(s.getOffsetUTC(), startIndex, count)
+	server.WriteResponse(w, resp, err, s.log)
+}
+
+func (s *httpServer) totalLatestBurntCoinsCount(w http.ResponseWriter, r *http.Request) {
+	resp, err := s.db.TotalLatestBurntCoinsCount(s.getOffsetUTC())
+	server.WriteResponse(w, resp, err, s.log)
+}
+
+func (s *httpServer) totalLatestBurntCoins(w http.ResponseWriter, r *http.Request) {
+	startIndex, count, err := server.ReadPaginatorParams(mux.Vars(r))
+	if err != nil {
+		server.WriteErrorResponse(w, err, s.log)
+		return
+	}
+	resp, err := s.db.TotalLatestBurntCoins(s.getOffsetUTC(), startIndex, count)
 	server.WriteResponse(w, resp, err, s.log)
 }
 

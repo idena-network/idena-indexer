@@ -27,6 +27,9 @@ insert into block_proposers (select * from OLD_SCHEMA_TAG.block_proposers where 
 -- mining_rewards
 insert into mining_rewards (select * from OLD_SCHEMA_TAG.mining_rewards where block_height <= $1);
 
+-- burnt_coins
+insert into burnt_coins (select * from OLD_SCHEMA_TAG.burnt_coins where block_height <= $1);
+
 -- transactions
 insert into transactions (select * from OLD_SCHEMA_TAG.transactions where block_height <= $1);
 -- transactions sequence

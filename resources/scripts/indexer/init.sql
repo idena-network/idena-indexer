@@ -1031,6 +1031,39 @@ CREATE TABLE IF NOT EXISTS flip_words
 ALTER TABLE flip_words
     OWNER to postgres;
 
+-- Table: burnt_coins
+
+-- DROP TABLE burnt_coins;
+
+CREATE TABLE IF NOT EXISTS burnt_coins
+(
+    address_id   bigint          NOT NULL,
+    block_height bigint          NOT NULL,
+    amount       numeric(30, 18) NOT NULL,
+    reason       smallint        NOT NULL,
+    tx_id        bigint,
+    CONSTRAINT burnt_coins_address_id_fkey FOREIGN KEY (address_id)
+        REFERENCES addresses (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT burnt_coins_block_height_fkey FOREIGN KEY (block_height)
+        REFERENCES blocks (height) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT burnt_coins_tx_id_fkey FOREIGN KEY (tx_id)
+        REFERENCES transactions (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+) WITH (
+      OIDS = FALSE
+    )
+  TABLESPACE pg_default;
+
+ALTER TABLE burnt_coins
+    OWNER to postgres;
+
+CREATE INDEX IF NOT EXISTS burnt_coins_block_height_desc_idx on burnt_coins (block_height desc);
+
 -- Table: flip_key_timestamps
 
 -- DROP TABLE flip_key_timestamps;
@@ -1225,6 +1258,25 @@ $$
     END
 $$;
 
+-- Type: tp_burnt_coins
+DO
+$$
+    BEGIN
+        CREATE TYPE tp_burnt_coins AS
+            (
+            address character(42),
+            amount numeric(30, 18),
+            reason smallint,
+            tx_id bigint
+            );
+
+        ALTER TYPE tp_burnt_coins
+            OWNER TO postgres;
+    EXCEPTION
+        WHEN duplicate_object THEN null;
+    END
+$$;
+
 -- PROCEDURE: save_mining_rewards
 
 CREATE OR REPLACE PROCEDURE save_mining_rewards(height bigint, mr tp_mining_reward[])
@@ -1240,6 +1292,34 @@ BEGIN
             insert into mining_rewards (address_id, block_height, balance, stake, type)
             values ((select id from addresses where lower(address) = lower(mr_row.address)), height,
                     mr_row.balance, mr_row.stake, mr_row.type);
+        end loop;
+END
+$BODY$;
+
+-- PROCEDURE: save_burnt_coins
+
+CREATE OR REPLACE PROCEDURE save_burnt_coins(height bigint, bc tp_burnt_coins[])
+    LANGUAGE 'plpgsql'
+AS
+$BODY$
+DECLARE
+    bc_row     tp_burnt_coins;
+    address_id bigint;
+    tx_id      bigint;
+BEGIN
+    for i in 1..cardinality(bc)
+        loop
+            bc_row = bc[i];
+            IF char_length(bc_row.address) > 0 THEN
+                select id into address_id from addresses where lower(address) = lower(bc_row.address);
+            end if;
+            if bc_row.tx_id > 0 then
+                tx_id = bc_row.tx_id;
+            else
+                tx_id = null;
+            end if;
+            insert into burnt_coins (address_id, block_height, amount, reason, tx_id)
+            values (address_id, height, bc_row.amount, bc_row.reason, tx_id);
         end loop;
 END
 $BODY$;

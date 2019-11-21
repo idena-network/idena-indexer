@@ -26,6 +26,7 @@ type Stats struct {
 	FinalCommittee       []common.Address
 	BurntPenaltiesByAddr map[common.Address]*big.Int
 	BurntCoins           *big.Int
+	BurntCoinsByAddr     map[common.Address][]*db.BurntCoins
 	MintedCoins          *big.Int
 	BalanceUpdateAddrs   mapset.Set
 	KilledAddrs          mapset.Set
