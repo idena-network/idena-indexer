@@ -13,6 +13,7 @@ const (
 	InviteBurntCoins  BurntCoinsReason = 0x1
 	FeeBurntCoins     BurntCoinsReason = 0x2
 	KilledBurntCoins  BurntCoinsReason = 0x4
+	BurnTxBurntCoins  BurntCoinsReason = 0x5
 )
 
 type RestoredData struct {

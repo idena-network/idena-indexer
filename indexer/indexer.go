@@ -64,6 +64,9 @@ var (
 		types.SubmitLongAnswersTx:  "SubmitLongAnswersTx",
 		types.EvidenceTx:           "EvidenceTx",
 		types.OnlineStatusTx:       "OnlineStatusTx",
+		types.ChangeGodAddressTx:   "ChangeGodAddressTx",
+		types.BurnTx:               "BurnTx",
+		types.ChangeProfileTx:      "ChangeProfileTx",
 	}
 
 	flipStatuses = map[ceremony.FlipStatus]string{

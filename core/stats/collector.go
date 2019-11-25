@@ -226,6 +226,10 @@ func (c *statsCollector) AddKilledBurntCoins(addr common.Address, amount *big.In
 	c.addBurntCoins(addr, amount, db.KilledBurntCoins, nil)
 }
 
+func (c *statsCollector) AddBurnTxBurntCoins(addr common.Address, tx *types.Transaction) {
+	c.addBurntCoins(addr, tx.AmountOrZero(), db.BurnTxBurntCoins, tx)
+}
+
 func (c *statsCollector) AfterBalanceUpdate(addr common.Address, appState *appstate.AppState) {
 	c.initBalanceUpdatesByAddr()
 	c.stats.BalanceUpdateAddrs.Add(addr)
