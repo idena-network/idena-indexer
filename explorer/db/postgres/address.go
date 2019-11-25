@@ -20,6 +20,8 @@ const (
 	addressStatesQuery                  = "addressStates.sql"
 	addressTotalLatestMiningRewardQuery = "addressTotalLatestMiningReward.sql"
 	addressTotalLatestBurntCoinsQuery   = "addressTotalLatestBurntCoins.sql"
+	addressBadAuthorsCountQuery         = "addressBadAuthorsCount.sql"
+	addressBadAuthorsQuery              = "addressBadAuthors.sql"
 )
 
 func (a *postgresAccessor) Address(address string) (types.Address, error) {
@@ -157,4 +159,16 @@ func (a *postgresAccessor) AddressTotalLatestBurntCoins(afterTime time.Time, add
 		return types.AddressBurntCoins{}, err
 	}
 	return res, nil
+}
+
+func (a *postgresAccessor) AddressBadAuthorsCount(address string) (uint64, error) {
+	return a.count(addressBadAuthorsCountQuery, address)
+}
+
+func (a *postgresAccessor) AddressBadAuthors(address string, startIndex uint64, count uint64) ([]types.BadAuthor, error) {
+	rows, err := a.db.Query(a.getQuery(addressBadAuthorsQuery), address, startIndex, count)
+	if err != nil {
+		return nil, err
+	}
+	return readBadAuthors(rows)
 }

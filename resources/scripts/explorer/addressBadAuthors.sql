@@ -1,5 +1,5 @@
-select a.address                    address,
-       0                            epoch,
+select ''                           address,
+       ei.epoch                     epoch,
        ww.address_id is not null as wrong_words
 from bad_authors ba
          join epoch_identities ei on ei.id = ba.epoch_identity_id
@@ -11,7 +11,7 @@ from bad_authors ba
                              join transactions t on t.id = f.tx_id
                              join blocks b on b.height = t.block_height
                     where f.wrong_words) ww on ww.address_id = s.address_id and ww.epoch = ei.epoch
-where ei.epoch = $1
+where lower(a.address) = lower($1)
 order by a.address
 limit $3
 offset

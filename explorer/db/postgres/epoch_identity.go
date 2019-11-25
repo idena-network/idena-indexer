@@ -77,7 +77,7 @@ func (a *postgresAccessor) epochIdentityAnswers(epoch uint64, address string, is
 	if err != nil {
 		return nil, err
 	}
-	return a.readAnswers(rows)
+	return readAnswers(rows)
 }
 
 func (a *postgresAccessor) EpochIdentityFlips(epoch uint64, address string) ([]types.FlipSummary, error) {
@@ -89,7 +89,7 @@ func (a *postgresAccessor) EpochIdentityValidationTxs(epoch uint64, address stri
 	if err != nil {
 		return nil, err
 	}
-	return a.readTxs(rows)
+	return readTxs(rows)
 }
 
 func (a *postgresAccessor) EpochIdentityRewards(epoch uint64, address string) ([]types.Reward, error) {

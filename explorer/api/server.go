@@ -217,6 +217,10 @@ func (s *httpServer) InitRouter(router *mux.Router) {
 		HandlerFunc(s.addressTotalLatestMiningReward)
 	router.Path(strings.ToLower("/Address/{address}/TotalLatestBurntCoins")).
 		HandlerFunc(s.addressTotalLatestBurntCoins)
+	router.Path(strings.ToLower("/Address/{address}/Authors/Bad/Count")).HandlerFunc(s.addressBadAuthorsCount)
+	router.Path(strings.ToLower("/Address/{address}/Authors/Bad")).
+		Queries("skip", "{skip}", "limit", "{limit}").
+		HandlerFunc(s.addressBadAuthors)
 
 	router.Path(strings.ToLower("/Balances/Count")).HandlerFunc(s.balancesCount)
 	router.Path(strings.ToLower("/Balances")).
@@ -965,6 +969,22 @@ func (s *httpServer) addressTotalLatestMiningReward(w http.ResponseWriter, r *ht
 
 func (s *httpServer) addressTotalLatestBurntCoins(w http.ResponseWriter, r *http.Request) {
 	resp, err := s.db.AddressTotalLatestBurntCoins(s.getOffsetUTC(), mux.Vars(r)["address"])
+	server.WriteResponse(w, resp, err, s.log)
+}
+
+func (s *httpServer) addressBadAuthorsCount(w http.ResponseWriter, r *http.Request) {
+	resp, err := s.db.AddressBadAuthorsCount(mux.Vars(r)["address"])
+	server.WriteResponse(w, resp, err, s.log)
+}
+
+func (s *httpServer) addressBadAuthors(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	startIndex, count, err := server.ReadPaginatorParams(vars)
+	if err != nil {
+		server.WriteErrorResponse(w, err, s.log)
+		return
+	}
+	resp, err := s.db.AddressBadAuthors(vars["address"], startIndex, count)
 	server.WriteResponse(w, resp, err, s.log)
 }
 

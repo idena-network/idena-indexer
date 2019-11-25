@@ -73,7 +73,7 @@ func (a *postgresAccessor) BlockTxsByHeight(height uint64, startIndex uint64, co
 	if err != nil {
 		return nil, err
 	}
-	return a.readTxs(rows)
+	return readTxs(rows)
 }
 
 func (a *postgresAccessor) BlockTxsByHash(hash string, startIndex uint64, count uint64) ([]types.TransactionSummary, error) {
@@ -81,7 +81,7 @@ func (a *postgresAccessor) BlockTxsByHash(hash string, startIndex uint64, count 
 	if err != nil {
 		return nil, err
 	}
-	return a.readTxs(rows)
+	return readTxs(rows)
 }
 
 func (a *postgresAccessor) BlockCoinsByHeight(height uint64) (types.AllCoins, error) {

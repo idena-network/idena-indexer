@@ -124,5 +124,5 @@ func (a *postgresAccessor) FlipAnswers(hash string, isShort bool, startIndex uin
 	if err != nil {
 		return nil, err
 	}
-	return a.readAnswers(rows)
+	return readAnswers(rows)
 }

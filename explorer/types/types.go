@@ -316,3 +316,9 @@ type AddressBurntCoins struct {
 	Address string          `json:"address,omitempty"`
 	Amount  decimal.Decimal `json:"amount"`
 }
+
+type BadAuthor struct {
+	Epoch      uint64 `json:"epoch,omitempty"`
+	Address    string `json:"address,omitempty"`
+	WrongWords bool   `json:"wrongWords"`
+}

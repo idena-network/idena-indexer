@@ -32,7 +32,7 @@ type Accessor interface {
 	EpochCoins(epoch uint64) (types.AllCoins, error)
 	EpochRewardsSummary(epoch uint64) (types.RewardsSummary, error)
 	EpochBadAuthorsCount(epoch uint64) (uint64, error)
-	EpochBadAuthors(epoch uint64, startIndex uint64, count uint64) ([]string, error)
+	EpochBadAuthors(epoch uint64, startIndex uint64, count uint64) ([]types.BadAuthor, error)
 	EpochGoodAuthorsCount(epoch uint64) (uint64, error)
 	EpochGoodAuthors(epoch uint64, startIndex uint64, count uint64) ([]types.AuthorValidationSummary, error)
 	EpochRewardsCount(epoch uint64) (uint64, error)
@@ -93,6 +93,8 @@ type Accessor interface {
 	AddressStates(address string, startIndex uint64, count uint64) ([]types.AddressState, error)
 	AddressTotalLatestMiningReward(afterTime time.Time, address string) (types.TotalMiningReward, error)
 	AddressTotalLatestBurntCoins(afterTime time.Time, address string) (types.AddressBurntCoins, error)
+	AddressBadAuthorsCount(address string) (uint64, error)
+	AddressBadAuthors(address string, startIndex uint64, count uint64) ([]types.BadAuthor, error)
 
 	Transaction(hash string) (types.TransactionDetail, error)
 

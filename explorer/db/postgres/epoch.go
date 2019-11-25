@@ -122,7 +122,7 @@ func (a *postgresAccessor) EpochIdentities(epoch uint64, startIndex uint64, coun
 	if err != nil {
 		return nil, err
 	}
-	return a.readEpochIdentitySummaries(rows)
+	return readEpochIdentitySummaries(rows)
 }
 
 func (a *postgresAccessor) EpochIdentityStatesSummary(epoch uint64) ([]types.StrValueCount, error) {
@@ -150,7 +150,7 @@ func (a *postgresAccessor) EpochInvites(epoch uint64, startIndex uint64, count u
 	if err != nil {
 		return nil, err
 	}
-	return a.readInvites(rows)
+	return readInvites(rows)
 }
 
 func (a *postgresAccessor) EpochTxsCount(epoch uint64) (uint64, error) {
@@ -162,7 +162,7 @@ func (a *postgresAccessor) EpochTxs(epoch uint64, startIndex uint64, count uint6
 	if err != nil {
 		return nil, err
 	}
-	return a.readTxs(rows)
+	return readTxs(rows)
 }
 
 func (a *postgresAccessor) EpochCoins(epoch uint64) (types.AllCoins, error) {
@@ -192,21 +192,12 @@ func (a *postgresAccessor) EpochBadAuthorsCount(epoch uint64) (uint64, error) {
 	return a.count(epochBadAuthorsCountQuery, epoch)
 }
 
-func (a *postgresAccessor) EpochBadAuthors(epoch uint64, startIndex uint64, count uint64) ([]string, error) {
+func (a *postgresAccessor) EpochBadAuthors(epoch uint64, startIndex uint64, count uint64) ([]types.BadAuthor, error) {
 	rows, err := a.db.Query(a.getQuery(epochBadAuthorsQuery), epoch, startIndex, count)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-	var res []string
-	for rows.Next() {
-		var item string
-		if err := rows.Scan(&item); err != nil {
-			return nil, err
-		}
-		res = append(res, item)
-	}
-	return res, nil
+	return readBadAuthors(rows)
 }
 
 func (a *postgresAccessor) EpochGoodAuthorsCount(epoch uint64) (uint64, error) {

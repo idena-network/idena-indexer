@@ -96,7 +96,7 @@ func (a *postgresAccessor) IdentityEpochs(address string, startIndex uint64, cou
 	if err != nil {
 		return nil, err
 	}
-	return a.readEpochIdentitySummaries(rows)
+	return readEpochIdentitySummaries(rows)
 }
 
 func (a *postgresAccessor) IdentityFlipStates(address string) ([]types.StrValueCount, error) {
@@ -104,7 +104,7 @@ func (a *postgresAccessor) IdentityFlipStates(address string) ([]types.StrValueC
 	if err != nil {
 		return nil, err
 	}
-	return a.readStrValueCounts(rows)
+	return readStrValueCounts(rows)
 }
 
 func (a *postgresAccessor) IdentityFlipQualifiedAnswers(address string) ([]types.StrValueCount, error) {
@@ -112,7 +112,7 @@ func (a *postgresAccessor) IdentityFlipQualifiedAnswers(address string) ([]types
 	if err != nil {
 		return nil, err
 	}
-	return a.readStrValueCounts(rows)
+	return readStrValueCounts(rows)
 }
 
 func (a *postgresAccessor) IdentityInvitesCount(address string) (uint64, error) {
@@ -124,7 +124,7 @@ func (a *postgresAccessor) IdentityInvites(address string, startIndex uint64, co
 	if err != nil {
 		return nil, err
 	}
-	return a.readInvites(rows)
+	return readInvites(rows)
 }
 
 func (a *postgresAccessor) IdentityTxsCount(address string) (uint64, error) {
@@ -136,7 +136,7 @@ func (a *postgresAccessor) IdentityTxs(address string, startIndex uint64, count 
 	if err != nil {
 		return nil, err
 	}
-	return a.readTxs(rows)
+	return readTxs(rows)
 }
 
 func (a *postgresAccessor) IdentityRewardsCount(address string) (uint64, error) {

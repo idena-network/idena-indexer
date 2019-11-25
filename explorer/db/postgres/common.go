@@ -16,7 +16,7 @@ func (a *postgresAccessor) count(queryName string, args ...interface{}) (uint64,
 	return res, nil
 }
 
-func (a *postgresAccessor) readInvites(rows *sql.Rows) ([]types.Invite, error) {
+func readInvites(rows *sql.Rows) ([]types.Invite, error) {
 	defer rows.Close()
 	var res []types.Invite
 	for rows.Next() {
@@ -36,7 +36,7 @@ func (a *postgresAccessor) readInvites(rows *sql.Rows) ([]types.Invite, error) {
 	return res, nil
 }
 
-func (a *postgresAccessor) readTxs(rows *sql.Rows) ([]types.TransactionSummary, error) {
+func readTxs(rows *sql.Rows) ([]types.TransactionSummary, error) {
 	defer rows.Close()
 	var res []types.TransactionSummary
 	for rows.Next() {
@@ -65,10 +65,10 @@ func (a *postgresAccessor) strValueCounts(queryName string, args ...interface{})
 	if err != nil {
 		return nil, err
 	}
-	return a.readStrValueCounts(rows)
+	return readStrValueCounts(rows)
 }
 
-func (a *postgresAccessor) readStrValueCounts(rows *sql.Rows) ([]types.StrValueCount, error) {
+func readStrValueCounts(rows *sql.Rows) ([]types.StrValueCount, error) {
 	defer rows.Close()
 	var res []types.StrValueCount
 	for rows.Next() {
@@ -122,7 +122,7 @@ func (a *postgresAccessor) flips(queryName string, args ...interface{}) ([]types
 	return res, nil
 }
 
-func (a *postgresAccessor) readEpochIdentitySummaries(rows *sql.Rows) ([]types.EpochIdentitySummary, error) {
+func readEpochIdentitySummaries(rows *sql.Rows) ([]types.EpochIdentitySummary, error) {
 	defer rows.Close()
 	var res []types.EpochIdentitySummary
 	for rows.Next() {
@@ -149,7 +149,7 @@ func (a *postgresAccessor) readEpochIdentitySummaries(rows *sql.Rows) ([]types.E
 	return res, nil
 }
 
-func (a *postgresAccessor) readAnswers(rows *sql.Rows) ([]types.Answer, error) {
+func readAnswers(rows *sql.Rows) ([]types.Answer, error) {
 	defer rows.Close()
 	var res []types.Answer
 	for rows.Next() {
@@ -196,6 +196,24 @@ func (a *postgresAccessor) rewards(queryName string, args ...interface{}) ([]typ
 	for rows.Next() {
 		item := types.Reward{}
 		if err := rows.Scan(&item.Address, &item.Epoch, &item.BlockHeight, &item.Balance, &item.Stake, &item.Type); err != nil {
+			return nil, err
+		}
+		res = append(res, item)
+	}
+	return res, nil
+}
+
+func readBadAuthors(rows *sql.Rows) ([]types.BadAuthor, error) {
+	defer rows.Close()
+	var res []types.BadAuthor
+	for rows.Next() {
+		item := types.BadAuthor{}
+		err := rows.Scan(
+			&item.Address,
+			&item.Epoch,
+			&item.WrongWords,
+		)
+		if err != nil {
 			return nil, err
 		}
 		res = append(res, item)
