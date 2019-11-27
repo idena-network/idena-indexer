@@ -81,6 +81,31 @@ func readStrValueCounts(rows *sql.Rows) ([]types.StrValueCount, error) {
 	return res, nil
 }
 
+func (a *postgresAccessor) nullableBoolValueCounts(queryName string, args ...interface{}) ([]types.NullableBoolValueCount, error) {
+	rows, err := a.db.Query(a.getQuery(queryName), args...)
+	if err != nil {
+		return nil, err
+	}
+	return readNullableBoolValueCounts(rows)
+}
+
+func readNullableBoolValueCounts(rows *sql.Rows) ([]types.NullableBoolValueCount, error) {
+	defer rows.Close()
+	var res []types.NullableBoolValueCount
+	for rows.Next() {
+		item := types.NullableBoolValueCount{}
+		nullBool := sql.NullBool{}
+		if err := rows.Scan(&nullBool, &item.Count); err != nil {
+			return nil, err
+		}
+		if nullBool.Valid {
+			item.Value = &nullBool.Bool
+		}
+		res = append(res, item)
+	}
+	return res, nil
+}
+
 func (a *postgresAccessor) flips(queryName string, args ...interface{}) ([]types.FlipSummary, error) {
 	rows, err := a.db.Query(a.getQuery(queryName), args...)
 	if err != nil {

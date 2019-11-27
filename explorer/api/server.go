@@ -90,6 +90,7 @@ func (s *httpServer) InitRouter(router *mux.Router) {
 		HandlerFunc(s.epochFlips)
 	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/FlipAnswersSummary")).HandlerFunc(s.epochFlipAnswersSummary)
 	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/FlipStatesSummary")).HandlerFunc(s.epochFlipStatesSummary)
+	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/FlipWrongWordsSummary")).HandlerFunc(s.epochFlipWrongWordsSummary)
 	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Identities/Count")).
 		HandlerFunc(s.epochIdentitiesCount)
 	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Identities")).
@@ -349,6 +350,17 @@ func (s *httpServer) epochFlipStatesSummary(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	resp, err := s.db.EpochFlipStatesSummary(epoch)
+	server.WriteResponse(w, resp, err, s.log)
+}
+
+func (s *httpServer) epochFlipWrongWordsSummary(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	epoch, err := server.ToUint(vars, "epoch")
+	if err != nil {
+		server.WriteErrorResponse(w, err, s.log)
+		return
+	}
+	resp, err := s.db.EpochFlipWrongWordsSummary(epoch)
 	server.WriteResponse(w, resp, err, s.log)
 }
 

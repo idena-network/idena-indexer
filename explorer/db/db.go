@@ -21,6 +21,7 @@ type Accessor interface {
 	EpochFlips(epoch uint64, startIndex uint64, count uint64) ([]types.FlipSummary, error)
 	EpochFlipAnswersSummary(epoch uint64) ([]types.StrValueCount, error)
 	EpochFlipStatesSummary(epoch uint64) ([]types.StrValueCount, error)
+	EpochFlipWrongWordsSummary(epoch uint64) ([]types.NullableBoolValueCount, error)
 	EpochIdentitiesCount(epoch uint64) (uint64, error)
 	EpochIdentities(epoch uint64, startIndex uint64, count uint64) ([]types.EpochIdentitySummary, error)
 	EpochIdentityStatesSummary(epoch uint64) ([]types.StrValueCount, error)

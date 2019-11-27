@@ -208,6 +208,11 @@ type StrValueCount struct {
 	Count uint32 `json:"count"`
 }
 
+type NullableBoolValueCount struct {
+	Value *bool  `json:"value"`
+	Count uint32 `json:"count"`
+}
+
 type InvitesSummary struct {
 	AllCount  uint64 `json:"allCount"`
 	UsedCount uint64 `json:"usedCount"`

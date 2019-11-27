@@ -8,33 +8,34 @@ import (
 )
 
 const (
-	epochQuery                       = "epoch.sql"
-	lastEpochQuery                   = "lastEpoch.sql"
-	epochBlocksCountQuery            = "epochBlocksCount.sql"
-	epochBlocksQuery                 = "epochBlocks.sql"
-	epochFlipsCountQuery             = "epochFlipsCount.sql"
-	epochFlipsQuery                  = "epochFlips.sql"
-	epochFlipStatesQuery             = "epochFlipStates.sql"
-	epochFlipQualifiedAnswersQuery   = "epochFlipQualifiedAnswers.sql"
-	epochIdentityStatesSummaryQuery  = "epochIdentityStatesSummary.sql"
-	epochIdentitiesQueryCount        = "epochIdentitiesCount.sql"
-	epochIdentitiesQuery             = "epochIdentities.sql"
-	epochInvitesCountQuery           = "epochInvitesCount.sql"
-	epochInvitesQuery                = "epochInvites.sql"
-	epochInvitesSummaryQuery         = "epochInvitesSummary.sql"
-	epochTxsCountQuery               = "epochTxsCount.sql"
-	epochTxsQuery                    = "epochTxs.sql"
-	epochCoinsQuery                  = "epochCoins.sql"
-	epochRewardsSummaryQuery         = "epochRewardsSummary.sql"
-	epochBadAuthorsCountQuery        = "epochBadAuthorsCount.sql"
-	epochBadAuthorsQuery             = "epochBadAuthors.sql"
-	epochGoodAuthorsCountQuery       = "epochGoodAuthorsCount.sql"
-	epochGoodAuthorsQuery            = "epochGoodAuthors.sql"
-	epochRewardsCountQuery           = "epochRewardsCount.sql"
-	epochRewardsQuery                = "epochRewards.sql"
-	epochIdentitiesRewardsCountQuery = "epochIdentitiesRewardsCount.sql"
-	epochIdentitiesRewardsQuery      = "epochIdentitiesRewards.sql"
-	epochFundPaymentsQuery           = "epochFundPayments.sql"
+	epochQuery                        = "epoch.sql"
+	lastEpochQuery                    = "lastEpoch.sql"
+	epochBlocksCountQuery             = "epochBlocksCount.sql"
+	epochBlocksQuery                  = "epochBlocks.sql"
+	epochFlipsCountQuery              = "epochFlipsCount.sql"
+	epochFlipsQuery                   = "epochFlips.sql"
+	epochFlipStatesQuery              = "epochFlipStates.sql"
+	epochFlipQualifiedAnswersQuery    = "epochFlipQualifiedAnswers.sql"
+	epochFlipQualifiedWrongWordsQuery = "epochFlipQualifiedWrongWords.sql"
+	epochIdentityStatesSummaryQuery   = "epochIdentityStatesSummary.sql"
+	epochIdentitiesQueryCount         = "epochIdentitiesCount.sql"
+	epochIdentitiesQuery              = "epochIdentities.sql"
+	epochInvitesCountQuery            = "epochInvitesCount.sql"
+	epochInvitesQuery                 = "epochInvites.sql"
+	epochInvitesSummaryQuery          = "epochInvitesSummary.sql"
+	epochTxsCountQuery                = "epochTxsCount.sql"
+	epochTxsQuery                     = "epochTxs.sql"
+	epochCoinsQuery                   = "epochCoins.sql"
+	epochRewardsSummaryQuery          = "epochRewardsSummary.sql"
+	epochBadAuthorsCountQuery         = "epochBadAuthorsCount.sql"
+	epochBadAuthorsQuery              = "epochBadAuthors.sql"
+	epochGoodAuthorsCountQuery        = "epochGoodAuthorsCount.sql"
+	epochGoodAuthorsQuery             = "epochGoodAuthors.sql"
+	epochRewardsCountQuery            = "epochRewardsCount.sql"
+	epochRewardsQuery                 = "epochRewards.sql"
+	epochIdentitiesRewardsCountQuery  = "epochIdentitiesRewardsCount.sql"
+	epochIdentitiesRewardsQuery       = "epochIdentitiesRewards.sql"
+	epochFundPaymentsQuery            = "epochFundPayments.sql"
 )
 
 func (a *postgresAccessor) LastEpoch() (types.EpochDetail, error) {
@@ -112,6 +113,10 @@ func (a *postgresAccessor) EpochFlipAnswersSummary(epoch uint64) ([]types.StrVal
 
 func (a *postgresAccessor) EpochFlipStatesSummary(epoch uint64) ([]types.StrValueCount, error) {
 	return a.strValueCounts(epochFlipStatesQuery, epoch)
+}
+
+func (a *postgresAccessor) EpochFlipWrongWordsSummary(epoch uint64) ([]types.NullableBoolValueCount, error) {
+	return a.nullableBoolValueCounts(epochFlipQualifiedWrongWordsQuery, epoch)
 }
 
 func (a *postgresAccessor) EpochIdentitiesCount(epoch uint64) (uint64, error) {
