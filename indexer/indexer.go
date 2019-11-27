@@ -398,15 +398,16 @@ func (indexer *Indexer) convertBlock(incomingBlock *types.Block, ctx *conversion
 
 	incomingBlock.Header.Flags()
 	return db.Block{
-		Height:          incomingBlock.Height(),
-		Hash:            convertHash(incomingBlock.Hash()),
-		Time:            *incomingBlock.Header.Time(),
-		Transactions:    txs,
-		Proposer:        getProposer(incomingBlock),
-		Flags:           convertFlags(incomingBlock.Header.Flags()),
-		IsEmpty:         incomingBlock.IsEmpty(),
-		Size:            len(incomingBlock.Body.Bytes()),
-		ValidatorsCount: len(indexer.statsHolder().GetStats().FinalCommittee),
+		Height:               incomingBlock.Height(),
+		Hash:                 convertHash(incomingBlock.Hash()),
+		Time:                 *incomingBlock.Header.Time(),
+		Transactions:         txs,
+		Proposer:             getProposer(incomingBlock),
+		Flags:                convertFlags(incomingBlock.Header.Flags()),
+		IsEmpty:              incomingBlock.IsEmpty(),
+		Size:                 len(incomingBlock.Body.Bytes()),
+		ValidatorsCount:      len(indexer.statsHolder().GetStats().FinalCommittee),
+		VrfProposerThreshold: ctx.prevStateReadOnly.State.VrfProposerThreshold(),
 	}
 }
 

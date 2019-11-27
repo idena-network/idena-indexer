@@ -28,7 +28,8 @@ func (a *postgresAccessor) BlockByHeight(height uint64) (types.BlockDetail, erro
 		&res.ValidatorsCount,
 		&res.Proposer,
 		&res.IsEmpty,
-		&res.Size)
+		&res.Size,
+		&res.VrfProposerThreshold)
 	if err == sql.ErrNoRows {
 		err = NoDataFound
 	}
@@ -49,7 +50,8 @@ func (a *postgresAccessor) BlockByHash(hash string) (types.BlockDetail, error) {
 		&res.ValidatorsCount,
 		&res.Proposer,
 		&res.IsEmpty,
-		&res.Size)
+		&res.Size,
+		&res.VrfProposerThreshold)
 	if err == sql.ErrNoRows {
 		err = NoDataFound
 	}

@@ -84,6 +84,7 @@ func (a *postgresAccessor) EpochBlocks(epoch uint64, startIndex uint64, count ui
 			&block.Proposer,
 			&block.IsEmpty,
 			&block.Size,
+			&block.VrfProposerThreshold,
 			&block.Coins.Burnt,
 			&block.Coins.Minted,
 			&block.Coins.TotalBalance,

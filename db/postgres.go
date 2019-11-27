@@ -459,7 +459,8 @@ func (a *postgresAccessor) saveBlock(ctx *context, block Block) error {
 		block.Time.Int64(),
 		block.IsEmpty,
 		block.ValidatorsCount,
-		block.Size)
+		block.Size,
+		block.VrfProposerThreshold)
 	return err
 }
 

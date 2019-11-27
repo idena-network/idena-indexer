@@ -5,7 +5,8 @@ select b.height,
        b.validators_count,
        coalesce(pa.address, '')                                          proposer,
        b.is_empty,
-       b.size
+       b.size,
+       b.vrf_proposer_threshold
 from blocks b
          left join block_proposers p on p.block_height = b.height
          left join addresses pa on pa.id = p.address_id

@@ -78,16 +78,17 @@ type ValidationResult struct {
 }
 
 type Block struct {
-	ValidationFinished bool
-	Height             uint64
-	Hash               string
-	Transactions       []Transaction
-	Time               big.Int
-	Proposer           string
-	Flags              []string
-	IsEmpty            bool
-	Size               int
-	ValidatorsCount    int
+	ValidationFinished   bool
+	Height               uint64
+	Hash                 string
+	Transactions         []Transaction
+	Time                 big.Int
+	Proposer             string
+	Flags                []string
+	IsEmpty              bool
+	Size                 int
+	VrfProposerThreshold float64
+	ValidatorsCount      int
 }
 
 type Transaction struct {

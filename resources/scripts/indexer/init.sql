@@ -41,13 +41,14 @@ ALTER TABLE epochs
 
 CREATE TABLE IF NOT EXISTS blocks
 (
-    height           bigint                                     NOT NULL,
-    hash             character(66) COLLATE pg_catalog."default" NOT NULL,
-    epoch            bigint                                     NOT NULL,
-    "timestamp"      bigint                                     NOT NULL,
-    is_empty         boolean                                    NOT NULL,
-    validators_count integer                                    NOT NULL,
-    size             integer                                    NOT NULL,
+    height                 bigint                                     NOT NULL,
+    hash                   character(66) COLLATE pg_catalog."default" NOT NULL,
+    epoch                  bigint                                     NOT NULL,
+    "timestamp"            bigint                                     NOT NULL,
+    is_empty               boolean                                    NOT NULL,
+    validators_count       integer                                    NOT NULL,
+    size                   integer                                    NOT NULL,
+    vrf_proposer_threshold double precision                           NOT NULL,
     CONSTRAINT blocks_pkey PRIMARY KEY (height),
     CONSTRAINT blocks_epoch_fkey FOREIGN KEY (epoch)
         REFERENCES epochs (epoch) MATCH SIMPLE

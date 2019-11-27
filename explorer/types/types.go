@@ -31,25 +31,27 @@ type EpochDetail struct {
 }
 
 type BlockSummary struct {
-	Height    uint64    `json:"height"`
-	Hash      string    `json:"hash"`
-	Timestamp time.Time `json:"timestamp"`
-	TxCount   uint16    `json:"txCount"`
-	Proposer  string    `json:"proposer"`
-	IsEmpty   bool      `json:"isEmpty"`
-	Coins     AllCoins  `json:"coins"`
-	Size      uint32    `json:"size"`
+	Height               uint64    `json:"height"`
+	Hash                 string    `json:"hash"`
+	Timestamp            time.Time `json:"timestamp"`
+	TxCount              uint16    `json:"txCount"`
+	Proposer             string    `json:"proposer"`
+	IsEmpty              bool      `json:"isEmpty"`
+	Coins                AllCoins  `json:"coins"`
+	Size                 uint32    `json:"size"`
+	VrfProposerThreshold float64   `json:"vrfProposerThreshold"`
 }
 
 type BlockDetail struct {
-	Height          uint64    `json:"height"`
-	Hash            string    `json:"hash"`
-	Timestamp       time.Time `json:"timestamp"`
-	TxCount         uint16    `json:"txCount"`
-	ValidatorsCount uint16    `json:"validatorsCount"`
-	Proposer        string    `json:"proposer"`
-	IsEmpty         bool      `json:"isEmpty"`
-	Size            uint32    `json:"size"`
+	Height               uint64    `json:"height"`
+	Hash                 string    `json:"hash"`
+	Timestamp            time.Time `json:"timestamp"`
+	TxCount              uint16    `json:"txCount"`
+	ValidatorsCount      uint16    `json:"validatorsCount"`
+	Proposer             string    `json:"proposer"`
+	IsEmpty              bool      `json:"isEmpty"`
+	Size                 uint32    `json:"size"`
+	VrfProposerThreshold float64   `json:"vrfProposerThreshold"`
 }
 
 type TransactionSummary struct {
