@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"github.com/idena-network/idena-go/common"
 	"github.com/idena-network/idena-indexer/explorer/types"
+	"github.com/lib/pq"
 	"math/big"
 )
 
@@ -119,12 +120,12 @@ func (a *postgresAccessor) EpochFlipWrongWordsSummary(epoch uint64) ([]types.Nul
 	return a.nullableBoolValueCounts(epochFlipQualifiedWrongWordsQuery, epoch)
 }
 
-func (a *postgresAccessor) EpochIdentitiesCount(epoch uint64) (uint64, error) {
-	return a.count(epochIdentitiesQueryCount, epoch)
+func (a *postgresAccessor) EpochIdentitiesCount(epoch uint64, states []string) (uint64, error) {
+	return a.count(epochIdentitiesQueryCount, epoch, pq.Array(states))
 }
 
-func (a *postgresAccessor) EpochIdentities(epoch uint64, startIndex uint64, count uint64) ([]types.EpochIdentitySummary, error) {
-	rows, err := a.db.Query(a.getQuery(epochIdentitiesQuery), epoch, startIndex, count)
+func (a *postgresAccessor) EpochIdentities(epoch uint64, states []string, startIndex uint64, count uint64) ([]types.EpochIdentitySummary, error) {
+	rows, err := a.db.Query(a.getQuery(epochIdentitiesQuery), epoch, pq.Array(states), startIndex, count)
 	if err != nil {
 		return nil, err
 	}

@@ -93,6 +93,9 @@ func (s *httpServer) InitRouter(router *mux.Router) {
 	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/FlipWrongWordsSummary")).HandlerFunc(s.epochFlipWrongWordsSummary)
 	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Identities/Count")).
 		HandlerFunc(s.epochIdentitiesCount)
+	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Identities/Count")).
+		Queries("state", "{state}").
+		HandlerFunc(s.epochIdentitiesCount)
 	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Identities")).
 		Queries("skip", "{skip}", "limit", "{limit}").
 		HandlerFunc(s.epochIdentities)
@@ -370,7 +373,7 @@ func (s *httpServer) epochIdentitiesCount(w http.ResponseWriter, r *http.Request
 		server.WriteErrorResponse(w, err, s.log)
 		return
 	}
-	resp, err := s.db.EpochIdentitiesCount(epoch)
+	resp, err := s.db.EpochIdentitiesCount(epoch, convertStates(r.Form["states[]"]))
 	server.WriteResponse(w, resp, err, s.log)
 }
 
@@ -386,8 +389,25 @@ func (s *httpServer) epochIdentities(w http.ResponseWriter, r *http.Request) {
 		server.WriteErrorResponse(w, err, s.log)
 		return
 	}
-	resp, err := s.db.EpochIdentities(epoch, startIndex, count)
+	resp, err := s.db.EpochIdentities(epoch, convertStates(r.Form["states[]"]), startIndex, count)
 	server.WriteResponse(w, resp, err, s.log)
+}
+
+func convertStates(formValues []string) []string {
+	if len(formValues) == 0 {
+		return nil
+	}
+	var res []string
+	for _, formValue := range formValues {
+		states := strings.Split(formValue, ",")
+		for _, state := range states {
+			if len(state) == 0 {
+				continue
+			}
+			res = append(res, strings.ToUpper(state[0:1])+strings.ToLower(state[1:]))
+		}
+	}
+	return res
 }
 
 func (s *httpServer) epochIdentityStatesSummary(w http.ResponseWriter, r *http.Request) {

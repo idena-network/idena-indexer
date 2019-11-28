@@ -1,3 +1,8 @@
+-- burnt_coins
+delete
+from burnt_coins
+where block_height > $1;
+
 -- failed_validations
 delete
 from failed_validations
@@ -203,11 +208,6 @@ where block_height > $1;
 -- mining_rewards
 delete
 from mining_rewards
-where block_height > $1;
-
--- burnt_coins
-delete
-from burnt_coins
 where block_height > $1;
 
 -- temporary_identities
