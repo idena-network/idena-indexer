@@ -328,4 +328,6 @@ type BadAuthor struct {
 	Epoch      uint64 `json:"epoch,omitempty"`
 	Address    string `json:"address,omitempty"`
 	WrongWords bool   `json:"wrongWords"`
+	PrevState  string `json:"prevState"`
+	State      string `json:"state"`
 }

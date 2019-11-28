@@ -237,6 +237,8 @@ func readBadAuthors(rows *sql.Rows) ([]types.BadAuthor, error) {
 			&item.Address,
 			&item.Epoch,
 			&item.WrongWords,
+			&item.PrevState,
+			&item.State,
 		)
 		if err != nil {
 			return nil, err

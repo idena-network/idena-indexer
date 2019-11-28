@@ -1,6 +1,8 @@
 select ''                           address,
        ei.epoch                     epoch,
-       ww.address_id is not null as wrong_words
+       ww.address_id is not null as wrong_words,
+       coalesce(prevs.state, '')    prev_state,
+       s.state                      state
 from bad_authors ba
          join epoch_identities ei on ei.id = ba.epoch_identity_id
          join address_states s on s.id = ei.address_state_id
@@ -11,8 +13,9 @@ from bad_authors ba
                              join transactions t on t.id = f.tx_id
                              join blocks b on b.height = t.block_height
                     where f.wrong_words) ww on ww.address_id = s.address_id and ww.epoch = ei.epoch
+         left join address_states prevs on prevs.id = s.prev_id
 where lower(a.address) = lower($1)
-order by a.address
+order by ww.address_id nulls last
 limit $3
 offset
 $2
