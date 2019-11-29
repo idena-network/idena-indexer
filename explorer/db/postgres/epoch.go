@@ -84,6 +84,7 @@ func (a *postgresAccessor) EpochBlocks(epoch uint64, startIndex uint64, count ui
 			&timestamp,
 			&block.TxCount,
 			&block.Proposer,
+			&block.ProposerVrfScore,
 			&block.IsEmpty,
 			&block.Size,
 			&block.VrfProposerThreshold,

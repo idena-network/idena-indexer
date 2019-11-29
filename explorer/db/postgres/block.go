@@ -27,6 +27,7 @@ func (a *postgresAccessor) BlockByHeight(height uint64) (types.BlockDetail, erro
 		&res.TxCount,
 		&res.ValidatorsCount,
 		&res.Proposer,
+		&res.ProposerVrfScore,
 		&res.IsEmpty,
 		&res.Size,
 		&res.VrfProposerThreshold)
@@ -49,6 +50,7 @@ func (a *postgresAccessor) BlockByHash(hash string) (types.BlockDetail, error) {
 		&res.TxCount,
 		&res.ValidatorsCount,
 		&res.Proposer,
+		&res.ProposerVrfScore,
 		&res.IsEmpty,
 		&res.Size,
 		&res.VrfProposerThreshold)

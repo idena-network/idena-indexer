@@ -35,11 +35,12 @@ type BlockSummary struct {
 	Hash                 string    `json:"hash"`
 	Timestamp            time.Time `json:"timestamp"`
 	TxCount              uint16    `json:"txCount"`
-	Proposer             string    `json:"proposer"`
 	IsEmpty              bool      `json:"isEmpty"`
 	Coins                AllCoins  `json:"coins"`
 	Size                 uint32    `json:"size"`
 	VrfProposerThreshold float64   `json:"vrfProposerThreshold"`
+	Proposer             string    `json:"proposer"`
+	ProposerVrfScore     float64   `json:"proposerVrfScore,omitempty"`
 }
 
 type BlockDetail struct {
@@ -48,10 +49,11 @@ type BlockDetail struct {
 	Timestamp            time.Time `json:"timestamp"`
 	TxCount              uint16    `json:"txCount"`
 	ValidatorsCount      uint16    `json:"validatorsCount"`
-	Proposer             string    `json:"proposer"`
 	IsEmpty              bool      `json:"isEmpty"`
 	Size                 uint32    `json:"size"`
 	VrfProposerThreshold float64   `json:"vrfProposerThreshold"`
+	Proposer             string    `json:"proposer"`
+	ProposerVrfScore     float64   `json:"proposerVrfScore,omitempty"`
 }
 
 type TransactionSummary struct {

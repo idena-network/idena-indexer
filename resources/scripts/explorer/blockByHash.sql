@@ -4,10 +4,12 @@ select b.height,
        (select count(*) from transactions where block_height = b.height) TX_COUNT,
        b.validators_count,
        coalesce(pa.address, '')                                          proposer,
+       coalesce(vs.vrf_score, 0)                                         proposer_vrf_score,
        b.is_empty,
        b.size,
        b.vrf_proposer_threshold
 from blocks b
          left join block_proposers p on p.block_height = b.height
+         left join block_proposer_vrf_scores vs on vs.block_height = b.height
          left join addresses pa on pa.id = p.address_id
 where lower(b.hash) = lower($1)

@@ -89,6 +89,7 @@ type Block struct {
 	Size                 int
 	VrfProposerThreshold float64
 	ValidatorsCount      int
+	ProposerVrfScore     float64
 }
 
 type Transaction struct {

@@ -23,58 +23,59 @@ type postgresAccessor struct {
 }
 
 const (
-	initQuery                       = "init.sql"
-	maxHeightQuery                  = "maxHeight.sql"
-	currentFlipsQuery               = "currentFlips.sql"
-	currentFlipCidsWithoutDataQuery = "currentFlipCidsWithoutData.sql"
-	updateFlipStateQuery            = "updateFlipState.sql"
-	insertFlipDataQuery             = "insertFlipData.sql"
-	flipDataCountQuery              = "flipDataCount.sql"
-	updateFlipSizeQuery             = "updateFlipSize.sql"
-	insertFlipPicQuery              = "insertFlipPic.sql"
-	insertFlipIconQuery             = "insertFlipIcon.sql"
-	insertFlipPicOrderQuery         = "insertFlipPicOrder.sql"
-	insertAnswersQuery              = "insertAnswers.sql"
-	insertBlockQuery                = "insertBlock.sql"
-	insertBlockProposerQuery        = "insertBlockProposer.sql"
-	selectIdentityQuery             = "selectIdentity.sql"
-	selectFlipQuery                 = "selectFlip.sql"
-	insertEpochIdentityQuery        = "insertEpochIdentity.sql"
-	insertTransactionQuery          = "insertTransaction.sql"
-	insertSubmittedFlipQuery        = "insertSubmittedFlip.sql"
-	insertFlipKeyQuery              = "insertFlipKey.sql"
-	insertFlipWordsQuery            = "insertFlipWords.sql"
-	flipWordsCountQuery             = "flipWordsCount.sql"
-	selectEpochQuery                = "selectEpoch.sql"
-	insertEpochQuery                = "insertEpoch.sql"
-	insertFlipsToSolveQuery         = "insertFlipsToSolve.sql"
-	selectAddressQuery              = "selectAddress.sql"
-	insertAddressQuery              = "insertAddress.sql"
-	insertTemporaryIdentityQuery    = "insertTemporaryIdentity.sql"
-	archiveAddressStateQuery        = "archiveAddressState.sql"
-	insertAddressStateQuery         = "insertAddressState.sql"
-	archiveIdentityStateQuery       = "archiveIdentityState.sql"
-	insertIdentityStateQuery        = "insertIdentityState.sql"
-	resetToBlockQuery               = "resetToBlock.sql"
-	insertBalanceQuery              = "insertBalance.sql"
-	updateBalanceQuery              = "updateBalance.sql"
-	insertBirthdayQuery             = "insertBirthday.sql"
-	updateBirthdayQuery             = "updateBirthday.sql"
-	insertCoinsQuery                = "insertCoins.sql"
-	insertBlockFlagQuery            = "insertBlockFlag.sql"
-	insertEpochSummaryQuery         = "insertEpochSummary.sql"
-	insertPenaltyQuery              = "insertPenalty.sql"
-	selectLastPenaltyQuery          = "selectLastPenalty.sql"
-	insertPaidPenaltyQuery          = "insertPaidPenalty.sql"
-	insertBadAuthorQuery            = "insertBadAuthor.sql"
-	insertGoodAuthorQuery           = "insertGoodAuthor.sql"
-	insertTotalRewardsQuery         = "insertTotalRewards.sql"
-	insertValidationRewardQuery     = "insertValidationReward.sql"
-	insertRewardAgeQuery            = "insertRewardAge.sql"
-	insertFundRewardQuery           = "insertFundReward.sql"
-	insertFailedValidationQuery     = "insertFailedValidation.sql"
-	insertMiningRewardsQuery        = "insertMiningRewards.sql"
-	insertBurntCoinsQuery           = "insertBurntCoins.sql"
+	initQuery                        = "init.sql"
+	maxHeightQuery                   = "maxHeight.sql"
+	currentFlipsQuery                = "currentFlips.sql"
+	currentFlipCidsWithoutDataQuery  = "currentFlipCidsWithoutData.sql"
+	updateFlipStateQuery             = "updateFlipState.sql"
+	insertFlipDataQuery              = "insertFlipData.sql"
+	flipDataCountQuery               = "flipDataCount.sql"
+	updateFlipSizeQuery              = "updateFlipSize.sql"
+	insertFlipPicQuery               = "insertFlipPic.sql"
+	insertFlipIconQuery              = "insertFlipIcon.sql"
+	insertFlipPicOrderQuery          = "insertFlipPicOrder.sql"
+	insertAnswersQuery               = "insertAnswers.sql"
+	insertBlockQuery                 = "insertBlock.sql"
+	insertBlockProposerQuery         = "insertBlockProposer.sql"
+	insertBlockProposerVrfScoreQuery = "insertBlockProposerVrfScore.sql"
+	selectIdentityQuery              = "selectIdentity.sql"
+	selectFlipQuery                  = "selectFlip.sql"
+	insertEpochIdentityQuery         = "insertEpochIdentity.sql"
+	insertTransactionQuery           = "insertTransaction.sql"
+	insertSubmittedFlipQuery         = "insertSubmittedFlip.sql"
+	insertFlipKeyQuery               = "insertFlipKey.sql"
+	insertFlipWordsQuery             = "insertFlipWords.sql"
+	flipWordsCountQuery              = "flipWordsCount.sql"
+	selectEpochQuery                 = "selectEpoch.sql"
+	insertEpochQuery                 = "insertEpoch.sql"
+	insertFlipsToSolveQuery          = "insertFlipsToSolve.sql"
+	selectAddressQuery               = "selectAddress.sql"
+	insertAddressQuery               = "insertAddress.sql"
+	insertTemporaryIdentityQuery     = "insertTemporaryIdentity.sql"
+	archiveAddressStateQuery         = "archiveAddressState.sql"
+	insertAddressStateQuery          = "insertAddressState.sql"
+	archiveIdentityStateQuery        = "archiveIdentityState.sql"
+	insertIdentityStateQuery         = "insertIdentityState.sql"
+	resetToBlockQuery                = "resetToBlock.sql"
+	insertBalanceQuery               = "insertBalance.sql"
+	updateBalanceQuery               = "updateBalance.sql"
+	insertBirthdayQuery              = "insertBirthday.sql"
+	updateBirthdayQuery              = "updateBirthday.sql"
+	insertCoinsQuery                 = "insertCoins.sql"
+	insertBlockFlagQuery             = "insertBlockFlag.sql"
+	insertEpochSummaryQuery          = "insertEpochSummary.sql"
+	insertPenaltyQuery               = "insertPenalty.sql"
+	selectLastPenaltyQuery           = "selectLastPenalty.sql"
+	insertPaidPenaltyQuery           = "insertPaidPenalty.sql"
+	insertBadAuthorQuery             = "insertBadAuthor.sql"
+	insertGoodAuthorQuery            = "insertGoodAuthor.sql"
+	insertTotalRewardsQuery          = "insertTotalRewards.sql"
+	insertValidationRewardQuery      = "insertValidationReward.sql"
+	insertRewardAgeQuery             = "insertRewardAge.sql"
+	insertFundRewardQuery            = "insertFundReward.sql"
+	insertFailedValidationQuery      = "insertFailedValidation.sql"
+	insertMiningRewardsQuery         = "insertMiningRewards.sql"
+	insertBurntCoinsQuery            = "insertBurntCoins.sql"
 )
 
 func (a *postgresAccessor) getQuery(name string) string {
@@ -201,6 +202,10 @@ func (a *postgresAccessor) Save(data *Data) error {
 	}
 
 	if err = a.saveProposer(ctx, data.Block.Proposer); err != nil {
+		return err
+	}
+
+	if err = a.saveProposerVrfScore(ctx, data.Block.ProposerVrfScore); err != nil {
 		return err
 	}
 
@@ -486,6 +491,14 @@ func (a *postgresAccessor) saveProposer(ctx *context, proposer string) error {
 		return nil
 	}
 	_, err := ctx.tx.Exec(a.getQuery(insertBlockProposerQuery), ctx.blockHeight, proposer)
+	return err
+}
+
+func (a *postgresAccessor) saveProposerVrfScore(ctx *context, vrfScore float64) error {
+	if vrfScore == 0 {
+		return nil
+	}
+	_, err := ctx.tx.Exec(a.getQuery(insertBlockProposerVrfScoreQuery), ctx.blockHeight, vrfScore)
 	return err
 }
 

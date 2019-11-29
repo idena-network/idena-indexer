@@ -172,6 +172,10 @@ CREATE TABLE IF NOT EXISTS block_proposers
     address_id   bigint NOT NULL,
     block_height bigint NOT NULL,
     CONSTRAINT block_proposers_pkey PRIMARY KEY (block_height),
+    CONSTRAINT block_proposers_block_height_fkey FOREIGN KEY (block_height)
+        REFERENCES blocks (height) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
     CONSTRAINT block_proposers_address_id_fkey FOREIGN KEY (address_id)
         REFERENCES addresses (id) MATCH SIMPLE
         ON UPDATE NO ACTION
@@ -183,6 +187,28 @@ CREATE TABLE IF NOT EXISTS block_proposers
     TABLESPACE pg_default;
 
 ALTER TABLE block_proposers
+    OWNER to postgres;
+
+-- Table: block_proposer_vrf_scores
+
+-- DROP TABLE block_proposer_vrf_scores;
+
+CREATE TABLE IF NOT EXISTS block_proposer_vrf_scores
+(
+    block_height bigint           NOT NULL,
+    vrf_score    double precision NOT NULL,
+    CONSTRAINT block_proposer_vrf_scores_pkey PRIMARY KEY (block_height),
+    CONSTRAINT block_proposer_vrf_scores_block_height_fkey FOREIGN KEY (block_height)
+        REFERENCES blocks (height) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+)
+    WITH (
+        OIDS = FALSE
+    )
+    TABLESPACE pg_default;
+
+ALTER TABLE block_proposer_vrf_scores
     OWNER to postgres;
 
 -- Table: mining_rewards

@@ -397,6 +397,11 @@ func (indexer *Indexer) convertBlock(incomingBlock *types.Block, ctx *conversion
 	txs := indexer.convertTransactions(incomingBlock.Body.Transactions, stateToApply, ctx)
 
 	incomingBlock.Header.Flags()
+	proposerVrfScore, _ := getProposerVrfScore(
+		incomingBlock,
+		indexer.listener.NodeCtx().ProofsByRound,
+		indexer.listener.NodeCtx().PendingProofs,
+	)
 	return db.Block{
 		Height:               incomingBlock.Height(),
 		Hash:                 convertHash(incomingBlock.Hash()),
@@ -408,6 +413,7 @@ func (indexer *Indexer) convertBlock(incomingBlock *types.Block, ctx *conversion
 		Size:                 len(incomingBlock.Body.Bytes()),
 		ValidatorsCount:      len(indexer.statsHolder().GetStats().FinalCommittee),
 		VrfProposerThreshold: ctx.prevStateReadOnly.State.VrfProposerThreshold(),
+		ProposerVrfScore:     proposerVrfScore,
 	}
 }
 
@@ -419,13 +425,6 @@ func convertFlags(incomingFlags types.BlockFlag) []string {
 		}
 	}
 	return flags
-}
-
-func getProposer(block *types.Block) string {
-	if block.IsEmpty() {
-		return ""
-	}
-	return conversion.ConvertAddress(block.Header.ProposedHeader.Coinbase)
 }
 
 func (indexer *Indexer) convertTransactions(incomingTxs []*types.Transaction, stateToApply *appstate.AppState, ctx *conversionContext) []db.Transaction {
