@@ -11,6 +11,7 @@ import (
 
 type Accessor interface {
 	GetFlipContent(cid string) (db.FlipContent, error)
+	GetProposerVrfScore(height uint64) (float64, error)
 	GetLastHeight() (uint64, error)
 	Destroy()
 }
@@ -33,11 +34,12 @@ type postgresAccessor struct {
 }
 
 const (
-	flipContentQuery   = "flipContent.sql"
-	flipPicsQuery      = "flipPics.sql"
-	flipPicOrdersQuery = "flipPicOrders.sql"
-	flipIconQuery      = "flipIcon.sql"
-	maxHeightQuery     = "maxHeight.sql"
+	flipContentQuery      = "flipContent.sql"
+	flipPicsQuery         = "flipPics.sql"
+	flipPicOrdersQuery    = "flipPicOrders.sql"
+	flipIconQuery         = "flipIcon.sql"
+	proposerVrfScoreQuery = "proposerVrfScore.sql"
+	maxHeightQuery        = "maxHeight.sql"
 )
 
 func (a *postgresAccessor) getQuery(name string) string {
@@ -121,6 +123,15 @@ func (a *postgresAccessor) flipIcon(dataId int64) ([]byte, error) {
 	err := a.db.QueryRow(a.getQuery(flipIconQuery), dataId).Scan(&res)
 	if err != nil {
 		return nil, err
+	}
+	return res, nil
+}
+
+func (a *postgresAccessor) GetProposerVrfScore(height uint64) (float64, error) {
+	var res float64
+	err := a.db.QueryRow(a.getQuery(proposerVrfScoreQuery), height).Scan(&res)
+	if err != nil {
+		return 0, err
 	}
 	return res, nil
 }

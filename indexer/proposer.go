@@ -7,6 +7,8 @@ import (
 	"github.com/idena-network/idena-go/crypto"
 	"github.com/idena-network/idena-go/pengings"
 	"github.com/idena-network/idena-indexer/core/conversion"
+	"github.com/idena-network/idena-indexer/log"
+	"github.com/idena-network/idena-indexer/migration/runtime"
 	"math/big"
 	"sync"
 )
@@ -18,9 +20,23 @@ func getProposer(block *types.Block) string {
 	return conversion.ConvertAddress(block.Header.ProposedHeader.Coinbase)
 }
 
-func getProposerVrfScore(block *types.Block, proofsByRound, pendingProofs *sync.Map) (float64, bool) {
+func getProposerVrfScore(
+	block *types.Block,
+	proofsByRound,
+	pendingProofs *sync.Map,
+	secondaryStorage *runtime.SecondaryStorage,
+) (float64, bool) {
 	if block.Header.ProposedHeader == nil {
 		return 0, false
+	}
+	if secondaryStorage != nil {
+		score, err := secondaryStorage.GetProposerVrfScore(block.Height())
+		if err != nil {
+			log.Error("Unable to get proposer vrf score from previous db. Skipped.", "height",
+				block.Height(), "err", err)
+			return 0, false
+		}
+		return score, true
 	}
 	var hash common.Hash
 	var ok bool

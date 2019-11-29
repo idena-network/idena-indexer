@@ -17,8 +17,8 @@ import (
 	"github.com/idena-network/idena-indexer/indexer"
 	"github.com/idena-network/idena-indexer/log"
 	migrationDb "github.com/idena-network/idena-indexer/migration/db"
-	"github.com/idena-network/idena-indexer/migration/flip"
-	flipMigrationDb "github.com/idena-network/idena-indexer/migration/flip/db"
+	runtimeMigration "github.com/idena-network/idena-indexer/migration/runtime"
+	runtimeMigrationDb "github.com/idena-network/idena-indexer/migration/runtime/db"
 	"github.com/idena-network/idena-indexer/monitoring"
 	"gopkg.in/urfave/cli.v1"
 	"os"
@@ -84,10 +84,13 @@ func initLog(verbosity int, nodeVerbosity int) {
 	nodeLogLvl := nodeLog.Lvl(nodeVerbosity)
 	if runtime.GOOS == "windows" {
 		log.Root().SetHandler(log.LvlFilterHandler(logLvl, log.StreamHandler(os.Stdout, log.LogfmtFormat())))
-		nodeLog.Root().SetHandler(nodeLog.LvlFilterHandler(nodeLogLvl, nodeLog.StreamHandler(os.Stdout, nodeLog.LogfmtFormat())))
+		nodeLog.Root().SetHandler(nodeLog.LvlFilterHandler(nodeLogLvl, nodeLog.StreamHandler(os.Stdout,
+			nodeLog.LogfmtFormat())))
 	} else {
-		log.Root().SetHandler(log.LvlFilterHandler(logLvl, log.StreamHandler(os.Stderr, log.TerminalFormat(true))))
-		nodeLog.Root().SetHandler(nodeLog.LvlFilterHandler(nodeLogLvl, nodeLog.StreamHandler(os.Stderr, nodeLog.TerminalFormat(true))))
+		log.Root().SetHandler(log.LvlFilterHandler(logLvl, log.StreamHandler(os.Stderr,
+			log.TerminalFormat(true))))
+		nodeLog.Root().SetHandler(nodeLog.LvlFilterHandler(nodeLogLvl, nodeLog.StreamHandler(os.Stderr,
+			nodeLog.TerminalFormat(true))))
 	}
 }
 
@@ -95,11 +98,13 @@ func initIndexer(config *config.Config) (*indexer.Indexer, incoming.Listener) {
 	performanceMonitor := initPerformanceMonitor(config.PerformanceMonitor)
 	wordsLoader := words.NewLoader(config.WordsFile)
 	listener := incoming.NewListener(config.NodeConfigFile, performanceMonitor)
-	dbAccessor := db.NewPostgresAccessor(config.Postgres.ConnStr, config.Postgres.ScriptsDir, wordsLoader, performanceMonitor)
+	dbAccessor := db.NewPostgresAccessor(config.Postgres.ConnStr, config.Postgres.ScriptsDir, wordsLoader,
+		performanceMonitor)
 	restorer := restore.NewRestorer(dbAccessor, listener.AppState(), listener.Blockchain())
-	var sfs *flip.SecondaryFlipStorage
-	if config.FlipMigrationPostgres != nil {
-		sfs = flip.NewSecondaryFlipStorage(flipMigrationDb.NewPostgresAccessor(config.FlipMigrationPostgres.ConnStr, config.FlipMigrationPostgres.ScriptsDir))
+	var secondaryStorage *runtimeMigration.SecondaryStorage
+	if config.RuntimeMigration.Enabled {
+		secondaryStorage = runtimeMigration.NewSecondaryStorage(runtimeMigrationDb.NewPostgresAccessor(
+			config.RuntimeMigration.Postgres.ConnStr, config.RuntimeMigration.Postgres.ScriptsDir))
 	}
 	restoreInitially := config.RestoreInitially
 	if migrated, err := migrateDataIfNeeded(config); err != nil {
@@ -114,25 +119,26 @@ func initIndexer(config *config.Config) (*indexer.Indexer, incoming.Listener) {
 			memPoolIndexer,
 			dbAccessor,
 			restorer,
-			sfs,
+			secondaryStorage,
 			uint64(config.GenesisBlockHeight),
 			restoreInitially,
 			performanceMonitor),
 		listener
 }
 
-func initPerformanceMonitor(config *config.PerformanceMonitorConfig) monitoring.PerformanceMonitor {
-	if config == nil || !config.Enabled {
+func initPerformanceMonitor(config config.PerformanceMonitorConfig) monitoring.PerformanceMonitor {
+	if !config.Enabled {
 		return monitoring.NewEmptyPerformanceMonitor()
 	}
 	return monitoring.NewPerformanceMonitor(config.BlocksToLog, log.New("component", "pm"))
 }
 
 func migrateDataIfNeeded(config *config.Config) (bool, error) {
-	if config.Migration == nil {
+	if !config.Migration.Enabled {
 		return false, nil
 	}
-	dbAccessor := migrationDb.NewPostgresAccessor(config.Postgres.ConnStr, config.Migration.OldSchema, config.Migration.ScriptsDir)
+	dbAccessor := migrationDb.NewPostgresAccessor(config.Postgres.ConnStr, config.Migration.OldSchema,
+		config.Migration.ScriptsDir)
 	defer dbAccessor.Destroy()
 	log.Info("Start migrating data...")
 	if err := dbAccessor.MigrateTo(config.Migration.Height); err != nil {

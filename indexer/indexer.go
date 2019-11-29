@@ -23,7 +23,7 @@ import (
 	"github.com/idena-network/idena-indexer/db"
 	"github.com/idena-network/idena-indexer/incoming"
 	"github.com/idena-network/idena-indexer/log"
-	"github.com/idena-network/idena-indexer/migration/flip"
+	"github.com/idena-network/idena-indexer/migration/runtime"
 	"github.com/idena-network/idena-indexer/monitoring"
 	"github.com/ipfs/go-cid"
 	"github.com/pkg/errors"
@@ -102,7 +102,7 @@ type Indexer struct {
 	db                 db.Accessor
 	restorer           *restore.Restorer
 	state              *indexerState
-	sfs                *flip.SecondaryFlipStorage
+	secondaryStorage   *runtime.SecondaryStorage
 	genesisBlockHeight uint64
 	restore            bool
 	pm                 monitoring.PerformanceMonitor
@@ -123,7 +123,7 @@ func NewIndexer(
 	mempoolIndexer *mempool.Indexer,
 	db db.Accessor,
 	restorer *restore.Restorer,
-	sfs *flip.SecondaryFlipStorage,
+	secondaryStorage *runtime.SecondaryStorage,
 	genesisBlockHeight uint64,
 	restoreInitially bool,
 	pm monitoring.PerformanceMonitor,
@@ -133,7 +133,7 @@ func NewIndexer(
 		memPoolIndexer:     mempoolIndexer,
 		db:                 db,
 		restorer:           restorer,
-		sfs:                sfs,
+		secondaryStorage:   secondaryStorage,
 		genesisBlockHeight: genesisBlockHeight,
 		restore:            restoreInitially,
 		pm:                 pm,
@@ -196,6 +196,12 @@ func (indexer *Indexer) indexBlock(block *types.Block) {
 		indexer.saveData(res.dbData)
 		indexer.pm.Complete("Save")
 		indexer.applyOnState(res)
+
+		if indexer.secondaryStorage != nil && block.Height() >= indexer.secondaryStorage.GetLastBlockHeight() {
+			indexer.secondaryStorage.Destroy()
+			indexer.secondaryStorage = nil
+			log.Info("Completed runtime migration")
+		}
 
 		if block.Height()%1000 == 0 {
 			log.Info(fmt.Sprintf("Processed block %d", block.Height()))
@@ -401,6 +407,7 @@ func (indexer *Indexer) convertBlock(incomingBlock *types.Block, ctx *conversion
 		incomingBlock,
 		indexer.listener.NodeCtx().ProofsByRound,
 		indexer.listener.NodeCtx().PendingProofs,
+		indexer.secondaryStorage,
 	)
 	return db.Block{
 		Height:               incomingBlock.Height(),
@@ -647,15 +654,10 @@ func (indexer *Indexer) getFlipsMemPoolKeyData(ctx *conversionContext) []db.Flip
 		return nil
 	}
 	log.Info(fmt.Sprintf("Flip count for loading data with key from mem pool: %d", len(flipCidsWithoutData)))
-	if indexer.sfs != nil && ctx.blockHeight > indexer.sfs.GetLastBlockHeight() {
-		indexer.sfs.Destroy()
-		indexer.sfs = nil
-		log.Info("Completed flip migration")
-	}
 	var flipsMemPoolKeyData []db.FlipData
 	var parsedData db.FlipContent
 	for _, addrFlipCid := range flipCidsWithoutData {
-		if indexer.sfs == nil {
+		if indexer.secondaryStorage == nil {
 			flipKey := indexer.listener.KeysPool().GetFlipKey(common.HexToAddress(addrFlipCid.Address))
 			if flipKey == nil || flipKey.Key == nil {
 				log.Error("Missed mem pool key. Skipped.", "cid", addrFlipCid)
@@ -673,7 +675,7 @@ func (indexer *Indexer) getFlipsMemPoolKeyData(ctx *conversionContext) []db.Flip
 				continue
 			}
 		} else {
-			parsedData, err = indexer.sfs.GetFlipContent(addrFlipCid.Cid)
+			parsedData, err = indexer.secondaryStorage.GetFlipContent(addrFlipCid.Cid)
 			if err != nil {
 				log.Error("Unable to get flip data from previous db. Skipped.", "cid", addrFlipCid, "err", err)
 				continue

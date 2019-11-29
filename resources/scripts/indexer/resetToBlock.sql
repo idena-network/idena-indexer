@@ -1,3 +1,8 @@
+-- block_proposer_vrf_scores
+delete
+from block_proposer_vrf_scores
+where block_height > $1;
+
 -- burnt_coins
 delete
 from burnt_coins

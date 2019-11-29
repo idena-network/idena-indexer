@@ -24,6 +24,9 @@ insert into temporary_identities (select * from OLD_SCHEMA_TAG.temporary_identit
 -- block_proposers
 insert into block_proposers (select * from OLD_SCHEMA_TAG.block_proposers where block_height <= $1);
 
+-- block_proposer_vrf_scores
+insert into block_proposer_vrf_scores (select * from OLD_SCHEMA_TAG.block_proposer_vrf_scores where block_height <= $1);
+
 -- mining_rewards
 insert into mining_rewards (select * from OLD_SCHEMA_TAG.mining_rewards where block_height <= $1);
 

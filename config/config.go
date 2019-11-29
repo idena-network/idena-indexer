@@ -9,16 +9,16 @@ import (
 )
 
 type Config struct {
-	Postgres              PostgresConfig
-	FlipMigrationPostgres *PostgresConfig
-	Migration             *Migration
-	NodeConfigFile        string
-	WordsFile             string
-	Verbosity             int
-	NodeVerbosity         int
-	GenesisBlockHeight    int
-	RestoreInitially      bool
-	PerformanceMonitor    *PerformanceMonitorConfig
+	Postgres           PostgresConfig
+	RuntimeMigration   RuntimeMigrationConfig
+	Migration          Migration
+	NodeConfigFile     string
+	WordsFile          string
+	Verbosity          int
+	NodeVerbosity      int
+	GenesisBlockHeight int
+	RestoreInitially   bool
+	PerformanceMonitor PerformanceMonitorConfig
 }
 
 type PerformanceMonitorConfig struct {
@@ -31,7 +31,13 @@ type PostgresConfig struct {
 	ScriptsDir string
 }
 
+type RuntimeMigrationConfig struct {
+	Enabled  bool
+	Postgres PostgresConfig
+}
+
 type Migration struct {
+	Enabled    bool
 	OldSchema  string
 	Height     uint64
 	ScriptsDir string
