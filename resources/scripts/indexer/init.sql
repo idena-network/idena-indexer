@@ -448,6 +448,7 @@ ALTER TABLE flips
     OWNER to postgres;
 
 CREATE UNIQUE INDEX IF NOT EXISTS flips_cid_unique_idx on flips (LOWER(cid));
+CREATE INDEX IF NOT EXISTS flips_wrong_words_idx on flips((1)) WHERE wrong_words;
 
 -- SEQUENCE: flip_keys_id_seq
 
