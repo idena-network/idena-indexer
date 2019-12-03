@@ -26,6 +26,7 @@ type Accessor interface {
 	EpochIdentities(epoch uint64, states []string, startIndex uint64, count uint64) ([]types.EpochIdentitySummary, error)
 	EpochIdentityStatesSummary(epoch uint64) ([]types.StrValueCount, error)
 	EpochInvitesSummary(epoch uint64) (types.InvitesSummary, error)
+	EpochInviteStatesSummary(epoch uint64) ([]types.StrValueCount, error)
 	EpochInvitesCount(epoch uint64) (uint64, error)
 	EpochInvites(epoch uint64, startIndex uint64, count uint64) ([]types.Invite, error)
 	EpochTxsCount(epoch uint64) (uint64, error)

@@ -19,6 +19,7 @@ const (
 	epochFlipQualifiedAnswersQuery    = "epochFlipQualifiedAnswers.sql"
 	epochFlipQualifiedWrongWordsQuery = "epochFlipQualifiedWrongWords.sql"
 	epochIdentityStatesSummaryQuery   = "epochIdentityStatesSummary.sql"
+	epochInviteStatesSummaryQuery     = "epochInviteStatesSummary.sql"
 	epochIdentitiesQueryCount         = "epochIdentitiesCount.sql"
 	epochIdentitiesQuery              = "epochIdentities.sql"
 	epochInvitesCountQuery            = "epochInvitesCount.sql"
@@ -147,6 +148,10 @@ func (a *postgresAccessor) EpochInvitesSummary(epoch uint64) (types.InvitesSumma
 		return types.InvitesSummary{}, err
 	}
 	return res, nil
+}
+
+func (a *postgresAccessor) EpochInviteStatesSummary(epoch uint64) ([]types.StrValueCount, error) {
+	return a.strValueCounts(epochInviteStatesSummaryQuery, epoch)
 }
 
 func (a *postgresAccessor) EpochInvitesCount(epoch uint64) (uint64, error) {

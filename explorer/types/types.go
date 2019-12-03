@@ -108,6 +108,7 @@ type Invite struct {
 	ActivationHash      string     `json:"activationHash"`
 	ActivationAuthor    string     `json:"activationAuthor"`
 	ActivationTimestamp *time.Time `json:"activationTimestamp"`
+	State               string     `json:"state"`
 }
 
 type EpochIdentitySummary struct {

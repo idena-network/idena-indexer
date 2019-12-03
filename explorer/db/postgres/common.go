@@ -23,7 +23,15 @@ func readInvites(rows *sql.Rows) ([]types.Invite, error) {
 		item := types.Invite{}
 		var timestamp int64
 		var activationTimestamp int64
-		if err := rows.Scan(&item.Hash, &item.Author, &timestamp, &item.ActivationHash, &item.ActivationAuthor, &activationTimestamp); err != nil {
+		if err := rows.Scan(
+			&item.Hash,
+			&item.Author,
+			&timestamp,
+			&item.ActivationHash,
+			&item.ActivationAuthor,
+			&activationTimestamp,
+			&item.State,
+		); err != nil {
 			return nil, err
 		}
 		item.Timestamp = common.TimestampToTime(big.NewInt(timestamp))

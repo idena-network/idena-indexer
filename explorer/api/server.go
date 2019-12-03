@@ -101,6 +101,7 @@ func (s *httpServer) InitRouter(router *mux.Router) {
 		HandlerFunc(s.epochIdentities)
 	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/IdentityStatesSummary")).HandlerFunc(s.epochIdentityStatesSummary)
 	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/InvitesSummary")).HandlerFunc(s.epochInvitesSummary)
+	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/InviteStatesSummary")).HandlerFunc(s.epochInviteStatesSummary)
 	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Invites/Count")).
 		HandlerFunc(s.epochInvitesCount)
 	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Invites")).
@@ -429,6 +430,17 @@ func (s *httpServer) epochInvitesSummary(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	resp, err := s.db.EpochInvitesSummary(epoch)
+	server.WriteResponse(w, resp, err, s.log)
+}
+
+func (s *httpServer) epochInviteStatesSummary(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	epoch, err := server.ToUint(vars, "epoch")
+	if err != nil {
+		server.WriteErrorResponse(w, err, s.log)
+		return
+	}
+	resp, err := s.db.EpochInviteStatesSummary(epoch)
 	server.WriteResponse(w, resp, err, s.log)
 }
 
