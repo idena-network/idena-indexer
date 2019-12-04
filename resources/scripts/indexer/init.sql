@@ -448,7 +448,7 @@ ALTER TABLE flips
     OWNER to postgres;
 
 CREATE UNIQUE INDEX IF NOT EXISTS flips_cid_unique_idx on flips (LOWER(cid));
-CREATE INDEX IF NOT EXISTS flips_wrong_words_idx on flips((1)) WHERE wrong_words;
+CREATE INDEX IF NOT EXISTS flips_wrong_words_idx on flips ((1)) WHERE wrong_words;
 
 -- SEQUENCE: flip_keys_id_seq
 
@@ -1139,32 +1139,32 @@ CREATE UNIQUE INDEX IF NOT EXISTS answers_hash_tx_timestamps_address_epoch_uniqu
 -- DROP VIEW epoch_identity_states;
 
 CREATE OR REPLACE VIEW epoch_identity_states AS
-    SELECT s.id AS address_state_id,
-           s.address_id,
-           s.prev_id,
-           s.state,
-           s.block_height,
-           ei.epoch
-    FROM address_states s
-             JOIN blocks b ON b.height = s.block_height
-             JOIN epoch_identities ei ON s.id = ei.address_state_id
-    UNION
-    SELECT s.id AS address_state_id,
-           s.address_id,
-           s.prev_id,
-           s.state,
-           s.block_height,
-           max_epoch.epoch
-    FROM address_states s
-             JOIN blocks b ON b.height = s.block_height
-             LEFT JOIN temporary_identities ti ON ti.address_id = s.address_id,
-         (SELECT max(epochs.epoch) AS epoch FROM epochs) max_epoch
-             LEFT JOIN epoch_identities ei ON ei.epoch = max_epoch.epoch
-    WHERE s.is_actual
-      AND ti.address_id IS NULL
-      AND ei.address_state_id IS NULL
-      AND NOT (b.epoch <> max_epoch.epoch AND (s.state::text = ANY
-                                               (ARRAY ['Undefined'::character varying, 'Killed'::character varying]::text[])));
+SELECT s.id AS address_state_id,
+       s.address_id,
+       s.prev_id,
+       s.state,
+       s.block_height,
+       ei.epoch
+FROM address_states s
+         JOIN blocks b ON b.height = s.block_height
+         JOIN epoch_identities ei ON s.id = ei.address_state_id
+UNION
+SELECT s.id AS address_state_id,
+       s.address_id,
+       s.prev_id,
+       s.state,
+       s.block_height,
+       max_epoch.epoch
+FROM address_states s
+         JOIN blocks b ON b.height = s.block_height
+         LEFT JOIN temporary_identities ti ON ti.address_id = s.address_id,
+     (SELECT max(epochs.epoch) AS epoch FROM epochs) max_epoch
+         LEFT JOIN epoch_identities ei ON ei.epoch = max_epoch.epoch
+WHERE s.is_actual
+  AND ti.address_id IS NULL
+  AND ei.address_state_id IS NULL
+  AND NOT (b.epoch <> max_epoch.epoch AND (s.state::text = ANY
+                                           (ARRAY ['Undefined'::character varying, 'Killed'::character varying]::text[])));
 
 ALTER TABLE epoch_identity_states
     OWNER TO postgres;
@@ -1305,6 +1305,25 @@ $$
     END
 $$;
 
+-- Types
+DO
+$$
+    BEGIN
+        -- Type: tp_balance
+        CREATE TYPE tp_balance AS
+            (
+            address character(42),
+            balance numeric(30, 18),
+            stake numeric(30, 18)
+            );
+
+        ALTER TYPE tp_balance
+            OWNER TO postgres;
+    EXCEPTION
+        WHEN duplicate_object THEN null;
+    END
+$$;
+
 -- PROCEDURE: save_mining_rewards
 
 CREATE OR REPLACE PROCEDURE save_mining_rewards(height bigint, mr tp_mining_reward[])
@@ -1348,6 +1367,27 @@ BEGIN
             end if;
             insert into burnt_coins (address_id, block_height, amount, reason, tx_id)
             values (address_id, height, bc_row.amount, bc_row.reason, tx_id);
+        end loop;
+END
+$BODY$;
+
+-- PROCEDURE: save_balances
+
+CREATE OR REPLACE PROCEDURE save_balances(b tp_balance[])
+    LANGUAGE 'plpgsql'
+AS
+$BODY$
+DECLARE
+    b_row      tp_balance;
+    l_address_id bigint;
+BEGIN
+    for i in 1..cardinality(b)
+        loop
+            b_row = b[i];
+            select id into l_address_id from addresses where lower(address) = lower(b_row.address);
+            insert into balances (address_id, balance, stake)
+            values (l_address_id, b_row.balance, b_row.stake)
+            on conflict (address_id) do update set balance=b_row.balance, stake=b_row.stake;
         end loop;
 END
 $BODY$;

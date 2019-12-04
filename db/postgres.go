@@ -57,8 +57,7 @@ const (
 	archiveIdentityStateQuery        = "archiveIdentityState.sql"
 	insertIdentityStateQuery         = "insertIdentityState.sql"
 	resetToBlockQuery                = "resetToBlock.sql"
-	insertBalanceQuery               = "insertBalance.sql"
-	updateBalanceQuery               = "updateBalance.sql"
+	saveBalancesQuery                = "saveBalances.sql"
 	insertBirthdayQuery              = "insertBirthday.sql"
 	updateBirthdayQuery              = "updateBirthday.sql"
 	insertCoinsQuery                 = "insertCoins.sql"
@@ -584,27 +583,13 @@ func (a *postgresAccessor) saveCoins(ctx *context, coins Coins) error {
 }
 
 func (a *postgresAccessor) saveBalances(tx *sql.Tx, balances []Balance) error {
-	for _, balance := range balances {
-		if err := a.saveBalance(tx, balance); err != nil {
-			return err
-		}
+	if len(balances) == 0 {
+		return nil
+	}
+	if _, err := tx.Exec(a.getQuery(saveBalancesQuery), pq.Array(balances)); err != nil {
+		return err
 	}
 	return nil
-}
-
-func (a *postgresAccessor) saveBalance(tx *sql.Tx, balance Balance) error {
-	var addressId uint64
-	err := tx.QueryRow(a.getQuery(updateBalanceQuery),
-		balance.Address,
-		balance.Balance,
-		balance.Stake).Scan(&addressId)
-	if err == sql.ErrNoRows {
-		_, err = tx.Exec(a.getQuery(insertBalanceQuery),
-			balance.Address,
-			balance.Balance,
-			balance.Stake)
-	}
-	return errors.Wrapf(err, "unable to save balance")
 }
 
 func (a *postgresAccessor) saveBirthdays(tx *sql.Tx, birthdays []Birthday) error {

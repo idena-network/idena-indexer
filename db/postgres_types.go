@@ -12,6 +12,10 @@ func (v *Reward) Value() (driver.Value, error) {
 	return fmt.Sprintf("(%v,%v,%v,%v)", v.Address, v.Balance, v.Stake, v.Type), nil
 }
 
+func (v Balance) Value() (driver.Value, error) {
+	return fmt.Sprintf("(%v,%v,%v)", v.Address, v.Balance, v.Stake), nil
+}
+
 type postgresAddrBurntCoins struct {
 	*BurntCoins
 	address string

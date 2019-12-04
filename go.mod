@@ -1,6 +1,6 @@
 module github.com/idena-network/idena-indexer
 
-go 1.12
+go 1.13
 
 replace github.com/tendermint/iavl => github.com/idena-network/iavl v0.12.3-0.20190919135148-89e4ad773677
 
