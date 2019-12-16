@@ -188,6 +188,9 @@ func (s *httpServer) InitRouter(router *mux.Router) {
 	router.Path(strings.ToLower("/Flip/{hash}/Answers/Long")).
 		Queries("skip", "{skip}", "limit", "{limit}").
 		HandlerFunc(s.flipLongAnswers)
+	router.Path(strings.ToLower("/Flip/{hash}/Epoch/AdjacentFlips")).HandlerFunc(s.flipEpochAdjacentFlips)
+	router.Path(strings.ToLower("/Flip/{hash}/Address/AdjacentFlips")).HandlerFunc(s.flipAddressAdjacentFlips)
+	router.Path(strings.ToLower("/Flip/{hash}/EpochIdentity/AdjacentFlips")).HandlerFunc(s.flipEpochIdentityAdjacentFlips)
 
 	router.Path(strings.ToLower("/Transaction/{hash}")).HandlerFunc(s.transaction)
 
@@ -934,6 +937,21 @@ func (s *httpServer) flipAnswers(w http.ResponseWriter, r *http.Request, isShort
 		return
 	}
 	resp, err := s.db.FlipAnswers(vars["hash"], isShort, startIndex, count)
+	server.WriteResponse(w, resp, err, s.log)
+}
+
+func (s *httpServer) flipEpochAdjacentFlips(w http.ResponseWriter, r *http.Request) {
+	resp, err := s.db.FlipEpochAdjacentFlips(mux.Vars(r)["hash"])
+	server.WriteResponse(w, resp, err, s.log)
+}
+
+func (s *httpServer) flipAddressAdjacentFlips(w http.ResponseWriter, r *http.Request) {
+	resp, err := s.db.FlipAddressAdjacentFlips(mux.Vars(r)["hash"])
+	server.WriteResponse(w, resp, err, s.log)
+}
+
+func (s *httpServer) flipEpochIdentityAdjacentFlips(w http.ResponseWriter, r *http.Request) {
+	resp, err := s.db.FlipEpochIdentityAdjacentFlips(mux.Vars(r)["hash"])
 	server.WriteResponse(w, resp, err, s.log)
 }
 

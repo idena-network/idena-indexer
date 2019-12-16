@@ -339,3 +339,13 @@ type BadAuthor struct {
 	PrevState  string `json:"prevState"`
 	State      string `json:"state"`
 }
+
+type AdjacentStrValues struct {
+	Prev AdjacentStrValue
+	Next AdjacentStrValue
+}
+
+type AdjacentStrValue struct {
+	Value  string `json:"value"`
+	Cycled bool   `json:"cycled"`
+}

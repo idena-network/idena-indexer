@@ -36,7 +36,7 @@ from flips f
          left join words_dictionary wd1 on wd1.id = fw.word_1
          left join words_dictionary wd2 on wd2.id = fw.word_2
 where b.epoch = $1
-order by b.height desc
+order by t.id desc
 limit $3
 offset
 $2

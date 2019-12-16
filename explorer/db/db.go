@@ -65,6 +65,9 @@ type Accessor interface {
 	FlipContent(hash string) (types.FlipContent, error)
 	FlipAnswersCount(hash string, isShort bool) (uint64, error)
 	FlipAnswers(hash string, isShort bool, startIndex uint64, count uint64) ([]types.Answer, error)
+	FlipEpochAdjacentFlips(hash string) (types.AdjacentStrValues, error)
+	FlipAddressAdjacentFlips(hash string) (types.AdjacentStrValues, error)
+	FlipEpochIdentityAdjacentFlips(hash string) (types.AdjacentStrValues, error)
 
 	Identity(address string) (types.Identity, error)
 	IdentityAge(address string) (uint64, error)

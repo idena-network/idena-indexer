@@ -10,12 +10,15 @@ import (
 )
 
 const (
-	flipQuery             = "flip.sql"
-	flipAnswersCountQuery = "flipAnswersCount.sql"
-	flipAnswersQuery      = "flipAnswers.sql"
-	flipContentQuery      = "flipContent.sql"
-	flipPicsQuery         = "flipPics.sql"
-	flipPicOrdersQuery    = "flipPicOrders.sql"
+	flipQuery                           = "flip.sql"
+	flipAnswersCountQuery               = "flipAnswersCount.sql"
+	flipAnswersQuery                    = "flipAnswers.sql"
+	flipContentQuery                    = "flipContent.sql"
+	flipPicsQuery                       = "flipPics.sql"
+	flipPicOrdersQuery                  = "flipPicOrders.sql"
+	flipEpochAdjacentFlipsQuery         = "flipEpochAdjacentFlips.sql"
+	flipAddressAdjacentFlipsQuery       = "flipAddressAdjacentFlips.sql"
+	flipEpochIdentityAdjacentFlipsQuery = "flipEpochIdentityAdjacentFlips.sql"
 )
 
 func (a *postgresAccessor) Flip(hash string) (types.Flip, error) {
@@ -125,4 +128,16 @@ func (a *postgresAccessor) FlipAnswers(hash string, isShort bool, startIndex uin
 		return nil, err
 	}
 	return readAnswers(rows)
+}
+
+func (a *postgresAccessor) FlipEpochAdjacentFlips(hash string) (types.AdjacentStrValues, error) {
+	return a.adjacentStrValues(flipEpochAdjacentFlipsQuery, hash)
+}
+
+func (a *postgresAccessor) FlipAddressAdjacentFlips(hash string) (types.AdjacentStrValues, error) {
+	return a.adjacentStrValues(flipAddressAdjacentFlipsQuery, hash)
+}
+
+func (a *postgresAccessor) FlipEpochIdentityAdjacentFlips(hash string) (types.AdjacentStrValues, error) {
+	return a.adjacentStrValues(flipEpochIdentityAdjacentFlipsQuery, hash)
 }

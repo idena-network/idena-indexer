@@ -37,4 +37,4 @@ from flips f
          left join words_dictionary wd2 on wd2.id = fw.word_2
 where b.epoch = $1
   and lower(a.address) = lower($2)
-order by b.height
+order by t.id desc

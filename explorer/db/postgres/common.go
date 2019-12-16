@@ -255,3 +255,20 @@ func readBadAuthors(rows *sql.Rows) ([]types.BadAuthor, error) {
 	}
 	return res, nil
 }
+
+func (a *postgresAccessor) adjacentStrValues(queryName string, value string) (types.AdjacentStrValues, error) {
+	res := types.AdjacentStrValues{}
+	err := a.db.QueryRow(a.getQuery(queryName), value).Scan(
+		&res.Prev.Value,
+		&res.Prev.Cycled,
+		&res.Next.Value,
+		&res.Next.Cycled,
+	)
+	if err == sql.ErrNoRows {
+		err = NoDataFound
+	}
+	if err != nil {
+		return types.AdjacentStrValues{}, err
+	}
+	return res, nil
+}
