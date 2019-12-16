@@ -19,32 +19,19 @@ const (
 )
 
 func (a *postgresAccessor) BlockByHeight(height uint64) (types.BlockDetail, error) {
-	res := types.BlockDetail{}
-	var timestamp int64
-	err := a.db.QueryRow(a.getQuery(blockQueryByHeight), height).Scan(&res.Height,
-		&res.Hash,
-		&timestamp,
-		&res.TxCount,
-		&res.ValidatorsCount,
-		&res.Proposer,
-		&res.ProposerVrfScore,
-		&res.IsEmpty,
-		&res.Size,
-		&res.VrfProposerThreshold)
-	if err == sql.ErrNoRows {
-		err = NoDataFound
-	}
-	if err != nil {
-		return types.BlockDetail{}, err
-	}
-	res.Timestamp = common.TimestampToTime(big.NewInt(timestamp))
-	return res, nil
+	return a.block(blockQueryByHeight, height)
 }
 
 func (a *postgresAccessor) BlockByHash(hash string) (types.BlockDetail, error) {
+	return a.block(blockQueryByHash, hash)
+}
+
+func (a *postgresAccessor) block(query string, id interface{}) (types.BlockDetail, error) {
 	res := types.BlockDetail{}
 	var timestamp int64
-	err := a.db.QueryRow(a.getQuery(blockQueryByHash), hash).Scan(&res.Height,
+	err := a.db.QueryRow(a.getQuery(query), id).Scan(
+		&res.Epoch,
+		&res.Height,
 		&res.Hash,
 		&timestamp,
 		&res.TxCount,
@@ -52,8 +39,11 @@ func (a *postgresAccessor) BlockByHash(hash string) (types.BlockDetail, error) {
 		&res.Proposer,
 		&res.ProposerVrfScore,
 		&res.IsEmpty,
-		&res.Size,
-		&res.VrfProposerThreshold)
+		&res.BodySize,
+		&res.FullSize,
+		&res.VrfProposerThreshold,
+		&res.FeeRate,
+	)
 	if err == sql.ErrNoRows {
 		err = NoDataFound
 	}

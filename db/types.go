@@ -86,10 +86,12 @@ type Block struct {
 	Proposer             string
 	Flags                []string
 	IsEmpty              bool
-	Size                 int
+	BodySize             int
+	FullSize             int
 	VrfProposerThreshold float64
 	ValidatorsCount      int
 	ProposerVrfScore     float64
+	FeeRate              decimal.Decimal
 }
 
 type Transaction struct {

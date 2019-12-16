@@ -47,8 +47,10 @@ CREATE TABLE IF NOT EXISTS blocks
     "timestamp"            bigint                                     NOT NULL,
     is_empty               boolean                                    NOT NULL,
     validators_count       integer                                    NOT NULL,
-    size                   integer                                    NOT NULL,
+    body_size              integer                                    NOT NULL,
     vrf_proposer_threshold double precision                           NOT NULL,
+    full_size              integer                                    NOT NULL,
+    fee_rate               numeric(30, 18)                            NOT NULL,
     CONSTRAINT blocks_pkey PRIMARY KEY (height),
     CONSTRAINT blocks_epoch_fkey FOREIGN KEY (epoch)
         REFERENCES epochs (epoch) MATCH SIMPLE
@@ -1378,7 +1380,7 @@ CREATE OR REPLACE PROCEDURE save_balances(b tp_balance[])
 AS
 $BODY$
 DECLARE
-    b_row      tp_balance;
+    b_row        tp_balance;
     l_address_id bigint;
 BEGIN
     for i in 1..cardinality(b)

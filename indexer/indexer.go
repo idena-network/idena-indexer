@@ -409,6 +409,7 @@ func (indexer *Indexer) convertBlock(incomingBlock *types.Block, ctx *conversion
 		indexer.listener.NodeCtx().PendingProofs,
 		indexer.secondaryStorage,
 	)
+	encodedBlock, _ := rlp.EncodeToBytes(incomingBlock)
 	return db.Block{
 		Height:               incomingBlock.Height(),
 		Hash:                 convertHash(incomingBlock.Hash()),
@@ -417,10 +418,12 @@ func (indexer *Indexer) convertBlock(incomingBlock *types.Block, ctx *conversion
 		Proposer:             getProposer(incomingBlock),
 		Flags:                convertFlags(incomingBlock.Header.Flags()),
 		IsEmpty:              incomingBlock.IsEmpty(),
-		Size:                 len(incomingBlock.Body.Bytes()),
+		BodySize:             len(incomingBlock.Body.Bytes()),
+		FullSize:             len(encodedBlock),
 		ValidatorsCount:      len(indexer.statsHolder().GetStats().FinalCommittee),
 		VrfProposerThreshold: ctx.prevStateReadOnly.State.VrfProposerThreshold(),
 		ProposerVrfScore:     proposerVrfScore,
+		FeeRate:              blockchain.ConvertToFloat(ctx.prevStateReadOnly.State.FeePerByte()),
 	}
 }
 

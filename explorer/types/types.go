@@ -31,29 +31,34 @@ type EpochDetail struct {
 }
 
 type BlockSummary struct {
-	Height               uint64    `json:"height"`
-	Hash                 string    `json:"hash"`
-	Timestamp            time.Time `json:"timestamp"`
-	TxCount              uint16    `json:"txCount"`
-	IsEmpty              bool      `json:"isEmpty"`
-	Coins                AllCoins  `json:"coins"`
-	Size                 uint32    `json:"size"`
-	VrfProposerThreshold float64   `json:"vrfProposerThreshold"`
-	Proposer             string    `json:"proposer"`
-	ProposerVrfScore     float64   `json:"proposerVrfScore,omitempty"`
+	Height               uint64          `json:"height"`
+	Hash                 string          `json:"hash"`
+	Timestamp            time.Time       `json:"timestamp"`
+	TxCount              uint16          `json:"txCount"`
+	IsEmpty              bool            `json:"isEmpty"`
+	Coins                AllCoins        `json:"coins"`
+	BodySize             uint32          `json:"bodySize"`
+	FullSize             uint32          `json:"fullSize"`
+	VrfProposerThreshold float64         `json:"vrfProposerThreshold"`
+	Proposer             string          `json:"proposer"`
+	ProposerVrfScore     float64         `json:"proposerVrfScore,omitempty"`
+	FeeRate              decimal.Decimal `json:"feeRate"`
 }
 
 type BlockDetail struct {
-	Height               uint64    `json:"height"`
-	Hash                 string    `json:"hash"`
-	Timestamp            time.Time `json:"timestamp"`
-	TxCount              uint16    `json:"txCount"`
-	ValidatorsCount      uint16    `json:"validatorsCount"`
-	IsEmpty              bool      `json:"isEmpty"`
-	Size                 uint32    `json:"size"`
-	VrfProposerThreshold float64   `json:"vrfProposerThreshold"`
-	Proposer             string    `json:"proposer"`
-	ProposerVrfScore     float64   `json:"proposerVrfScore,omitempty"`
+	Epoch                uint64          `json:"epoch"`
+	Height               uint64          `json:"height"`
+	Hash                 string          `json:"hash"`
+	Timestamp            time.Time       `json:"timestamp"`
+	TxCount              uint16          `json:"txCount"`
+	ValidatorsCount      uint16          `json:"validatorsCount"`
+	IsEmpty              bool            `json:"isEmpty"`
+	BodySize             uint32          `json:"bodySize"`
+	FullSize             uint32          `json:"fullSize"`
+	VrfProposerThreshold float64         `json:"vrfProposerThreshold"`
+	Proposer             string          `json:"proposer"`
+	ProposerVrfScore     float64         `json:"proposerVrfScore,omitempty"`
+	FeeRate              decimal.Decimal `json:"feeRate"`
 }
 
 type TransactionSummary struct {
