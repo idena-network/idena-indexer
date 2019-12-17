@@ -21,7 +21,8 @@ const (
 )
 
 type statsCollector struct {
-	stats *Stats
+	stats                          *Stats
+	invitationRewardsByAddrAndType map[common.Address]map[RewardType]*RewardStats
 }
 
 func NewStatsCollector() collector.StatsCollector {
@@ -37,6 +38,13 @@ func (c *statsCollector) initRewardStats() {
 		return
 	}
 	c.stats.RewardsStats = &RewardsStats{}
+}
+
+func (c *statsCollector) initInvitationRewardsByAddrAndType() {
+	if c.invitationRewardsByAddrAndType != nil {
+		return
+	}
+	c.invitationRewardsByAddrAndType = make(map[common.Address]map[RewardType]*RewardStats)
 }
 
 func (c *statsCollector) SetValidation(validation *statsTypes.ValidationStats) {
@@ -90,8 +98,19 @@ func (c *statsCollector) AddFlipsReward(addr common.Address, balance *big.Int, s
 	c.addReward(addr, balance, stake, Flips)
 }
 
-func (c *statsCollector) AddInvitationsReward(addr common.Address, balance *big.Int, stake *big.Int) {
-	c.addReward(addr, balance, stake, Invitations)
+func (c *statsCollector) AddInvitationsReward(addr common.Address, balance *big.Int, stake *big.Int, age uint16) {
+	var rewardType RewardType
+	switch age {
+	case 1:
+		rewardType = Invitations
+	case 2:
+		rewardType = Invitations2
+	case 3:
+		rewardType = Invitations3
+	default:
+		return
+	}
+	c.addReward(addr, balance, stake, rewardType)
 }
 
 func (c *statsCollector) AddFoundationPayout(addr common.Address, balance *big.Int) {
@@ -107,12 +126,36 @@ func (c *statsCollector) addReward(addr common.Address, balance *big.Int, stake 
 		return
 	}
 	c.initRewardStats()
-	c.stats.RewardsStats.Rewards = append(c.stats.RewardsStats.Rewards, &RewardStats{
+	rewardsStats := &RewardStats{
 		Address: addr,
 		Balance: balance,
 		Stake:   stake,
 		Type:    rewardType,
-	})
+	}
+	if c.increaseInvitationRewardIfExists(rewardsStats) {
+		return
+	}
+	c.stats.RewardsStats.Rewards = append(c.stats.RewardsStats.Rewards, rewardsStats)
+}
+
+func (c *statsCollector) increaseInvitationRewardIfExists(rewardsStats *RewardStats) bool {
+	if rewardsStats.Type != Invitations && rewardsStats.Type != Invitations2 && rewardsStats.Type != Invitations3 {
+		return false
+	}
+	c.initInvitationRewardsByAddrAndType()
+	addrInvitationRewardsByType, ok := c.invitationRewardsByAddrAndType[rewardsStats.Address]
+	if ok {
+		if ir, ok := addrInvitationRewardsByType[rewardsStats.Type]; ok {
+			ir.Balance.Add(ir.Balance, rewardsStats.Balance)
+			ir.Stake.Add(ir.Stake, rewardsStats.Stake)
+			return true
+		}
+	} else {
+		addrInvitationRewardsByType = make(map[RewardType]*RewardStats)
+	}
+	addrInvitationRewardsByType[rewardsStats.Type] = rewardsStats
+	c.invitationRewardsByAddrAndType[rewardsStats.Address] = addrInvitationRewardsByType
+	return false
 }
 
 func (c *statsCollector) AddProposerReward(addr common.Address, balance *big.Int, stake *big.Int) {
@@ -248,6 +291,7 @@ func (c *statsCollector) GetStats() *Stats {
 
 func (c *statsCollector) CompleteCollecting() {
 	c.stats = nil
+	c.invitationRewardsByAddrAndType = nil
 }
 
 func (c *statsCollector) AfterKillIdentity(addr common.Address, appState *appstate.AppState) {

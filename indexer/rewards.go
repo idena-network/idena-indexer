@@ -14,6 +14,8 @@ var rewardTypes = map[stats.RewardType]string{
 	stats.Validation:        "Validation",
 	stats.Flips:             "Flips",
 	stats.Invitations:       "Invitations",
+	stats.Invitations2:      "Invitations2",
+	stats.Invitations3:      "Invitations3",
 	stats.FoundationPayouts: "FoundationPayouts",
 	stats.ZeroWalletFund:    "ZeroWalletFund",
 }
@@ -57,7 +59,7 @@ func convertGoodAuthors(goodAuthors map[common.Address]*types.ValidationResult) 
 			Address:           conversion.ConvertAddress(address),
 			StrongFlips:       vr.StrongFlips,
 			WeakFlips:         vr.WeakFlips,
-			SuccessfulInvites: vr.SuccessfulInvites,
+			SuccessfulInvites: len(vr.SuccessfulInviteAges),
 		})
 	}
 	return res
