@@ -41,23 +41,6 @@ const (
 )
 
 var (
-	txTypes = map[types.TxType]string{
-		types.SendTx:               "SendTx",
-		types.ActivationTx:         "ActivationTx",
-		types.InviteTx:             "InviteTx",
-		types.KillTx:               "KillTx",
-		types.KillInviteeTx:        "KillInviteeTx",
-		types.SubmitFlipTx:         "SubmitFlipTx",
-		types.SubmitAnswersHashTx:  "SubmitAnswersHashTx",
-		types.SubmitShortAnswersTx: "SubmitShortAnswersTx",
-		types.SubmitLongAnswersTx:  "SubmitLongAnswersTx",
-		types.EvidenceTx:           "EvidenceTx",
-		types.OnlineStatusTx:       "OnlineStatusTx",
-		types.ChangeGodAddressTx:   "ChangeGodAddressTx",
-		types.BurnTx:               "BurnTx",
-		types.ChangeProfileTx:      "ChangeProfileTx",
-	}
-
 	flipStatuses = map[ceremony.FlipStatus]string{
 		ceremony.NotQualified:    "NotQualified",
 		ceremony.Qualified:       "Qualified",
@@ -511,11 +494,8 @@ func (indexer *Indexer) convertTransaction(incomingTx *types.Transaction, ctx *c
 	return tx
 }
 
-func convertTxType(txType types.TxType) string {
-	if res, ok := txTypes[txType]; ok {
-		return res
-	}
-	return fmt.Sprintf("Unknown tx type %d", txType)
+func convertTxType(txType types.TxType) uint16 {
+	return txType
 }
 
 func convertIdentityState(state state.IdentityState) uint8 {

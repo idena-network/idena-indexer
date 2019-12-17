@@ -96,7 +96,7 @@ type Block struct {
 
 type Transaction struct {
 	Hash    string
-	Type    string
+	Type    uint16
 	From    string
 	To      string
 	Amount  decimal.Decimal

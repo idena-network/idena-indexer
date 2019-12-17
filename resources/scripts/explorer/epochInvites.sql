@@ -17,7 +17,7 @@ from transactions t
                              join address_states s on s.id = ei.address_state_id) eis
                    on eis.address_id = at.to and b.epoch = eis.epoch
          left join dic_identity_states dis on dis.id = eis.state
-where t.type = 'InviteTx'
+where t.type = (select id from dic_tx_types where name='InviteTx')
   and b.epoch = $1
 order by b.height desc
 limit $3

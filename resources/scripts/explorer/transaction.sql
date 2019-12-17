@@ -2,7 +2,7 @@ select b.epoch,
        b.height,
        b.hash,
        t.Hash,
-       t.Type,
+       dtt.name                  "type",
        b.Timestamp,
        afrom.Address             "from",
        COALESCE(ato.Address, '') "to",
@@ -15,4 +15,5 @@ from transactions t
          join blocks b on b.height = t.block_height
          join addresses afrom on afrom.id = t.from
          left join addresses ato on ato.id = t.to
+         join dic_tx_types dtt on dtt.id = t.Type
 where lower(t.Hash) = lower($1)

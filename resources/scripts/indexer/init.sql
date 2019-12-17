@@ -17,9 +17,9 @@ CREATE TABLE IF NOT EXISTS words_dictionary
 ALTER TABLE words_dictionary
     OWNER to postgres;
 
--- Table: identity_states_dictionary
+-- Table: dic_identity_states
 
--- DROP TABLE identity_states_dictionary;
+-- DROP TABLE dic_identity_states;
 
 CREATE TABLE IF NOT EXISTS dic_identity_states
 (
@@ -58,6 +58,67 @@ values (6, 'Zombie')
 ON CONFLICT DO NOTHING;
 INSERT INTO dic_identity_states
 values (7, 'Newbie')
+ON CONFLICT DO NOTHING;
+
+-- Table: dic_tx_types
+
+-- DROP TABLE dic_tx_types;
+
+CREATE TABLE IF NOT EXISTS dic_tx_types
+(
+    id   smallint                                           NOT NULL,
+    name character varying(20) COLLATE pg_catalog."default" NOT NULL,
+    CONSTRAINT dic_tx_types_pkey PRIMARY KEY (id)
+)
+    WITH (
+        OIDS = FALSE
+    )
+    TABLESPACE pg_default;
+
+ALTER TABLE dic_tx_types
+    OWNER to postgres;
+
+INSERT INTO dic_tx_types
+values (0, 'SendTx')
+ON CONFLICT DO NOTHING;
+INSERT INTO dic_tx_types
+values (1, 'ActivationTx')
+ON CONFLICT DO NOTHING;
+INSERT INTO dic_tx_types
+values (2, 'InviteTx')
+ON CONFLICT DO NOTHING;
+INSERT INTO dic_tx_types
+values (3, 'KillTx')
+ON CONFLICT DO NOTHING;
+INSERT INTO dic_tx_types
+values (4, 'SubmitFlipTx')
+ON CONFLICT DO NOTHING;
+INSERT INTO dic_tx_types
+values (5, 'SubmitAnswersHashTx')
+ON CONFLICT DO NOTHING;
+INSERT INTO dic_tx_types
+values (6, 'SubmitShortAnswersTx')
+ON CONFLICT DO NOTHING;
+INSERT INTO dic_tx_types
+values (7, 'SubmitLongAnswersTx')
+ON CONFLICT DO NOTHING;
+INSERT INTO dic_tx_types
+values (8, 'EvidenceTx')
+ON CONFLICT DO NOTHING;
+INSERT INTO dic_tx_types
+values (9, 'OnlineStatusTx')
+ON CONFLICT DO NOTHING;
+INSERT INTO dic_tx_types
+values (10, 'KillInviteeTx')
+ON CONFLICT DO NOTHING;
+INSERT INTO dic_tx_types
+values (11, 'ChangeGodAddressTx')
+ON CONFLICT DO NOTHING;
+INSERT INTO dic_tx_types
+values (12, 'BurnTx')
+ON CONFLICT DO NOTHING;
+INSERT INTO dic_tx_types
+values (13, 'ChangeProfileTx')
 ON CONFLICT DO NOTHING;
 
 -- Table: epochs
@@ -305,20 +366,24 @@ ALTER SEQUENCE transactions_id_seq
 
 CREATE TABLE IF NOT EXISTS transactions
 (
-    id           bigint                                             NOT NULL DEFAULT nextval('transactions_id_seq'::regclass),
-    hash         character(66) COLLATE pg_catalog."default"         NOT NULL,
-    block_height bigint                                             NOT NULL,
-    type         character varying(20) COLLATE pg_catalog."default" NOT NULL,
-    "from"       bigint                                             NOT NULL,
+    id           bigint                                     NOT NULL DEFAULT nextval('transactions_id_seq'::regclass),
+    hash         character(66) COLLATE pg_catalog."default" NOT NULL,
+    block_height bigint                                     NOT NULL,
+    type         smallint                                   NOT NULL,
+    "from"       bigint                                     NOT NULL,
     "to"         bigint,
-    amount       numeric(30, 18)                                    NOT NULL,
-    tips         numeric(30, 18)                                    NOT NULL,
-    max_fee      numeric(30, 18)                                    NOT NULL,
-    fee          numeric(30, 18)                                    NOT NULL,
-    size         integer                                            NOT NULL,
+    amount       numeric(30, 18)                            NOT NULL,
+    tips         numeric(30, 18)                            NOT NULL,
+    max_fee      numeric(30, 18)                            NOT NULL,
+    fee          numeric(30, 18)                            NOT NULL,
+    size         integer                                    NOT NULL,
     CONSTRAINT transactions_pkey PRIMARY KEY (id),
     CONSTRAINT transactions_block_height_fkey FOREIGN KEY (block_height)
         REFERENCES blocks (height) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT transactions_type_fkey FOREIGN KEY (type)
+        REFERENCES dic_tx_types (id) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION,
     CONSTRAINT transactions_from_fkey FOREIGN KEY ("from")
