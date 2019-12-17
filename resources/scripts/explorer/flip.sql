@@ -1,7 +1,7 @@
 select a.address                      author,
        f.size,
        b.timestamp,
-       coalesce(f.answer, '')         answer,
+       coalesce(da.name, '')          answer,
        COALESCE(f.wrong_words, false) wrongWords,
        COALESCE(ww.cnt, 0)            wrong_words_votes,
        COALESCE(dfs.name, '')         status,
@@ -29,4 +29,5 @@ from flips f
                     group by a.flip_id) ww
                    on ww.flip_id = f.id
          left join dic_flip_statuses dfs on dfs.id = f.status
+         left join dic_answers da on da.id = f.answer
 where LOWER(f.cid) = LOWER($1)

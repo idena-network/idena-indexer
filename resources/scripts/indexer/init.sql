@@ -25,7 +25,8 @@ CREATE TABLE IF NOT EXISTS dic_identity_states
 (
     id   smallint                                           NOT NULL,
     name character varying(20) COLLATE pg_catalog."default" NOT NULL,
-    CONSTRAINT dic_identity_states_pkey PRIMARY KEY (id)
+    CONSTRAINT dic_identity_states_pkey PRIMARY KEY (id),
+    CONSTRAINT dic_identity_states_name_key UNIQUE (name)
 )
     WITH (
         OIDS = FALSE
@@ -68,7 +69,8 @@ CREATE TABLE IF NOT EXISTS dic_tx_types
 (
     id   smallint                                           NOT NULL,
     name character varying(20) COLLATE pg_catalog."default" NOT NULL,
-    CONSTRAINT dic_tx_types_pkey PRIMARY KEY (id)
+    CONSTRAINT dic_tx_types_pkey PRIMARY KEY (id),
+    CONSTRAINT dic_tx_types_name_key UNIQUE (name)
 )
     WITH (
         OIDS = FALSE
@@ -129,7 +131,8 @@ CREATE TABLE IF NOT EXISTS dic_flip_statuses
 (
     id   smallint                                           NOT NULL,
     name character varying(20) COLLATE pg_catalog."default" NOT NULL,
-    CONSTRAINT dic_flip_statuses_pkey PRIMARY KEY (id)
+    CONSTRAINT dic_flip_statuses_pkey PRIMARY KEY (id),
+    CONSTRAINT dic_flip_statuses_name_key UNIQUE (name)
 )
     WITH (
         OIDS = FALSE
@@ -150,6 +153,38 @@ values (2, 'WeaklyQualified')
 ON CONFLICT DO NOTHING;
 INSERT INTO dic_flip_statuses
 values (3, 'QualifiedByNone')
+ON CONFLICT DO NOTHING;
+
+-- Table: dic_answers
+
+-- DROP TABLE dic_answers;
+
+CREATE TABLE IF NOT EXISTS dic_answers
+(
+    id   smallint                                           NOT NULL,
+    name character varying(20) COLLATE pg_catalog."default" NOT NULL,
+    CONSTRAINT dic_answers_pkey PRIMARY KEY (id),
+    CONSTRAINT dic_answers_name_key UNIQUE (name)
+)
+    WITH (
+        OIDS = FALSE
+    )
+    TABLESPACE pg_default;
+
+ALTER TABLE dic_answers
+    OWNER to postgres;
+
+INSERT INTO dic_answers
+values (0, 'None')
+ON CONFLICT DO NOTHING;
+INSERT INTO dic_answers
+values (1, 'Left')
+ON CONFLICT DO NOTHING;
+INSERT INTO dic_answers
+values (2, 'Right')
+ON CONFLICT DO NOTHING;
+INSERT INTO dic_answers
+values (3, 'Inappropriate')
 ON CONFLICT DO NOTHING;
 
 -- Table: epochs
@@ -571,7 +606,7 @@ CREATE TABLE IF NOT EXISTS flips
     size                integer                                             NOT NULL,
     pair                smallint                                            NOT NULL,
     status_block_height bigint,
-    answer              character varying(20) COLLATE pg_catalog."default",
+    answer              smallint,
     wrong_words         boolean,
     status              smallint,
     CONSTRAINT flips_pkey PRIMARY KEY (id),
@@ -585,6 +620,10 @@ CREATE TABLE IF NOT EXISTS flips
         ON DELETE NO ACTION,
     CONSTRAINT flips_status_fkey FOREIGN KEY (status)
         REFERENCES dic_flip_statuses (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT flips_answer_fkey FOREIGN KEY (answer)
+        REFERENCES dic_answers (id) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION
 )
@@ -656,13 +695,13 @@ ALTER SEQUENCE answers_id_seq
 
 CREATE TABLE IF NOT EXISTS answers
 (
-    id                bigint                                             NOT NULL DEFAULT nextval('answers_id_seq'::regclass),
-    flip_id           bigint                                             NOT NULL,
-    epoch_identity_id bigint                                             NOT NULL,
-    is_short          boolean                                            NOT NULL,
-    answer            character varying(20) COLLATE pg_catalog."default" NOT NULL,
-    wrong_words       boolean                                            NOT NULL,
-    point             real                                               NOT NULL,
+    id                bigint   NOT NULL DEFAULT nextval('answers_id_seq'::regclass),
+    flip_id           bigint   NOT NULL,
+    epoch_identity_id bigint   NOT NULL,
+    is_short          boolean  NOT NULL,
+    answer            smallint NOT NULL,
+    wrong_words       boolean  NOT NULL,
+    point             real     NOT NULL,
     CONSTRAINT answers_pkey PRIMARY KEY (id),
     CONSTRAINT answers_epoch_identity_id_fkey FOREIGN KEY (epoch_identity_id)
         REFERENCES epoch_identities (id) MATCH SIMPLE
@@ -670,6 +709,10 @@ CREATE TABLE IF NOT EXISTS answers
         ON DELETE NO ACTION,
     CONSTRAINT answers_flip_id_fkey FOREIGN KEY (flip_id)
         REFERENCES flips (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT answers_answer_fkey FOREIGN KEY (answer)
+        REFERENCES dic_answers (id) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION
 )

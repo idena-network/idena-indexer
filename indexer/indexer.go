@@ -41,13 +41,6 @@ const (
 )
 
 var (
-	answers = map[types.Answer]string{
-		0: "None",
-		1: "Left",
-		2: "Right",
-		3: "Inappropriate",
-	}
-
 	blockFlags = map[types.BlockFlag]string{
 		types.IdentityUpdate:          "IdentityUpdate",
 		types.FlipLotteryStarted:      "FlipLotteryStarted",
@@ -499,11 +492,8 @@ func convertFlipStatus(status ceremony.FlipStatus) byte {
 	return byte(status)
 }
 
-func convertAnswer(answer types.Answer) string {
-	if res, ok := answers[answer]; ok {
-		return res
-	}
-	return fmt.Sprintf("Unknown answer %d", answer)
+func convertAnswer(answer types.Answer) byte {
+	return byte(answer)
 }
 
 func convertStatsAnswers(incomingAnswers []statsTypes.FlipAnswerStats) []db.Answer {

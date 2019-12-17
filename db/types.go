@@ -137,13 +137,13 @@ type FlipStats struct {
 	ShortAnswers []Answer
 	LongAnswers  []Answer
 	Status       byte
-	Answer       string
+	Answer       byte
 	WrongWords   bool
 }
 
 type Answer struct {
 	Address    string
-	Answer     string
+	Answer     byte
 	WrongWords bool
 	Point      float32
 }

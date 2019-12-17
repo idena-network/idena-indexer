@@ -1,8 +1,8 @@
 select f.cid,
        ''                             address,
-       a.answer,
+       ida.name                       resp_answer,
        a.wrong_words,
-       coalesce(f.answer, ''),
+       coalesce(fda.name, '')         flip_answer,
        COALESCE(f.wrong_words, false) wrongWords,
        coalesce(dfs.name, '')         status,
        a.point
@@ -12,6 +12,8 @@ from answers a
          join address_states s on s.id = ei.address_state_id
          join addresses ad on ad.id = s.address_id
          left join dic_flip_statuses dfs on dfs.id = f.status
+         left join dic_answers fda on fda.id = f.answer
+         join dic_answers ida on ida.id = a.answer
 where ei.epoch = $1
   and lower(ad.address) = lower($2)
   and a.is_short = $3
