@@ -136,7 +136,7 @@ type FlipStats struct {
 	Cid          string
 	ShortAnswers []Answer
 	LongAnswers  []Answer
-	Status       string
+	Status       byte
 	Answer       string
 	WrongWords   bool
 }

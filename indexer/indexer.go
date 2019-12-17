@@ -41,13 +41,6 @@ const (
 )
 
 var (
-	flipStatuses = map[ceremony.FlipStatus]string{
-		ceremony.NotQualified:    "NotQualified",
-		ceremony.Qualified:       "Qualified",
-		ceremony.WeaklyQualified: "WeaklyQualified",
-		ceremony.QualifiedByNone: "QualifiedByNone",
-	}
-
 	answers = map[types.Answer]string{
 		0: "None",
 		1: "Left",
@@ -502,11 +495,8 @@ func convertIdentityState(state state.IdentityState) uint8 {
 	return uint8(state)
 }
 
-func convertFlipStatus(status ceremony.FlipStatus) string {
-	if res, ok := flipStatuses[status]; ok {
-		return res
-	}
-	return fmt.Sprintf("Unknown status %d", status)
+func convertFlipStatus(status ceremony.FlipStatus) byte {
+	return byte(status)
 }
 
 func convertAnswer(answer types.Answer) string {

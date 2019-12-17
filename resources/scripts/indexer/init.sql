@@ -121,6 +121,37 @@ INSERT INTO dic_tx_types
 values (13, 'ChangeProfileTx')
 ON CONFLICT DO NOTHING;
 
+-- Table: dic_flips_statuses
+
+-- DROP TABLE dic_flips_statuses;
+
+CREATE TABLE IF NOT EXISTS dic_flip_statuses
+(
+    id   smallint                                           NOT NULL,
+    name character varying(20) COLLATE pg_catalog."default" NOT NULL,
+    CONSTRAINT dic_flip_statuses_pkey PRIMARY KEY (id)
+)
+    WITH (
+        OIDS = FALSE
+    )
+    TABLESPACE pg_default;
+
+ALTER TABLE dic_flip_statuses
+    OWNER to postgres;
+
+INSERT INTO dic_flip_statuses
+values (0, 'NotQualified')
+ON CONFLICT DO NOTHING;
+INSERT INTO dic_flip_statuses
+values (1, 'Qualified')
+ON CONFLICT DO NOTHING;
+INSERT INTO dic_flip_statuses
+values (2, 'WeaklyQualified')
+ON CONFLICT DO NOTHING;
+INSERT INTO dic_flip_statuses
+values (3, 'QualifiedByNone')
+ON CONFLICT DO NOTHING;
+
 -- Table: epochs
 
 -- DROP TABLE epochs;
@@ -542,7 +573,7 @@ CREATE TABLE IF NOT EXISTS flips
     status_block_height bigint,
     answer              character varying(20) COLLATE pg_catalog."default",
     wrong_words         boolean,
-    status              character varying(20) COLLATE pg_catalog."default",
+    status              smallint,
     CONSTRAINT flips_pkey PRIMARY KEY (id),
     CONSTRAINT flips_status_block_height_fkey FOREIGN KEY (status_block_height)
         REFERENCES blocks (height) MATCH SIMPLE
@@ -550,6 +581,10 @@ CREATE TABLE IF NOT EXISTS flips
         ON DELETE NO ACTION,
     CONSTRAINT flips_tx_id_fkey FOREIGN KEY (tx_id)
         REFERENCES transactions (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT flips_status_fkey FOREIGN KEY (status)
+        REFERENCES dic_flip_statuses (id) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION
 )

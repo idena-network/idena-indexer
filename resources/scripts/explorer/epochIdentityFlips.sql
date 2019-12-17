@@ -2,7 +2,7 @@ select f.Cid,
        f.Size,
        a.address                      author,
        b.epoch,
-       COALESCE(f.Status, '')         status,
+       COALESCE(dfs.name, '')         status,
        COALESCE(f.Answer, '')         answer,
        COALESCE(f.wrong_words, false) wrongWords,
        COALESCE(ww.cnt, 0)            wrong_words_votes,
@@ -35,6 +35,7 @@ from flips f
          left join flip_words fw on fw.flip_id = f.id
          left join words_dictionary wd1 on wd1.id = fw.word_1
          left join words_dictionary wd2 on wd2.id = fw.word_2
+         left join dic_flip_statuses dfs on dfs.id = f.status
 where b.epoch = $1
   and lower(a.address) = lower($2)
 order by t.id desc

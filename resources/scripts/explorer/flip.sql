@@ -4,7 +4,7 @@ select a.address                      author,
        coalesce(f.answer, '')         answer,
        COALESCE(f.wrong_words, false) wrongWords,
        COALESCE(ww.cnt, 0)            wrong_words_votes,
-       coalesce(f.status, '')         status,
+       COALESCE(dfs.name, '')         status,
        t.hash                         tx_hash,
        b.hash                         block_hash,
        b.height                       block_height,
@@ -28,4 +28,5 @@ from flips f
                       and a.wrong_words
                     group by a.flip_id) ww
                    on ww.flip_id = f.id
+         left join dic_flip_statuses dfs on dfs.id = f.status
 where LOWER(f.cid) = LOWER($1)
