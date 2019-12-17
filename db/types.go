@@ -109,7 +109,7 @@ type Transaction struct {
 
 type EpochIdentity struct {
 	Address              string
-	State                string
+	State                uint8
 	ShortPoint           float32
 	ShortFlips           uint32
 	TotalShortPoint      float32
@@ -184,8 +184,8 @@ type Address struct {
 }
 
 type AddressStateChange struct {
-	PrevState string
-	NewState  string
+	PrevState uint8
+	NewState  uint8
 	TxHash    string
 }
 

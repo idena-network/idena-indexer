@@ -17,5 +17,6 @@ from (select sum(ei.short_point)       short_point,
         and s.block_height >= (select coalesce(max(block_height), 0)
                                from address_states s
                                where s.address_id = a.id
-                                 and s.state = 'Candidate')
+                                 -- 'Candidate'
+                                 and s.state = 2)
       group by s.address_id) a

@@ -1,7 +1,7 @@
 select a.address,
        eis.epoch,
-       eis.state,
-       coalesce(prevs.state, '')      prev_state,
+       dis.name                       state,
+       coalesce(prevdis.name, '')     prev_state,
        coalesce(ei.approved, false),
        coalesce(ei.missed, false),
        coalesce(ei.short_point, 0),
@@ -16,8 +16,10 @@ from epoch_identity_states eis
          join addresses a on a.id = eis.address_id
          left join address_states prevs on prevs.id = eis.prev_id
          left join epoch_identities ei on ei.epoch = eis.epoch and ei.address_state_id = eis.address_state_id
+         join dic_identity_states dis on dis.id = eis.state
+         left join dic_identity_states prevdis on prevdis.id = prevs.state
 where eis.epoch = $1
-  and ($2::text[] is null or eis.state = any ($2::text[]))
+  and ($2::smallint[] is null or eis.state = any ($2::smallint[]))
 limit $4
 offset
 $3

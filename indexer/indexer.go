@@ -41,17 +41,6 @@ const (
 )
 
 var (
-	identityStates = map[state.IdentityState]string{
-		state.Invite:    "Invite",
-		state.Candidate: "Candidate",
-		state.Newbie:    "Newbie",
-		state.Verified:  "Verified",
-		state.Suspended: "Suspended",
-		state.Zombie:    "Zombie",
-		state.Killed:    "Killed",
-		state.Undefined: "Undefined",
-	}
-
 	txTypes = map[types.TxType]string{
 		types.SendTx:               "SendTx",
 		types.ActivationTx:         "ActivationTx",
@@ -529,11 +518,8 @@ func convertTxType(txType types.TxType) string {
 	return fmt.Sprintf("Unknown tx type %d", txType)
 }
 
-func convertIdentityState(state state.IdentityState) string {
-	if res, ok := identityStates[state]; ok {
-		return res
-	}
-	return fmt.Sprintf("Unknown state %d", state)
+func convertIdentityState(state state.IdentityState) uint8 {
+	return uint8(state)
 }
 
 func convertFlipStatus(status ceremony.FlipStatus) string {

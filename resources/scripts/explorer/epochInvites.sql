@@ -4,7 +4,7 @@ select t.Hash                    invite_hash,
        coalesce(at.Hash, '')     activation_hash,
        coalesce(aa.address, '')  activation_author,
        coalesce(ab.timestamp, 0) activation_timestamp,
-       coalesce(eis.state, '')     state
+       coalesce(dis.name, '')    state
 from transactions t
          join addresses a on a.id = t.from
          join blocks b on b.height = t.block_height
@@ -16,6 +16,7 @@ from transactions t
                     from epoch_identities ei
                              join address_states s on s.id = ei.address_state_id) eis
                    on eis.address_id = at.to and b.epoch = eis.epoch
+         left join dic_identity_states dis on dis.id = eis.state
 where t.type = 'InviteTx'
   and b.epoch = $1
 order by b.height desc

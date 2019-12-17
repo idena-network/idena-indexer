@@ -17,6 +17,49 @@ CREATE TABLE IF NOT EXISTS words_dictionary
 ALTER TABLE words_dictionary
     OWNER to postgres;
 
+-- Table: identity_states_dictionary
+
+-- DROP TABLE identity_states_dictionary;
+
+CREATE TABLE IF NOT EXISTS dic_identity_states
+(
+    id   smallint                                           NOT NULL,
+    name character varying(20) COLLATE pg_catalog."default" NOT NULL,
+    CONSTRAINT dic_identity_states_pkey PRIMARY KEY (id)
+)
+    WITH (
+        OIDS = FALSE
+    )
+    TABLESPACE pg_default;
+
+ALTER TABLE dic_identity_states
+    OWNER to postgres;
+
+INSERT INTO dic_identity_states
+values (0, 'Undefined')
+ON CONFLICT DO NOTHING;
+INSERT INTO dic_identity_states
+values (1, 'Invite')
+ON CONFLICT DO NOTHING;
+INSERT INTO dic_identity_states
+values (2, 'Candidate')
+ON CONFLICT DO NOTHING;
+INSERT INTO dic_identity_states
+values (3, 'Verified')
+ON CONFLICT DO NOTHING;
+INSERT INTO dic_identity_states
+values (4, 'Suspended')
+ON CONFLICT DO NOTHING;
+INSERT INTO dic_identity_states
+values (5, 'Killed')
+ON CONFLICT DO NOTHING;
+INSERT INTO dic_identity_states
+values (6, 'Zombie')
+ON CONFLICT DO NOTHING;
+INSERT INTO dic_identity_states
+values (7, 'Newbie')
+ON CONFLICT DO NOTHING;
+
 -- Table: epochs
 
 -- DROP TABLE epochs;
@@ -317,16 +360,20 @@ ALTER SEQUENCE address_states_id_seq
 
 CREATE TABLE IF NOT EXISTS address_states
 (
-    id           bigint                                             NOT NULL DEFAULT nextval('address_states_id_seq'::regclass),
-    address_id   bigint                                             NOT NULL,
-    state        character varying(20) COLLATE pg_catalog."default" NOT NULL,
-    is_actual    boolean                                            NOT NULL,
-    block_height bigint                                             NOT NULL,
+    id           bigint   NOT NULL DEFAULT nextval('address_states_id_seq'::regclass),
+    address_id   bigint   NOT NULL,
+    state        smallint NOT NULL,
+    is_actual    boolean  NOT NULL,
+    block_height bigint   NOT NULL,
     tx_id        bigint,
     prev_id      bigint,
     CONSTRAINT address_states_pkey PRIMARY KEY (id),
     CONSTRAINT address_states_address_id_fkey FOREIGN KEY (address_id)
         REFERENCES addresses (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT address_states_state_fkey FOREIGN KEY (state)
+        REFERENCES dic_identity_states (id) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION,
     CONSTRAINT address_states_block_height_fkey FOREIGN KEY (block_height)
@@ -1166,7 +1213,8 @@ WHERE s.is_actual
   AND ti.address_id IS NULL
   AND ei.address_state_id IS NULL
   AND NOT (b.epoch <> max_epoch.epoch AND (s.state::text = ANY
-                                           (ARRAY ['Undefined'::character varying, 'Killed'::character varying]::text[])));
+    -- 'Undefined', 'Killed'
+                                           (ARRAY [0::smallint, 5::smallint]::text[])));
 
 ALTER TABLE epoch_identity_states
     OWNER TO postgres;
@@ -1199,59 +1247,60 @@ SELECT e.epoch,
                                                       JOIN address_states s ON s.id = ei.address_state_id
                                              WHERE ei.epoch = e.epoch
                                                AND (s.state::text = ANY
-                                                    (ARRAY ['Verified'::character varying, 'Newbie'::character varying]::text[])))) AS validated_count,
+                                                 -- 'Verified', 'Newbie'
+                                                    (ARRAY [3::smallint, 7::smallint]::text[])))) AS validated_count,
        COALESCE(es.block_count, (SELECT count(*) AS count
                                  FROM blocks b
-                                 WHERE b.epoch = e.epoch))                                                                          AS block_count,
+                                 WHERE b.epoch = e.epoch))                                        AS block_count,
        COALESCE(es.empty_block_count, (SELECT count(*) AS count
                                        FROM blocks b
                                        WHERE b.epoch = e.epoch
-                                         and b.is_empty))                                                                           AS empty_block_count,
+                                         and b.is_empty))                                         AS empty_block_count,
        COALESCE(es.tx_count, (SELECT count(*) AS count
                               FROM transactions t,
                                    blocks b
                               WHERE t.block_height = b.height
-                                AND b.epoch = e.epoch))                                                                             AS tx_count,
+                                AND b.epoch = e.epoch))                                           AS tx_count,
        COALESCE(es.invite_count, (SELECT count(*) AS count
                                   FROM transactions t,
                                        blocks b
                                   WHERE t.block_height = b.height
                                     AND b.epoch = e.epoch
-                                    AND t.type::text = 'InviteTx'::text))                                                           AS invite_count,
+                                    AND t.type::text = 'InviteTx'::text))                         AS invite_count,
        COALESCE(es.flip_count::bigint, (SELECT count(*) AS count
                                         FROM flips f,
                                              transactions t,
                                              blocks b
                                         WHERE f.tx_id = t.id
                                           AND t.block_height = b.height
-                                          AND b.epoch = e.epoch))                                                                   AS flip_count,
+                                          AND b.epoch = e.epoch))                                 AS flip_count,
        COALESCE(es.burnt, (SELECT COALESCE(sum(c.burnt), 0::numeric) AS "coalesce"
                            FROM coins c
                                     JOIN blocks b ON b.height = c.block_height
-                           WHERE b.epoch = e.epoch))                                                                                AS burnt,
+                           WHERE b.epoch = e.epoch))                                              AS burnt,
        COALESCE(es.minted, (SELECT COALESCE(sum(c.minted), 0::numeric) AS "coalesce"
                             FROM coins c
                                      JOIN blocks b ON b.height = c.block_height
-                            WHERE b.epoch = e.epoch))                                                                               AS minted,
+                            WHERE b.epoch = e.epoch))                                             AS minted,
        COALESCE(es.total_balance, (SELECT c.total_balance
                                    FROM coins c
                                             JOIN blocks b ON b.height = c.block_height
                                    WHERE b.epoch = e.epoch
                                    ORDER BY c.block_height DESC
-                                   LIMIT 1))                                                                                        AS total_balance,
+                                   LIMIT 1))                                                      AS total_balance,
        COALESCE(es.total_stake, (SELECT c.total_stake
                                  FROM coins c
                                           JOIN blocks b ON b.height = c.block_height
                                  WHERE b.epoch = e.epoch
                                  ORDER BY c.block_height DESC
-                                 LIMIT 1))                                                                                          AS total_stake,
-       e.validation_time                                                                                                               validation_time,
-       coalesce(trew.total, 0)                                                                                                         total_reward,
-       coalesce(trew.validation, 0)                                                                                                    validation_reward,
-       coalesce(trew.flips, 0)                                                                                                         flips_reward,
-       coalesce(trew.invitations, 0)                                                                                                   invitations_reward,
-       coalesce(trew.foundation, 0)                                                                                                    foundation_payout,
-       coalesce(trew.zero_wallet, 0)                                                                                                   zero_wallet_payout
+                                 LIMIT 1))                                                        AS total_stake,
+       e.validation_time                                                                             validation_time,
+       coalesce(trew.total, 0)                                                                       total_reward,
+       coalesce(trew.validation, 0)                                                                  validation_reward,
+       coalesce(trew.flips, 0)                                                                       flips_reward,
+       coalesce(trew.invitations, 0)                                                                 invitations_reward,
+       coalesce(trew.foundation, 0)                                                                  foundation_payout,
+       coalesce(trew.zero_wallet, 0)                                                                 zero_wallet_payout
 FROM epochs e
          LEFT JOIN epoch_summaries es ON es.epoch = e.epoch
          left join (select b.epoch,

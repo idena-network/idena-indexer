@@ -22,7 +22,8 @@ from (select lr.address_id,
                           from address_states s
                                    join addresses a on a.id = s.address_id
                           where is_actual
-                            and "state" in ('Verified', 'Newbie')) identities on identities.id = tlr.address_id
+                            -- 'Verified', 'Newbie'
+                            and "state" in (3, 7)) identities on identities.id = tlr.address_id
 order by tlr.balance + tlr.stake desc nulls last
 limit $3
 offset
