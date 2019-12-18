@@ -24,7 +24,7 @@ const (
 type Stats struct {
 	ValidationStats      *statsTypes.ValidationStats
 	RewardsStats         *RewardsStats
-	MiningRewards        []*db.Reward
+	MiningRewards        []*db.MiningReward
 	FinalCommittee       []common.Address
 	BurntPenaltiesByAddr map[common.Address]*big.Int
 	BurntCoins           *big.Int

@@ -40,7 +40,7 @@ type Data struct {
 	Penalty           *Penalty
 	BurntPenalties    []Penalty
 	EpochRewards      *EpochRewards
-	MiningRewards     []*Reward
+	MiningRewards     []*MiningReward
 	BurntCoinsPerAddr map[common.Address][]*BurntCoins
 	FailedValidation  bool
 }
@@ -68,6 +68,13 @@ type Reward struct {
 	Balance decimal.Decimal
 	Stake   decimal.Decimal
 	Type    string
+}
+
+type MiningReward struct {
+	Address  string
+	Balance  decimal.Decimal
+	Stake    decimal.Decimal
+	Proposer bool
 }
 
 type ValidationResult struct {

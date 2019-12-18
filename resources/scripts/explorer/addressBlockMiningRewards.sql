@@ -2,7 +2,7 @@ select mr.block_height,
        b.epoch,
        mr.balance,
        mr.stake,
-       mr.type
+       (case when mr.proposer then 'Proposer' else 'FinalCommittee' end) "type"
 from mining_rewards mr
          join (select distinct mr.block_height, mr.address_id
                from mining_rewards mr

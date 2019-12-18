@@ -39,12 +39,6 @@ func (a *postgresAccessor) getQuery(name string) string {
 }
 
 func (a *postgresAccessor) MigrateTo(height uint64) error {
-	tx, err := a.db.Begin()
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-
 	migrationScript := strings.ReplaceAll(a.getQuery(migrateQuery), "OLD_SCHEMA_TAG", a.oldSchema)
 	queries := strings.Split(migrationScript, ";")
 	for _, query := range queries {
@@ -53,15 +47,15 @@ func (a *postgresAccessor) MigrateTo(height uint64) error {
 		}
 		var err error
 		if strings.Contains(query, "$1") {
-			_, err = tx.Exec(query, height)
+			_, err = a.db.Exec(query, height)
 		} else {
-			_, err = tx.Exec(query)
+			_, err = a.db.Exec(query)
 		}
 		if err != nil {
 			return errors.Wrapf(err, "unable to migrate data from schema %s, query: %s", a.oldSchema, query)
 		}
 	}
-	return tx.Commit()
+	return nil
 }
 
 func (a *postgresAccessor) Destroy() {

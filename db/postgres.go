@@ -971,7 +971,7 @@ func (a *postgresAccessor) saveFundReward(ctx *context, reward *Reward) error {
 	return errors.Wrapf(err, "unable to save fund reward: %v", reward)
 }
 
-func (a *postgresAccessor) saveMiningRewards(ctx *context, rewards []*Reward) error {
+func (a *postgresAccessor) saveMiningRewards(ctx *context, rewards []*MiningReward) error {
 	if len(rewards) == 0 {
 		return nil
 	}

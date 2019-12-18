@@ -274,7 +274,7 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) *result 
 		Penalty:           detectChargedPenalty(incomingBlock, ctx.newStateReadOnly),
 		BurntPenalties:    convertBurntPenalties(indexer.statsHolder().GetStats().BurntPenaltiesByAddr),
 		EpochRewards:      indexer.detectEpochRewards(incomingBlock),
-		MiningRewards:     indexer.detectMiningRewards(incomingBlock),
+		MiningRewards:     indexer.statsHolder().GetStats().MiningRewards,
 		BurntCoinsPerAddr: indexer.statsHolder().GetStats().BurntCoinsByAddr,
 		FailedValidation:  !notFailedValidation,
 	}

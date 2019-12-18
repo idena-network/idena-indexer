@@ -3,7 +3,7 @@ select a.address,
        mr.block_height,
        mr.balance,
        mr.stake,
-       mr.type
+       (case when mr.proposer then 'Proposer' else 'FinalCommittee' end) "type"
 from mining_rewards mr
          join addresses a on a.id = mr.address_id
          join blocks b on b.height = mr.block_height

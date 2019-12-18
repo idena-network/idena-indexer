@@ -20,10 +20,6 @@ var rewardTypes = map[stats.RewardType]string{
 	stats.ZeroWalletFund:    "ZeroWalletFund",
 }
 
-func (indexer *Indexer) detectMiningRewards(block *types.Block) []*db.Reward {
-	return indexer.statsHolder().GetStats().MiningRewards
-}
-
 func (indexer *Indexer) detectEpochRewards(block *types.Block) *db.EpochRewards {
 	if !block.Header.Flags().HasFlag(types.ValidationFinished) {
 		return nil

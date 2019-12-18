@@ -15,11 +15,6 @@ import (
 	"math/big"
 )
 
-const (
-	proposerReward       = "Proposer"
-	finalCommitteeReward = "FinalCommittee"
-)
-
 type statsCollector struct {
 	stats                          *Stats
 	invitationRewardsByAddrAndType map[common.Address]map[RewardType]*RewardStats
@@ -159,20 +154,20 @@ func (c *statsCollector) increaseInvitationRewardIfExists(rewardsStats *RewardSt
 }
 
 func (c *statsCollector) AddProposerReward(addr common.Address, balance *big.Int, stake *big.Int) {
-	c.addMiningReward(addr, balance, stake, proposerReward)
+	c.addMiningReward(addr, balance, stake, true)
 }
 
 func (c *statsCollector) AddFinalCommitteeReward(addr common.Address, balance *big.Int, stake *big.Int) {
-	c.addMiningReward(addr, balance, stake, finalCommitteeReward)
+	c.addMiningReward(addr, balance, stake, false)
 	c.stats.FinalCommittee = append(c.stats.FinalCommittee, addr)
 }
 
-func (c *statsCollector) addMiningReward(addr common.Address, balance *big.Int, stake *big.Int, rType string) {
-	c.stats.MiningRewards = append(c.stats.MiningRewards, &db.Reward{
-		Address: conversion.ConvertAddress(addr),
-		Balance: blockchain.ConvertToFloat(balance),
-		Stake:   blockchain.ConvertToFloat(stake),
-		Type:    rType,
+func (c *statsCollector) addMiningReward(addr common.Address, balance *big.Int, stake *big.Int, isProposerReward bool) {
+	c.stats.MiningRewards = append(c.stats.MiningRewards, &db.MiningReward{
+		Address:  conversion.ConvertAddress(addr),
+		Balance:  blockchain.ConvertToFloat(balance),
+		Stake:    blockchain.ConvertToFloat(stake),
+		Proposer: isProposerReward,
 	})
 }
 

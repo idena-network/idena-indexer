@@ -389,11 +389,11 @@ ALTER TABLE block_proposer_vrf_scores
 
 CREATE TABLE IF NOT EXISTS mining_rewards
 (
-    address_id   bigint                                             NOT NULL,
-    block_height bigint                                             NOT NULL,
-    balance      numeric(30, 18)                                    NOT NULL,
-    stake        numeric(30, 18)                                    NOT NULL,
-    type         character varying(20) COLLATE pg_catalog."default" NOT NULL,
+    address_id   bigint          NOT NULL,
+    block_height bigint          NOT NULL,
+    balance      numeric(30, 18) NOT NULL,
+    stake        numeric(30, 18) NOT NULL,
+    proposer     boolean         NOT NULL,
     CONSTRAINT mining_rewards_address_id_fkey FOREIGN KEY (address_id)
         REFERENCES addresses (id) MATCH SIMPLE
         ON UPDATE NO ACTION
@@ -1470,7 +1470,7 @@ $$
             address character(42),
             balance numeric(30, 18),
             stake numeric(30, 18),
-            type character varying(20)
+            proposer boolean
             );
 
         ALTER TYPE tp_mining_reward
@@ -1530,9 +1530,9 @@ BEGIN
     for i in 1..cardinality(mr)
         loop
             mr_row = mr[i];
-            insert into mining_rewards (address_id, block_height, balance, stake, type)
+            insert into mining_rewards (address_id, block_height, balance, stake, proposer)
             values ((select id from addresses where lower(address) = lower(mr_row.address)), height,
-                    mr_row.balance, mr_row.stake, mr_row.type);
+                    mr_row.balance, mr_row.stake, mr_row.proposer);
         end loop;
 END
 $BODY$;
