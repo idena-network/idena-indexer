@@ -9,8 +9,8 @@ require (
 	github.com/go-stack/stack v1.8.0
 	github.com/gorilla/handlers v1.4.2
 	github.com/gorilla/mux v1.7.3
-	github.com/idena-network/idena-go v0.14.5-0.20191211143245-f4fb8cc68fc5
-	github.com/ipfs/go-cid v0.0.3
+	github.com/idena-network/idena-go v0.15.1-0.20191219162012-b31a9c8fa62a
+	github.com/ipfs/go-cid v0.0.4
 	github.com/lib/pq v1.1.1
 	github.com/pkg/errors v0.8.1
 	github.com/shopspring/decimal v0.0.0-20180709203117-cd690d0c9e24
