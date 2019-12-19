@@ -1,3 +1,0 @@
-SELECT ID
-FROM ADDRESSES
-WHERE lower(ADDRESS) = lower($1)

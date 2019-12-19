@@ -35,7 +35,7 @@ values ($1,
               blocks b
          where t.block_height = b.height
            and b.epoch = $1
-           and t.type = 'InviteTx'),
+           and t.type = (select id from dic_tx_types where name='InviteTx')),
         (select count(*)
          from flips f,
               transactions t,

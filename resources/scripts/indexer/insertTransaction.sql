@@ -1,3 +1,0 @@
-INSERT INTO TRANSACTIONS (HASH, BLOCK_HEIGHT, "type", "from", "to", AMOUNT, TIPS, MAX_FEE, FEE, SIZE)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-RETURNING id

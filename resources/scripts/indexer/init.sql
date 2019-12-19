@@ -1421,8 +1421,10 @@ SELECT DISTINCT ON (b.epoch, it."to") it.id AS invite_tx_id,
 FROM transactions t
          JOIN blocks b ON b.height = t.block_height
          JOIN blocks ib ON ib.epoch = b.epoch AND ib.height < b.height
-         JOIN transactions it ON it.block_height = ib.height AND it.type::text = 'InviteTx'::text AND it."to" = t."from"
-WHERE t.type::text = 'ActivationTx'::text
+         JOIN transactions it ON it.block_height = ib.height AND
+                                 it.type = 2 AND -- 'InviteTx'
+                                 it."to" = t."from"
+WHERE t.type = 1 -- 'ActivationTx'
 ORDER BY b.epoch, it."to", ib.height DESC;
 
 ALTER TABLE used_invites
@@ -1458,7 +1460,7 @@ SELECT e.epoch,
                                        blocks b
                                   WHERE t.block_height = b.height
                                     AND b.epoch = e.epoch
-                                    AND t.type::text = 'InviteTx'::text))                         AS invite_count,
+                                    AND t.type = 2))                                              AS invite_count,
        COALESCE(es.flip_count::bigint, (SELECT count(*) AS count
                                         FROM flips f,
                                              transactions t,
@@ -1529,10 +1531,10 @@ $$
     END
 $$;
 
--- Type: tp_burnt_coins
 DO
 $$
     BEGIN
+        -- Type: tp_burnt_coins
         CREATE TYPE tp_burnt_coins AS
             (
             address character(42),
@@ -1548,7 +1550,6 @@ $$
     END
 $$;
 
--- Types
 DO
 $$
     BEGIN
@@ -1561,6 +1562,82 @@ $$
             );
 
         ALTER TYPE tp_balance
+            OWNER TO postgres;
+    EXCEPTION
+        WHEN duplicate_object THEN null;
+    END
+$$;
+
+DO
+$$
+    BEGIN
+        -- Type: tp_tx
+        CREATE TYPE tp_tx AS
+            (
+            hash character(66),
+            type smallint,
+            "from" character(42),
+            "to" character(42),
+            amount numeric(30, 18),
+            tips numeric(30, 18),
+            max_fee numeric(30, 18),
+            fee numeric(30, 18),
+            size integer
+            );
+
+        ALTER TYPE tp_tx
+            OWNER TO postgres;
+    EXCEPTION
+        WHEN duplicate_object THEN null;
+    END
+$$;
+
+DO
+$$
+    BEGIN
+        -- Type: tp_tx_hash_id
+        CREATE TYPE tp_tx_hash_id AS
+            (
+            hash character(66),
+            id bigint
+            );
+
+        ALTER TYPE tp_tx_hash_id
+            OWNER TO postgres;
+    EXCEPTION
+        WHEN duplicate_object THEN null;
+    END
+$$;
+
+DO
+$$
+    BEGIN
+        -- Type: tp_address
+        CREATE TYPE tp_address AS
+            (
+            address character(42),
+            is_temporary boolean
+            );
+
+        ALTER TYPE tp_address
+            OWNER TO postgres;
+    EXCEPTION
+        WHEN duplicate_object THEN null;
+    END
+$$;
+
+DO
+$$
+    BEGIN
+        -- Type: tp_address_state_change
+        CREATE TYPE tp_address_state_change AS
+            (
+            address character(42),
+            new_state smallint,
+            tx_hash character(66)
+            );
+
+        ALTER TYPE tp_address_state_change
             OWNER TO postgres;
     EXCEPTION
         WHEN duplicate_object THEN null;
@@ -1621,16 +1698,98 @@ CREATE OR REPLACE PROCEDURE save_balances(b tp_balance[])
 AS
 $BODY$
 DECLARE
-    b_row        tp_balance;
-    l_address_id bigint;
+    b_row tp_balance;
 BEGIN
     for i in 1..cardinality(b)
         loop
             b_row = b[i];
-            select id into l_address_id from addresses where lower(address) = lower(b_row.address);
             insert into balances (address_id, balance, stake)
-            values (l_address_id, b_row.balance, b_row.stake)
+            values ((select id from addresses where lower(address) = lower(b_row.address)),
+                    b_row.balance, b_row.stake)
             on conflict (address_id) do update set balance=b_row.balance, stake=b_row.stake;
         end loop;
+END
+$BODY$;
+
+-- PROCEDURE: save_addrs_and_txs
+CREATE OR REPLACE FUNCTION save_addrs_and_txs(height bigint,
+                                              addresses tp_address[],
+                                              txs tp_tx[],
+                                              address_state_changes tp_address_state_change[])
+    RETURNS tp_tx_hash_id[]
+    LANGUAGE 'plpgsql'
+AS
+$BODY$
+DECLARE
+    l_address_id             bigint;
+    address_row              tp_address;
+    address_state_change_row tp_address_state_change;
+    l_prev_state_id          bigint;
+    tx                       tp_tx;
+    l_tx_id                  bigint;
+    l_to                     bigint;
+    res                      tp_tx_hash_id[];
+BEGIN
+    for i in 1..cardinality(addresses)
+        loop
+            address_row = addresses[i];
+            select id
+            into l_address_id
+            from addresses
+            where lower(address) = lower(address_row.address);
+
+            if l_address_id is null then
+                insert into addresses (address, block_height)
+                values (address_row.address, height)
+                returning id into l_address_id;
+            end if;
+
+            if address_row.is_temporary then
+                insert into temporary_identities (address_id, block_height)
+                values (l_address_id, height);
+            end if;
+        end loop;
+
+    if txs is not null then
+        for i in 1..cardinality(txs)
+            loop
+                tx = txs[i];
+                l_to = null;
+                IF char_length(tx."to") > 0 THEN
+                    select id into l_to from addresses where lower(address) = lower(tx."to");
+                end if;
+                INSERT INTO TRANSACTIONS (HASH, BLOCK_HEIGHT, type, "from", "to", AMOUNT, TIPS, MAX_FEE, FEE, SIZE)
+                VALUES (tx.hash, height, tx.type,
+                        (select id from addresses where lower(address) = lower(tx."from")),
+                        l_to, tx.amount, tx.tips, tx.max_fee, tx.fee, tx.size)
+                RETURNING id into l_tx_id;
+                res = array_append(res, (tx.hash, l_tx_id)::tp_tx_hash_id);
+            end loop;
+    end if;
+
+    if address_state_changes is not null then
+        for i in 1..cardinality(address_state_changes)
+            loop
+                address_state_change_row := address_state_changes[i];
+
+                select id
+                into l_address_id
+                from addresses
+                where lower(address) = lower(address_state_change_row.address);
+
+                update address_states
+                set is_actual = false
+                where address_id = l_address_id
+                  and is_actual
+                returning id into l_prev_state_id;
+
+                insert into address_states (address_id, state, is_actual, block_height, tx_id, prev_id)
+                values (l_address_id, address_state_change_row.new_state, true, height,
+                        (select id from transactions where lower(hash) = lower(address_state_change_row.tx_hash)),
+                        l_prev_state_id);
+            end loop;
+    end if;
+
+    return res;
 END
 $BODY$;

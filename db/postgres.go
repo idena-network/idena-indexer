@@ -23,58 +23,53 @@ type postgresAccessor struct {
 }
 
 const (
-	initQuery                        = "init.sql"
-	maxHeightQuery                   = "maxHeight.sql"
-	currentFlipsQuery                = "currentFlips.sql"
-	currentFlipCidsWithoutDataQuery  = "currentFlipCidsWithoutData.sql"
-	updateFlipStateQuery             = "updateFlipState.sql"
-	insertFlipDataQuery              = "insertFlipData.sql"
-	flipDataCountQuery               = "flipDataCount.sql"
-	updateFlipSizeQuery              = "updateFlipSize.sql"
-	insertFlipPicQuery               = "insertFlipPic.sql"
-	insertFlipIconQuery              = "insertFlipIcon.sql"
-	insertFlipPicOrderQuery          = "insertFlipPicOrder.sql"
-	insertAnswersQuery               = "insertAnswers.sql"
-	insertBlockQuery                 = "insertBlock.sql"
-	insertBlockProposerQuery         = "insertBlockProposer.sql"
-	insertBlockProposerVrfScoreQuery = "insertBlockProposerVrfScore.sql"
-	selectIdentityQuery              = "selectIdentity.sql"
-	selectFlipQuery                  = "selectFlip.sql"
-	insertEpochIdentityQuery         = "insertEpochIdentity.sql"
-	insertTransactionQuery           = "insertTransaction.sql"
-	insertSubmittedFlipQuery         = "insertSubmittedFlip.sql"
-	insertFlipKeyQuery               = "insertFlipKey.sql"
-	insertFlipWordsQuery             = "insertFlipWords.sql"
-	flipWordsCountQuery              = "flipWordsCount.sql"
-	selectEpochQuery                 = "selectEpoch.sql"
-	insertEpochQuery                 = "insertEpoch.sql"
-	insertFlipsToSolveQuery          = "insertFlipsToSolve.sql"
-	selectAddressQuery               = "selectAddress.sql"
-	insertAddressQuery               = "insertAddress.sql"
-	insertTemporaryIdentityQuery     = "insertTemporaryIdentity.sql"
-	archiveAddressStateQuery         = "archiveAddressState.sql"
-	insertAddressStateQuery          = "insertAddressState.sql"
-	archiveIdentityStateQuery        = "archiveIdentityState.sql"
-	insertIdentityStateQuery         = "insertIdentityState.sql"
-	resetToBlockQuery                = "resetToBlock.sql"
-	saveBalancesQuery                = "saveBalances.sql"
-	insertBirthdayQuery              = "insertBirthday.sql"
-	updateBirthdayQuery              = "updateBirthday.sql"
-	insertCoinsQuery                 = "insertCoins.sql"
-	insertBlockFlagQuery             = "insertBlockFlag.sql"
-	insertEpochSummaryQuery          = "insertEpochSummary.sql"
-	insertPenaltyQuery               = "insertPenalty.sql"
-	selectLastPenaltyQuery           = "selectLastPenalty.sql"
-	insertPaidPenaltyQuery           = "insertPaidPenalty.sql"
-	insertBadAuthorQuery             = "insertBadAuthor.sql"
-	insertGoodAuthorQuery            = "insertGoodAuthor.sql"
-	insertTotalRewardsQuery          = "insertTotalRewards.sql"
-	insertValidationRewardQuery      = "insertValidationReward.sql"
-	insertRewardAgeQuery             = "insertRewardAge.sql"
-	insertFundRewardQuery            = "insertFundReward.sql"
-	insertFailedValidationQuery      = "insertFailedValidation.sql"
-	insertMiningRewardsQuery         = "insertMiningRewards.sql"
-	insertBurntCoinsQuery            = "insertBurntCoins.sql"
+	initQuery                           = "init.sql"
+	maxHeightQuery                      = "maxHeight.sql"
+	currentFlipsQuery                   = "currentFlips.sql"
+	currentFlipCidsWithoutDataQuery     = "currentFlipCidsWithoutData.sql"
+	updateFlipStateQuery                = "updateFlipState.sql"
+	insertFlipDataQuery                 = "insertFlipData.sql"
+	flipDataCountQuery                  = "flipDataCount.sql"
+	updateFlipSizeQuery                 = "updateFlipSize.sql"
+	insertFlipPicQuery                  = "insertFlipPic.sql"
+	insertFlipIconQuery                 = "insertFlipIcon.sql"
+	insertFlipPicOrderQuery             = "insertFlipPicOrder.sql"
+	insertAnswersQuery                  = "insertAnswers.sql"
+	insertBlockQuery                    = "insertBlock.sql"
+	insertBlockProposerQuery            = "insertBlockProposer.sql"
+	insertBlockProposerVrfScoreQuery    = "insertBlockProposerVrfScore.sql"
+	selectIdentityQuery                 = "selectIdentity.sql"
+	selectFlipQuery                     = "selectFlip.sql"
+	insertEpochIdentityQuery            = "insertEpochIdentity.sql"
+	insertAddressesAndTransactionsQuery = "insertAddressesAndTransactions.sql"
+	insertSubmittedFlipQuery            = "insertSubmittedFlip.sql"
+	insertFlipKeyQuery                  = "insertFlipKey.sql"
+	insertFlipWordsQuery                = "insertFlipWords.sql"
+	flipWordsCountQuery                 = "flipWordsCount.sql"
+	selectEpochQuery                    = "selectEpoch.sql"
+	insertEpochQuery                    = "insertEpoch.sql"
+	insertFlipsToSolveQuery             = "insertFlipsToSolve.sql"
+	archiveIdentityStateQuery           = "archiveIdentityState.sql"
+	insertIdentityStateQuery            = "insertIdentityState.sql"
+	resetToBlockQuery                   = "resetToBlock.sql"
+	saveBalancesQuery                   = "saveBalances.sql"
+	insertBirthdayQuery                 = "insertBirthday.sql"
+	updateBirthdayQuery                 = "updateBirthday.sql"
+	insertCoinsQuery                    = "insertCoins.sql"
+	insertBlockFlagQuery                = "insertBlockFlag.sql"
+	insertEpochSummaryQuery             = "insertEpochSummary.sql"
+	insertPenaltyQuery                  = "insertPenalty.sql"
+	selectLastPenaltyQuery              = "selectLastPenalty.sql"
+	insertPaidPenaltyQuery              = "insertPaidPenalty.sql"
+	insertBadAuthorQuery                = "insertBadAuthor.sql"
+	insertGoodAuthorQuery               = "insertGoodAuthor.sql"
+	insertTotalRewardsQuery             = "insertTotalRewards.sql"
+	insertValidationRewardQuery         = "insertValidationReward.sql"
+	insertRewardAgeQuery                = "insertRewardAge.sql"
+	insertFundRewardQuery               = "insertFundReward.sql"
+	insertFailedValidationQuery         = "insertFailedValidation.sql"
+	insertMiningRewardsQuery            = "insertMiningRewards.sql"
+	insertBurntCoinsQuery               = "insertBurntCoins.sql"
 )
 
 func (a *postgresAccessor) getQuery(name string) string {
@@ -196,7 +191,7 @@ func (a *postgresAccessor) Save(data *Data) error {
 		return err
 	}
 
-	if ctx.addrIdsPerAddr, err = a.saveAddresses(ctx, data.Addresses); err != nil {
+	if ctx.txIdsPerHash, err = a.saveAddressesAndTransactions(ctx, data.Addresses, data.Block.Transactions); err != nil {
 		return err
 	}
 
@@ -205,15 +200,6 @@ func (a *postgresAccessor) Save(data *Data) error {
 	}
 
 	if err = a.saveProposerVrfScore(ctx, data.Block.ProposerVrfScore); err != nil {
-		return err
-	}
-
-	ctx.txIdsPerHash, err = a.saveTransactions(ctx, data.Block.Transactions)
-	if err != nil {
-		return err
-	}
-
-	if err = a.saveAddressStates(ctx, data.Addresses); err != nil {
 		return err
 	}
 
@@ -503,76 +489,6 @@ func (a *postgresAccessor) saveProposerVrfScore(ctx *context, vrfScore float64) 
 	return err
 }
 
-func (a *postgresAccessor) saveAddresses(ctx *context, addresses []Address) (map[string]int64, error) {
-	if len(addresses) == 0 {
-		return nil, nil
-	}
-	addrIdsPerAddr := make(map[string]int64)
-	for _, address := range addresses {
-		addressId, err := a.saveAddress(ctx, address)
-		if err != nil {
-			return nil, err
-		}
-		addrIdsPerAddr[address.Address] = addressId
-		if address.IsTemporary {
-			if err = a.saveTemporaryIdentity(ctx, addressId); err != nil {
-				return nil, err
-			}
-		}
-	}
-	return addrIdsPerAddr, nil
-}
-
-func (a *postgresAccessor) saveAddressStates(ctx *context, addresses []Address) error {
-	if len(addresses) == 0 {
-		return nil
-	}
-	for _, address := range addresses {
-		if len(address.StateChanges) == 0 {
-			continue
-		}
-		for _, stateChange := range address.StateChanges {
-			if _, err := a.saveAddressState(ctx, ctx.addrIdsPerAddr[address.Address], stateChange); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
-func (a *postgresAccessor) saveAddress(ctx *context, address Address) (int64, error) {
-	var id int64
-	err := ctx.tx.QueryRow(a.getQuery(selectAddressQuery), address.Address).Scan(&id)
-	if err == nil {
-		return id, nil
-	}
-	if err != sql.ErrNoRows {
-		return 0, err
-	}
-	err = ctx.tx.QueryRow(a.getQuery(insertAddressQuery), address.Address, ctx.blockHeight).Scan(&id)
-	return id, err
-}
-
-func (a *postgresAccessor) saveTemporaryIdentity(ctx *context, addressId int64) error {
-	_, err := ctx.tx.Exec(a.getQuery(insertTemporaryIdentityQuery), addressId, ctx.blockHeight)
-	return errors.Wrapf(err, "unable to save temporary identity")
-}
-
-func (a *postgresAccessor) saveAddressState(ctx *context, addressId int64, stateChange AddressStateChange) (int64, error) {
-	var prevId int64
-	err := ctx.tx.QueryRow(a.getQuery(archiveAddressStateQuery), addressId).Scan(&prevId)
-	if err != nil && err != sql.ErrNoRows {
-		return 0, err
-	}
-	var id int64
-	if prevId > 0 {
-		err = ctx.tx.QueryRow(a.getQuery(insertAddressStateQuery), addressId, stateChange.NewState, ctx.blockHeight, stateChange.TxHash, prevId).Scan(&id)
-	} else {
-		err = ctx.tx.QueryRow(a.getQuery(insertAddressStateQuery), addressId, stateChange.NewState, ctx.blockHeight, stateChange.TxHash, nil).Scan(&id)
-	}
-	return id, err
-}
-
 func (a *postgresAccessor) saveCoins(ctx *context, coins Coins) error {
 	_, err := ctx.tx.Exec(a.getQuery(insertCoinsQuery),
 		ctx.blockHeight,
@@ -689,48 +605,28 @@ func (a *postgresAccessor) saveFlipToSolve(ctx *context, epochIdentityId int64, 
 	return id, errors.Wrapf(err, "unable to execute query %s", insertFlipsToSolveQuery)
 }
 
-func (a *postgresAccessor) saveTransactions(ctx *context, txs []Transaction) (map[string]int64, error) {
-	if len(txs) == 0 {
+func (a *postgresAccessor) saveAddressesAndTransactions(ctx *context, addresses []Address,
+	txs []Transaction) (map[string]int64, error) {
+
+	if len(addresses)+len(txs) == 0 {
 		return nil, nil
 	}
+
+	addressesArray, addressStateChangesArray := getPostgresAddressesAndAddressStateChangesArrays(addresses)
+	var txHashIds []txHashId
+	err := ctx.tx.QueryRow(a.getQuery(insertAddressesAndTransactionsQuery),
+		ctx.blockHeight,
+		addressesArray,
+		pq.Array(txs),
+		addressStateChangesArray).Scan(pq.Array(&txHashIds))
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to save addresses and transactions")
+	}
 	txIdsPerHash := make(map[string]int64)
-	for _, tx := range txs {
-		id, err := a.saveTransaction(ctx, tx)
-		if err != nil {
-			return nil, err
-		}
-		txIdsPerHash[tx.Hash] = id
+	for _, txHashId := range txHashIds {
+		txIdsPerHash[txHashId.Hash] = txHashId.Id
 	}
 	return txIdsPerHash, nil
-}
-
-func (a *postgresAccessor) saveTransaction(ctx *context, tx Transaction) (int64, error) {
-	var id int64
-	from, err := ctx.addrId(tx.From)
-	if err != nil {
-		return 0, err
-	}
-	var to interface{}
-	if len(tx.To) > 0 {
-		to, err = ctx.addrId(tx.To)
-		if err != nil {
-			return 0, err
-		}
-	} else {
-		to = nil
-	}
-	err = ctx.tx.QueryRow(a.getQuery(insertTransactionQuery),
-		tx.Hash,
-		ctx.blockHeight,
-		tx.Type,
-		from,
-		to,
-		tx.Amount,
-		tx.Tips,
-		tx.MaxFee,
-		tx.Fee,
-		tx.Size).Scan(&id)
-	return id, err
 }
 
 func (a *postgresAccessor) saveSubmittedFlips(ctx *context, flips []Flip) (map[string]int64, error) {
@@ -814,7 +710,7 @@ func (a *postgresAccessor) getFlipWordsCount(ctx *context, flipId uint64) (int, 
 
 func (a *postgresAccessor) saveEpochSummary(ctx *context, coins Coins) error {
 	_, err := ctx.tx.Exec(a.getQuery(insertEpochSummaryQuery), ctx.epoch, ctx.blockHeight, coins.TotalBalance, coins.TotalStake)
-	return errors.Wrapf(err, "unable to save epoch summary for %s", ctx.epoch)
+	return errors.Wrapf(err, "unable to save epoch summary for %v", ctx.epoch)
 }
 
 func (a *postgresAccessor) savePenalty(ctx *context, penalty *Penalty) error {

@@ -7,11 +7,11 @@ import (
 )
 
 type context struct {
-	epoch                   uint64
-	blockHeight             uint64
-	flipIdsPerCid           map[string]int64
-	txIdsPerHash            map[string]int64
-	addrIdsPerAddr          map[string]int64
+	epoch         uint64
+	blockHeight   uint64
+	flipIdsPerCid map[string]int64
+	txIdsPerHash  map[string]int64
+	//addrIdsPerAddr          map[string]int64
 	epochIdentityIdsPerAddr map[string]int64
 	a                       *postgresAccessor
 	tx                      *sql.Tx
@@ -50,13 +50,5 @@ func (c *context) txId(hash string) (int64, error) {
 		return 0, errors.New(fmt.Sprintf("Id for tx %s not found", hash))
 	} else {
 		return txId, nil
-	}
-}
-
-func (c *context) addrId(address string) (int64, error) {
-	if addrId, present := c.addrIdsPerAddr[address]; !present {
-		return 0, errors.New(fmt.Sprintf("Id for address %s not found", address))
-	} else {
-		return addrId, nil
 	}
 }
