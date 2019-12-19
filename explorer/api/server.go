@@ -207,15 +207,15 @@ func (s *httpServer) InitRouter(router *mux.Router) {
 	router.Path(strings.ToLower("/Address/{address}/Flips")).
 		Queries("skip", "{skip}", "limit", "{limit}").
 		HandlerFunc(s.identityFlips)
-	router.Path(strings.ToLower("/Address/{address}/MiningRewards/Count")).HandlerFunc(s.addressMiningRewardsCount)
-	router.Path(strings.ToLower("/Address/{address}/MiningRewards")).
-		Queries("skip", "{skip}", "limit", "{limit}").
-		HandlerFunc(s.addressMiningRewards)
-	router.Path(strings.ToLower("/Address/{address}/BlockMiningRewards/Count")).
-		HandlerFunc(s.addressBlockMiningRewardsCount)
-	router.Path(strings.ToLower("/Address/{address}/BlockMiningRewards")).
-		Queries("skip", "{skip}", "limit", "{limit}").
-		HandlerFunc(s.addressBlockMiningRewards)
+	//router.Path(strings.ToLower("/Address/{address}/MiningRewards/Count")).HandlerFunc(s.addressMiningRewardsCount)
+	//router.Path(strings.ToLower("/Address/{address}/MiningRewards")).
+	//	Queries("skip", "{skip}", "limit", "{limit}").
+	//	HandlerFunc(s.addressMiningRewards)
+	//router.Path(strings.ToLower("/Address/{address}/BlockMiningRewards/Count")).
+	//	HandlerFunc(s.addressBlockMiningRewardsCount)
+	//router.Path(strings.ToLower("/Address/{address}/BlockMiningRewards")).
+	//	Queries("skip", "{skip}", "limit", "{limit}").
+	//	HandlerFunc(s.addressBlockMiningRewards)
 	router.Path(strings.ToLower("/Address/{address}/States/Count")).
 		HandlerFunc(s.addressStatesCount)
 	router.Path(strings.ToLower("/Address/{address}/States")).

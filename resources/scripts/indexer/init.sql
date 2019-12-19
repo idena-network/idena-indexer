@@ -187,6 +187,47 @@ INSERT INTO dic_answers
 values (3, 'Inappropriate')
 ON CONFLICT DO NOTHING;
 
+-- Table: dic_validation_reward_types
+
+-- DROP TABLE dic_validation_reward_types;
+
+CREATE TABLE IF NOT EXISTS dic_epoch_reward_types
+(
+    id   smallint                                           NOT NULL,
+    name character varying(20) COLLATE pg_catalog."default" NOT NULL,
+    CONSTRAINT dic_epoch_reward_types_pkey PRIMARY KEY (id),
+    CONSTRAINT dic_epoch_reward_types_name_key UNIQUE (name)
+)
+    WITH (
+        OIDS = FALSE
+    )
+    TABLESPACE pg_default;
+
+ALTER TABLE dic_epoch_reward_types
+    OWNER to postgres;
+
+INSERT INTO dic_epoch_reward_types
+values (0, 'Validation')
+ON CONFLICT DO NOTHING;
+INSERT INTO dic_epoch_reward_types
+values (1, 'Flips')
+ON CONFLICT DO NOTHING;
+INSERT INTO dic_epoch_reward_types
+values (2, 'Invitations')
+ON CONFLICT DO NOTHING;
+INSERT INTO dic_epoch_reward_types
+values (3, 'FoundationPayouts')
+ON CONFLICT DO NOTHING;
+INSERT INTO dic_epoch_reward_types
+values (4, 'ZeroWalletFund')
+ON CONFLICT DO NOTHING;
+INSERT INTO dic_epoch_reward_types
+values (5, 'Invitations2')
+ON CONFLICT DO NOTHING;
+INSERT INTO dic_epoch_reward_types
+values (6, 'Invitations3')
+ON CONFLICT DO NOTHING;
+
 -- Table: epochs
 
 -- DROP TABLE epochs;
@@ -1114,13 +1155,17 @@ ALTER TABLE total_rewards
 
 CREATE TABLE IF NOT EXISTS validation_rewards
 (
-    epoch_identity_id bigint                                             NOT NULL,
-    balance           numeric(30, 18)                                    NOT NULL,
-    stake             numeric(30, 18)                                    NOT NULL,
-    type              character varying(20) COLLATE pg_catalog."default" NOT NULL,
+    epoch_identity_id bigint          NOT NULL,
+    balance           numeric(30, 18) NOT NULL,
+    stake             numeric(30, 18) NOT NULL,
+    type              smallint        NOT NULL,
     CONSTRAINT validation_rewards_epoch_identity_id_type_key UNIQUE (epoch_identity_id, type),
     CONSTRAINT validation_rewards_epoch_identity_id_fkey FOREIGN KEY (epoch_identity_id)
         REFERENCES epoch_identities (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT validation_rewards_type_fkey FOREIGN KEY (type)
+        REFERENCES dic_epoch_reward_types (id) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION
 ) WITH (
@@ -1158,16 +1203,20 @@ ALTER TABLE reward_ages
 
 CREATE TABLE IF NOT EXISTS fund_rewards
 (
-    address_id   bigint                                             NOT NULL,
-    block_height bigint                                             NOT NULL,
-    balance      numeric(30, 18)                                    NOT NULL,
-    type         character varying(20) COLLATE pg_catalog."default" NOT NULL,
+    address_id   bigint          NOT NULL,
+    block_height bigint          NOT NULL,
+    balance      numeric(30, 18) NOT NULL,
+    type         smallint        NOT NULL,
     CONSTRAINT fund_rewards_address_id_fkey FOREIGN KEY (address_id)
         REFERENCES addresses (id) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION,
     CONSTRAINT fund_rewards_block_height_fkey FOREIGN KEY (block_height)
         REFERENCES blocks (height) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT fund_rewards_type_fkey FOREIGN KEY (type)
+        REFERENCES dic_epoch_reward_types (id) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION
 ) WITH (

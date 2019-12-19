@@ -1,7 +1,7 @@
 select ei.epoch,
        vr.balance,
        vr.stake,
-       vr.type,
+       dert.name                  "type",
        coalesce(prevdis.name, '') prev_state,
        dis.name                   state,
        coalesce(ra.age, 0)
@@ -13,6 +13,7 @@ from validation_rewards vr
          left join reward_ages ra on ra.epoch_identity_id = vr.epoch_identity_id
          join dic_identity_states dis on dis.id = s.state
          left join dic_identity_states prevdis on prevdis.id = prevs.state
+         join dic_epoch_reward_types dert on dert.id = vr.type
 where ei.epoch in
       (
           select distinct ei.epoch

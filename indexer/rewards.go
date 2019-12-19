@@ -1,7 +1,6 @@
 package indexer
 
 import (
-	"fmt"
 	"github.com/idena-network/idena-go/blockchain"
 	"github.com/idena-network/idena-go/blockchain/types"
 	"github.com/idena-network/idena-go/common"
@@ -9,16 +8,6 @@ import (
 	"github.com/idena-network/idena-indexer/core/stats"
 	"github.com/idena-network/idena-indexer/db"
 )
-
-var rewardTypes = map[stats.RewardType]string{
-	stats.Validation:        "Validation",
-	stats.Flips:             "Flips",
-	stats.Invitations:       "Invitations",
-	stats.Invitations2:      "Invitations2",
-	stats.Invitations3:      "Invitations3",
-	stats.FoundationPayouts: "FoundationPayouts",
-	stats.ZeroWalletFund:    "ZeroWalletFund",
-}
 
 func (indexer *Indexer) detectEpochRewards(block *types.Block) *db.EpochRewards {
 	if !block.Header.Flags().HasFlag(types.ValidationFinished) {
@@ -96,9 +85,6 @@ func convertReward(reward *stats.RewardStats) *db.Reward {
 	}
 }
 
-func convertRewardType(rewardType stats.RewardType) string {
-	if res, ok := rewardTypes[rewardType]; ok {
-		return res
-	}
-	return fmt.Sprintf("Unknown reward type %d", rewardType)
+func convertRewardType(rewardType stats.RewardType) byte {
+	return byte(rewardType)
 }

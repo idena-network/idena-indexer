@@ -67,7 +67,7 @@ type Reward struct {
 	Address string
 	Balance decimal.Decimal
 	Stake   decimal.Decimal
-	Type    string
+	Type    byte
 }
 
 type MiningReward struct {
