@@ -40,6 +40,30 @@ const (
 	epochFundPaymentsQuery            = "epochFundPayments.sql"
 )
 
+var identityStatesByName = map[string]uint8{
+	"Undefined": 0,
+	"Invite":    1,
+	"Candidate": 2,
+	"Verified":  3,
+	"Suspended": 4,
+	"Killed":    5,
+	"Zombie":    6,
+	"Newbie":    7,
+}
+
+func convertIdentityStates(names []string) []uint8 {
+	if len(names) == 0 {
+		return nil
+	}
+	var res []uint8
+	for _, name := range names {
+		if state, ok := identityStatesByName[name]; ok {
+			res = append(res, state)
+		}
+	}
+	return res
+}
+
 func (a *postgresAccessor) LastEpoch() (types.EpochDetail, error) {
 	return a.epoch(lastEpochQuery)
 }
@@ -125,11 +149,11 @@ func (a *postgresAccessor) EpochFlipWrongWordsSummary(epoch uint64) ([]types.Nul
 }
 
 func (a *postgresAccessor) EpochIdentitiesCount(epoch uint64, states []string) (uint64, error) {
-	return a.count(epochIdentitiesQueryCount, epoch, pq.Array(states))
+	return a.count(epochIdentitiesQueryCount, epoch, pq.Array(convertIdentityStates(states)))
 }
 
 func (a *postgresAccessor) EpochIdentities(epoch uint64, states []string, startIndex uint64, count uint64) ([]types.EpochIdentitySummary, error) {
-	rows, err := a.db.Query(a.getQuery(epochIdentitiesQuery), epoch, pq.Array(states), startIndex, count)
+	rows, err := a.db.Query(a.getQuery(epochIdentitiesQuery), epoch, pq.Array(convertIdentityStates(states)), startIndex, count)
 	if err != nil {
 		return nil, err
 	}

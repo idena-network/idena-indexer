@@ -30,14 +30,14 @@ insert into block_proposer_vrf_scores (select * from OLD_SCHEMA_TAG.block_propos
 -- mining_rewards
 insert into mining_rewards (select * from OLD_SCHEMA_TAG.mining_rewards where block_height <= $1);
 
--- burnt_coins
-insert into burnt_coins (select * from OLD_SCHEMA_TAG.burnt_coins where block_height <= $1);
-
 -- transactions
 insert into transactions (select * from OLD_SCHEMA_TAG.transactions where block_height <= $1);
 -- transactions sequence
 select setval('transactions_id_seq', max(id))
 from transactions;
+
+-- burnt_coins
+insert into burnt_coins (select * from OLD_SCHEMA_TAG.burnt_coins where block_height <= $1);
 
 -- flip_keys
 insert into flip_keys (select *

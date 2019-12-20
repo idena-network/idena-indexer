@@ -341,8 +341,8 @@ type BadAuthor struct {
 }
 
 type AdjacentStrValues struct {
-	Prev AdjacentStrValue
-	Next AdjacentStrValue
+	Prev AdjacentStrValue `json:"prev"`
+	Next AdjacentStrValue `json:"next"`
 }
 
 type AdjacentStrValue struct {
