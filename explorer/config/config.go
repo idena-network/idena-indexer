@@ -9,11 +9,17 @@ import (
 )
 
 type Config struct {
-	Port            int
-	Verbosity       int
-	PostgresConnStr string
-	ScriptsDir      string
-	LatestHours     int
+	Port               int
+	Verbosity          int
+	PostgresConnStr    string
+	ScriptsDir         string
+	LatestHours        int
+	PerformanceMonitor PerformanceMonitorConfig
+}
+
+type PerformanceMonitorConfig struct {
+	Enabled  bool
+	Interval string
 }
 
 func LoadConfig(configPath string) *Config {

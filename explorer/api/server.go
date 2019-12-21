@@ -4,6 +4,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/idena-network/idena-indexer/core/server"
 	"github.com/idena-network/idena-indexer/explorer/db"
+	"github.com/idena-network/idena-indexer/explorer/monitoring"
 	"github.com/idena-network/idena-indexer/log"
 	"net/http"
 	"strings"
@@ -15,12 +16,13 @@ type Server interface {
 	InitRouter(router *mux.Router)
 }
 
-func NewServer(port int, latestHours int, db db.Accessor, logger log.Logger) Server {
+func NewServer(port int, latestHours int, db db.Accessor, logger log.Logger, pm monitoring.PerformanceMonitor) Server {
 	return &httpServer{
 		port:        port,
 		db:          db,
 		log:         logger,
 		latestHours: latestHours,
+		pm:          pm,
 	}
 }
 
@@ -29,6 +31,7 @@ type httpServer struct {
 	latestHours int
 	db          db.Accessor
 	log         log.Logger
+	pm          monitoring.PerformanceMonitor
 }
 
 func (s *httpServer) requestFilter(next http.Handler) http.Handler {
@@ -247,21 +250,33 @@ func (s *httpServer) InitRouter(router *mux.Router) {
 }
 
 func (s *httpServer) search(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("search", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	resp, err := s.db.Search(mux.Vars(r)["value"])
 	server.WriteResponse(w, resp, err, s.log)
 }
 
 func (s *httpServer) coins(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("coins", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	resp, err := s.db.Coins()
 	server.WriteResponse(w, resp, err, s.log)
 }
 
 func (s *httpServer) epochsCount(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("epochsCount", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	resp, err := s.db.EpochsCount()
 	server.WriteResponse(w, resp, err, s.log)
 }
 
 func (s *httpServer) epochs(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("epochs", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	startIndex, count, err := server.ReadPaginatorParams(mux.Vars(r))
 	if err != nil {
 		server.WriteErrorResponse(w, err, s.log)
@@ -272,11 +287,17 @@ func (s *httpServer) epochs(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *httpServer) lastEpoch(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("lastEpoch", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	resp, err := s.db.LastEpoch()
 	server.WriteResponse(w, resp, err, s.log)
 }
 
 func (s *httpServer) epoch(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("epoch", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	epoch, err := server.ToUint(mux.Vars(r), "epoch")
 	if err != nil {
 		server.WriteErrorResponse(w, err, s.log)
@@ -287,6 +308,9 @@ func (s *httpServer) epoch(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *httpServer) epochBlocksCount(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("epochBlocksCount", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	epoch, err := server.ToUint(mux.Vars(r), "epoch")
 	if err != nil {
 		server.WriteErrorResponse(w, err, s.log)
@@ -297,6 +321,9 @@ func (s *httpServer) epochBlocksCount(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *httpServer) epochBlocks(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("epochBlocks", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	vars := mux.Vars(r)
 	epoch, err := server.ToUint(vars, "epoch")
 	if err != nil {
@@ -313,6 +340,9 @@ func (s *httpServer) epochBlocks(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *httpServer) epochFlipsCount(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("epochFlipsCount", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	epoch, err := server.ToUint(mux.Vars(r), "epoch")
 	if err != nil {
 		server.WriteErrorResponse(w, err, s.log)
@@ -323,6 +353,9 @@ func (s *httpServer) epochFlipsCount(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *httpServer) epochFlips(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("epochFlips", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	vars := mux.Vars(r)
 	epoch, err := server.ToUint(vars, "epoch")
 	if err != nil {
@@ -339,6 +372,9 @@ func (s *httpServer) epochFlips(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *httpServer) epochFlipAnswersSummary(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("epochFlipAnswersSummary", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	vars := mux.Vars(r)
 	epoch, err := server.ToUint(vars, "epoch")
 	if err != nil {
@@ -350,6 +386,9 @@ func (s *httpServer) epochFlipAnswersSummary(w http.ResponseWriter, r *http.Requ
 }
 
 func (s *httpServer) epochFlipStatesSummary(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("epochFlipStatesSummary", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	vars := mux.Vars(r)
 	epoch, err := server.ToUint(vars, "epoch")
 	if err != nil {
@@ -361,6 +400,9 @@ func (s *httpServer) epochFlipStatesSummary(w http.ResponseWriter, r *http.Reque
 }
 
 func (s *httpServer) epochFlipWrongWordsSummary(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("epochFlipWrongWordsSummary", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	vars := mux.Vars(r)
 	epoch, err := server.ToUint(vars, "epoch")
 	if err != nil {
@@ -372,6 +414,9 @@ func (s *httpServer) epochFlipWrongWordsSummary(w http.ResponseWriter, r *http.R
 }
 
 func (s *httpServer) epochIdentitiesCount(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("epochIdentitiesCount", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	epoch, err := server.ToUint(mux.Vars(r), "epoch")
 	if err != nil {
 		server.WriteErrorResponse(w, err, s.log)
@@ -382,6 +427,9 @@ func (s *httpServer) epochIdentitiesCount(w http.ResponseWriter, r *http.Request
 }
 
 func (s *httpServer) epochIdentities(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("epochIdentities", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	vars := mux.Vars(r)
 	epoch, err := server.ToUint(vars, "epoch")
 	if err != nil {
@@ -415,6 +463,9 @@ func convertStates(formValues []string) []string {
 }
 
 func (s *httpServer) epochIdentityStatesSummary(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("epochIdentityStatesSummary", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	vars := mux.Vars(r)
 	epoch, err := server.ToUint(vars, "epoch")
 	if err != nil {
@@ -426,6 +477,9 @@ func (s *httpServer) epochIdentityStatesSummary(w http.ResponseWriter, r *http.R
 }
 
 func (s *httpServer) epochInvitesSummary(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("epochInvitesSummary", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	vars := mux.Vars(r)
 	epoch, err := server.ToUint(vars, "epoch")
 	if err != nil {
@@ -437,6 +491,9 @@ func (s *httpServer) epochInvitesSummary(w http.ResponseWriter, r *http.Request)
 }
 
 func (s *httpServer) epochInviteStatesSummary(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("epochInviteStatesSummary", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	vars := mux.Vars(r)
 	epoch, err := server.ToUint(vars, "epoch")
 	if err != nil {
@@ -448,6 +505,9 @@ func (s *httpServer) epochInviteStatesSummary(w http.ResponseWriter, r *http.Req
 }
 
 func (s *httpServer) epochInvitesCount(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("epochInvitesCount", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	epoch, err := server.ToUint(mux.Vars(r), "epoch")
 	if err != nil {
 		server.WriteErrorResponse(w, err, s.log)
@@ -458,6 +518,9 @@ func (s *httpServer) epochInvitesCount(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *httpServer) epochInvites(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("epochInvites", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	vars := mux.Vars(r)
 	epoch, err := server.ToUint(vars, "epoch")
 	if err != nil {
@@ -474,6 +537,9 @@ func (s *httpServer) epochInvites(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *httpServer) epochTxsCount(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("epochTxsCount", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	epoch, err := server.ToUint(mux.Vars(r), "epoch")
 	if err != nil {
 		server.WriteErrorResponse(w, err, s.log)
@@ -484,6 +550,9 @@ func (s *httpServer) epochTxsCount(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *httpServer) epochTxs(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("epochTxs", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	vars := mux.Vars(r)
 	epoch, err := server.ToUint(vars, "epoch")
 	if err != nil {
@@ -500,6 +569,9 @@ func (s *httpServer) epochTxs(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *httpServer) epochCoins(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("epochCoins", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	vars := mux.Vars(r)
 	epoch, err := server.ToUint(vars, "epoch")
 	if err != nil {
@@ -511,6 +583,9 @@ func (s *httpServer) epochCoins(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *httpServer) epochRewardsSummary(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("epochRewardsSummary", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	vars := mux.Vars(r)
 	epoch, err := server.ToUint(vars, "epoch")
 	if err != nil {
@@ -532,6 +607,9 @@ func (s *httpServer) epochBadAuthorsCount(w http.ResponseWriter, r *http.Request
 }
 
 func (s *httpServer) epochBadAuthors(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("epochBadAuthors", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	vars := mux.Vars(r)
 	epoch, err := server.ToUint(vars, "epoch")
 	if err != nil {
@@ -548,6 +626,9 @@ func (s *httpServer) epochBadAuthors(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *httpServer) epochGoodAuthorsCount(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("epochGoodAuthorsCount", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	epoch, err := server.ToUint(mux.Vars(r), "epoch")
 	if err != nil {
 		server.WriteErrorResponse(w, err, s.log)
@@ -558,6 +639,9 @@ func (s *httpServer) epochGoodAuthorsCount(w http.ResponseWriter, r *http.Reques
 }
 
 func (s *httpServer) epochGoodAuthors(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("epochGoodAuthors", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	vars := mux.Vars(r)
 	epoch, err := server.ToUint(vars, "epoch")
 	if err != nil {
@@ -574,6 +658,9 @@ func (s *httpServer) epochGoodAuthors(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *httpServer) epochRewardsCount(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("epochRewardsCount", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	epoch, err := server.ToUint(mux.Vars(r), "epoch")
 	if err != nil {
 		server.WriteErrorResponse(w, err, s.log)
@@ -584,6 +671,9 @@ func (s *httpServer) epochRewardsCount(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *httpServer) epochRewards(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("epochRewards", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	vars := mux.Vars(r)
 	epoch, err := server.ToUint(vars, "epoch")
 	if err != nil {
@@ -600,6 +690,9 @@ func (s *httpServer) epochRewards(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *httpServer) epochIdentitiesRewardsCount(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("epochIdentitiesRewardsCount", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	epoch, err := server.ToUint(mux.Vars(r), "epoch")
 	if err != nil {
 		server.WriteErrorResponse(w, err, s.log)
@@ -610,6 +703,9 @@ func (s *httpServer) epochIdentitiesRewardsCount(w http.ResponseWriter, r *http.
 }
 
 func (s *httpServer) epochIdentitiesRewards(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("epochIdentitiesRewards", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	vars := mux.Vars(r)
 	epoch, err := server.ToUint(vars, "epoch")
 	if err != nil {
@@ -626,6 +722,9 @@ func (s *httpServer) epochIdentitiesRewards(w http.ResponseWriter, r *http.Reque
 }
 
 func (s *httpServer) epochFundPayments(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("epochFundPayments", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	vars := mux.Vars(r)
 	epoch, err := server.ToUint(vars, "epoch")
 	if err != nil {
@@ -637,6 +736,9 @@ func (s *httpServer) epochFundPayments(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *httpServer) epochIdentity(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("epochIdentity", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	vars := mux.Vars(r)
 	epoch, err := server.ToUint(vars, "epoch")
 	if err != nil {
@@ -648,6 +750,9 @@ func (s *httpServer) epochIdentity(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *httpServer) epochIdentityShortFlipsToSolve(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("epochIdentityShortFlipsToSolve", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	vars := mux.Vars(r)
 	epoch, err := server.ToUint(vars, "epoch")
 	if err != nil {
@@ -659,6 +764,9 @@ func (s *httpServer) epochIdentityShortFlipsToSolve(w http.ResponseWriter, r *ht
 }
 
 func (s *httpServer) epochIdentityLongFlipsToSolve(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("epochIdentityLongFlipsToSolve", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	vars := mux.Vars(r)
 	epoch, err := server.ToUint(vars, "epoch")
 	if err != nil {
@@ -670,6 +778,9 @@ func (s *httpServer) epochIdentityLongFlipsToSolve(w http.ResponseWriter, r *htt
 }
 
 func (s *httpServer) epochIdentityShortAnswes(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("epochIdentityShortAnswes", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	vars := mux.Vars(r)
 	epoch, err := server.ToUint(vars, "epoch")
 	if err != nil {
@@ -681,6 +792,9 @@ func (s *httpServer) epochIdentityShortAnswes(w http.ResponseWriter, r *http.Req
 }
 
 func (s *httpServer) epochIdentityLongAnswers(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("epochIdentityLongAnswers", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	vars := mux.Vars(r)
 	epoch, err := server.ToUint(vars, "epoch")
 	if err != nil {
@@ -692,6 +806,9 @@ func (s *httpServer) epochIdentityLongAnswers(w http.ResponseWriter, r *http.Req
 }
 
 func (s *httpServer) epochIdentityFlips(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("epochIdentityFlips", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	vars := mux.Vars(r)
 	epoch, err := server.ToUint(vars, "epoch")
 	if err != nil {
@@ -703,6 +820,9 @@ func (s *httpServer) epochIdentityFlips(w http.ResponseWriter, r *http.Request) 
 }
 
 func (s *httpServer) epochIdentityValidationTxs(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("epochIdentityValidationTxs", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	vars := mux.Vars(r)
 	epoch, err := server.ToUint(vars, "epoch")
 	if err != nil {
@@ -714,6 +834,9 @@ func (s *httpServer) epochIdentityValidationTxs(w http.ResponseWriter, r *http.R
 }
 
 func (s *httpServer) epochIdentityRewards(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("epochIdentityRewards", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	vars := mux.Vars(r)
 	epoch, err := server.ToUint(vars, "epoch")
 	if err != nil {
@@ -725,6 +848,9 @@ func (s *httpServer) epochIdentityRewards(w http.ResponseWriter, r *http.Request
 }
 
 func (s *httpServer) block(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("block", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	var resp interface{}
 	vars := mux.Vars(r)
 	height, err := server.ToUint(vars, "id")
@@ -737,6 +863,9 @@ func (s *httpServer) block(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *httpServer) blockTxsCount(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("blockTxsCount", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	var resp interface{}
 	vars := mux.Vars(r)
 	height, err := server.ToUint(vars, "id")
@@ -749,6 +878,9 @@ func (s *httpServer) blockTxsCount(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *httpServer) blockTxs(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("blockTxs", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	var resp interface{}
 	vars := mux.Vars(r)
 	startIndex, count, err := server.ReadPaginatorParams(vars)
@@ -766,6 +898,9 @@ func (s *httpServer) blockTxs(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *httpServer) blockCoins(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("blockCoins", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	var resp interface{}
 	vars := mux.Vars(r)
 	height, err := server.ToUint(vars, "id")
@@ -778,26 +913,41 @@ func (s *httpServer) blockCoins(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *httpServer) identity(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("identity", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	resp, err := s.db.Identity(mux.Vars(r)["address"])
 	server.WriteResponse(w, resp, err, s.log)
 }
 
 func (s *httpServer) identityAge(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("identityAge", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	resp, err := s.db.IdentityAge(mux.Vars(r)["address"])
 	server.WriteResponse(w, resp, err, s.log)
 }
 
 func (s *httpServer) identityCurrentFlipCids(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("identityCurrentFlipCids", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	resp, err := s.db.IdentityCurrentFlipCids(mux.Vars(r)["address"])
 	server.WriteResponse(w, resp, err, s.log)
 }
 
 func (s *httpServer) identityEpochsCount(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("identityEpochsCount", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	resp, err := s.db.IdentityEpochsCount(mux.Vars(r)["address"])
 	server.WriteResponse(w, resp, err, s.log)
 }
 
 func (s *httpServer) identityEpochs(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("identityEpochs", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	vars := mux.Vars(r)
 	startIndex, count, err := server.ReadPaginatorParams(vars)
 	if err != nil {
@@ -809,11 +959,17 @@ func (s *httpServer) identityEpochs(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *httpServer) identityFlipsCount(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("identityFlipsCount", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	resp, err := s.db.IdentityFlipsCount(mux.Vars(r)["address"])
 	server.WriteResponse(w, resp, err, s.log)
 }
 
 func (s *httpServer) identityFlips(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("identityFlips", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	vars := mux.Vars(r)
 	startIndex, count, err := server.ReadPaginatorParams(vars)
 	if err != nil {
@@ -825,21 +981,33 @@ func (s *httpServer) identityFlips(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *httpServer) identityFlipStates(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("identityFlipStates", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	resp, err := s.db.IdentityFlipStates(mux.Vars(r)["address"])
 	server.WriteResponse(w, resp, err, s.log)
 }
 
 func (s *httpServer) identityFlipRightAnswers(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("identityFlipRightAnswers", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	resp, err := s.db.IdentityFlipQualifiedAnswers(mux.Vars(r)["address"])
 	server.WriteResponse(w, resp, err, s.log)
 }
 
 func (s *httpServer) identityInvitesCount(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("identityInvitesCount", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	resp, err := s.db.IdentityInvitesCount(mux.Vars(r)["address"])
 	server.WriteResponse(w, resp, err, s.log)
 }
 
 func (s *httpServer) identityInvites(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("identityInvites", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	vars := mux.Vars(r)
 	startIndex, count, err := server.ReadPaginatorParams(vars)
 	if err != nil {
@@ -851,11 +1019,17 @@ func (s *httpServer) identityInvites(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *httpServer) identityTxsCount(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("identityTxsCount", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	resp, err := s.db.IdentityTxsCount(mux.Vars(r)["address"])
 	server.WriteResponse(w, resp, err, s.log)
 }
 
 func (s *httpServer) identityTxs(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("identityTxs", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	vars := mux.Vars(r)
 	startIndex, count, err := server.ReadPaginatorParams(vars)
 	if err != nil {
@@ -867,11 +1041,17 @@ func (s *httpServer) identityTxs(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *httpServer) identityRewardsCount(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("identityRewardsCount", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	resp, err := s.db.IdentityRewardsCount(mux.Vars(r)["address"])
 	server.WriteResponse(w, resp, err, s.log)
 }
 
 func (s *httpServer) identityRewards(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("identityRewards", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	vars := mux.Vars(r)
 	startIndex, count, err := server.ReadPaginatorParams(vars)
 	if err != nil {
@@ -883,11 +1063,17 @@ func (s *httpServer) identityRewards(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *httpServer) identityEpochRewardsCount(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("identityEpochRewardsCount", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	resp, err := s.db.IdentityEpochRewardsCount(mux.Vars(r)["address"])
 	server.WriteResponse(w, resp, err, s.log)
 }
 
 func (s *httpServer) identityEpochRewards(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("identityEpochRewards", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	vars := mux.Vars(r)
 	startIndex, count, err := server.ReadPaginatorParams(vars)
 	if err != nil {
@@ -899,28 +1085,46 @@ func (s *httpServer) identityEpochRewards(w http.ResponseWriter, r *http.Request
 }
 
 func (s *httpServer) flip(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("flip", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	resp, err := s.db.Flip(mux.Vars(r)["hash"])
 	server.WriteResponse(w, resp, err, s.log)
 }
 
 func (s *httpServer) flipContent(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("flipContent", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	resp, err := s.db.FlipContent(mux.Vars(r)["hash"])
 	server.WriteResponse(w, resp, err, s.log)
 }
 
 func (s *httpServer) flipShortAnswersCount(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("flipShortAnswersCount", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	s.flipAnswersCount(w, r, true)
 }
 
 func (s *httpServer) flipShortAnswers(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("flipShortAnswers", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	s.flipAnswers(w, r, true)
 }
 
 func (s *httpServer) flipLongAnswersCount(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("flipLongAnswersCount", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	s.flipAnswersCount(w, r, false)
 }
 
 func (s *httpServer) flipLongAnswers(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("flipLongAnswers", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	s.flipAnswers(w, r, false)
 }
 
@@ -941,31 +1145,49 @@ func (s *httpServer) flipAnswers(w http.ResponseWriter, r *http.Request, isShort
 }
 
 func (s *httpServer) flipEpochAdjacentFlips(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("flipEpochAdjacentFlips", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	resp, err := s.db.FlipEpochAdjacentFlips(mux.Vars(r)["hash"])
 	server.WriteResponse(w, resp, err, s.log)
 }
 
 func (s *httpServer) flipAddressAdjacentFlips(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("flipAddressAdjacentFlips", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	resp, err := s.db.FlipAddressAdjacentFlips(mux.Vars(r)["hash"])
 	server.WriteResponse(w, resp, err, s.log)
 }
 
 func (s *httpServer) flipEpochIdentityAdjacentFlips(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("flipEpochIdentityAdjacentFlips", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	resp, err := s.db.FlipEpochIdentityAdjacentFlips(mux.Vars(r)["hash"])
 	server.WriteResponse(w, resp, err, s.log)
 }
 
 func (s *httpServer) address(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("address", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	resp, err := s.db.Address(mux.Vars(r)["address"])
 	server.WriteResponse(w, resp, err, s.log)
 }
 
 func (s *httpServer) addressPenaltiesCount(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("addressPenaltiesCount", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	resp, err := s.db.AddressPenaltiesCount(mux.Vars(r)["address"])
 	server.WriteResponse(w, resp, err, s.log)
 }
 
 func (s *httpServer) addressPenalties(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("addressPenalties", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	vars := mux.Vars(r)
 	startIndex, count, err := server.ReadPaginatorParams(vars)
 	if err != nil {
@@ -977,11 +1199,17 @@ func (s *httpServer) addressPenalties(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *httpServer) addressMiningRewardsCount(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("addressMiningRewardsCount", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	resp, err := s.db.AddressMiningRewardsCount(mux.Vars(r)["address"])
 	server.WriteResponse(w, resp, err, s.log)
 }
 
 func (s *httpServer) addressMiningRewards(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("addressMiningRewards", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	vars := mux.Vars(r)
 	startIndex, count, err := server.ReadPaginatorParams(vars)
 	if err != nil {
@@ -993,11 +1221,17 @@ func (s *httpServer) addressMiningRewards(w http.ResponseWriter, r *http.Request
 }
 
 func (s *httpServer) addressBlockMiningRewardsCount(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("addressBlockMiningRewardsCount", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	resp, err := s.db.AddressBlockMiningRewardsCount(mux.Vars(r)["address"])
 	server.WriteResponse(w, resp, err, s.log)
 }
 
 func (s *httpServer) addressBlockMiningRewards(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("addressBlockMiningRewards", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	vars := mux.Vars(r)
 	startIndex, count, err := server.ReadPaginatorParams(vars)
 	if err != nil {
@@ -1009,11 +1243,17 @@ func (s *httpServer) addressBlockMiningRewards(w http.ResponseWriter, r *http.Re
 }
 
 func (s *httpServer) addressStatesCount(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("addressStatesCount", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	resp, err := s.db.AddressStatesCount(mux.Vars(r)["address"])
 	server.WriteResponse(w, resp, err, s.log)
 }
 
 func (s *httpServer) addressStates(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("addressStates", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	vars := mux.Vars(r)
 	startIndex, count, err := server.ReadPaginatorParams(vars)
 	if err != nil {
@@ -1025,21 +1265,33 @@ func (s *httpServer) addressStates(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *httpServer) addressTotalLatestMiningReward(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("addressTotalLatestMiningReward", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	resp, err := s.db.AddressTotalLatestMiningReward(s.getOffsetUTC(), mux.Vars(r)["address"])
 	server.WriteResponse(w, resp, err, s.log)
 }
 
 func (s *httpServer) addressTotalLatestBurntCoins(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("addressTotalLatestBurntCoins", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	resp, err := s.db.AddressTotalLatestBurntCoins(s.getOffsetUTC(), mux.Vars(r)["address"])
 	server.WriteResponse(w, resp, err, s.log)
 }
 
 func (s *httpServer) addressBadAuthorsCount(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("addressBadAuthorsCount", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	resp, err := s.db.AddressBadAuthorsCount(mux.Vars(r)["address"])
 	server.WriteResponse(w, resp, err, s.log)
 }
 
 func (s *httpServer) addressBadAuthors(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("addressBadAuthors", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	vars := mux.Vars(r)
 	startIndex, count, err := server.ReadPaginatorParams(vars)
 	if err != nil {
@@ -1051,17 +1303,26 @@ func (s *httpServer) addressBadAuthors(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *httpServer) transaction(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("transaction", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	resp, err := s.db.Transaction(mux.Vars(r)["hash"])
 	server.WriteResponse(w, resp, err, s.log)
 
 }
 
 func (s *httpServer) balancesCount(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("balancesCount", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	resp, err := s.db.BalancesCount()
 	server.WriteResponse(w, resp, err, s.log)
 }
 
 func (s *httpServer) balances(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("balances", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	startIndex, count, err := server.ReadPaginatorParams(mux.Vars(r))
 	if err != nil {
 		server.WriteErrorResponse(w, err, s.log)
@@ -1072,11 +1333,17 @@ func (s *httpServer) balances(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *httpServer) totalLatestMiningRewardsCount(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("totalLatestMiningRewardsCount", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	resp, err := s.db.TotalLatestMiningRewardsCount(s.getOffsetUTC())
 	server.WriteResponse(w, resp, err, s.log)
 }
 
 func (s *httpServer) totalLatestMiningRewards(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("totalLatestMiningRewards", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	startIndex, count, err := server.ReadPaginatorParams(mux.Vars(r))
 	if err != nil {
 		server.WriteErrorResponse(w, err, s.log)
@@ -1087,11 +1354,17 @@ func (s *httpServer) totalLatestMiningRewards(w http.ResponseWriter, r *http.Req
 }
 
 func (s *httpServer) totalLatestBurntCoinsCount(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("totalLatestBurntCoinsCount", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	resp, err := s.db.TotalLatestBurntCoinsCount(s.getOffsetUTC())
 	server.WriteResponse(w, resp, err, s.log)
 }
 
 func (s *httpServer) totalLatestBurntCoins(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("totalLatestBurntCoins", r.RequestURI)
+	defer s.pm.Complete(id)
+
 	startIndex, count, err := server.ReadPaginatorParams(mux.Vars(r))
 	if err != nil {
 		server.WriteErrorResponse(w, err, s.log)

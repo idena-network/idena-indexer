@@ -6,9 +6,9 @@ import (
 	"github.com/idena-network/idena-indexer/explorer/config"
 	"github.com/idena-network/idena-indexer/explorer/db"
 	"github.com/idena-network/idena-indexer/explorer/db/postgres"
+	"github.com/idena-network/idena-indexer/explorer/monitoring"
 	"github.com/idena-network/idena-indexer/log"
-	"os"
-	"runtime"
+	"time"
 )
 
 type Explorer interface {
@@ -19,10 +19,17 @@ type Explorer interface {
 }
 
 func NewExplorer(c *config.Config) Explorer {
-	logger := initLog(c.Verbosity)
+	logger, err := initLog(c.Verbosity)
+	if err != nil {
+		panic(err)
+	}
+	pm, err := createPerformanceMonitor(c.PerformanceMonitor)
+	if err != nil {
+		panic(err)
+	}
 	accessor := postgres.NewPostgresAccessor(c.PostgresConnStr, c.ScriptsDir, logger)
 	e := &explorer{
-		server: api.NewServer(c.Port, c.LatestHours, accessor, logger),
+		server: api.NewServer(c.Port, c.LatestHours, accessor, logger, pm),
 		db:     accessor,
 		logger: logger,
 	}
@@ -51,13 +58,44 @@ func (e *explorer) Destroy() {
 	e.db.Destroy()
 }
 
-func initLog(verbosity int) log.Logger {
+func initLog(verbosity int) (log.Logger, error) {
 	l := log.New()
 	logLvl := log.Lvl(verbosity)
-	if runtime.GOOS == "windows" {
-		l.SetHandler(log.LvlFilterHandler(logLvl, log.StreamHandler(os.Stdout, log.LogfmtFormat())))
-	} else {
-		l.SetHandler(log.LvlFilterHandler(logLvl, log.StreamHandler(os.Stderr, log.TerminalFormat(true))))
+	fileHandler, err := getLogFileHandler("explorer.log")
+	if err != nil {
+		return nil, err
 	}
-	return l
+	l.SetHandler(log.LvlFilterHandler(logLvl, fileHandler))
+	return l, nil
+}
+
+func getLogFileHandler(fileName string) (log.Handler, error) {
+	fileHandler, _ := log.FileHandler(fileName, log.TerminalFormat(false))
+	return fileHandler, nil
+}
+
+func createPerformanceMonitor(c config.PerformanceMonitorConfig) (monitoring.PerformanceMonitor, error) {
+	if !c.Enabled {
+		return monitoring.NewEmptyPerformanceMonitor(), nil
+	}
+	logger, err := createPerformanceMonitorLogger()
+	if err != nil {
+		return monitoring.NewEmptyPerformanceMonitor(), err
+	}
+	interval, err := time.ParseDuration(c.Interval)
+	if err != nil {
+		return monitoring.NewEmptyPerformanceMonitor(), err
+	}
+	return monitoring.NewPerformanceMonitor(interval, logger), nil
+}
+
+func createPerformanceMonitorLogger() (log.Logger, error) {
+	l := log.New()
+	logLvl := log.LvlInfo
+	fileHandler, err := getLogFileHandler("explorerPm.log")
+	if err != nil {
+		return nil, err
+	}
+	l.SetHandler(log.LvlFilterHandler(logLvl, fileHandler))
+	return l, nil
 }
