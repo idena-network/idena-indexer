@@ -8,6 +8,7 @@ import (
 	"github.com/idena-network/idena-indexer/log"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -32,11 +33,23 @@ type httpServer struct {
 	db          db.Accessor
 	log         log.Logger
 	pm          monitoring.PerformanceMonitor
+	counter     int
+	mutex       sync.Mutex
+}
+
+func (s *httpServer) generateReqId() int {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	id := s.counter
+	s.counter++
+	return id
 }
 
 func (s *httpServer) requestFilter(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		s.log.Debug("Got api request", "url", r.URL, "from", r.RemoteAddr)
+		reqId := s.generateReqId()
+		s.log.Debug("Got api request", "reqId", reqId, "url", r.URL, "from", r.RemoteAddr)
+		defer s.log.Debug("Completed api request", "reqId", reqId)
 		err := r.ParseForm()
 		if err != nil {
 			s.log.Error("Unable to parse API request", "err", err)
