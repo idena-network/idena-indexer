@@ -7,6 +7,8 @@ type Accessor interface {
 	Save(data *Data) error
 	SaveRestoredData(data *RestoredData) error
 	SaveMemPoolData(data *MemPoolData) error
+	SaveFlipSize(flipCid string, size int) error
+	GetEpochFlipsWithoutSize(epoch uint64, limit int) (cids []string, err error)
 	Destroy()
 	ResetTo(height uint64) error
 }

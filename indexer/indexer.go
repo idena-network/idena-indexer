@@ -17,6 +17,7 @@ import (
 	"github.com/idena-network/idena-go/rlp"
 	statsTypes "github.com/idena-network/idena-go/stats/types"
 	"github.com/idena-network/idena-indexer/core/conversion"
+	"github.com/idena-network/idena-indexer/core/flip"
 	"github.com/idena-network/idena-indexer/core/mempool"
 	"github.com/idena-network/idena-indexer/core/restore"
 	"github.com/idena-network/idena-indexer/core/stats"
@@ -64,6 +65,7 @@ type Indexer struct {
 	genesisBlockHeight uint64
 	restore            bool
 	pm                 monitoring.PerformanceMonitor
+	flipLoader         flip.Loader
 }
 
 type result struct {
@@ -74,6 +76,12 @@ type result struct {
 type resultData struct {
 	totalBalance *big.Int
 	totalStake   *big.Int
+	flipTxs      []flipTx
+}
+
+type flipTx struct {
+	txHash common.Hash
+	cid    []byte
 }
 
 func NewIndexer(
@@ -85,6 +93,7 @@ func NewIndexer(
 	genesisBlockHeight uint64,
 	restoreInitially bool,
 	pm monitoring.PerformanceMonitor,
+	flipLoader flip.Loader,
 ) *Indexer {
 	return &Indexer{
 		listener:           listener,
@@ -95,6 +104,7 @@ func NewIndexer(
 		genesisBlockHeight: genesisBlockHeight,
 		restore:            restoreInitially,
 		pm:                 pm,
+		flipLoader:         flipLoader,
 	}
 }
 
@@ -150,9 +160,15 @@ func (indexer *Indexer) indexBlock(block *types.Block) {
 		indexer.initializeStateIfNeeded(block)
 		res := indexer.convertIncomingData(block)
 		indexer.pm.Complete("Convert")
+
 		indexer.pm.Start("Save")
 		indexer.saveData(res.dbData)
 		indexer.pm.Complete("Save")
+
+		indexer.pm.Start("Flips")
+		indexer.loadFlips(res.resData.flipTxs)
+		indexer.pm.Complete("Flips")
+
 		indexer.applyOnState(res)
 
 		if indexer.secondaryStorage != nil && block.Height() >= indexer.secondaryStorage.GetLastBlockHeight() {
@@ -253,7 +269,7 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) *result 
 		ctx.prevStateReadOnly,
 		ctx.newStateReadOnly)
 
-	coins, totalBalance, totalStake := indexer.getCoins(ctx, indexer.isFirstBlock(incomingBlock), diff)
+	coins, totalBalance, totalStake := indexer.getCoins(indexer.isFirstBlock(incomingBlock), diff)
 
 	dbData := &db.Data{
 		Epoch:             epoch,
@@ -281,6 +297,7 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) *result 
 	resData := &resultData{
 		totalBalance: totalBalance,
 		totalStake:   totalStake,
+		flipTxs:      ctx.flipTxs,
 	}
 	return &result{
 		dbData:  dbData,
@@ -289,7 +306,6 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) *result 
 }
 
 func (indexer *Indexer) getCoins(
-	ctx *conversionContext,
 	isFirstBlock bool,
 	diff balanceDiff,
 ) (dbCoins db.Coins, totalBalance, totalStake *big.Int) {
@@ -407,8 +423,9 @@ func (indexer *Indexer) convertTransactions(incomingTxs []*types.Transaction, st
 }
 
 func (indexer *Indexer) convertTransaction(incomingTx *types.Transaction, ctx *conversionContext, stateToApply *appstate.AppState) db.Transaction {
-	if f := indexer.detectSubmittedFlip(incomingTx, ctx); f != nil {
+	if f, h := indexer.detectSubmittedFlip(incomingTx); f != nil {
 		ctx.submittedFlips = append(ctx.submittedFlips, *f)
+		ctx.flipTxs = append(ctx.flipTxs, *h)
 	}
 
 	indexer.convertShortAnswers(incomingTx, ctx)
@@ -706,34 +723,30 @@ func compressPic(src []byte) ([]byte, error) {
 	return res.Bytes(), nil
 }
 
-func (indexer *Indexer) detectSubmittedFlip(tx *types.Transaction, ctx *conversionContext) *db.Flip {
+func (indexer *Indexer) detectSubmittedFlip(tx *types.Transaction) (*db.Flip, *flipTx) {
 	if tx.Type != types.SubmitFlipTx {
-		return nil
+		return nil, nil
 	}
 	attachment := attachments.ParseFlipSubmitAttachment(tx)
 	if attachment == nil {
 		log.Error("Unable to parse submitted flip payload. Skipped.", "tx", tx.Hash())
-		return nil
+		return nil, nil
 	}
 	flipCid, err := cid.Parse(attachment.Cid)
 	if err != nil {
 		log.Error("Unable to parse flip cid. Skipped.", "tx", tx.Hash(), "err", err)
-		return nil
-	}
-	ipfsFlip, err := indexer.listener.Flipper().GetRawFlip(attachment.Cid)
-	var size uint32
-	if err != nil {
-		log.Error("Unable to get flip data to define flip size.", "cid", flipCid, "err", err)
-	} else {
-		size = uint32(len(ipfsFlip.Data))
+		return nil, nil
 	}
 	f := &db.Flip{
 		TxHash: convertHash(tx.Hash()),
 		Cid:    convertCid(flipCid),
-		Size:   size,
 		Pair:   attachment.Pair,
 	}
-	return f
+	h := &flipTx{
+		txHash: tx.Hash(),
+		cid:    attachment.Cid,
+	}
+	return f, h
 }
 
 func (indexer *Indexer) convertShortAnswers(tx *types.Transaction, ctx *conversionContext) {
@@ -852,6 +865,12 @@ func convertCids(idxs []int, cids [][]byte, block *types.Block) []string {
 		res = append(res, convertCid(c))
 	}
 	return res
+}
+
+func (indexer *Indexer) loadFlips(flipTxs []flipTx) {
+	for _, flipTx := range flipTxs {
+		indexer.flipLoader.SubmitToLoad(flipTx.cid, flipTx.txHash)
+	}
 }
 
 func (indexer *Indexer) saveData(data *db.Data) {

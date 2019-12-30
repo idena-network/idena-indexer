@@ -650,7 +650,7 @@ func (a *postgresAccessor) saveSubmittedFlips(ctx *context, flips []Flip) (map[s
 
 func (a *postgresAccessor) saveSubmittedFlip(ctx *context, txId int64, flip Flip) (int64, error) {
 	var id int64
-	err := ctx.tx.QueryRow(a.getQuery(insertSubmittedFlipQuery), flip.Cid, txId, flip.Size, flip.Pair).Scan(&id)
+	err := ctx.tx.QueryRow(a.getQuery(insertSubmittedFlipQuery), flip.Cid, txId, flip.Pair).Scan(&id)
 	return id, errors.Wrapf(err, "unable to save flip %s", flip.Cid)
 }
 

@@ -15,6 +15,7 @@ type conversionContext struct {
 	addresses         map[string]*db.Address
 	prevStateReadOnly *appstate.AppState
 	newStateReadOnly  *appstate.AppState
+	flipTxs           []flipTx
 }
 
 func (ctx *conversionContext) getAddresses() []db.Address {

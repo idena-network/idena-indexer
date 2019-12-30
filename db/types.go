@@ -135,7 +135,6 @@ type Flip struct {
 	Id     uint64
 	TxHash string
 	Cid    string
-	Size   uint32
 	Pair   uint8
 }
 

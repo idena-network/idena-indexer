@@ -2,9 +2,11 @@ package main
 
 import (
 	"fmt"
+	"github.com/idena-network/idena-go/core/state"
 	nodeLog "github.com/idena-network/idena-go/log"
 	"github.com/idena-network/idena-indexer/config"
 	"github.com/idena-network/idena-indexer/core/api"
+	"github.com/idena-network/idena-indexer/core/flip"
 	"github.com/idena-network/idena-indexer/core/holder/online"
 	"github.com/idena-network/idena-indexer/core/mempool"
 	"github.com/idena-network/idena-indexer/core/restore"
@@ -115,14 +117,34 @@ func initIndexer(config *config.Config) (*indexer.Indexer, incoming.Listener) {
 
 	memPoolIndexer := mempool.NewIndexer(dbAccessor, log.New("component", "mpi"))
 
-	return indexer.NewIndexer(listener,
+	flipLoader := flip.NewLoader(
+		func() uint64 {
+			return uint64(listener.AppState().State.Epoch())
+		},
+		func() bool {
+			head := listener.Blockchain().Head
+			if head == nil {
+				return false
+			}
+			prevState := listener.AppState().Readonly(head.Height() - 1)
+			if prevState == nil {
+				return false
+			}
+			return prevState.State.ValidationPeriod() < state.FlipLotteryPeriod
+		},
+		dbAccessor, listener.Flipper(), log.New("component", "flipLoader"))
+
+	return indexer.NewIndexer(
+			listener,
 			memPoolIndexer,
 			dbAccessor,
 			restorer,
 			secondaryStorage,
 			uint64(config.GenesisBlockHeight),
 			restoreInitially,
-			performanceMonitor),
+			performanceMonitor,
+			flipLoader,
+		),
 		listener
 }
 
