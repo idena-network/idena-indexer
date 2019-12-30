@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 func NewPostgresAccessor(connStr string, scriptsDirPath string, logger log.Logger) db.Accessor {
@@ -15,6 +16,10 @@ func NewPostgresAccessor(connStr string, scriptsDirPath string, logger log.Logge
 	if err != nil {
 		panic(err)
 	}
+
+	dbAccessor.SetMaxOpenConns(25)
+	dbAccessor.SetMaxIdleConns(25)
+	dbAccessor.SetConnMaxLifetime(5 * time.Minute)
 
 	return &postgresAccessor{
 		db:      dbAccessor,
