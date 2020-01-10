@@ -31,7 +31,7 @@ type indexerCache struct {
 }
 
 type flipKeyWrapper struct {
-	key  *types.FlipKey
+	key  *types.PublicFlipKey
 	time *big.Int
 }
 

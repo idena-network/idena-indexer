@@ -624,13 +624,13 @@ func (indexer *Indexer) getFlipsMemPoolKeyData(ctx *conversionContext) []db.Flip
 	var parsedData db.FlipContent
 	for _, addrFlipCid := range flipCidsWithoutData {
 		if indexer.secondaryStorage == nil {
-			flipKey := indexer.listener.KeysPool().GetFlipKey(common.HexToAddress(addrFlipCid.Address))
-			if flipKey == nil || flipKey.Key == nil {
+			flipKey := indexer.listener.KeysPool().GetPublicFlipKey(common.HexToAddress(addrFlipCid.Address))
+			if flipKey == nil {
 				log.Error("Missed mem pool key. Skipped.", "cid", addrFlipCid)
 				continue
 			}
 			flipCid, _ := cid.Decode(addrFlipCid.Cid)
-			data, err := indexer.getFlipData(flipCid.Bytes(), flipKey.Key, addrFlipCid.Cid, ctx)
+			data, err := indexer.getFlipData(flipCid.Bytes(), flipKey, addrFlipCid.Cid, ctx)
 			if err != nil {
 				log.Error("Unable to get flip data with key from mem pool. Skipped.", "cid", addrFlipCid, "err", err)
 				continue
@@ -810,7 +810,12 @@ func (indexer *Indexer) getFlipsData(tx *types.Transaction, keyAuthorFlips []db.
 	for _, f := range keyAuthorFlips {
 		flipCidStr := f.Cid
 		flipCid, _ := cid.Decode(flipCidStr)
-		flipData, err := indexer.getFlipData(flipCid.Bytes(), attachment.Key, flipCidStr, ctx)
+		ecdsaKey, _ := crypto.ToECDSA(attachment.Key)
+		var encryptionKey *ecies.PrivateKey
+		if ecdsaKey != nil {
+			encryptionKey = ecies.ImportECDSA(ecdsaKey)
+		}
+		flipData, err := indexer.getFlipData(flipCid.Bytes(), encryptionKey, flipCidStr, ctx)
 		if err != nil {
 			log.Error("Unable to get flip data. Skipped.", "tx", tx.Hash(), "cid", flipCidStr, "err", err)
 			continue
@@ -833,21 +838,22 @@ func getFlipWords(addr common.Address, attachment *attachments.ShortAnswerAttach
 	seed := appState.State.FlipWordsSeed().Bytes()
 	proof := attachment.Proof
 	identity := appState.State.GetIdentity(addr)
-	return ceremony.GetWords(seed, proof, identity.PubKey, common.WordDictionarySize, identity.GetTotalWordPairsCount(), pairId)
+	return ceremony.GetWords(seed, proof, identity.PubKey, common.WordDictionarySize, identity.GetTotalWordPairsCount(), pairId, appState.State.Epoch())
 }
 
-func (indexer *Indexer) getFlipData(cid []byte, key []byte, cidStr string, ctx *conversionContext) ([]byte, error) {
+func (indexer *Indexer) getFlipData(cid []byte, encryptionKey *ecies.PrivateKey, cidStr string, ctx *conversionContext) ([]byte, error) {
 	ipfsFlip, err := indexer.listener.Flipper().GetRawFlip(cid)
 	if err != nil {
 		return nil, err
 	}
 	ctx.flipSizeUpdates = append(ctx.flipSizeUpdates, db.FlipSizeUpdate{
 		Cid:  cidStr,
-		Size: uint32(len(ipfsFlip.Data)),
+		Size: uint32(len(ipfsFlip.PublicPart)),
 	})
-	ecdsaKey, _ := crypto.ToECDSA(key)
-	encryptionKey := ecies.ImportECDSA(ecdsaKey)
-	decryptedFlip, err := encryptionKey.Decrypt(ipfsFlip.Data, nil, nil)
+	if encryptionKey == nil {
+		return nil, nil
+	}
+	decryptedFlip, err := encryptionKey.Decrypt(ipfsFlip.PublicPart, nil, nil)
 	if err != nil {
 		return nil, err
 	}
