@@ -123,3 +123,70 @@ func (v *txHashId) Scan(value interface{}) error {
 	v.Hash, v.Id = sArr[0], id
 	return nil
 }
+
+type postgresAnswer struct {
+	flipCid         string
+	epochIdentityId int64
+	isShort         bool
+	answer          byte
+	wrongWords      bool
+	point           float32
+}
+
+func (v postgresAnswer) Value() (driver.Value, error) {
+	return fmt.Sprintf("(%v,%v,%v,%v,%v,%v)", v.flipCid, v.epochIdentityId, v.isShort, v.answer, v.wrongWords,
+		v.point), nil
+}
+
+type postgresFlipsState struct {
+	flipCid    string
+	answer     byte
+	wrongWords bool
+	status     byte
+}
+
+func (v postgresFlipsState) Value() (driver.Value, error) {
+	return fmt.Sprintf("(%v,%v,%v,%v)", v.flipCid, v.answer, v.wrongWords, v.status), nil
+}
+
+func getFlipStatsArrays(stats []FlipStats, epochIdentityIdsPerAddr map[string]int64) (answersArray, statesArray interface {
+	driver.Valuer
+	sql.Scanner
+}) {
+	var convertedAnswers []postgresAnswer
+	var convertedStates []postgresFlipsState
+	for _, s := range stats {
+		isFirst := true
+		for _, answer := range s.ShortAnswers {
+			var flipCid string
+			if isFirst {
+				flipCid = s.Cid
+				isFirst = false
+			}
+			convertedAnswers = append(convertedAnswers, postgresAnswer{
+				flipCid:         flipCid,
+				epochIdentityId: epochIdentityIdsPerAddr[answer.Address],
+				answer:          answer.Answer,
+				wrongWords:      answer.WrongWords,
+				point:           answer.Point,
+				isShort:         true,
+			})
+		}
+		for _, answer := range s.LongAnswers {
+			convertedAnswers = append(convertedAnswers, postgresAnswer{
+				epochIdentityId: epochIdentityIdsPerAddr[answer.Address],
+				answer:          answer.Answer,
+				wrongWords:      answer.WrongWords,
+				point:           answer.Point,
+				isShort:         false,
+			})
+		}
+		convertedStates = append(convertedStates, postgresFlipsState{
+			flipCid:    s.Cid,
+			answer:     s.Answer,
+			wrongWords: s.WrongWords,
+			status:     s.Status,
+		})
+	}
+	return pq.Array(convertedAnswers), pq.Array(convertedStates)
+}

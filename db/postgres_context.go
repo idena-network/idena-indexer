@@ -7,11 +7,10 @@ import (
 )
 
 type context struct {
-	epoch         uint64
-	blockHeight   uint64
-	flipIdsPerCid map[string]int64
-	txIdsPerHash  map[string]int64
-	//addrIdsPerAddr          map[string]int64
+	epoch                   uint64
+	blockHeight             uint64
+	flipIdsPerCid           map[string]int64
+	txIdsPerHash            map[string]int64
 	epochIdentityIdsPerAddr map[string]int64
 	a                       *postgresAccessor
 	tx                      *sql.Tx
@@ -24,10 +23,6 @@ func newContext(a *postgresAccessor, tx *sql.Tx, epoch uint64, blockHeight uint6
 		epoch:       epoch,
 		blockHeight: blockHeight,
 	}
-}
-
-func (c *context) epochIdentityId(addr string) (int64, error) {
-	return c.epochIdentityIdsPerAddr[addr], nil
 }
 
 func (c *context) flipId(cid string) (int64, error) {

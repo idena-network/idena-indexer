@@ -1518,12 +1518,12 @@ $$
     BEGIN
         -- Type: tp_mining_reward
         CREATE TYPE tp_mining_reward AS
-            (
-            address character(42),
-            balance numeric(30, 18),
-            stake numeric(30, 18),
+        (
+            address  character(42),
+            balance  numeric(30, 18),
+            stake    numeric(30, 18),
             proposer boolean
-            );
+        );
 
         ALTER TYPE tp_mining_reward
             OWNER TO postgres;
@@ -1537,12 +1537,12 @@ $$
     BEGIN
         -- Type: tp_burnt_coins
         CREATE TYPE tp_burnt_coins AS
-            (
+        (
             address character(42),
-            amount numeric(30, 18),
-            reason smallint,
-            tx_id bigint
-            );
+            amount  numeric(30, 18),
+            reason  smallint,
+            tx_id   bigint
+        );
 
         ALTER TYPE tp_burnt_coins
             OWNER TO postgres;
@@ -1556,11 +1556,11 @@ $$
     BEGIN
         -- Type: tp_balance
         CREATE TYPE tp_balance AS
-            (
+        (
             address character(42),
             balance numeric(30, 18),
-            stake numeric(30, 18)
-            );
+            stake   numeric(30, 18)
+        );
 
         ALTER TYPE tp_balance
             OWNER TO postgres;
@@ -1574,17 +1574,17 @@ $$
     BEGIN
         -- Type: tp_tx
         CREATE TYPE tp_tx AS
-            (
-            hash character(66),
-            type smallint,
-            "from" character(42),
-            "to" character(42),
-            amount numeric(30, 18),
-            tips numeric(30, 18),
+        (
+            hash    character(66),
+            type    smallint,
+            "from"  character(42),
+            "to"    character(42),
+            amount  numeric(30, 18),
+            tips    numeric(30, 18),
             max_fee numeric(30, 18),
-            fee numeric(30, 18),
-            size integer
-            );
+            fee     numeric(30, 18),
+            size    integer
+        );
 
         ALTER TYPE tp_tx
             OWNER TO postgres;
@@ -1598,10 +1598,10 @@ $$
     BEGIN
         -- Type: tp_tx_hash_id
         CREATE TYPE tp_tx_hash_id AS
-            (
+        (
             hash character(66),
-            id bigint
-            );
+            id   bigint
+        );
 
         ALTER TYPE tp_tx_hash_id
             OWNER TO postgres;
@@ -1615,10 +1615,10 @@ $$
     BEGIN
         -- Type: tp_address
         CREATE TYPE tp_address AS
-            (
-            address character(42),
+        (
+            address      character(42),
             is_temporary boolean
-            );
+        );
 
         ALTER TYPE tp_address
             OWNER TO postgres;
@@ -1632,13 +1632,53 @@ $$
     BEGIN
         -- Type: tp_address_state_change
         CREATE TYPE tp_address_state_change AS
-            (
-            address character(42),
+        (
+            address   character(42),
             new_state smallint,
-            tx_hash character(66)
-            );
+            tx_hash   character(66)
+        );
 
         ALTER TYPE tp_address_state_change
+            OWNER TO postgres;
+    EXCEPTION
+        WHEN duplicate_object THEN null;
+    END
+$$;
+
+DO
+$$
+    BEGIN
+        -- Type: tp_answer
+        CREATE TYPE tp_answer AS
+        (
+            flip_cid          character varying(100),
+            epoch_identity_id bigint,
+            is_short          boolean,
+            answer            smallint,
+            wrong_words       boolean,
+            point             real
+        );
+
+        ALTER TYPE tp_answer
+            OWNER TO postgres;
+    EXCEPTION
+        WHEN duplicate_object THEN null;
+    END
+$$;
+
+DO
+$$
+    BEGIN
+        -- Type: tp_flip_state
+        CREATE TYPE tp_flip_state AS
+        (
+            flip_cid    character varying(100),
+            answer      smallint,
+            wrong_words boolean,
+            status      smallint
+        );
+
+        ALTER TYPE tp_flip_state
             OWNER TO postgres;
     EXCEPTION
         WHEN duplicate_object THEN null;
@@ -1712,7 +1752,7 @@ BEGIN
 END
 $BODY$;
 
--- PROCEDURE: save_addrs_and_txs
+-- FUNCTION: save_addrs_and_txs
 CREATE OR REPLACE FUNCTION save_addrs_and_txs(height bigint,
                                               addresses tp_address[],
                                               txs tp_tx[],
@@ -1792,5 +1832,40 @@ BEGIN
     end if;
 
     return res;
+END
+$BODY$;
+
+-- PROCEDURE: save_flip_stats
+CREATE OR REPLACE PROCEDURE save_flip_stats(block_height bigint,
+                                            answers tp_answer[],
+                                            states tp_flip_state[])
+    LANGUAGE 'plpgsql'
+AS
+$BODY$
+DECLARE
+    answer  tp_answer;
+    state   tp_flip_state;
+    flip_id bigint;
+BEGIN
+    for i in 1..cardinality(answers)
+        loop
+            answer := answers[i];
+            IF char_length(answer.flip_cid) > 0 THEN
+                select id into flip_id from flips where lower(cid) = lower(answer.flip_cid);
+            end if;
+            INSERT INTO ANSWERS (FLIP_ID, EPOCH_IDENTITY_ID, IS_SHORT, ANSWER, WRONG_WORDS, POINT)
+            VALUES (flip_id, answer.epoch_identity_id, answer.is_short, answer.answer, answer.wrong_words,
+                    answer.point);
+        end loop;
+    for i in 1..cardinality(states)
+        loop
+            state := states[i];
+            UPDATE FLIPS
+            SET STATUS=state.status,
+                ANSWER=state.answer,
+                WRONG_WORDS=state.wrong_words,
+                STATUS_BLOCK_HEIGHT=block_height
+            WHERE lower(CID) = lower(state.flip_cid);
+        end loop;
 END
 $BODY$;

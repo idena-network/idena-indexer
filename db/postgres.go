@@ -27,14 +27,12 @@ const (
 	maxHeightQuery                      = "maxHeight.sql"
 	currentFlipsQuery                   = "currentFlips.sql"
 	currentFlipCidsWithoutDataQuery     = "currentFlipCidsWithoutData.sql"
-	updateFlipStateQuery                = "updateFlipState.sql"
 	insertFlipDataQuery                 = "insertFlipData.sql"
 	flipDataCountQuery                  = "flipDataCount.sql"
 	updateFlipSizeQuery                 = "updateFlipSize.sql"
 	insertFlipPicQuery                  = "insertFlipPic.sql"
 	insertFlipIconQuery                 = "insertFlipIcon.sql"
 	insertFlipPicOrderQuery             = "insertFlipPicOrder.sql"
-	insertAnswersQuery                  = "insertAnswers.sql"
 	insertBlockQuery                    = "insertBlock.sql"
 	insertBlockProposerQuery            = "insertBlockProposer.sql"
 	insertBlockProposerVrfScoreQuery    = "insertBlockProposerVrfScore.sql"
@@ -70,6 +68,7 @@ const (
 	insertFailedValidationQuery         = "insertFailedValidation.sql"
 	insertMiningRewardsQuery            = "insertMiningRewards.sql"
 	insertBurntCoinsQuery               = "insertBurntCoins.sql"
+	insertFlipStatsQuery                = "insertFlipStats.sql"
 )
 
 func (a *postgresAccessor) getQuery(name string) string {
@@ -281,30 +280,15 @@ func (a *postgresAccessor) Save(data *Data) error {
 }
 
 func (a *postgresAccessor) saveFlipsStats(ctx *context, flipsStats []FlipStats) error {
-	for _, flipStats := range flipsStats {
-		if err := a.saveFlipStats(ctx, flipStats); err != nil {
-			return err
-		}
+	if len(flipsStats) == 0 {
+		return nil
 	}
-	return nil
-}
-
-func (a *postgresAccessor) saveFlipStats(ctx *context, flipStats FlipStats) error {
-	if err := a.saveAnswers(ctx, flipStats.Cid, flipStats.ShortAnswers, true); err != nil {
-		return err
-	}
-	if err := a.saveAnswers(ctx, flipStats.Cid, flipStats.LongAnswers, false); err != nil {
-		return err
-	}
-	if _, err := ctx.tx.Exec(a.getQuery(updateFlipStateQuery),
-		flipStats.Status,
-		flipStats.Answer,
-		flipStats.WrongWords,
+	answersArray, statesArray := getFlipStatsArrays(flipsStats, ctx.epochIdentityIdsPerAddr)
+	_, err := ctx.tx.Exec(a.getQuery(insertFlipStatsQuery),
 		ctx.blockHeight,
-		flipStats.Cid); err != nil {
-		return err
-	}
-	return nil
+		answersArray,
+		statesArray)
+	return errors.Wrap(err, "unable to save flip stats")
 }
 
 func (a *postgresAccessor) saveFlipsData(ctx *context, flipsData []FlipData) error {
@@ -396,36 +380,6 @@ func (a *postgresAccessor) saveFlipIcon(ctx *context, icon []byte, flipDataId in
 func (a *postgresAccessor) saveFlipPicOrder(ctx *context, answerIndex, posIndex, flipPicIndex byte, flipDataId int64) error {
 	_, err := ctx.tx.Exec(a.getQuery(insertFlipPicOrderQuery), flipDataId, answerIndex, posIndex, flipPicIndex)
 	return err
-}
-
-func (a *postgresAccessor) saveAnswers(ctx *context, cid string, answers []Answer,
-	isShort bool) error {
-	for _, answer := range answers {
-		if _, err := a.saveAnswer(ctx, cid, answer, isShort); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (a *postgresAccessor) saveAnswer(ctx *context, cid string, answer Answer, isShort bool) (int64, error) {
-	var id int64
-	flipId, err := ctx.flipId(cid)
-	if err != nil {
-		return 0, err
-	}
-	epochIdentityId, err := ctx.epochIdentityId(answer.Address)
-	if err != nil {
-		return 0, err
-	}
-	err = ctx.tx.QueryRow(a.getQuery(insertAnswersQuery),
-		flipId,
-		epochIdentityId,
-		isShort,
-		answer.Answer,
-		answer.WrongWords,
-		answer.Point).Scan(&id)
-	return id, err
 }
 
 func (a *postgresAccessor) saveEpoch(ctx *context, epoch uint64, validationTime big.Int) error {
