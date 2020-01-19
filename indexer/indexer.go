@@ -659,7 +659,7 @@ func (indexer *Indexer) getFlipsMemPoolKeyData(ctx *conversionContext) []db.Flip
 func parseFlip(flipCidStr string, data []byte) (db.FlipContent, error) {
 	arr := make([]interface{}, 2)
 	err := rlp.DecodeBytes(data, &arr)
-	if err != nil {
+	if err != nil || len(arr) == 0 {
 		return db.FlipContent{}, err
 	}
 	var pics [][]byte
@@ -667,16 +667,18 @@ func parseFlip(flipCidStr string, data []byte) (db.FlipContent, error) {
 		pics = append(pics, b.([]byte))
 	}
 	var allOrders [][]byte
-	for _, b := range arr[1].([]interface{}) {
-		var orders []byte
-		for _, bb := range b.([]interface{}) {
-			var order byte
-			if len(bb.([]byte)) > 0 {
-				order = bb.([]byte)[0]
+	if len(arr) > 1 {
+		for _, b := range arr[1].([]interface{}) {
+			var orders []byte
+			for _, bb := range b.([]interface{}) {
+				var order byte
+				if len(bb.([]byte)) > 0 {
+					order = bb.([]byte)[0]
+				}
+				orders = append(orders, order)
 			}
-			orders = append(orders, order)
+			allOrders = append(allOrders, orders)
 		}
-		allOrders = append(allOrders, orders)
 	}
 	var icon []byte
 
