@@ -155,31 +155,28 @@ func getFlipStatsArrays(stats []FlipStats, epochIdentityIdsPerAddr map[string]in
 }) {
 	var convertedAnswers []postgresAnswer
 	var convertedStates []postgresFlipsState
+	var isFirst bool
+	var convertAndAddAnswer = func(isShort bool, flipCid string, answer Answer) {
+		convertedAnswer := postgresAnswer{
+			epochIdentityId: epochIdentityIdsPerAddr[answer.Address],
+			answer:          answer.Answer,
+			wrongWords:      answer.WrongWords,
+			point:           answer.Point,
+			isShort:         isShort,
+		}
+		if isFirst {
+			convertedAnswer.flipCid = flipCid
+			isFirst = false
+		}
+		convertedAnswers = append(convertedAnswers, convertedAnswer)
+	}
 	for _, s := range stats {
-		isFirst := true
+		isFirst = true
 		for _, answer := range s.ShortAnswers {
-			var flipCid string
-			if isFirst {
-				flipCid = s.Cid
-				isFirst = false
-			}
-			convertedAnswers = append(convertedAnswers, postgresAnswer{
-				flipCid:         flipCid,
-				epochIdentityId: epochIdentityIdsPerAddr[answer.Address],
-				answer:          answer.Answer,
-				wrongWords:      answer.WrongWords,
-				point:           answer.Point,
-				isShort:         true,
-			})
+			convertAndAddAnswer(true, s.Cid, answer)
 		}
 		for _, answer := range s.LongAnswers {
-			convertedAnswers = append(convertedAnswers, postgresAnswer{
-				epochIdentityId: epochIdentityIdsPerAddr[answer.Address],
-				answer:          answer.Answer,
-				wrongWords:      answer.WrongWords,
-				point:           answer.Point,
-				isShort:         false,
-			})
+			convertAndAddAnswer(false, s.Cid, answer)
 		}
 		convertedStates = append(convertedStates, postgresFlipsState{
 			flipCid:    s.Cid,
