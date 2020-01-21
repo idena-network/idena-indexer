@@ -569,6 +569,8 @@ CREATE TABLE IF NOT EXISTS address_states
 ALTER TABLE address_states
     OWNER to postgres;
 
+CREATE INDEX IF NOT EXISTS address_states_actual_idx on address_states (address_id) WHERE is_actual;
+
 -- SEQUENCE: epoch_identities_id_seq
 
 -- DROP SEQUENCE epoch_identities_id_seq;
@@ -1518,12 +1520,12 @@ $$
     BEGIN
         -- Type: tp_mining_reward
         CREATE TYPE tp_mining_reward AS
-        (
-            address  character(42),
-            balance  numeric(30, 18),
-            stake    numeric(30, 18),
+            (
+            address character(42),
+            balance numeric(30, 18),
+            stake numeric(30, 18),
             proposer boolean
-        );
+            );
 
         ALTER TYPE tp_mining_reward
             OWNER TO postgres;
@@ -1537,12 +1539,12 @@ $$
     BEGIN
         -- Type: tp_burnt_coins
         CREATE TYPE tp_burnt_coins AS
-        (
+            (
             address character(42),
-            amount  numeric(30, 18),
-            reason  smallint,
-            tx_id   bigint
-        );
+            amount numeric(30, 18),
+            reason smallint,
+            tx_id bigint
+            );
 
         ALTER TYPE tp_burnt_coins
             OWNER TO postgres;
@@ -1556,11 +1558,11 @@ $$
     BEGIN
         -- Type: tp_balance
         CREATE TYPE tp_balance AS
-        (
+            (
             address character(42),
             balance numeric(30, 18),
-            stake   numeric(30, 18)
-        );
+            stake numeric(30, 18)
+            );
 
         ALTER TYPE tp_balance
             OWNER TO postgres;
@@ -1574,17 +1576,17 @@ $$
     BEGIN
         -- Type: tp_tx
         CREATE TYPE tp_tx AS
-        (
-            hash    character(66),
-            type    smallint,
-            "from"  character(42),
-            "to"    character(42),
-            amount  numeric(30, 18),
-            tips    numeric(30, 18),
+            (
+            hash character(66),
+            type smallint,
+            "from" character(42),
+            "to" character(42),
+            amount numeric(30, 18),
+            tips numeric(30, 18),
             max_fee numeric(30, 18),
-            fee     numeric(30, 18),
-            size    integer
-        );
+            fee numeric(30, 18),
+            size integer
+            );
 
         ALTER TYPE tp_tx
             OWNER TO postgres;
@@ -1598,10 +1600,10 @@ $$
     BEGIN
         -- Type: tp_tx_hash_id
         CREATE TYPE tp_tx_hash_id AS
-        (
+            (
             hash character(66),
-            id   bigint
-        );
+            id bigint
+            );
 
         ALTER TYPE tp_tx_hash_id
             OWNER TO postgres;
@@ -1615,10 +1617,10 @@ $$
     BEGIN
         -- Type: tp_address
         CREATE TYPE tp_address AS
-        (
-            address      character(42),
+            (
+            address character(42),
             is_temporary boolean
-        );
+            );
 
         ALTER TYPE tp_address
             OWNER TO postgres;
@@ -1632,11 +1634,11 @@ $$
     BEGIN
         -- Type: tp_address_state_change
         CREATE TYPE tp_address_state_change AS
-        (
-            address   character(42),
+            (
+            address character(42),
             new_state smallint,
-            tx_hash   character(66)
-        );
+            tx_hash character(66)
+            );
 
         ALTER TYPE tp_address_state_change
             OWNER TO postgres;
@@ -1650,14 +1652,14 @@ $$
     BEGIN
         -- Type: tp_answer
         CREATE TYPE tp_answer AS
-        (
-            flip_cid          character varying(100),
-            epoch_identity_id bigint,
-            is_short          boolean,
-            answer            smallint,
-            wrong_words       boolean,
-            point             real
-        );
+            (
+            flip_cid character varying(100),
+            address character(42),
+            is_short boolean,
+            answer smallint,
+            wrong_words boolean,
+            point real
+            );
 
         ALTER TYPE tp_answer
             OWNER TO postgres;
@@ -1671,14 +1673,152 @@ $$
     BEGIN
         -- Type: tp_flip_state
         CREATE TYPE tp_flip_state AS
-        (
-            flip_cid    character varying(100),
-            answer      smallint,
+            (
+            flip_cid character varying(100),
+            answer smallint,
             wrong_words boolean,
-            status      smallint
-        );
+            status smallint
+            );
 
         ALTER TYPE tp_flip_state
+            OWNER TO postgres;
+    EXCEPTION
+        WHEN duplicate_object THEN null;
+    END
+$$;
+
+DO
+$$
+    BEGIN
+        -- Type: tp_birthday
+        CREATE TYPE tp_birthday AS
+            (
+            address character(42),
+            birth_epoch integer
+            );
+
+        ALTER TYPE tp_birthday
+            OWNER TO postgres;
+    EXCEPTION
+        WHEN duplicate_object THEN null;
+    END
+$$;
+
+DO
+$$
+    BEGIN
+        -- Type: tp_epoch_identity
+        CREATE TYPE tp_epoch_identity AS
+            (
+            address character(42),
+            state smallint,
+            short_point real ,
+            short_flips integer ,
+            total_short_point real ,
+            total_short_flips integer ,
+            long_point real ,
+            long_flips integer ,
+            approved boolean ,
+            missed boolean ,
+            required_flips smallint ,
+            made_flips smallint
+            );
+
+        ALTER TYPE tp_epoch_identity
+            OWNER TO postgres;
+    EXCEPTION
+        WHEN duplicate_object THEN null;
+    END
+$$;
+
+DO
+$$
+    BEGIN
+        -- Type: tp_flip_to_solve
+        CREATE TYPE tp_flip_to_solve AS
+            (
+            address character(42),
+            cid character varying(100),
+            is_short boolean
+            );
+
+        ALTER TYPE tp_flip_to_solve
+            OWNER TO postgres;
+    EXCEPTION
+        WHEN duplicate_object THEN null;
+    END
+$$;
+
+DO
+$$
+    BEGIN
+        -- Type: tp_good_author
+        CREATE TYPE tp_good_author AS
+            (
+            address character(42),
+            strong_flips integer,
+            weak_flips integer,
+            successful_invites integer
+            );
+
+        ALTER TYPE tp_good_author
+            OWNER TO postgres;
+    EXCEPTION
+        WHEN duplicate_object THEN null;
+    END
+$$;
+
+DO
+$$
+    BEGIN
+        -- Type: tp_total_epoch_reward
+        CREATE TYPE tp_total_epoch_reward AS
+            (
+            total numeric(30, 18),
+            validation numeric(30, 18),
+            flips numeric(30, 18),
+            invitations numeric(30, 18),
+            foundation numeric(30, 18),
+            zero_wallet numeric(30, 18)
+            );
+
+        ALTER TYPE tp_total_epoch_reward
+            OWNER TO postgres;
+    EXCEPTION
+        WHEN duplicate_object THEN null;
+    END
+$$;
+
+DO
+$$
+    BEGIN
+        -- Type: tp_epoch_reward
+        CREATE TYPE tp_epoch_reward AS
+            (
+            address character(42),
+            balance numeric(30, 18),
+            stake numeric(30, 18),
+            type smallint
+            );
+
+        ALTER TYPE tp_epoch_reward
+            OWNER TO postgres;
+    EXCEPTION
+        WHEN duplicate_object THEN null;
+    END
+$$;
+
+DO
+$$
+    BEGIN
+        -- Type: tp_reward_age
+        CREATE TYPE tp_reward_age AS
+            (
+            address character(42),
+            age integer
+            );
+
+        ALTER TYPE tp_reward_age
             OWNER TO postgres;
     EXCEPTION
         WHEN duplicate_object THEN null;
@@ -1835,6 +1975,24 @@ BEGIN
 END
 $BODY$;
 
+-- PROCEDURE: save_birthdays
+CREATE OR REPLACE PROCEDURE save_birthdays(p_birthdays tp_birthday[])
+    LANGUAGE 'plpgsql'
+AS
+$BODY$
+DECLARE
+    birthday tp_birthday;
+BEGIN
+    for i in 1..cardinality(p_birthdays)
+        loop
+            birthday := p_birthdays[i];
+            insert into birthdays (address_id, birth_epoch)
+            values ((select id from addresses where lower(address) = lower(birthday.address)), birthday.birth_epoch)
+            on conflict (address_id) do update set birth_epoch=birthday.birth_epoch;
+        end loop;
+END
+$BODY$;
+
 -- PROCEDURE: save_flip_stats
 CREATE OR REPLACE PROCEDURE save_flip_stats(block_height bigint,
                                             answers tp_answer[],
@@ -1854,8 +2012,9 @@ BEGIN
                 select id into flip_id from flips where lower(cid) = lower(answer.flip_cid);
             end if;
             INSERT INTO ANSWERS (FLIP_ID, EPOCH_IDENTITY_ID, IS_SHORT, ANSWER, WRONG_WORDS, POINT)
-            VALUES (flip_id, answer.epoch_identity_id, answer.is_short, answer.answer, answer.wrong_words,
-                    answer.point);
+            VALUES (flip_id,
+                    (select epoch_identity_id from cur_epoch_identities where lower(address) = lower(answer.address)),
+                    answer.is_short, answer.answer, answer.wrong_words, answer.point);
         end loop;
     for i in 1..cardinality(states)
         loop
@@ -1866,6 +2025,237 @@ BEGIN
                 WRONG_WORDS=state.wrong_words,
                 STATUS_BLOCK_HEIGHT=block_height
             WHERE lower(CID) = lower(state.flip_cid);
+        end loop;
+END
+$BODY$;
+
+-- PROCEDURE: save_epoch_identities
+CREATE OR REPLACE PROCEDURE save_epoch_identities(p_epoch bigint,
+                                                  p_height bigint,
+                                                  p_identities tp_epoch_identity[],
+                                                  p_flips_to_solve tp_flip_to_solve[])
+    LANGUAGE 'plpgsql'
+AS
+$BODY$
+DECLARE
+    identity            tp_epoch_identity;
+    l_address_id        bigint;
+    l_prev_state_id     bigint;
+    l_state_id          bigint;
+    l_epoch_identity_id bigint;
+BEGIN
+
+    CREATE TEMP TABLE cur_epoch_identities
+    (
+        address           character(42),
+        epoch_identity_id bigint
+    ) ON COMMIT DROP;
+    CREATE UNIQUE INDEX ON cur_epoch_identities (lower(address));
+
+    for i in 1..cardinality(p_identities)
+        loop
+            identity := p_identities[i];
+
+            select id into l_address_id from addresses where lower(address) = lower(identity.address);
+
+            update address_states
+            set is_actual = false
+            where address_id = l_address_id
+              and is_actual
+            returning id into l_prev_state_id;
+
+            insert into address_states (address_id, state, is_actual, block_height, prev_id)
+            values (l_address_id, identity.state, true, p_height, l_prev_state_id)
+            returning id into l_state_id;
+
+            insert into epoch_identities (epoch, address_state_id, short_point, short_flips, total_short_point,
+                                          total_short_flips, long_point, long_flips, approved, missed,
+                                          required_flips, made_flips)
+            values (p_epoch, l_state_id, identity.short_point, identity.short_flips, identity.total_short_point,
+                    identity.total_short_flips, identity.long_point, identity.long_flips, identity.approved,
+                    identity.missed, identity.required_flips, identity.made_flips)
+            RETURNING id into l_epoch_identity_id;
+
+            insert into cur_epoch_identities values (identity.address, l_epoch_identity_id);
+
+        end loop;
+    if p_flips_to_solve is not null then
+        call save_flips_to_solve(p_flips_to_solve);
+    end if;
+END
+$BODY$;
+
+-- PROCEDURE: save_flips_to_solve
+CREATE OR REPLACE PROCEDURE save_flips_to_solve(p_flips_to_solve tp_flip_to_solve[])
+    LANGUAGE 'plpgsql'
+AS
+$BODY$
+DECLARE
+    l_flip_to_solve     tp_flip_to_solve;
+    l_epoch_identity_id bigint;
+BEGIN
+    for i in 1..cardinality(p_flips_to_solve)
+        loop
+            l_flip_to_solve := p_flips_to_solve[i];
+
+            if char_length(l_flip_to_solve.address) > 0 then
+                select epoch_identity_id
+                into l_epoch_identity_id
+                from cur_epoch_identities
+                where lower(address) = lower(l_flip_to_solve.address);
+            end if;
+
+            insert into flips_to_solve (epoch_identity_id, flip_id, is_short)
+            values (l_epoch_identity_id,
+                    (select id from flips where lower(cid) = lower(l_flip_to_solve.cid)),
+                    l_flip_to_solve.is_short);
+        end loop;
+END
+$BODY$;
+
+-- PROCEDURE: save_epoch_rewards
+CREATE OR REPLACE PROCEDURE save_epoch_rewards(p_block_height bigint,
+                                               p_bad_authors text[],
+                                               p_good_authors tp_good_author[],
+                                               p_total tp_total_epoch_reward,
+                                               p_validation_rewards tp_epoch_reward[],
+                                               p_ages tp_reward_age[],
+                                               p_fund_rewards tp_epoch_reward[])
+    LANGUAGE 'plpgsql'
+AS
+$BODY$
+DECLARE
+BEGIN
+    if p_bad_authors is not null then
+        call save_bad_authors(p_bad_authors);
+    end if;
+    if p_good_authors is not null then
+        call save_good_authors(p_good_authors);
+    end if;
+    if p_total is not null then
+        call save_total_reward(p_block_height, p_total);
+    end if;
+    if p_validation_rewards is not null then
+        call save_validation_rewards(p_validation_rewards);
+    end if;
+    if p_ages is not null then
+        call save_reward_ages(p_ages);
+    end if;
+    if p_fund_rewards is not null then
+        call save_fund_rewards(p_block_height, p_fund_rewards);
+    end if;
+END
+$BODY$;
+
+CREATE OR REPLACE PROCEDURE save_bad_authors(p_bad_authors text[])
+    LANGUAGE 'plpgsql'
+AS
+$BODY$
+BEGIN
+    for i in 1..cardinality(p_bad_authors)
+        loop
+            insert into bad_authors (epoch_identity_id)
+            values ((select epoch_identity_id
+                     from cur_epoch_identities
+                     where lower(address) = lower(p_bad_authors[i])));
+        end loop;
+END
+$BODY$;
+
+CREATE OR REPLACE PROCEDURE save_good_authors(p_good_authors tp_good_author[])
+    LANGUAGE 'plpgsql'
+AS
+$BODY$
+DECLARE
+    l_good_author tp_good_author;
+BEGIN
+    for i in 1..cardinality(p_good_authors)
+        loop
+            l_good_author := p_good_authors[i];
+            insert into good_authors (epoch_identity_id, strong_flips, weak_flips, successful_invites)
+            values ((select epoch_identity_id
+                     from cur_epoch_identities
+                     where lower(address) = lower(l_good_author.address)),
+                    l_good_author.strong_flips,
+                    l_good_author.weak_flips,
+                    l_good_author.successful_invites);
+        end loop;
+END
+$BODY$;
+
+CREATE OR REPLACE PROCEDURE save_total_reward(p_block_height bigint,
+                                              p_total tp_total_epoch_reward)
+    LANGUAGE 'plpgsql'
+AS
+$BODY$
+BEGIN
+    insert into total_rewards (block_height, total, validation, flips, invitations, foundation, zero_wallet)
+    values (p_block_height,
+            p_total.total,
+            p_total.validation,
+            p_total.flips,
+            p_total.invitations,
+            p_total.foundation,
+            p_total.zero_wallet);
+END
+$BODY$;
+
+CREATE OR REPLACE PROCEDURE save_validation_rewards(p_validation_rewards tp_epoch_reward[])
+    LANGUAGE 'plpgsql'
+AS
+$BODY$
+DECLARE
+    l_validation_reward tp_epoch_reward;
+BEGIN
+    for i in 1..cardinality(p_validation_rewards)
+        loop
+            l_validation_reward := p_validation_rewards[i];
+            insert into validation_rewards (epoch_identity_id, balance, stake, type)
+            values ((select epoch_identity_id
+                     from cur_epoch_identities
+                     where lower(address) = lower(l_validation_reward.address)),
+                    l_validation_reward.balance,
+                    l_validation_reward.stake,
+                    l_validation_reward.type);
+        end loop;
+END
+$BODY$;
+
+CREATE OR REPLACE PROCEDURE save_reward_ages(p_ages tp_reward_age[])
+    LANGUAGE 'plpgsql'
+AS
+$BODY$
+DECLARE
+    l_age tp_reward_age;
+BEGIN
+    for i in 1..cardinality(p_ages)
+        loop
+            l_age := p_ages[i];
+            insert into reward_ages (epoch_identity_id, age)
+            values ((select epoch_identity_id
+                     from cur_epoch_identities
+                     where lower(address) = lower(l_age.address)),
+                    l_age.age);
+        end loop;
+END
+$BODY$;
+
+CREATE OR REPLACE PROCEDURE save_fund_rewards(p_block_height bigint,
+                                              p_fund_rewards tp_epoch_reward[])
+    LANGUAGE 'plpgsql'
+AS
+$BODY$
+DECLARE
+    l_fund_reward tp_epoch_reward;
+BEGIN
+    for i in 1..cardinality(p_fund_rewards)
+        loop
+            l_fund_reward := p_fund_rewards[i];
+            insert into fund_rewards (address_id, block_height, balance, type)
+            values ((select id from addresses where lower(address) = lower(l_fund_reward.address)),
+                    p_block_height,
+                    l_fund_reward.balance,
+                    l_fund_reward.type);
         end loop;
 END
 $BODY$;

@@ -20,9 +20,45 @@ func (v Balance) Value() (driver.Value, error) {
 	return fmt.Sprintf("(%v,%v,%v)", v.Address, v.Balance, v.Stake), nil
 }
 
+func (v Birthday) Value() (driver.Value, error) {
+	return fmt.Sprintf("(%v,%v)", v.Address, v.BirthEpoch), nil
+}
+
 func (v Transaction) Value() (driver.Value, error) {
 	return fmt.Sprintf("(%v,%v,%v,%v,%v,%v,%v,%v,%v)",
 		v.Hash, v.Type, v.From, v.To, v.Amount, v.Tips, v.MaxFee, v.Fee, v.Size), nil
+}
+
+func (v *ValidationResult) Value() (driver.Value, error) {
+	return fmt.Sprintf("(%v,%v,%v,%v)",
+		v.Address,
+		v.StrongFlips,
+		v.WeakFlips,
+		v.SuccessfulInvites,
+	), nil
+}
+
+func (v *TotalRewards) Value() (driver.Value, error) {
+	if v == nil {
+		return nil, nil
+	}
+	return fmt.Sprintf("(%v,%v,%v,%v,%v,%v)",
+		v.Total,
+		v.Validation,
+		v.Flips,
+		v.Invitations,
+		v.FoundationPayouts,
+		v.ZeroWalletFund,
+	), nil
+}
+
+func (v *Reward) Value() (driver.Value, error) {
+	return fmt.Sprintf("(%v,%v,%v,%v)",
+		v.Address,
+		v.Balance,
+		v.Stake,
+		v.Type,
+	), nil
 }
 
 type postgresAddrBurntCoins struct {
@@ -125,16 +161,16 @@ func (v *txHashId) Scan(value interface{}) error {
 }
 
 type postgresAnswer struct {
-	flipCid         string
-	epochIdentityId int64
-	isShort         bool
-	answer          byte
-	wrongWords      bool
-	point           float32
+	flipCid    string
+	address    string
+	isShort    bool
+	answer     byte
+	wrongWords bool
+	point      float32
 }
 
 func (v postgresAnswer) Value() (driver.Value, error) {
-	return fmt.Sprintf("(%v,%v,%v,%v,%v,%v)", v.flipCid, v.epochIdentityId, v.isShort, v.answer, v.wrongWords,
+	return fmt.Sprintf("(%v,%v,%v,%v,%v,%v)", v.flipCid, v.address, v.isShort, v.answer, v.wrongWords,
 		v.point), nil
 }
 
@@ -149,7 +185,7 @@ func (v postgresFlipsState) Value() (driver.Value, error) {
 	return fmt.Sprintf("(%v,%v,%v,%v)", v.flipCid, v.answer, v.wrongWords, v.status), nil
 }
 
-func getFlipStatsArrays(stats []FlipStats, epochIdentityIdsPerAddr map[string]int64) (answersArray, statesArray interface {
+func getFlipStatsArrays(stats []FlipStats) (answersArray, statesArray interface {
 	driver.Valuer
 	sql.Scanner
 }) {
@@ -158,11 +194,11 @@ func getFlipStatsArrays(stats []FlipStats, epochIdentityIdsPerAddr map[string]in
 	var isFirst bool
 	var convertAndAddAnswer = func(isShort bool, flipCid string, answer Answer) {
 		convertedAnswer := postgresAnswer{
-			epochIdentityId: epochIdentityIdsPerAddr[answer.Address],
-			answer:          answer.Answer,
-			wrongWords:      answer.WrongWords,
-			point:           answer.Point,
-			isShort:         isShort,
+			address:    answer.Address,
+			answer:     answer.Answer,
+			wrongWords: answer.WrongWords,
+			point:      answer.Point,
+			isShort:    isShort,
 		}
 		if isFirst {
 			convertedAnswer.flipCid = flipCid
@@ -186,4 +222,120 @@ func getFlipStatsArrays(stats []FlipStats, epochIdentityIdsPerAddr map[string]in
 		})
 	}
 	return pq.Array(convertedAnswers), pq.Array(convertedStates)
+}
+
+type postgresEpochIdentity struct {
+	address         string
+	state           uint8
+	shortPoint      float32
+	shortFlips      uint32
+	totalShortPoint float32
+	totalShortFlips uint32
+	longPoint       float32
+	longFlips       uint32
+	approved        bool
+	missed          bool
+	requiredFlips   uint8
+	madeFlips       uint8
+}
+
+func (v postgresEpochIdentity) Value() (driver.Value, error) {
+	return fmt.Sprintf("(%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v)",
+		v.address,
+		v.state,
+		v.shortPoint,
+		v.shortFlips,
+		v.totalShortPoint,
+		v.totalShortFlips,
+		v.longPoint,
+		v.longFlips,
+		v.approved,
+		v.missed,
+		v.requiredFlips,
+		v.madeFlips,
+	), nil
+}
+
+type postgresFlipToSolve struct {
+	address string
+	cid     string
+	isShort bool
+}
+
+func (v postgresFlipToSolve) Value() (driver.Value, error) {
+	return fmt.Sprintf("(%v,%v,%v)",
+		v.address,
+		v.cid,
+		v.isShort,
+	), nil
+}
+
+func getEpochIdentitiesArrays(identities []EpochIdentity) (identitiesArray, flipsToSolveArray interface {
+	driver.Valuer
+	sql.Scanner
+}) {
+	var convertedIdentities []postgresEpochIdentity
+	var convertedFlipsToSolve []postgresFlipToSolve
+	var isFirst bool
+	var convertAndAddFlipToSolve = func(address string, flipCid string, isShort bool) {
+		converted := postgresFlipToSolve{
+			cid:     flipCid,
+			isShort: isShort,
+		}
+		if isFirst {
+			converted.address = address
+			isFirst = false
+		}
+		convertedFlipsToSolve = append(convertedFlipsToSolve, converted)
+	}
+	for _, identity := range identities {
+		isFirst = true
+		for _, flipCid := range identity.ShortFlipCidsToSolve {
+			convertAndAddFlipToSolve(identity.Address, flipCid, true)
+		}
+		for _, flipCid := range identity.LongFlipCidsToSolve {
+			convertAndAddFlipToSolve(identity.Address, flipCid, false)
+		}
+		convertedIdentities = append(convertedIdentities, postgresEpochIdentity{
+			address:         identity.Address,
+			state:           identity.State,
+			shortPoint:      identity.ShortPoint,
+			shortFlips:      identity.ShortFlips,
+			totalShortPoint: identity.TotalShortPoint,
+			totalShortFlips: identity.TotalShortFlips,
+			longPoint:       identity.LongPoint,
+			longFlips:       identity.LongFlips,
+			approved:        identity.Approved,
+			missed:          identity.Missed,
+			requiredFlips:   identity.RequiredFlips,
+			madeFlips:       identity.MadeFlips,
+		})
+	}
+	return pq.Array(convertedIdentities), pq.Array(convertedFlipsToSolve)
+}
+
+type postgresRewardAge struct {
+	address string
+	age     uint16
+}
+
+func (v postgresRewardAge) Value() (driver.Value, error) {
+	return fmt.Sprintf("(%v,%v)",
+		v.address,
+		v.age,
+	), nil
+}
+
+func getRewardAgesArray(agesByAddress map[string]uint16) interface {
+	driver.Valuer
+	sql.Scanner
+} {
+	var converted []postgresRewardAge
+	for address, age := range agesByAddress {
+		converted = append(converted, postgresRewardAge{
+			address: address,
+			age:     age,
+		})
+	}
+	return pq.Array(converted)
 }

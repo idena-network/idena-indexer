@@ -38,7 +38,6 @@ const (
 	insertBlockProposerVrfScoreQuery    = "insertBlockProposerVrfScore.sql"
 	selectIdentityQuery                 = "selectIdentity.sql"
 	selectFlipQuery                     = "selectFlip.sql"
-	insertEpochIdentityQuery            = "insertEpochIdentity.sql"
 	insertAddressesAndTransactionsQuery = "insertAddressesAndTransactions.sql"
 	insertSubmittedFlipQuery            = "insertSubmittedFlip.sql"
 	insertFlipKeyQuery                  = "insertFlipKey.sql"
@@ -46,29 +45,21 @@ const (
 	flipWordsCountQuery                 = "flipWordsCount.sql"
 	selectEpochQuery                    = "selectEpoch.sql"
 	insertEpochQuery                    = "insertEpoch.sql"
-	insertFlipsToSolveQuery             = "insertFlipsToSolve.sql"
-	archiveIdentityStateQuery           = "archiveIdentityState.sql"
-	insertIdentityStateQuery            = "insertIdentityState.sql"
 	resetToBlockQuery                   = "resetToBlock.sql"
 	saveBalancesQuery                   = "saveBalances.sql"
-	insertBirthdayQuery                 = "insertBirthday.sql"
-	updateBirthdayQuery                 = "updateBirthday.sql"
+	saveBirthdaysQuery                  = "saveBirthdays.sql"
 	insertCoinsQuery                    = "insertCoins.sql"
 	insertBlockFlagQuery                = "insertBlockFlag.sql"
 	insertEpochSummaryQuery             = "insertEpochSummary.sql"
 	insertPenaltyQuery                  = "insertPenalty.sql"
 	selectLastPenaltyQuery              = "selectLastPenalty.sql"
 	insertPaidPenaltyQuery              = "insertPaidPenalty.sql"
-	insertBadAuthorQuery                = "insertBadAuthor.sql"
-	insertGoodAuthorQuery               = "insertGoodAuthor.sql"
-	insertTotalRewardsQuery             = "insertTotalRewards.sql"
-	insertValidationRewardQuery         = "insertValidationReward.sql"
-	insertRewardAgeQuery                = "insertRewardAge.sql"
-	insertFundRewardQuery               = "insertFundReward.sql"
 	insertFailedValidationQuery         = "insertFailedValidation.sql"
 	insertMiningRewardsQuery            = "insertMiningRewards.sql"
 	insertBurntCoinsQuery               = "insertBurntCoins.sql"
 	insertFlipStatsQuery                = "insertFlipStats.sql"
+	saveEpochIdentitiesQuery            = "saveEpochIdentities.sql"
+	saveEpochRewardsQuery               = "saveEpochRewards.sql"
 )
 
 func (a *postgresAccessor) getQuery(name string) string {
@@ -283,7 +274,7 @@ func (a *postgresAccessor) saveFlipsStats(ctx *context, flipsStats []FlipStats) 
 	if len(flipsStats) == 0 {
 		return nil
 	}
-	answersArray, statesArray := getFlipStatsArrays(flipsStats, ctx.epochIdentityIdsPerAddr)
+	answersArray, statesArray := getFlipStatsArrays(flipsStats)
 	_, err := ctx.tx.Exec(a.getQuery(insertFlipStatsQuery),
 		ctx.blockHeight,
 		answersArray,
@@ -465,98 +456,26 @@ func (a *postgresAccessor) saveBalances(tx *sql.Tx, balances []Balance) error {
 }
 
 func (a *postgresAccessor) saveBirthdays(tx *sql.Tx, birthdays []Birthday) error {
-	for _, birthday := range birthdays {
-		if err := a.saveBirthday(tx, birthday); err != nil {
-			return err
-		}
+	if len(birthdays) == 0 {
+		return nil
+	}
+	if _, err := tx.Exec(a.getQuery(saveBirthdaysQuery), pq.Array(birthdays)); err != nil {
+		return err
 	}
 	return nil
-}
-
-func (a *postgresAccessor) saveBirthday(tx *sql.Tx, birthday Birthday) error {
-	var addressId uint64
-	err := tx.QueryRow(a.getQuery(updateBirthdayQuery),
-		birthday.Address,
-		birthday.BirthEpoch).Scan(&addressId)
-	if err == sql.ErrNoRows {
-		_, err = tx.Exec(a.getQuery(insertBirthdayQuery),
-			birthday.Address,
-			birthday.BirthEpoch)
-	}
-	return errors.Wrapf(err, "unable to save birthday %v", birthday)
 }
 
 func (a *postgresAccessor) saveIdentities(ctx *context, identities []EpochIdentity) error {
-	for _, identity := range identities {
-		identityStateId, err := a.saveIdentityState(ctx, identity)
-		if err != nil {
-			return err
-		}
-		if _, err = a.saveEpochIdentity(ctx, identityStateId, identity); err != nil {
-			return err
-		}
+	if len(identities) == 0 {
+		return nil
 	}
-	return nil
-}
-
-func (a *postgresAccessor) saveIdentityState(ctx *context, identity EpochIdentity) (int64, error) {
-	var prevId int64
-	err := ctx.tx.QueryRow(a.getQuery(archiveIdentityStateQuery), identity.Address).Scan(&prevId)
-	if err != nil && err != sql.ErrNoRows {
-		return 0, errors.Wrapf(err, "unable to execute query %s", archiveIdentityStateQuery)
-	}
-	var id int64
-	if prevId > 0 {
-		err = ctx.tx.QueryRow(a.getQuery(insertIdentityStateQuery), identity.Address, identity.State, ctx.blockHeight, prevId).Scan(&id)
-	} else {
-		err = ctx.tx.QueryRow(a.getQuery(insertIdentityStateQuery), identity.Address, identity.State, ctx.blockHeight, nil).Scan(&id)
-	}
-	return id, errors.Wrapf(err, "unable to execute query %s", insertIdentityStateQuery)
-}
-
-func (a *postgresAccessor) saveEpochIdentity(ctx *context, identityStateId int64, identity EpochIdentity) (int64, error) {
-	var id int64
-
-	if err := ctx.tx.QueryRow(a.getQuery(insertEpochIdentityQuery), ctx.epoch, identityStateId, identity.ShortPoint,
-		identity.ShortFlips, identity.TotalShortPoint, identity.TotalShortFlips,
-		identity.LongPoint, identity.LongFlips, identity.Approved, identity.Missed,
-		identity.RequiredFlips, identity.MadeFlips).Scan(&id); err != nil {
-		return 0, errors.Wrapf(err, "unable to execute query %s", insertEpochIdentityQuery)
-	}
-
-	if ctx.epochIdentityIdsPerAddr == nil {
-		ctx.epochIdentityIdsPerAddr = make(map[string]int64)
-	}
-	ctx.epochIdentityIdsPerAddr[identity.Address] = id
-
-	if err := a.saveFlipsToSolve(ctx, id, identity.ShortFlipCidsToSolve, true); err != nil {
-		return 0, err
-	}
-
-	if err := a.saveFlipsToSolve(ctx, id, identity.LongFlipCidsToSolve, false); err != nil {
-		return 0, err
-	}
-
-	return id, nil
-}
-
-func (a *postgresAccessor) saveFlipsToSolve(ctx *context, epochIdentityId int64, cids []string, isShort bool) error {
-	for _, cid := range cids {
-		if _, err := a.saveFlipToSolve(ctx, epochIdentityId, cid, isShort); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (a *postgresAccessor) saveFlipToSolve(ctx *context, epochIdentityId int64, cid string, isShort bool) (int64, error) {
-	flipId, err := ctx.flipId(cid)
-	if err != nil {
-		return 0, err
-	}
-	var id int64
-	err = ctx.tx.QueryRow(a.getQuery(insertFlipsToSolveQuery), epochIdentityId, flipId, isShort).Scan(&id)
-	return id, errors.Wrapf(err, "unable to execute query %s", insertFlipsToSolveQuery)
+	identitiesArray, flipsToSolveArray := getEpochIdentitiesArrays(identities)
+	_, err := ctx.tx.Exec(a.getQuery(saveEpochIdentitiesQuery),
+		ctx.epoch,
+		ctx.blockHeight,
+		identitiesArray,
+		flipsToSolveArray)
+	return errors.Wrap(err, "unable to save identities")
 }
 
 func (a *postgresAccessor) saveAddressesAndTransactions(ctx *context, addresses []Address,
@@ -703,122 +622,16 @@ func (a *postgresAccessor) saveEpochRewards(ctx *context, epochRewards *EpochRew
 	if epochRewards == nil {
 		return nil
 	}
-	if err := a.saveBadAuthors(ctx, epochRewards.BadAuthors); err != nil {
-		return err
-	}
-	if err := a.saveGoodAuthors(ctx, epochRewards.GoodAuthors); err != nil {
-		return err
-	}
-	if err := a.saveTotalRewards(ctx, epochRewards.Total); err != nil {
-		return err
-	}
-	if err := a.saveValidationRewards(ctx, epochRewards.ValidationRewards); err != nil {
-		return err
-	}
-	if err := a.saveRewardAges(ctx, epochRewards.AgesByAddress); err != nil {
-		return err
-	}
-	if err := a.saveFundRewards(ctx, epochRewards.FundRewards); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (a *postgresAccessor) saveBadAuthors(ctx *context, badAuthors []string) error {
-	for _, badAuthor := range badAuthors {
-		if err := a.saveBadAuthor(ctx, badAuthor); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (a *postgresAccessor) saveBadAuthor(ctx *context, badAuthor string) error {
-	_, err := ctx.tx.Exec(a.getQuery(insertBadAuthorQuery), ctx.epochIdentityIdsPerAddr[badAuthor])
-	return errors.Wrapf(err, "unable to save bad author")
-}
-
-func (a *postgresAccessor) saveGoodAuthors(ctx *context, goodAuthors []*ValidationResult) error {
-	for _, goodAuthor := range goodAuthors {
-		if err := a.saveGoodAuthor(ctx, goodAuthor); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (a *postgresAccessor) saveGoodAuthor(ctx *context, goodAuthor *ValidationResult) error {
-	_, err := ctx.tx.Exec(a.getQuery(insertGoodAuthorQuery),
-		ctx.epochIdentityIdsPerAddr[goodAuthor.Address],
-		goodAuthor.StrongFlips,
-		goodAuthor.WeakFlips,
-		goodAuthor.SuccessfulInvites)
-	return errors.Wrapf(err, "unable to save good author")
-}
-
-func (a *postgresAccessor) saveTotalRewards(ctx *context, totalRewards *TotalRewards) error {
-	if totalRewards == nil {
-		return nil
-	}
-	_, err := ctx.tx.Exec(a.getQuery(insertTotalRewardsQuery),
+	_, err := ctx.tx.Exec(a.getQuery(saveEpochRewardsQuery),
 		ctx.blockHeight,
-		totalRewards.Total,
-		totalRewards.Validation,
-		totalRewards.Flips,
-		totalRewards.Invitations,
-		totalRewards.FoundationPayouts,
-		totalRewards.ZeroWalletFund)
-	return errors.Wrapf(err, "unable to save total rewards")
-}
-
-func (a *postgresAccessor) saveValidationRewards(ctx *context, rewards []*Reward) error {
-	for _, reward := range rewards {
-		if err := a.saveValidationReward(ctx, reward); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (a *postgresAccessor) saveValidationReward(ctx *context, reward *Reward) error {
-	_, err := ctx.tx.Exec(a.getQuery(insertValidationRewardQuery),
-		ctx.epochIdentityIdsPerAddr[reward.Address],
-		reward.Balance,
-		reward.Stake,
-		reward.Type)
-	return errors.Wrapf(err, "unable to save validation reward")
-}
-
-func (a *postgresAccessor) saveRewardAges(ctx *context, agesByAddress map[string]uint16) error {
-	for address, age := range agesByAddress {
-		if err := a.saveRewardAge(ctx, address, age); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (a *postgresAccessor) saveRewardAge(ctx *context, address string, age uint16) error {
-	_, err := ctx.tx.Exec(a.getQuery(insertRewardAgeQuery), ctx.epochIdentityIdsPerAddr[address], age)
-	return errors.Wrapf(err, "unable to save reward age")
-}
-
-func (a *postgresAccessor) saveFundRewards(ctx *context, rewards []*Reward) error {
-	for _, reward := range rewards {
-		if err := a.saveFundReward(ctx, reward); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (a *postgresAccessor) saveFundReward(ctx *context, reward *Reward) error {
-	_, err := ctx.tx.Exec(a.getQuery(insertFundRewardQuery),
-		reward.Address,
-		ctx.blockHeight,
-		reward.Balance,
-		reward.Type)
-	return errors.Wrapf(err, "unable to save fund reward: %v", reward)
+		pq.Array(epochRewards.BadAuthors),
+		pq.Array(epochRewards.GoodAuthors),
+		epochRewards.Total,
+		pq.Array(epochRewards.ValidationRewards),
+		getRewardAgesArray(epochRewards.AgesByAddress),
+		pq.Array(epochRewards.FundRewards),
+	)
+	return errors.Wrap(err, "unable to save epoch rewards")
 }
 
 func (a *postgresAccessor) saveMiningRewards(ctx *context, rewards []*MiningReward) error {

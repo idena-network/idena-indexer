@@ -1,0 +1,1 @@
+call save_birthdays($1)
