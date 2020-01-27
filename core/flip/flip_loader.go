@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	requestRetryInterval = time.Minute * 10
+	requestRetryInterval = time.Minute * 60
 	flipsToRetry         = 50
 )
 

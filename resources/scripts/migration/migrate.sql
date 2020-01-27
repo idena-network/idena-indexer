@@ -116,6 +116,15 @@ insert into epoch_identities (select *
 select setval('epoch_identities_id_seq', max(id))
 from epoch_identities;
 
+-- mem_pool_flip_keys
+insert into mem_pool_flip_keys
+    (select *
+     from OLD_SCHEMA_TAG.mem_pool_flip_keys
+     where epoch_identity_id in (select id
+                                 from OLD_SCHEMA_TAG.epoch_identities
+                                 where address_state_id in
+                                       (select id from OLD_SCHEMA_TAG.address_states where block_height <= $1)));
+
 -- answers
 insert into answers
     (select *

@@ -31,10 +31,10 @@ type Data struct {
 	FlipsWords        []FlipWords
 	FlipStats         []FlipStats
 	Addresses         []Address
-	FlipsData         []FlipData
 	FlipSizeUpdates   []FlipSizeUpdate
 	BalanceUpdates    []Balance
 	Birthdays         []Birthday
+	MemPoolFlipKeys   []*MemPoolFlipKey
 	Coins             Coins
 	SaveEpochSummary  bool
 	Penalty           *Penalty
@@ -159,17 +159,16 @@ type FlipKey struct {
 	Key    string
 }
 
+type MemPoolFlipKey struct {
+	Address string
+	Key     string
+}
+
 type FlipWords struct {
 	FlipId uint64
 	TxHash string
 	Word1  uint16
 	Word2  uint16
-}
-
-type FlipData struct {
-	FlipId  uint64
-	TxHash  string
-	Content FlipContent
 }
 
 type FlipSizeUpdate struct {
@@ -178,6 +177,7 @@ type FlipSizeUpdate struct {
 }
 
 type FlipContent struct {
+	Cid    string
 	Pics   [][]byte
 	Orders [][]byte
 	Icon   []byte
@@ -240,4 +240,16 @@ type MemPoolActionTimestamp struct {
 	Address string
 	Epoch   uint64
 	Time    *big.Int
+}
+
+type FlipToLoadContent struct {
+	Cid      string
+	Key      string
+	Attempts int
+}
+
+type FailedFlipContent struct {
+	Cid                  string
+	AttemptsLimitReached bool
+	NextAttemptTimestamp *big.Int
 }

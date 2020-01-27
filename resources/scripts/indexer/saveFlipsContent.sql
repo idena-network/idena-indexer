@@ -1,0 +1,1 @@
+call save_flips_content($1, $2)

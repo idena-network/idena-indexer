@@ -10,7 +10,6 @@ type conversionContext struct {
 	submittedFlips    []db.Flip
 	flipKeys          []db.FlipKey
 	flipsWords        []db.FlipWords
-	flipsData         []db.FlipData
 	flipSizeUpdates   []db.FlipSizeUpdate
 	addresses         map[string]*db.Address
 	prevStateReadOnly *appstate.AppState

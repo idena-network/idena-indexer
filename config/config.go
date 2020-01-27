@@ -19,6 +19,7 @@ type Config struct {
 	GenesisBlockHeight int
 	RestoreInitially   bool
 	PerformanceMonitor PerformanceMonitorConfig
+	FlipContentLoader  FlipContentLoaderConfig
 }
 
 type PerformanceMonitorConfig struct {
@@ -41,6 +42,12 @@ type Migration struct {
 	OldSchema  string
 	Height     uint64
 	ScriptsDir string
+}
+
+type FlipContentLoaderConfig struct {
+	BatchSize        int
+	AttemptsLimit    int
+	RetryIntervalMin int
 }
 
 func LoadConfig(configPath string) *Config {
@@ -69,5 +76,10 @@ func newDefaultConfig() *Config {
 		Verbosity:          3,
 		NodeVerbosity:      0,
 		GenesisBlockHeight: 1,
+		FlipContentLoader: FlipContentLoaderConfig{
+			BatchSize:        50,
+			AttemptsLimit:    5,
+			RetryIntervalMin: 10,
+		},
 	}
 }

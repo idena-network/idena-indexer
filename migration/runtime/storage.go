@@ -34,6 +34,10 @@ func (s *SecondaryStorage) GetLastBlockHeight() uint64 {
 	return s.lastBlockHeight
 }
 
+func (s *SecondaryStorage) GetMemPoolFlipKeys(epoch uint16) ([]*indexerDb.MemPoolFlipKey, error) {
+	return s.db.GetMemPoolFlipKeys(epoch)
+}
+
 func (s *SecondaryStorage) Destroy() {
 	if s.db != nil {
 		s.db.Destroy()

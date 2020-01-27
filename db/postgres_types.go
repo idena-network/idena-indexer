@@ -3,6 +3,8 @@ package db
 import (
 	"database/sql"
 	"database/sql/driver"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"github.com/idena-network/idena-go/common"
 	"github.com/idena-network/idena-indexer/core/conversion"
@@ -22,6 +24,13 @@ func (v Balance) Value() (driver.Value, error) {
 
 func (v Birthday) Value() (driver.Value, error) {
 	return fmt.Sprintf("(%v,%v)", v.Address, v.BirthEpoch), nil
+}
+
+func (v *MemPoolFlipKey) Value() (driver.Value, error) {
+	if v == nil {
+		return nil, nil
+	}
+	return fmt.Sprintf("(%v,%v)", v.Address, v.Key), nil
 }
 
 func (v Transaction) Value() (driver.Value, error) {
@@ -59,6 +68,52 @@ func (v *Reward) Value() (driver.Value, error) {
 		v.Stake,
 		v.Type,
 	), nil
+}
+
+func (v *FailedFlipContent) Value() (driver.Value, error) {
+	var timestamp int64
+	if v.NextAttemptTimestamp != nil {
+		timestamp = v.NextAttemptTimestamp.Int64()
+	}
+	return fmt.Sprintf("(%v,%v,%v)",
+		v.Cid,
+		v.AttemptsLimitReached,
+		timestamp,
+	), nil
+}
+
+type flipContent struct {
+	Cid    string  `json:"cid"`
+	Pics   []bytes `json:"pics"`
+	Orders [][]int `json:"orders,omitempty"`
+	Icon   bytes   `json:"icon,omitempty"`
+}
+
+type bytes []byte
+
+func (b bytes) MarshalText() ([]byte, error) {
+	result := make([]byte, len(b)*2)
+	hex.Encode(result[:], b)
+	return result, nil
+}
+
+func (v *FlipContent) Value() (driver.Value, error) {
+	fc := flipContent{
+		Cid:  v.Cid,
+		Icon: v.Icon,
+	}
+	for _, pic := range v.Pics {
+		fc.Pics = append(fc.Pics, pic)
+	}
+	for i, answerOrders := range v.Orders {
+		for j, order := range answerOrders {
+			if j == 0 {
+				fc.Orders = append(fc.Orders, make([]int, len(answerOrders)))
+			}
+			fc.Orders[i][j] = int(order)
+		}
+	}
+	return json.Marshal(fc)
 }
 
 type postgresAddrBurntCoins struct {

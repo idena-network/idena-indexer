@@ -1,8 +1,6 @@
 package indexer
 
 import (
-	"bufio"
-	"bytes"
 	"encoding/hex"
 	"fmt"
 	"github.com/idena-network/idena-go/blockchain"
@@ -13,7 +11,6 @@ import (
 	"github.com/idena-network/idena-go/core/ceremony"
 	"github.com/idena-network/idena-go/core/state"
 	"github.com/idena-network/idena-go/crypto"
-	"github.com/idena-network/idena-go/crypto/ecies"
 	"github.com/idena-network/idena-go/rlp"
 	statsTypes "github.com/idena-network/idena-go/stats/types"
 	"github.com/idena-network/idena-indexer/core/conversion"
@@ -28,17 +25,13 @@ import (
 	"github.com/idena-network/idena-indexer/monitoring"
 	"github.com/ipfs/go-cid"
 	"github.com/pkg/errors"
-	"golang.org/x/image/draw"
-	"image"
-	"image/jpeg"
 	_ "image/png"
 	"math/big"
 	"time"
 )
 
 const (
-	requestRetryInterval      = time.Second * 5
-	flipLimitToGetMemPoolData = 500
+	requestRetryInterval = time.Second * 5
 )
 
 var (
@@ -253,7 +246,7 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) *result 
 	indexer.pm.Start("ConvertBlock")
 	block := indexer.convertBlock(incomingBlock, ctx)
 	indexer.pm.Complete("ConvertBlock")
-	identities, flipStats, flipsMemPoolData, birthdays, notFailedValidation := indexer.detectEpochResult(incomingBlock, ctx)
+	identities, flipStats, birthdays, memPoolFlipKeys, notFailedValidation := indexer.detectEpochResult(incomingBlock, ctx)
 
 	firstAddresses := indexer.detectFirstAddresses(incomingBlock, ctx)
 	for _, addr := range firstAddresses {
@@ -279,12 +272,12 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) *result 
 		SubmittedFlips:    ctx.submittedFlips,
 		FlipKeys:          ctx.flipKeys,
 		FlipsWords:        ctx.flipsWords,
-		FlipsData:         append(ctx.flipsData, flipsMemPoolData...),
 		FlipSizeUpdates:   ctx.flipSizeUpdates,
 		FlipStats:         flipStats,
 		Addresses:         ctx.getAddresses(),
 		BalanceUpdates:    balanceUpdates,
 		Birthdays:         birthdays,
+		MemPoolFlipKeys:   memPoolFlipKeys,
 		Coins:             coins,
 		SaveEpochSummary:  incomingBlock.Header.Flags().HasFlag(types.ValidationFinished),
 		Penalty:           detectChargedPenalty(incomingBlock, ctx.newStateReadOnly),
@@ -539,13 +532,15 @@ func convertCid(cid cid.Cid) string {
 }
 
 func (indexer *Indexer) detectEpochResult(block *types.Block, ctx *conversionContext) ([]db.EpochIdentity,
-	[]db.FlipStats, []db.FlipData, []db.Birthday, bool) {
+	[]db.FlipStats, []db.Birthday, []*db.MemPoolFlipKey, bool) {
 	if !block.Header.Flags().HasFlag(types.ValidationFinished) {
 		return nil, nil, nil, nil, true
 	}
 
 	var birthdays []db.Birthday
 	var identities []db.EpochIdentity
+	memPoolFlipKeysToMigrate := indexer.getMemPoolFlipKeysToMigrate(ctx.prevStateReadOnly.State.Epoch())
+	memPoolFlipKeys := memPoolFlipKeysToMigrate
 	validationStats := indexer.statsHolder().GetStats().ValidationStats
 
 	ctx.prevStateReadOnly.State.IterateOverIdentities(func(addr common.Address, identity state.Identity) {
@@ -577,6 +572,13 @@ func (indexer *Indexer) detectEpochResult(block *types.Block, ctx *conversionCon
 		if birthday != nil {
 			birthdays = append(birthdays, *birthday)
 		}
+
+		if memPoolFlipKeysToMigrate == nil {
+			memPoolFlipKey := indexer.detectMemPoolFlipKey(addr, identity)
+			if memPoolFlipKey != nil {
+				memPoolFlipKeys = append(memPoolFlipKeys, memPoolFlipKey)
+			}
+		}
 	})
 
 	var flipsStats []db.FlipStats
@@ -597,7 +599,35 @@ func (indexer *Indexer) detectEpochResult(block *types.Block, ctx *conversionCon
 		flipsStats = append(flipsStats, flipStats)
 	}
 
-	return identities, flipsStats, indexer.getFlipsMemPoolKeyData(ctx), birthdays, !validationStats.Failed
+	return identities, flipsStats, birthdays, memPoolFlipKeys, !validationStats.Failed
+}
+
+func (indexer *Indexer) detectMemPoolFlipKey(addr common.Address, identity state.Identity) *db.MemPoolFlipKey {
+	if len(identity.Flips) == 0 {
+		return nil
+	}
+	key := indexer.listener.KeysPool().GetPublicFlipKey(addr)
+	if key == nil {
+		log.Error(fmt.Sprintf("Not found mem pool flip key for %s", addr.Hex()))
+		return nil
+	}
+	return &db.MemPoolFlipKey{
+		Address: conversion.ConvertAddress(addr),
+		Key:     hex.EncodeToString(crypto.FromECDSA(key.ExportECDSA())),
+	}
+
+}
+
+func (indexer *Indexer) getMemPoolFlipKeysToMigrate(epoch uint16) []*db.MemPoolFlipKey {
+	if indexer.secondaryStorage == nil {
+		return nil
+	}
+	keys, err := indexer.secondaryStorage.GetMemPoolFlipKeys(epoch)
+	if err != nil {
+		log.Error(errors.Wrap(err, "Unable to get mem pool flip keys to migrate").Error())
+		return nil
+	}
+	return keys
 }
 
 func detectBirthday(address common.Address, prevBirthday, newBirthday uint16) *db.Birthday {
@@ -608,121 +638,6 @@ func detectBirthday(address common.Address, prevBirthday, newBirthday uint16) *d
 		Address:    conversion.ConvertAddress(address),
 		BirthEpoch: uint64(newBirthday),
 	}
-}
-
-func (indexer *Indexer) getFlipsMemPoolKeyData(ctx *conversionContext) []db.FlipData {
-	flipCidsWithoutData, err := indexer.db.GetCurrentFlipsWithoutData(flipLimitToGetMemPoolData)
-	if err != nil {
-		log.Error("Unable to get cids without data to try to load it with key from mem pool. Skipped.", "err", err)
-		return nil
-	}
-	if len(flipCidsWithoutData) == 0 {
-		return nil
-	}
-	log.Info(fmt.Sprintf("Flip count for loading data with key from mem pool: %d", len(flipCidsWithoutData)))
-	var flipsMemPoolKeyData []db.FlipData
-	var parsedData db.FlipContent
-	for _, addrFlipCid := range flipCidsWithoutData {
-		if indexer.secondaryStorage == nil {
-			flipKey := indexer.listener.KeysPool().GetPublicFlipKey(common.HexToAddress(addrFlipCid.Address))
-			if flipKey == nil {
-				log.Error("Missed mem pool key. Skipped.", "cid", addrFlipCid)
-				continue
-			}
-			flipCid, _ := cid.Decode(addrFlipCid.Cid)
-			data, err := indexer.getFlipData(flipCid.Bytes(), flipKey, addrFlipCid.Cid, ctx)
-			if err != nil {
-				log.Error("Unable to get flip data with key from mem pool. Skipped.", "cid", addrFlipCid, "err", err)
-				continue
-			}
-			parsedData, err = parseFlip(addrFlipCid.Cid, data)
-			if err != nil {
-				log.Error("Unable to parse flip data with key from mem pool. Skipped.", "cid", addrFlipCid, "err", err)
-				continue
-			}
-		} else {
-			parsedData, err = indexer.secondaryStorage.GetFlipContent(addrFlipCid.Cid)
-			if err != nil {
-				log.Error("Unable to get flip data from previous db. Skipped.", "cid", addrFlipCid, "err", err)
-				continue
-			}
-			log.Info("Migrated flip content from previous db", "cid", addrFlipCid)
-		}
-		flipsMemPoolKeyData = append(flipsMemPoolKeyData, db.FlipData{
-			FlipId:  addrFlipCid.FlipId,
-			Content: parsedData,
-		})
-	}
-	return flipsMemPoolKeyData
-}
-
-func parseFlip(flipCidStr string, data []byte) (db.FlipContent, error) {
-	arr := make([]interface{}, 2)
-	err := rlp.DecodeBytes(data, &arr)
-	if err != nil || len(arr) == 0 {
-		return db.FlipContent{}, err
-	}
-	var pics [][]byte
-	for _, b := range arr[0].([]interface{}) {
-		pics = append(pics, b.([]byte))
-	}
-	var allOrders [][]byte
-	if len(arr) > 1 {
-		for _, b := range arr[1].([]interface{}) {
-			var orders []byte
-			for _, bb := range b.([]interface{}) {
-				var order byte
-				if len(bb.([]byte)) > 0 {
-					order = bb.([]byte)[0]
-				}
-				orders = append(orders, order)
-			}
-			allOrders = append(allOrders, orders)
-		}
-	}
-	var icon []byte
-
-	if len(pics) > 0 {
-		icon, err = compressPic(pics[0])
-		if err != nil {
-			log.Error("Unable to create flip icon, src pic will be used instead", "cid", flipCidStr, "err", err)
-			icon = pics[0]
-		}
-	}
-	return db.FlipContent{
-		Pics:   pics,
-		Orders: allOrders,
-		Icon:   icon,
-	}, nil
-}
-
-func compressPic(src []byte) ([]byte, error) {
-	srcImage, _, err := image.Decode(bytes.NewReader(src))
-	if err != nil {
-		return nil, err
-	}
-	var x, y int
-	if srcImage.Bounds().Max.X > srcImage.Bounds().Max.Y {
-		x = 64
-		y = int(float32(srcImage.Bounds().Max.Y) / float32(srcImage.Bounds().Max.X) * 64)
-	} else {
-		y = 64
-		x = int(float32(srcImage.Bounds().Max.X) / float32(srcImage.Bounds().Max.Y) * 64)
-	}
-
-	dr := image.Rect(0, 0, x, y)
-	dst := image.NewRGBA(dr)
-	draw.CatmullRom.Scale(dst, dr, srcImage, srcImage.Bounds(), draw.Src, nil)
-
-	var res bytes.Buffer
-	err = jpeg.Encode(bufio.NewWriter(&res), dst, nil)
-	if err != nil {
-		return nil, err
-	}
-	if len(res.Bytes()) == 0 {
-		return nil, errors.New("empty converted pic")
-	}
-	return res.Bytes(), nil
 }
 
 func (indexer *Indexer) detectSubmittedFlip(tx *types.Transaction) (*db.Flip, *flipTx) {
@@ -770,13 +685,6 @@ func (indexer *Indexer) convertShortAnswers(tx *types.Transaction, ctx *conversi
 	}
 
 	if len(attachment.Key) > 0 {
-		flipsData, err := indexer.getFlipsData(tx, senderFlips, attachment, ctx)
-		if err != nil {
-			log.Error("Unable to get flips data. Skipped.", "tx", tx.Hash(), "err", err)
-		} else if flipsData != nil {
-			ctx.flipsData = append(ctx.flipsData, flipsData...)
-		}
-
 		ctx.flipKeys = append(ctx.flipKeys, db.FlipKey{
 			TxHash: convertHash(tx.Hash()),
 			Key:    hex.EncodeToString(attachment.Key),
@@ -802,64 +710,11 @@ func (indexer *Indexer) convertShortAnswers(tx *types.Transaction, ctx *conversi
 	}
 }
 
-func (indexer *Indexer) getFlipsData(tx *types.Transaction, keyAuthorFlips []db.Flip,
-	attachment *attachments.ShortAnswerAttachment, ctx *conversionContext) ([]db.FlipData, error) {
-
-	if len(keyAuthorFlips) == 0 {
-		return nil, nil
-	}
-	var flipsData []db.FlipData
-	for _, f := range keyAuthorFlips {
-		flipCidStr := f.Cid
-		flipCid, _ := cid.Decode(flipCidStr)
-		ecdsaKey, _ := crypto.ToECDSA(attachment.Key)
-		var encryptionKey *ecies.PrivateKey
-		if ecdsaKey != nil {
-			encryptionKey = ecies.ImportECDSA(ecdsaKey)
-		}
-		flipData, err := indexer.getFlipData(flipCid.Bytes(), encryptionKey, flipCidStr, ctx)
-		if err != nil {
-			log.Error("Unable to get flip data. Skipped.", "tx", tx.Hash(), "cid", flipCidStr, "err", err)
-			continue
-		}
-		parsedData, err := parseFlip(flipCidStr, flipData)
-		if err != nil {
-			log.Error("Unable to parse flip data. Skipped.", "tx", tx.Hash(), "cid", flipCidStr, "err", err)
-			continue
-		}
-		flipsData = append(flipsData, db.FlipData{
-			FlipId:  f.Id,
-			TxHash:  convertHash(tx.Hash()),
-			Content: parsedData,
-		})
-	}
-	return flipsData, nil
-}
-
 func getFlipWords(addr common.Address, attachment *attachments.ShortAnswerAttachment, pairId int, appState *appstate.AppState) (word1, word2 int, err error) {
 	seed := appState.State.FlipWordsSeed().Bytes()
 	proof := attachment.Proof
 	identity := appState.State.GetIdentity(addr)
 	return ceremony.GetWords(seed, proof, identity.PubKey, common.WordDictionarySize, identity.GetTotalWordPairsCount(), pairId, appState.State.Epoch())
-}
-
-func (indexer *Indexer) getFlipData(cid []byte, encryptionKey *ecies.PrivateKey, cidStr string, ctx *conversionContext) ([]byte, error) {
-	ipfsFlip, err := indexer.listener.Flipper().GetRawFlip(cid)
-	if err != nil {
-		return nil, err
-	}
-	ctx.flipSizeUpdates = append(ctx.flipSizeUpdates, db.FlipSizeUpdate{
-		Cid:  cidStr,
-		Size: uint32(len(ipfsFlip.PublicPart)),
-	})
-	if encryptionKey == nil {
-		return nil, nil
-	}
-	decryptedFlip, err := encryptionKey.Decrypt(ipfsFlip.PublicPart, nil, nil)
-	if err != nil {
-		return nil, err
-	}
-	return decryptedFlip, nil
 }
 
 func convertCids(idxs []int, cids [][]byte, block *types.Block) []string {

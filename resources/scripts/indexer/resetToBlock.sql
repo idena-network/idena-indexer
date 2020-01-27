@@ -1,3 +1,77 @@
+-- flips_queue
+delete
+from flips_queue
+where lower(cid) in (
+    select f.cid
+    from flips f,
+         transactions t,
+         blocks b
+    where f.tx_id = t.id
+      and t.block_height = b.height
+      and b.epoch + 1 > (select epoch from blocks where height = greatest(2, $1))
+);
+
+-- flip_pics
+delete
+from flip_pics
+where flip_data_id in
+      (select id
+       from flips_data
+       where flip_id in (
+           select f.id
+           from flips f,
+                transactions t,
+                blocks b
+           where f.tx_id = t.id
+             and t.block_height = b.height
+             and b.epoch + 1 > (select epoch from blocks where height = greatest(2, $1))
+       ));
+
+-- flip_icons
+delete
+from flip_icons
+where flip_data_id in
+      (select id
+       from flips_data
+       where flip_id in (
+           select f.id
+           from flips f,
+                transactions t,
+                blocks b
+           where f.tx_id = t.id
+             and t.block_height = b.height
+             and b.epoch + 1 > (select epoch from blocks where height = greatest(2, $1))
+       ));
+
+-- flip_pic_orders
+delete
+from flip_pic_orders
+where flip_data_id in
+      (select id
+       from flips_data
+       where flip_id in (
+           select f.id
+           from flips f,
+                transactions t,
+                blocks b
+           where f.tx_id = t.id
+             and t.block_height = b.height
+             and b.epoch + 1 > (select epoch from blocks where height = greatest(2, $1))
+       ));
+
+-- flips_data
+delete
+from flips_data
+where flip_id in (
+    select f.id
+    from flips f,
+         transactions t,
+         blocks b
+    where f.tx_id = t.id
+      and t.block_height = b.height
+      and b.epoch + 1 > (select epoch from blocks where height = greatest(2, $1))
+);
+
 -- block_proposer_vrf_scores
 delete
 from block_proposer_vrf_scores
@@ -50,6 +124,17 @@ from birthdays;
 delete
 from coins
 where block_height > $1;
+
+-- mem_pool_flip_keys
+delete
+from mem_pool_flip_keys
+where epoch_identity_id in
+      (select id
+       from epoch_identities
+       where address_state_id in
+             (select id
+              from address_states
+              where block_height > $1));
 
 -- flips_to_solve
 delete
@@ -140,35 +225,6 @@ where id in
               from address_states s
               group by address_id)
          and not s.is_actual);
-
--- flip_pics
-delete
-from flip_pics
-where flip_data_id in
-      (select id
-       from flips_data
-       where block_height > $1);
-
--- flip_icons
-delete
-from flip_icons
-where flip_data_id in
-      (select id
-       from flips_data
-       where block_height > $1);
-
--- flip_pic_orders
-delete
-from flip_pic_orders
-where flip_data_id in
-      (select id
-       from flips_data
-       where block_height > $1);
-
--- flips_data
-delete
-from flips_data
-where block_height > $1;
 
 -- flip_words
 delete

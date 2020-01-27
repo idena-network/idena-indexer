@@ -26,6 +26,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"time"
 )
 
 func main() {
@@ -133,6 +134,15 @@ func initIndexer(config *config.Config) (*indexer.Indexer, incoming.Listener) {
 			return prevState.State.ValidationPeriod() < state.FlipLotteryPeriod
 		},
 		dbAccessor, listener.Flipper(), log.New("component", "flipLoader"))
+
+	flip.StartContentLoader(
+		dbAccessor,
+		config.FlipContentLoader.BatchSize,
+		config.FlipContentLoader.AttemptsLimit,
+		time.Minute*time.Duration(config.FlipContentLoader.RetryIntervalMin),
+		listener.Flipper(),
+		log.New("component", "flipContentLoader"),
+	)
 
 	return indexer.NewIndexer(
 			listener,

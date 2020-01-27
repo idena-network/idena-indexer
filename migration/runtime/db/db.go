@@ -12,6 +12,7 @@ import (
 type Accessor interface {
 	GetFlipContent(cid string) (db.FlipContent, error)
 	GetProposerVrfScore(height uint64) (float64, error)
+	GetMemPoolFlipKeys(epoch uint16) ([]*db.MemPoolFlipKey, error)
 	GetLastHeight() (uint64, error)
 	Destroy()
 }
@@ -39,6 +40,7 @@ const (
 	flipPicOrdersQuery    = "flipPicOrders.sql"
 	flipIconQuery         = "flipIcon.sql"
 	proposerVrfScoreQuery = "proposerVrfScore.sql"
+	memPoolFlipKeysQuery  = "memPoolFlipKeys.sql"
 	maxHeightQuery        = "maxHeight.sql"
 )
 
@@ -64,7 +66,9 @@ func (a *postgresAccessor) GetFlipContent(cid string) (db.FlipContent, error) {
 	if err != nil {
 		return db.FlipContent{}, err
 	}
-	res := db.FlipContent{}
+	res := db.FlipContent{
+		Cid: cid,
+	}
 	if res.Pics, err = a.flipPics(dataId); err != nil {
 		return db.FlipContent{}, err
 	}
@@ -132,6 +136,24 @@ func (a *postgresAccessor) GetProposerVrfScore(height uint64) (float64, error) {
 	err := a.db.QueryRow(a.getQuery(proposerVrfScoreQuery), height).Scan(&res)
 	if err != nil {
 		return 0, err
+	}
+	return res, nil
+}
+
+func (a *postgresAccessor) GetMemPoolFlipKeys(epoch uint16) ([]*db.MemPoolFlipKey, error) {
+	rows, err := a.db.Query(a.getQuery(memPoolFlipKeysQuery), epoch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var res []*db.MemPoolFlipKey
+	for rows.Next() {
+		item := &db.MemPoolFlipKey{}
+		err := rows.Scan(&item.Address, &item.Key)
+		if err != nil {
+			return nil, err
+		}
+		res = append(res, item)
 	}
 	return res, nil
 }

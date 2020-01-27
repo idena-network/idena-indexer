@@ -27,12 +27,7 @@ const (
 	maxHeightQuery                      = "maxHeight.sql"
 	currentFlipsQuery                   = "currentFlips.sql"
 	currentFlipCidsWithoutDataQuery     = "currentFlipCidsWithoutData.sql"
-	insertFlipDataQuery                 = "insertFlipData.sql"
-	flipDataCountQuery                  = "flipDataCount.sql"
 	updateFlipSizeQuery                 = "updateFlipSize.sql"
-	insertFlipPicQuery                  = "insertFlipPic.sql"
-	insertFlipIconQuery                 = "insertFlipIcon.sql"
-	insertFlipPicOrderQuery             = "insertFlipPicOrder.sql"
 	insertBlockQuery                    = "insertBlock.sql"
 	insertBlockProposerQuery            = "insertBlockProposer.sql"
 	insertBlockProposerVrfScoreQuery    = "insertBlockProposerVrfScore.sql"
@@ -60,6 +55,8 @@ const (
 	insertFlipStatsQuery                = "insertFlipStats.sql"
 	saveEpochIdentitiesQuery            = "saveEpochIdentities.sql"
 	saveEpochRewardsQuery               = "saveEpochRewards.sql"
+	saveMemPoolFlipKeysQuery            = "saveMemPoolFlipKeys.sql"
+	updateFlipsQueueQuery               = "updateFlipsQueue.sql"
 )
 
 func (a *postgresAccessor) getQuery(name string) string {
@@ -217,10 +214,6 @@ func (a *postgresAccessor) Save(data *Data) error {
 		return err
 	}
 
-	if err := a.saveFlipsData(ctx, data.FlipsData); err != nil {
-		return err
-	}
-
 	if err := a.updateFlipSizes(ctx, data.FlipSizeUpdates); err != nil {
 		return err
 	}
@@ -229,14 +222,25 @@ func (a *postgresAccessor) Save(data *Data) error {
 		return err
 	}
 
+	if err := a.saveMemPoolFlipKeys(ctx.tx, data.MemPoolFlipKeys); err != nil {
+		return err
+	}
+
 	if err = a.saveFlipsStats(ctx, data.FlipStats); err != nil {
 		return err
 	}
 
 	if data.SaveEpochSummary {
+		a.pm.Start("saveEpochSummary")
 		if err = a.saveEpochSummary(ctx, data.Coins); err != nil {
 			return err
 		}
+		a.pm.Complete("saveEpochSummary")
+		a.pm.Start("updateFlipsQueue")
+		if err = a.updateFlipsQueue(ctx); err != nil {
+			return err
+		}
+		a.pm.Complete("updateFlipsQueue")
 	}
 
 	if err = a.savePenalty(ctx, data.Penalty); err != nil {
@@ -282,62 +286,6 @@ func (a *postgresAccessor) saveFlipsStats(ctx *context, flipsStats []FlipStats) 
 	return errors.Wrap(err, "unable to save flip stats")
 }
 
-func (a *postgresAccessor) saveFlipsData(ctx *context, flipsData []FlipData) error {
-	for _, flipData := range flipsData {
-		if err := a.saveFlipData(ctx, flipData); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (a *postgresAccessor) saveFlipData(ctx *context, flipData FlipData) error {
-	count, err := a.getFlipDataCount(ctx, flipData.FlipId)
-	if err != nil {
-		return err
-	}
-	if count > 0 {
-		log.Warn(fmt.Sprintf("ignored duplicated flip data, flip id: %v, tx: %v", flipData.FlipId, flipData.TxHash))
-		return nil
-	}
-	var txId *int64
-	if len(flipData.TxHash) > 0 {
-		id, err := ctx.txId(flipData.TxHash)
-		if err != nil {
-			return err
-		}
-		txId = &id
-	}
-	var flipDataId int64
-	if err := ctx.tx.QueryRow(a.getQuery(insertFlipDataQuery), flipData.FlipId, ctx.blockHeight, txId).Scan(&flipDataId); err != nil {
-		return errors.Wrapf(err, "unable to save flip data, flip id: %v, tx: %v", flipData.FlipId, flipData.TxHash)
-	}
-	for picIndex, pic := range flipData.Content.Pics {
-		if err := a.saveFlipPic(ctx, byte(picIndex), pic, flipDataId); err != nil {
-			return err
-		}
-	}
-	for answerIndex, order := range flipData.Content.Orders {
-		for posIndex, flipPicIndex := range order {
-			if err := a.saveFlipPicOrder(ctx, byte(answerIndex), byte(posIndex), flipPicIndex, flipDataId); err != nil {
-				return err
-			}
-		}
-	}
-	if flipData.Content.Icon != nil {
-		if err := a.saveFlipIcon(ctx, flipData.Content.Icon, flipDataId); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (a *postgresAccessor) getFlipDataCount(ctx *context, flipId uint64) (int, error) {
-	var count int
-	err := ctx.tx.QueryRow(a.getQuery(flipDataCountQuery), flipId).Scan(&count)
-	return count, errors.Wrapf(err, "unable to get flip data count for flip id %v", flipId)
-}
-
 func (a *postgresAccessor) updateFlipSizes(ctx *context, flipSizeUpdates []FlipSizeUpdate) error {
 	if len(flipSizeUpdates) == 0 {
 		return nil
@@ -352,24 +300,6 @@ func (a *postgresAccessor) updateFlipSizes(ctx *context, flipSizeUpdates []FlipS
 
 func (a *postgresAccessor) updateFlipSize(ctx *context, flipSizeUpdate FlipSizeUpdate) error {
 	_, err := ctx.tx.Exec(a.getQuery(updateFlipSizeQuery), flipSizeUpdate.Size, flipSizeUpdate.Cid)
-	return err
-}
-
-func (a *postgresAccessor) saveFlipPic(ctx *context, picIndex byte, pic []byte, flipDataId int64) error {
-	_, err := ctx.tx.Exec(a.getQuery(insertFlipPicQuery), flipDataId, picIndex, pic)
-	return err
-}
-
-func (a *postgresAccessor) saveFlipIcon(ctx *context, icon []byte, flipDataId int64) error {
-	if icon == nil {
-		return nil
-	}
-	_, err := ctx.tx.Exec(a.getQuery(insertFlipIconQuery), flipDataId, icon)
-	return err
-}
-
-func (a *postgresAccessor) saveFlipPicOrder(ctx *context, answerIndex, posIndex, flipPicIndex byte, flipDataId int64) error {
-	_, err := ctx.tx.Exec(a.getQuery(insertFlipPicOrderQuery), flipDataId, answerIndex, posIndex, flipPicIndex)
 	return err
 }
 
@@ -463,6 +393,14 @@ func (a *postgresAccessor) saveBirthdays(tx *sql.Tx, birthdays []Birthday) error
 		return err
 	}
 	return nil
+}
+
+func (a *postgresAccessor) saveMemPoolFlipKeys(tx *sql.Tx, keys []*MemPoolFlipKey) error {
+	if len(keys) == 0 {
+		return nil
+	}
+	_, err := tx.Exec(a.getQuery(saveMemPoolFlipKeysQuery), pq.Array(keys))
+	return errors.Wrap(err, "unable to save mem pool flip keys")
 }
 
 func (a *postgresAccessor) saveIdentities(ctx *context, identities []EpochIdentity) error {
@@ -584,6 +522,11 @@ func (a *postgresAccessor) getFlipWordsCount(ctx *context, flipId uint64) (int, 
 func (a *postgresAccessor) saveEpochSummary(ctx *context, coins Coins) error {
 	_, err := ctx.tx.Exec(a.getQuery(insertEpochSummaryQuery), ctx.epoch, ctx.blockHeight, coins.TotalBalance, coins.TotalStake)
 	return errors.Wrapf(err, "unable to save epoch summary for %v", ctx.epoch)
+}
+
+func (a *postgresAccessor) updateFlipsQueue(ctx *context) error {
+	_, err := ctx.tx.Exec(a.getQuery(updateFlipsQueueQuery))
+	return errors.Wrap(err, "unable to update flips queue")
 }
 
 func (a *postgresAccessor) savePenalty(ctx *context, penalty *Penalty) error {

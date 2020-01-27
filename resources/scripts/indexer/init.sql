@@ -719,6 +719,23 @@ CREATE TABLE IF NOT EXISTS flip_keys
 ALTER TABLE flip_keys
     OWNER to postgres;
 
+CREATE TABLE IF NOT EXISTS mem_pool_flip_keys
+(
+    epoch_identity_id bigint                                              NOT NULL,
+    key               character varying(100) COLLATE pg_catalog."default" NOT NULL,
+    CONSTRAINT mem_pool_flip_keys_epoch_identity_id_type_key UNIQUE (epoch_identity_id),
+    CONSTRAINT mem_pool_flip_keys_epoch_identity_id_fkey FOREIGN KEY (epoch_identity_id)
+        REFERENCES epoch_identities (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+) WITH (
+      OIDS = FALSE
+    )
+  TABLESPACE pg_default;
+
+ALTER TABLE mem_pool_flip_keys
+    OWNER to postgres;
+
 -- SEQUENCE: answers_id_seq
 
 -- DROP SEQUENCE answers_id_seq;
@@ -767,6 +784,8 @@ CREATE TABLE IF NOT EXISTS answers
 
 ALTER TABLE answers
     OWNER to postgres;
+
+CREATE INDEX IF NOT EXISTS answers_long_wrong_words_idx on answers (flip_id) WHERE not is_short and wrong_words;
 
 -- SEQUENCE: flips_to_solve_id_seq
 
@@ -1021,6 +1040,7 @@ CREATE TABLE IF NOT EXISTS flip_icons
 (
     flip_data_id bigint NOT NULL,
     data         bytea  NOT NULL,
+    CONSTRAINT flip_icons_pkey PRIMARY KEY (flip_data_id),
     CONSTRAINT flip_icons_flip_data_id_fkey FOREIGN KEY (flip_data_id)
         REFERENCES flips_data (id) MATCH SIMPLE
         ON UPDATE NO ACTION
@@ -1378,6 +1398,24 @@ ALTER TABLE answers_hash_tx_timestamps
 CREATE UNIQUE INDEX IF NOT EXISTS answers_hash_tx_timestamps_address_epoch_unique_idx on answers_hash_tx_timestamps
     (LOWER(address), epoch);
 
+CREATE TABLE IF NOT EXISTS flips_queue
+(
+    cid                    character varying(100) COLLATE pg_catalog."default" NOT NULL,
+    key                    character varying(100) COLLATE pg_catalog."default" NOT NULL,
+    attempts               smallint                                            NOT NULL,
+    next_attempt_timestamp bigint                                              NOT NULL
+)
+    WITH (
+        OIDS = FALSE
+    )
+    TABLESPACE pg_default;
+
+ALTER TABLE flips_queue
+    OWNER to postgres;
+
+CREATE INDEX IF NOT EXISTS flips_queue_next_attempt_timestamp_idx on flips_queue (next_attempt_timestamp desc);
+CREATE UNIQUE INDEX IF NOT EXISTS flips_cid_unique_idx on flips (LOWER(cid));
+
 -- View: epoch_identity_states
 
 -- DROP VIEW epoch_identity_states;
@@ -1520,12 +1558,12 @@ $$
     BEGIN
         -- Type: tp_mining_reward
         CREATE TYPE tp_mining_reward AS
-            (
-            address character(42),
-            balance numeric(30, 18),
-            stake numeric(30, 18),
+        (
+            address  character(42),
+            balance  numeric(30, 18),
+            stake    numeric(30, 18),
             proposer boolean
-            );
+        );
 
         ALTER TYPE tp_mining_reward
             OWNER TO postgres;
@@ -1539,12 +1577,12 @@ $$
     BEGIN
         -- Type: tp_burnt_coins
         CREATE TYPE tp_burnt_coins AS
-            (
+        (
             address character(42),
-            amount numeric(30, 18),
-            reason smallint,
-            tx_id bigint
-            );
+            amount  numeric(30, 18),
+            reason  smallint,
+            tx_id   bigint
+        );
 
         ALTER TYPE tp_burnt_coins
             OWNER TO postgres;
@@ -1558,11 +1596,11 @@ $$
     BEGIN
         -- Type: tp_balance
         CREATE TYPE tp_balance AS
-            (
+        (
             address character(42),
             balance numeric(30, 18),
-            stake numeric(30, 18)
-            );
+            stake   numeric(30, 18)
+        );
 
         ALTER TYPE tp_balance
             OWNER TO postgres;
@@ -1576,17 +1614,17 @@ $$
     BEGIN
         -- Type: tp_tx
         CREATE TYPE tp_tx AS
-            (
-            hash character(66),
-            type smallint,
-            "from" character(42),
-            "to" character(42),
-            amount numeric(30, 18),
-            tips numeric(30, 18),
+        (
+            hash    character(66),
+            type    smallint,
+            "from"  character(42),
+            "to"    character(42),
+            amount  numeric(30, 18),
+            tips    numeric(30, 18),
             max_fee numeric(30, 18),
-            fee numeric(30, 18),
-            size integer
-            );
+            fee     numeric(30, 18),
+            size    integer
+        );
 
         ALTER TYPE tp_tx
             OWNER TO postgres;
@@ -1600,10 +1638,10 @@ $$
     BEGIN
         -- Type: tp_tx_hash_id
         CREATE TYPE tp_tx_hash_id AS
-            (
+        (
             hash character(66),
-            id bigint
-            );
+            id   bigint
+        );
 
         ALTER TYPE tp_tx_hash_id
             OWNER TO postgres;
@@ -1617,10 +1655,10 @@ $$
     BEGIN
         -- Type: tp_address
         CREATE TYPE tp_address AS
-            (
-            address character(42),
+        (
+            address      character(42),
             is_temporary boolean
-            );
+        );
 
         ALTER TYPE tp_address
             OWNER TO postgres;
@@ -1634,11 +1672,11 @@ $$
     BEGIN
         -- Type: tp_address_state_change
         CREATE TYPE tp_address_state_change AS
-            (
-            address character(42),
+        (
+            address   character(42),
             new_state smallint,
-            tx_hash character(66)
-            );
+            tx_hash   character(66)
+        );
 
         ALTER TYPE tp_address_state_change
             OWNER TO postgres;
@@ -1652,14 +1690,14 @@ $$
     BEGIN
         -- Type: tp_answer
         CREATE TYPE tp_answer AS
-            (
-            flip_cid character varying(100),
-            address character(42),
-            is_short boolean,
-            answer smallint,
+        (
+            flip_cid    character varying(100),
+            address     character(42),
+            is_short    boolean,
+            answer      smallint,
             wrong_words boolean,
-            point real
-            );
+            point       real
+        );
 
         ALTER TYPE tp_answer
             OWNER TO postgres;
@@ -1673,12 +1711,12 @@ $$
     BEGIN
         -- Type: tp_flip_state
         CREATE TYPE tp_flip_state AS
-            (
-            flip_cid character varying(100),
-            answer smallint,
+        (
+            flip_cid    character varying(100),
+            answer      smallint,
             wrong_words boolean,
-            status smallint
-            );
+            status      smallint
+        );
 
         ALTER TYPE tp_flip_state
             OWNER TO postgres;
@@ -1692,10 +1730,10 @@ $$
     BEGIN
         -- Type: tp_birthday
         CREATE TYPE tp_birthday AS
-            (
-            address character(42),
+        (
+            address     character(42),
             birth_epoch integer
-            );
+        );
 
         ALTER TYPE tp_birthday
             OWNER TO postgres;
@@ -1709,20 +1747,20 @@ $$
     BEGIN
         -- Type: tp_epoch_identity
         CREATE TYPE tp_epoch_identity AS
-            (
-            address character(42),
-            state smallint,
-            short_point real ,
-            short_flips integer ,
-            total_short_point real ,
-            total_short_flips integer ,
-            long_point real ,
-            long_flips integer ,
-            approved boolean ,
-            missed boolean ,
-            required_flips smallint ,
-            made_flips smallint
-            );
+        (
+            address           character(42),
+            state             smallint,
+            short_point       real,
+            short_flips       integer,
+            total_short_point real,
+            total_short_flips integer,
+            long_point        real,
+            long_flips        integer,
+            approved          boolean,
+            missed            boolean,
+            required_flips    smallint,
+            made_flips        smallint
+        );
 
         ALTER TYPE tp_epoch_identity
             OWNER TO postgres;
@@ -1736,11 +1774,11 @@ $$
     BEGIN
         -- Type: tp_flip_to_solve
         CREATE TYPE tp_flip_to_solve AS
-            (
-            address character(42),
-            cid character varying(100),
+        (
+            address  character(42),
+            cid      character varying(100),
             is_short boolean
-            );
+        );
 
         ALTER TYPE tp_flip_to_solve
             OWNER TO postgres;
@@ -1754,12 +1792,12 @@ $$
     BEGIN
         -- Type: tp_good_author
         CREATE TYPE tp_good_author AS
-            (
-            address character(42),
-            strong_flips integer,
-            weak_flips integer,
+        (
+            address            character(42),
+            strong_flips       integer,
+            weak_flips         integer,
             successful_invites integer
-            );
+        );
 
         ALTER TYPE tp_good_author
             OWNER TO postgres;
@@ -1773,14 +1811,14 @@ $$
     BEGIN
         -- Type: tp_total_epoch_reward
         CREATE TYPE tp_total_epoch_reward AS
-            (
-            total numeric(30, 18),
-            validation numeric(30, 18),
-            flips numeric(30, 18),
+        (
+            total       numeric(30, 18),
+            validation  numeric(30, 18),
+            flips       numeric(30, 18),
             invitations numeric(30, 18),
-            foundation numeric(30, 18),
+            foundation  numeric(30, 18),
             zero_wallet numeric(30, 18)
-            );
+        );
 
         ALTER TYPE tp_total_epoch_reward
             OWNER TO postgres;
@@ -1794,12 +1832,12 @@ $$
     BEGIN
         -- Type: tp_epoch_reward
         CREATE TYPE tp_epoch_reward AS
-            (
+        (
             address character(42),
             balance numeric(30, 18),
-            stake numeric(30, 18),
-            type smallint
-            );
+            stake   numeric(30, 18),
+            type    smallint
+        );
 
         ALTER TYPE tp_epoch_reward
             OWNER TO postgres;
@@ -1813,12 +1851,47 @@ $$
     BEGIN
         -- Type: tp_reward_age
         CREATE TYPE tp_reward_age AS
-            (
+        (
             address character(42),
-            age integer
-            );
+            age     integer
+        );
 
         ALTER TYPE tp_reward_age
+            OWNER TO postgres;
+    EXCEPTION
+        WHEN duplicate_object THEN null;
+    END
+$$;
+
+DO
+$$
+    BEGIN
+        -- Type: tp_mem_pool_flip_key
+        CREATE TYPE tp_mem_pool_flip_key AS
+        (
+            address character(42),
+            key     character varying(100)
+        );
+
+        ALTER TYPE tp_mem_pool_flip_key
+            OWNER TO postgres;
+    EXCEPTION
+        WHEN duplicate_object THEN null;
+    END
+$$;
+
+DO
+$$
+    BEGIN
+        -- Type: tp_failed_flip_content
+        CREATE TYPE tp_failed_flip_content AS
+        (
+            cid                    character varying(100),
+            attempts_limit_reached boolean,
+            next_attempt_timestamp bigint
+        );
+
+        ALTER TYPE tp_failed_flip_content
             OWNER TO postgres;
     EXCEPTION
         WHEN duplicate_object THEN null;
@@ -2257,5 +2330,131 @@ BEGIN
                     l_fund_reward.balance,
                     l_fund_reward.type);
         end loop;
+END
+$BODY$;
+
+CREATE OR REPLACE PROCEDURE save_mem_pool_flip_keys(p_keys tp_mem_pool_flip_key[])
+    LANGUAGE 'plpgsql'
+AS
+$BODY$
+DECLARE
+    l_key tp_mem_pool_flip_key;
+BEGIN
+    for i in 1..cardinality(p_keys)
+        loop
+            l_key := p_keys[i];
+            insert into mem_pool_flip_keys (epoch_identity_id, key)
+            values ((select epoch_identity_id
+                     from cur_epoch_identities
+                     where lower(address) = lower(l_key.address)),
+                    l_key.key);
+        end loop;
+END
+$BODY$;
+
+CREATE OR REPLACE PROCEDURE update_flips_queue()
+    LANGUAGE 'plpgsql'
+AS
+$BODY$
+DECLARE
+    l_epoch bigint;
+BEGIN
+    select max(epoch) into l_epoch from epochs;
+    insert into flips_queue
+        (
+            select f.cid, coalesce(fk.key, mpfk.key) "key", 0, 0
+            from flips f,
+                 blocks b,
+                 transactions t
+                     left join (
+                     select fk.key, t.from
+                     from flip_keys fk,
+                          transactions t,
+                          blocks b
+                     where fk.tx_id = t.id
+                       and t.block_height = b.height
+                       and b.epoch = l_epoch
+                 ) fk on t.from = fk.from
+                     left join (
+                     select mpfk.key, s.address_id
+                     from mem_pool_flip_keys mpfk,
+                          epoch_identities ei,
+                          address_states s
+                     where mpfk.epoch_identity_id = ei.id
+                       and ei.address_state_id = s.id
+                       and ei.epoch = l_epoch
+                 ) mpfk on t.from = mpfk.address_id
+            where f.tx_id = t.id
+              and t.block_height = b.height
+              and b.epoch = l_epoch
+              and (fk.key is not null or mpfk.key is not null)
+        );
+END
+$BODY$;
+
+CREATE OR REPLACE PROCEDURE save_flips_content(p_fails tp_failed_flip_content[],
+                                               p_contents jsonb[])
+    LANGUAGE 'plpgsql'
+AS
+$BODY$
+DECLARE
+    l_fail         tp_failed_flip_content;
+    l_content      jsonb;
+    l_flip_data_id bigint;
+    l_cid          text;
+BEGIN
+    if p_fails is not null then
+        for i in 1..cardinality(p_fails)
+            loop
+                l_fail := p_fails[i];
+                if l_fail.attempts_limit_reached then
+                    delete from flips_queue where lower(cid) = lower(l_fail.cid);
+                else
+                    update flips_queue
+                    set attempts              = attempts + 1,
+                        next_attempt_timestamp=l_fail.next_attempt_timestamp
+                    where lower(cid) = lower(l_fail.cid);
+                end if;
+            end loop;
+    end if;
+    if p_contents is not null then
+        for i in 1..cardinality(p_contents)
+            loop
+                l_content := p_contents[i];
+                l_cid := lower((l_content ->> 'cid')::text);
+
+                delete from flips_queue where lower(cid) = l_cid;
+
+                insert into flips_data (flip_id)
+                values ((select id from flips where lower(cid) = l_cid))
+                returning id into l_flip_data_id;
+
+                if l_content -> 'pics' is not null then
+                    for j in 0..jsonb_array_length(l_content -> 'pics') - 1
+                        loop
+                            insert into flip_pics (flip_data_id, index, data)
+                            values (l_flip_data_id, j, decode(l_content -> 'pics' ->> j, 'hex'));
+                        end loop;
+                end if;
+
+                if l_content -> 'orders' is not null then
+                    for l_answer_index in 0..jsonb_array_length(l_content -> 'orders') - 1
+                        loop
+                            for l_pos_index in 0..jsonb_array_length(l_content -> 'orders' -> l_answer_index) - 1
+                                loop
+                                    insert into flip_pic_orders (flip_data_id, answer_index, pos_index, flip_pic_index)
+                                    values (l_flip_data_id, l_answer_index, l_pos_index,
+                                            (l_content -> 'orders' -> l_answer_index ->> l_pos_index)::smallint);
+                                end loop;
+                        end loop;
+                end if;
+
+                if l_content -> 'icon' is not null then
+                    insert into flip_icons (flip_data_id, data)
+                    values (l_flip_data_id, decode(l_content ->> 'icon', 'hex'));
+                end if;
+
+            end loop;
+    end if;
 END
 $BODY$;
