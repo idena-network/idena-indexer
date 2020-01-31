@@ -5,6 +5,7 @@ import (
 	"github.com/idena-network/idena-go/common"
 	"github.com/idena-network/idena-indexer/explorer/types"
 	"github.com/lib/pq"
+	"github.com/pkg/errors"
 	"math/big"
 )
 
@@ -51,17 +52,19 @@ var identityStatesByName = map[string]uint8{
 	"Newbie":    7,
 }
 
-func convertIdentityStates(names []string) []uint8 {
+func convertIdentityStates(names []string) ([]uint8, error) {
 	if len(names) == 0 {
-		return nil
+		return nil, nil
 	}
 	var res []uint8
 	for _, name := range names {
 		if state, ok := identityStatesByName[name]; ok {
 			res = append(res, state)
+		} else {
+			return nil, errors.Errorf("Unknown state %s", name)
 		}
 	}
-	return res
+	return res, nil
 }
 
 func (a *postgresAccessor) LastEpoch() (types.EpochDetail, error) {
@@ -148,12 +151,34 @@ func (a *postgresAccessor) EpochFlipWrongWordsSummary(epoch uint64) ([]types.Nul
 	return a.nullableBoolValueCounts(epochFlipQualifiedWrongWordsQuery, epoch)
 }
 
-func (a *postgresAccessor) EpochIdentitiesCount(epoch uint64, states []string) (uint64, error) {
-	return a.count(epochIdentitiesQueryCount, epoch, pq.Array(convertIdentityStates(states)))
+func (a *postgresAccessor) EpochIdentitiesCount(epoch uint64, prevStates []string, states []string) (uint64, error) {
+	prevStateIds, err := convertIdentityStates(prevStates)
+	if err != nil {
+		return 0, err
+	}
+	stateIds, err := convertIdentityStates(states)
+	if err != nil {
+		return 0, err
+	}
+	return a.count(epochIdentitiesQueryCount, epoch, pq.Array(prevStateIds), pq.Array(stateIds))
 }
 
-func (a *postgresAccessor) EpochIdentities(epoch uint64, states []string, startIndex uint64, count uint64) ([]types.EpochIdentitySummary, error) {
-	rows, err := a.db.Query(a.getQuery(epochIdentitiesQuery), epoch, pq.Array(convertIdentityStates(states)), startIndex, count)
+func (a *postgresAccessor) EpochIdentities(epoch uint64, prevStates []string, states []string, startIndex uint64, count uint64) ([]types.EpochIdentitySummary, error) {
+	prevStateIds, err := convertIdentityStates(prevStates)
+	if err != nil {
+		return nil, err
+	}
+	stateIds, err := convertIdentityStates(states)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := a.db.Query(a.getQuery(epochIdentitiesQuery),
+		epoch,
+		pq.Array(prevStateIds),
+		pq.Array(stateIds),
+		startIndex,
+		count,
+	)
 	if err != nil {
 		return nil, err
 	}

@@ -19,7 +19,8 @@ from epoch_identity_states eis
          join dic_identity_states dis on dis.id = eis.state
          left join dic_identity_states prevdis on prevdis.id = prevs.state
 where eis.epoch = $1
-  and ($2::smallint[] is null or eis.state = any ($2::smallint[]))
-limit $4
+  and ($2::smallint[] is null or prevs.state = any ($2::smallint[]))
+  and ($3::smallint[] is null or eis.state = any ($3::smallint[]))
+limit $5
 offset
-$3
+$4

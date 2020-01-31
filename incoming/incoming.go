@@ -52,12 +52,13 @@ func NewListener(nodeConfigFile string, pm monitoring.PerformanceMonitor) Listen
 	if err != nil {
 		panic(err)
 	}
-	cfg.P2P.MaxPeers = config.LowPowerMaxPeers
-	cfg.IpfsConf.LowWater = 50
-	cfg.IpfsConf.HighWater = 100
-	cfg.IpfsConf.GracePeriod = "20s"
-	cfg.IpfsConf.ReproviderInterval = "12h"
-	cfg.IpfsConf.Routing = "dht"
+	cfg.P2P.MaxInboundPeers = config.LowPowerMaxInboundPeers
+	cfg.P2P.MaxOutboundPeers = config.LowPowerMaxOutboundPeers
+	cfg.IpfsConf.LowWater = 8
+	cfg.IpfsConf.HighWater = 10
+	cfg.IpfsConf.GracePeriod = "30s"
+	cfg.IpfsConf.ReproviderInterval = "0"
+	cfg.IpfsConf.Routing = "dhtclient"
 	cfg.Sync.FastSync = false
 
 	bus := eventbus.New()
