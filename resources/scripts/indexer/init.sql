@@ -2367,7 +2367,7 @@ BEGIN
                  blocks b,
                  transactions t
                      left join (
-                     select fk.key, t.from
+                     select distinct on (t.from) fk.key, t.from
                      from flip_keys fk,
                           transactions t,
                           blocks b
