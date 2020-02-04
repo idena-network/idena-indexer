@@ -5,22 +5,40 @@ import (
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/idena-network/idena-indexer/log"
+	"github.com/pkg/errors"
 	"net/http"
 	"strings"
 	"sync"
+	"time"
 )
 
-func NewServer(port int, logger log.Logger) *Server {
+func NewServer(
+	port int,
+	maxReqCount int,
+	timeout time.Duration,
+	logger log.Logger,
+) *Server {
 	return &Server{
 		port: port,
-		log:  logger,
+		limiter: &reqLimiter{
+			queue:   make(chan struct{}, maxReqCount),
+			timeout: timeout,
+		},
+		log: logger,
 	}
 }
 
 type Server struct {
 	port    int
-	log     log.Logger
 	counter int
+	limiter *reqLimiter
+	log     log.Logger
+	mutex   sync.Mutex
+}
+
+type reqLimiter struct {
+	queue   chan struct{}
+	timeout time.Duration
 	mutex   sync.Mutex
 }
 
@@ -54,6 +72,14 @@ func (s *Server) requestFilter(next http.Handler) http.Handler {
 		reqId := s.generateReqId()
 		s.log.Debug("Got api request", "reqId", reqId, "url", r.URL, "from", r.RemoteAddr)
 		defer s.log.Debug("Completed api request", "reqId", reqId)
+
+		if err := s.limiter.takeResource(); err != nil {
+			s.log.Error("Unable to handle API request", "err", err)
+			w.WriteHeader(http.StatusServiceUnavailable)
+			return
+		}
+		defer s.limiter.releaseResource()
+
 		err := r.ParseForm()
 		if err != nil {
 			s.log.Error("Unable to parse API request", "err", err)
@@ -63,4 +89,21 @@ func (s *Server) requestFilter(next http.Handler) http.Handler {
 		r.URL.Path = strings.ToLower(r.URL.Path)
 		next.ServeHTTP(w, r)
 	})
+}
+
+func (limiter *reqLimiter) takeResource() error {
+	var ok bool
+	select {
+	case limiter.queue <- struct{}{}:
+		ok = true
+	case <-time.After(limiter.timeout):
+	}
+	if !ok {
+		return errors.New("timeout while waiting for resource")
+	}
+	return nil
+}
+
+func (limiter *reqLimiter) releaseResource() {
+	<-limiter.queue
 }

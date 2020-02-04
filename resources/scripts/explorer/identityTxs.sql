@@ -13,8 +13,8 @@ from transactions t
          join addresses afrom on afrom.id = t.from
          left join addresses ato on ato.id = t.to
          join dic_tx_types dtt on dtt.id = t.Type
-where lower(afrom.address) = lower($1)
-   or lower(ato.address) = lower($1)
+where (select id from addresses where lower(address) = lower($1))
+          in (t.from, t.to)
 order by b.height desc
 limit $3
 offset

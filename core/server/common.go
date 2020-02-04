@@ -2,9 +2,9 @@ package server
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/idena-network/idena-indexer/log"
+	"github.com/pkg/errors"
 	"net/http"
 	"strconv"
 )
@@ -68,6 +68,9 @@ func ReadPaginatorParams(vars map[string]string) (uint64, uint64, error) {
 	count, err := ToUint(vars, "limit")
 	if err != nil {
 		return 0, 0, err
+	}
+	if count > 100 {
+		return 0, 0, errors.Errorf("too big value limit=%d", count)
 	}
 	return startIndex, count, nil
 }

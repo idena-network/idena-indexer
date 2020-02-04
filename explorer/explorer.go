@@ -5,6 +5,7 @@ import (
 	"github.com/idena-network/idena-indexer/explorer/api"
 	"github.com/idena-network/idena-indexer/explorer/config"
 	"github.com/idena-network/idena-indexer/explorer/db"
+	"github.com/idena-network/idena-indexer/explorer/db/cached"
 	"github.com/idena-network/idena-indexer/explorer/db/postgres"
 	"github.com/idena-network/idena-indexer/explorer/monitoring"
 	"github.com/idena-network/idena-indexer/log"
@@ -27,7 +28,16 @@ func NewExplorer(c *config.Config) Explorer {
 	if err != nil {
 		panic(err)
 	}
-	accessor := postgres.NewPostgresAccessor(c.PostgresConnStr, c.ScriptsDir, logger)
+	accessor := cached.NewCachedAccessor(
+		postgres.NewPostgresAccessor(
+			c.PostgresConnStr,
+			c.ScriptsDir,
+			logger,
+		),
+		c.DefaultCacheMaxItemCount,
+		time.Second*time.Duration(c.DefaultCacheItemLifeTimeSec),
+		logger.New("component", "cachedDbAccessor"),
+	)
 	e := &explorer{
 		server: api.NewServer(c.Port, c.LatestHours, accessor, logger, pm),
 		db:     accessor,

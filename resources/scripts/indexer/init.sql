@@ -511,6 +511,9 @@ ALTER TABLE transactions
     OWNER to postgres;
 
 CREATE UNIQUE INDEX IF NOT EXISTS transactions_hash_unique_idx on transactions (LOWER(hash));
+CREATE INDEX IF NOT EXISTS transactions_from_idx on transactions ("from");
+CREATE INDEX IF NOT EXISTS transactions_to_idx on transactions ("to") WHERE "to" is not null;
+CREATE INDEX IF NOT EXISTS transactions_block_height_idx on transactions (block_height);
 
 -- SEQUENCE: address_states_id_seq
 
@@ -786,6 +789,8 @@ ALTER TABLE answers
     OWNER to postgres;
 
 CREATE INDEX IF NOT EXISTS answers_long_wrong_words_idx on answers (flip_id) WHERE not is_short and wrong_words;
+CREATE INDEX IF NOT EXISTS answers_short_idx on answers (flip_id) WHERE is_short;
+CREATE INDEX IF NOT EXISTS answers_long_idx on answers (flip_id) WHERE not is_short;
 
 -- SEQUENCE: flips_to_solve_id_seq
 
@@ -1032,6 +1037,8 @@ CREATE TABLE IF NOT EXISTS flip_pics
 ALTER TABLE flip_pics
     OWNER to postgres;
 
+CREATE INDEX IF NOT EXISTS flip_pics_flip_data_id_idx on flip_pics (flip_data_id);
+
 -- Table: flip_icons
 
 -- DROP TABLE flip_icons;
@@ -1076,6 +1083,8 @@ CREATE TABLE IF NOT EXISTS flip_pic_orders
 
 ALTER TABLE flip_pic_orders
     OWNER to postgres;
+
+CREATE INDEX IF NOT EXISTS flip_pic_orders_flip_data_id_idx on flip_pic_orders (flip_data_id);
 
 -- SEQUENCE: penalties_id_seq
 

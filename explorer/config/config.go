@@ -9,12 +9,16 @@ import (
 )
 
 type Config struct {
-	Port               int
-	Verbosity          int
-	PostgresConnStr    string
-	ScriptsDir         string
-	LatestHours        int
-	PerformanceMonitor PerformanceMonitorConfig
+	Port                        int
+	Verbosity                   int
+	PostgresConnStr             string
+	ScriptsDir                  string
+	LatestHours                 int
+	MaxReqCount                 int
+	ReqTimeoutSec               int
+	DefaultCacheMaxItemCount    int
+	DefaultCacheItemLifeTimeSec int
+	PerformanceMonitor          PerformanceMonitorConfig
 }
 
 type PerformanceMonitorConfig struct {
@@ -41,8 +45,12 @@ func LoadConfig(configPath string) *Config {
 
 func newDefaultConfig() *Config {
 	return &Config{
-		ScriptsDir:  filepath.Join("resources", "scripts", "explorer"),
-		Verbosity:   3,
-		LatestHours: 24,
+		ScriptsDir:                  filepath.Join("resources", "scripts", "explorer"),
+		Verbosity:                   3,
+		LatestHours:                 24,
+		MaxReqCount:                 50,
+		ReqTimeoutSec:               60,
+		DefaultCacheMaxItemCount:    100,
+		DefaultCacheItemLifeTimeSec: 60,
 	}
 }

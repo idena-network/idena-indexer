@@ -13,7 +13,6 @@ const (
 	flipQuery                           = "flip.sql"
 	flipAnswersCountQuery               = "flipAnswersCount.sql"
 	flipAnswersQuery                    = "flipAnswers.sql"
-	flipContentQuery                    = "flipContent.sql"
 	flipPicsQuery                       = "flipPics.sql"
 	flipPicOrdersQuery                  = "flipPicOrders.sql"
 	flipEpochAdjacentFlipsQuery         = "flipEpochAdjacentFlips.sql"
@@ -57,26 +56,24 @@ func (a *postgresAccessor) Flip(hash string) (types.Flip, error) {
 }
 
 func (a *postgresAccessor) FlipContent(hash string) (types.FlipContent, error) {
-	var dataId int64
-	err := a.db.QueryRow(a.getQuery(flipContentQuery), hash).Scan(&dataId)
-	if err == sql.ErrNoRows {
-		err = NoDataFound
-	}
-	if err != nil {
-		return types.FlipContent{}, err
-	}
 	res := types.FlipContent{}
-	if res.Pics, err = a.flipPics(dataId); err != nil {
+	if pics, err := a.flipPics(hash); err != nil {
 		return types.FlipContent{}, err
+	} else if len(pics) == 0 {
+		return types.FlipContent{}, NoDataFound
+	} else {
+		res.Pics = pics
 	}
-	if res.LeftOrder, res.RightOrder, err = a.flipPicOrders(dataId); err != nil {
+	if leftOrder, rightOrder, err := a.flipPicOrders(hash); err != nil {
 		return types.FlipContent{}, err
+	} else {
+		res.LeftOrder, res.RightOrder = leftOrder, rightOrder
 	}
 	return res, nil
 }
 
-func (a *postgresAccessor) flipPics(dataId int64) ([]hexutil.Bytes, error) {
-	rows, err := a.db.Query(a.getQuery(flipPicsQuery), dataId)
+func (a *postgresAccessor) flipPics(hash string) ([]hexutil.Bytes, error) {
+	rows, err := a.db.Query(a.getQuery(flipPicsQuery), hash)
 	if err != nil {
 		return nil, err
 	}
@@ -93,8 +90,8 @@ func (a *postgresAccessor) flipPics(dataId int64) ([]hexutil.Bytes, error) {
 	return res, nil
 }
 
-func (a *postgresAccessor) flipPicOrders(dataId int64) ([]uint16, []uint16, error) {
-	rows, err := a.db.Query(a.getQuery(flipPicOrdersQuery), dataId)
+func (a *postgresAccessor) flipPicOrders(hash string) ([]uint16, []uint16, error) {
+	rows, err := a.db.Query(a.getQuery(flipPicOrdersQuery), hash)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -112,7 +109,7 @@ func (a *postgresAccessor) flipPicOrders(dataId int64) ([]uint16, []uint16, erro
 		case 1:
 			rightOrder = append(rightOrder, flipPicIndex)
 		default:
-			log.Warn("Unknown answer index", "flipDataId", dataId, "index", answerIndex)
+			log.Warn("Unknown answer index", "cid", hash, "index", answerIndex)
 		}
 	}
 	return leftOrder, rightOrder, nil

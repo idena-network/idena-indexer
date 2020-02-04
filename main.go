@@ -71,7 +71,12 @@ func main() {
 		explorerRi := e.RouterInitializer()
 		indexerApi := api.NewApi(currentOnlineIdentitiesHolder)
 		ownRi := server.NewRouterInitializer(indexerApi, e.Logger())
-		apiServer := server.NewServer(explorerConf.Port, e.Logger())
+		apiServer := server.NewServer(
+			explorerConf.Port,
+			explorerConf.MaxReqCount,
+			time.Second*time.Duration(explorerConf.ReqTimeoutSec),
+			e.Logger(),
+		)
 		go apiServer.Start(explorerRi, ownRi)
 
 		indxr.WaitForNodeStop()

@@ -72,12 +72,12 @@ func (s *httpServer) Start() {
 	//}
 }
 
-func (s *httpServer) initHandler() http.Handler {
-	r := mux.NewRouter()
-	api := r.PathPrefix("/api").Subrouter()
-	s.InitRouter(api)
-	return s.requestFilter(r)
-}
+//func (s *httpServer) initHandler() http.Handler {
+//	r := mux.NewRouter()
+//	api := r.PathPrefix("/api").Subrouter()
+//	s.InitRouter(api)
+//	return s.requestFilter(r)
+//}
 
 func (s *httpServer) InitRouter(router *mux.Router) {
 	router.Path(strings.ToLower("/Search")).

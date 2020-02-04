@@ -12,6 +12,7 @@ require (
 	github.com/idena-network/idena-go v0.16.8-0.20200131063025-684df94eaead
 	github.com/ipfs/go-cid v0.0.4
 	github.com/lib/pq v1.1.1
+	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/pkg/errors v0.9.1
 	github.com/shopspring/decimal v0.0.0-20180709203117-cd690d0c9e24
 	golang.org/x/image v0.0.0-20190802002840-cff245a6509b
