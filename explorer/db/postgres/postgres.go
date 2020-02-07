@@ -41,12 +41,14 @@ func (a *postgresAccessor) Search(value string) ([]types.Entity, error) {
 		return nil, err
 	} else if exists {
 		res = append(res, types.Entity{
-			Name: "Identity",
-			Ref:  fmt.Sprintf("/api/Identity/%s", value),
+			Name:  "Identity",
+			Value: value,
+			Ref:   fmt.Sprintf("/api/Identity/%s", value),
 		})
 		res = append(res, types.Entity{
-			Name: "Address",
-			Ref:  fmt.Sprintf("/api/Address/%s", value),
+			Name:  "Address",
+			Value: value,
+			Ref:   fmt.Sprintf("/api/Address/%s", value),
 		})
 	}
 
@@ -54,16 +56,18 @@ func (a *postgresAccessor) Search(value string) ([]types.Entity, error) {
 		return nil, err
 	} else if exists {
 		res = append(res, types.Entity{
-			Name: "Block",
-			Ref:  fmt.Sprintf("/api/Block/%s", value),
+			Name:  "Block",
+			Value: value,
+			Ref:   fmt.Sprintf("/api/Block/%s", value),
 		})
 	} else if isNum {
 		if exists, err := a.isEntity(value, isBlockHeightQuery); err != nil {
 			return nil, err
 		} else if exists {
 			res = append(res, types.Entity{
-				Name: "Block",
-				Ref:  fmt.Sprintf("/api/Block/%s", value),
+				Name:  "Block",
+				Value: value,
+				Ref:   fmt.Sprintf("/api/Block/%s", value),
 			})
 		}
 	}
@@ -73,8 +77,9 @@ func (a *postgresAccessor) Search(value string) ([]types.Entity, error) {
 			return nil, err
 		} else if exists {
 			res = append(res, types.Entity{
-				Name: "Epoch",
-				Ref:  fmt.Sprintf("/api/Epoch/%s", value),
+				Name:  "Epoch",
+				Value: value,
+				Ref:   fmt.Sprintf("/api/Epoch/%s", value),
 			})
 		}
 	}
@@ -83,8 +88,9 @@ func (a *postgresAccessor) Search(value string) ([]types.Entity, error) {
 		return nil, err
 	} else if exists {
 		res = append(res, types.Entity{
-			Name: "Flip",
-			Ref:  fmt.Sprintf("/api/Flip/%s", value),
+			Name:  "Flip",
+			Value: value,
+			Ref:   fmt.Sprintf("/api/Flip/%s", value),
 		})
 	}
 
@@ -92,8 +98,9 @@ func (a *postgresAccessor) Search(value string) ([]types.Entity, error) {
 		return nil, err
 	} else if exists {
 		res = append(res, types.Entity{
-			Name: "Transaction",
-			Ref:  fmt.Sprintf("/api/Transaction/%s", value),
+			Name:  "Transaction",
+			Value: value,
+			Ref:   fmt.Sprintf("/api/Transaction/%s", value),
 		})
 	}
 

@@ -7,8 +7,9 @@ import (
 )
 
 type Entity struct {
-	Name string
-	Ref  string
+	Name  string
+	Value string
+	Ref   string
 }
 
 type EpochSummary struct {
