@@ -7,6 +7,7 @@ import (
 	"github.com/idena-network/idena-indexer/log"
 	"github.com/pkg/errors"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -70,7 +71,11 @@ func (s *Server) generateReqId() int {
 func (s *Server) requestFilter(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		reqId := s.generateReqId()
-		s.log.Debug("Got api request", "reqId", reqId, "url", r.URL, "from", r.RemoteAddr)
+		var urlToLog *url.URL
+		if !strings.Contains(strings.ToLower(r.URL.Path), "/search") {
+			urlToLog = r.URL
+		}
+		s.log.Debug("Got api request", "reqId", reqId, "url", urlToLog, "from", r.RemoteAddr)
 		defer s.log.Debug("Completed api request", "reqId", reqId)
 
 		if err := s.limiter.takeResource(); err != nil {

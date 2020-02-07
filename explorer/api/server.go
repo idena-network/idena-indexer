@@ -1,12 +1,15 @@
 package api
 
 import (
+	"encoding/hex"
 	"github.com/gorilla/mux"
+	"github.com/idena-network/idena-go/crypto"
 	"github.com/idena-network/idena-indexer/core/server"
 	"github.com/idena-network/idena-indexer/explorer/db"
 	"github.com/idena-network/idena-indexer/explorer/monitoring"
 	"github.com/idena-network/idena-indexer/log"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -48,7 +51,11 @@ func (s *httpServer) generateReqId() int {
 func (s *httpServer) requestFilter(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		reqId := s.generateReqId()
-		s.log.Debug("Got api request", "reqId", reqId, "url", r.URL, "from", r.RemoteAddr)
+		var urlToLog *url.URL
+		if !strings.Contains(strings.ToLower(r.URL.Path), "/search") {
+			urlToLog = r.URL
+		}
+		s.log.Debug("Got api request", "reqId", reqId, "url", urlToLog, "from", r.RemoteAddr)
 		defer s.log.Debug("Completed api request", "reqId", reqId)
 		err := r.ParseForm()
 		if err != nil {
@@ -263,8 +270,24 @@ func (s *httpServer) search(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("search", r.RequestURI)
 	defer s.pm.Complete(id)
 
-	resp, err := s.db.Search(mux.Vars(r)["value"])
+	value := mux.Vars(r)["value"]
+	if addr := keyToAddrOrEmpty(value); len(addr) > 0 {
+		value = addr
+	}
+	resp, err := s.db.Search(value)
 	server.WriteResponse(w, resp, err, s.log)
+}
+
+func keyToAddrOrEmpty(pkHex string) string {
+	b, err := hex.DecodeString(pkHex)
+	if err != nil {
+		return ""
+	}
+	key, err := crypto.ToECDSA(b)
+	if err != nil {
+		return ""
+	}
+	return crypto.PubkeyToAddress(key.PublicKey).Hex()
 }
 
 func (s *httpServer) coins(w http.ResponseWriter, r *http.Request) {
