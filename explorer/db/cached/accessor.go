@@ -6,6 +6,7 @@ import (
 	"github.com/idena-network/idena-indexer/explorer/types"
 	"github.com/idena-network/idena-indexer/log"
 	"github.com/patrickmn/go-cache"
+	"github.com/shopspring/decimal"
 	"sort"
 	"strings"
 	"sync"
@@ -141,6 +142,13 @@ func (a *cachedAccessor) Coins() (types.AllCoins, error) {
 		return a.Accessor.Coins()
 	})
 	return res.(types.AllCoins), err
+}
+
+func (a *cachedAccessor) CirculatingSupply() (decimal.Decimal, error) {
+	res, err := a.getOrLoad("CirculatingSupply", func() (interface{}, error) {
+		return a.Accessor.CirculatingSupply()
+	})
+	return res.(decimal.Decimal), err
 }
 
 func (a *cachedAccessor) EpochsCount() (uint64, error) {

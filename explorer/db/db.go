@@ -2,6 +2,7 @@ package db
 
 import (
 	"github.com/idena-network/idena-indexer/explorer/types"
+	"github.com/shopspring/decimal"
 	"time"
 )
 
@@ -9,6 +10,7 @@ type Accessor interface {
 	Search(value string) ([]types.Entity, error)
 
 	Coins() (types.AllCoins, error)
+	CirculatingSupply() (decimal.Decimal, error)
 
 	EpochsCount() (uint64, error)
 	Epochs(startIndex uint64, count uint64) ([]types.EpochSummary, error)

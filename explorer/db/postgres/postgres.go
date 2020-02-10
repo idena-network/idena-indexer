@@ -7,6 +7,7 @@ import (
 	"github.com/idena-network/idena-go/common"
 	"github.com/idena-network/idena-indexer/explorer/types"
 	"github.com/idena-network/idena-indexer/log"
+	"github.com/shopspring/decimal"
 	"math/big"
 	"strconv"
 )
@@ -126,6 +127,18 @@ func (a *postgresAccessor) Coins() (types.AllCoins, error) {
 		return types.AllCoins{}, err
 	}
 	return res, nil
+}
+
+func (a *postgresAccessor) CirculatingSupply() (decimal.Decimal, error) {
+	var totalBalance, totalStake decimal.Decimal
+	err := a.db.QueryRow(a.getQuery(coinsTotalQuery)).Scan(&totalBalance, &totalStake)
+	if err == sql.ErrNoRows {
+		err = NoDataFound
+	}
+	if err != nil {
+		return decimal.Decimal{}, err
+	}
+	return totalBalance.Add(totalStake), nil
 }
 
 func (a *postgresAccessor) isEntity(value, queryName string) (bool, error) {

@@ -3,11 +3,13 @@ package api
 import (
 	"encoding/hex"
 	"github.com/gorilla/mux"
+	"github.com/idena-network/idena-go/blockchain"
 	"github.com/idena-network/idena-go/crypto"
 	"github.com/idena-network/idena-indexer/core/server"
 	"github.com/idena-network/idena-indexer/explorer/db"
 	"github.com/idena-network/idena-indexer/explorer/monitoring"
 	"github.com/idena-network/idena-indexer/log"
+	"github.com/pkg/errors"
 	"net/http"
 	"net/url"
 	"strings"
@@ -93,6 +95,12 @@ func (s *httpServer) InitRouter(router *mux.Router) {
 
 	router.Path(strings.ToLower("/Coins")).
 		HandlerFunc(s.coins)
+
+	router.Path(strings.ToLower("/CirculatingSupply")).
+		Queries("format", "{format}").
+		HandlerFunc(s.circulatingSupply)
+	router.Path(strings.ToLower("/CirculatingSupply")).
+		HandlerFunc(s.circulatingSupply)
 
 	router.Path(strings.ToLower("/Epochs/Count")).HandlerFunc(s.epochsCount)
 	router.Path(strings.ToLower("/Epochs")).
@@ -295,6 +303,27 @@ func (s *httpServer) coins(w http.ResponseWriter, r *http.Request) {
 	defer s.pm.Complete(id)
 
 	resp, err := s.db.Coins()
+	server.WriteResponse(w, resp, err, s.log)
+}
+
+func (s *httpServer) circulatingSupply(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("circulatingSupply", r.RequestURI)
+	defer s.pm.Complete(id)
+
+	vars := mux.Vars(r)
+	format := strings.ToLower(vars["format"])
+	if len(format) > 0 && format != "short" && format != "full" {
+		server.WriteErrorResponse(w, errors.Errorf("Unknown value format=%s", format), s.log)
+		return
+	}
+
+	full := "full" == strings.ToLower(vars["format"])
+
+	resp, err := s.db.CirculatingSupply()
+	if err == nil && full {
+		server.WriteResponse(w, blockchain.ConvertToInt(resp), err, s.log)
+		return
+	}
 	server.WriteResponse(w, resp, err, s.log)
 }
 
