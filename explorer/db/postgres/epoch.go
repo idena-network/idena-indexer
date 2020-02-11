@@ -121,7 +121,8 @@ func (a *postgresAccessor) EpochBlocks(epoch uint64, startIndex uint64, count ui
 			&block.Coins.Burnt,
 			&block.Coins.Minted,
 			&block.Coins.TotalBalance,
-			&block.Coins.TotalStake)
+			&block.Coins.TotalStake,
+			pq.Array(&block.Flags))
 		if err != nil {
 			return nil, err
 		}

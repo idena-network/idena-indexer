@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"github.com/idena-network/idena-go/common"
 	"github.com/idena-network/idena-indexer/explorer/types"
+	"github.com/lib/pq"
 	"math/big"
 )
 
@@ -43,6 +44,7 @@ func (a *postgresAccessor) block(query string, id interface{}) (types.BlockDetai
 		&res.FullSize,
 		&res.VrfProposerThreshold,
 		&res.FeeRate,
+		pq.Array(&res.Flags),
 	)
 	if err == sql.ErrNoRows {
 		err = NoDataFound

@@ -44,6 +44,7 @@ type BlockSummary struct {
 	Proposer             string          `json:"proposer"`
 	ProposerVrfScore     float64         `json:"proposerVrfScore,omitempty"`
 	FeeRate              decimal.Decimal `json:"feeRate"`
+	Flags                []string        `json:"flags"`
 }
 
 type BlockDetail struct {
@@ -60,6 +61,7 @@ type BlockDetail struct {
 	Proposer             string          `json:"proposer"`
 	ProposerVrfScore     float64         `json:"proposerVrfScore,omitempty"`
 	FeeRate              decimal.Decimal `json:"feeRate"`
+	Flags                []string        `json:"flags"`
 }
 
 type TransactionSummary struct {
