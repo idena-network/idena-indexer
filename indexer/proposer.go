@@ -17,7 +17,7 @@ func getProposer(block *types.Block) string {
 	if block.IsEmpty() {
 		return ""
 	}
-	return conversion.ConvertAddress(block.Header.ProposedHeader.Coinbase)
+	return conversion.ConvertAddress(block.Header.Coinbase())
 }
 
 func getProposerVrfScore(
@@ -40,8 +40,8 @@ func getProposerVrfScore(
 	}
 	var hash common.Hash
 	var ok bool
-	if hash, ok = searchVrfScore(block.Height(), block.Header.ProposedHeader.Coinbase, proofsByRound); !ok {
-		if hash, ok = searchVrfScore(block.Height(), block.Header.ProposedHeader.Coinbase, pendingProofs); !ok {
+	if hash, ok = searchVrfScore(block.Height(), block.Header.Coinbase(), proofsByRound); !ok {
+		if hash, ok = searchVrfScore(block.Height(), block.Header.Coinbase(), pendingProofs); !ok {
 			return 0, false
 		}
 	}

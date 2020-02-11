@@ -122,6 +122,9 @@ ON CONFLICT DO NOTHING;
 INSERT INTO dic_tx_types
 values (13, 'ChangeProfileTx')
 ON CONFLICT DO NOTHING;
+INSERT INTO dic_tx_types
+values (14, 'DeleteFlipTx')
+ON CONFLICT DO NOTHING;
 
 -- Table: dic_flips_statuses
 
