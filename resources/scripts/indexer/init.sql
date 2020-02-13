@@ -658,6 +658,7 @@ CREATE TABLE IF NOT EXISTS flips
     answer              smallint,
     wrong_words         boolean,
     status              smallint,
+    delete_tx_id        bigint,
     CONSTRAINT flips_pkey PRIMARY KEY (id),
     CONSTRAINT flips_status_block_height_fkey FOREIGN KEY (status_block_height)
         REFERENCES blocks (height) MATCH SIMPLE
@@ -674,6 +675,10 @@ CREATE TABLE IF NOT EXISTS flips
     CONSTRAINT flips_answer_fkey FOREIGN KEY (answer)
         REFERENCES dic_answers (id) MATCH SIMPLE
         ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT flips_delete_tx_id_fkey FOREIGN KEY (delete_tx_id)
+        REFERENCES transactions (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
         ON DELETE NO ACTION
 )
     WITH (
@@ -686,7 +691,8 @@ ALTER TABLE flips
 
 CREATE UNIQUE INDEX IF NOT EXISTS flips_cid_unique_idx on flips (LOWER(cid));
 CREATE INDEX IF NOT EXISTS flips_wrong_words_idx on flips ((1)) WHERE wrong_words;
-CREATE INDEX IF NOT EXISTS flips_zero_size_idx on flips (tx_id) WHERE size = 0;
+CREATE INDEX IF NOT EXISTS flips_zero_size_idx on flips (tx_id) WHERE size = 0 and delete_tx_id is NULL;
+CREATE INDEX IF NOT EXISTS flips_actual_idx on flips (tx_id) WHERE delete_tx_id is NULL;
 
 -- SEQUENCE: flip_keys_id_seq
 
@@ -1514,13 +1520,11 @@ SELECT e.epoch,
                                   WHERE t.block_height = b.height
                                     AND b.epoch = e.epoch
                                     AND t.type = 2))                                              AS invite_count,
-       COALESCE(es.flip_count::bigint, (SELECT count(*) AS count
-                                        FROM flips f,
-                                             transactions t,
-                                             blocks b
-                                        WHERE f.tx_id = t.id
-                                          AND t.block_height = b.height
-                                          AND b.epoch = e.epoch))                                 AS flip_count,
+       COALESCE(es.flip_count::bigint, (select count(*)
+                                        from flips f
+                                                 join transactions t on t.id = f.tx_id
+                                                 join blocks b on b.height = t.block_height and b.epoch = e.epoch
+                                        where f.delete_tx_id is null))                            AS flip_count,
        COALESCE(es.burnt, (SELECT COALESCE(sum(c.burnt), 0::numeric) AS "coalesce"
                            FROM coins c
                                     JOIN blocks b ON b.height = c.block_height
@@ -1910,6 +1914,23 @@ $$
     END
 $$;
 
+DO
+$$
+    BEGIN
+        -- Type: tp_deleted_flip
+        CREATE TYPE tp_deleted_flip AS
+        (
+            tx_hash character(66),
+            cid     character varying(100)
+        );
+
+        ALTER TYPE tp_deleted_flip
+            OWNER TO postgres;
+    EXCEPTION
+        WHEN duplicate_object THEN null;
+    END
+$$;
+
 -- PROCEDURE: save_mining_rewards
 
 CREATE OR REPLACE PROCEDURE save_mining_rewards(height bigint, mr tp_mining_reward[])
@@ -1981,7 +2002,8 @@ $BODY$;
 CREATE OR REPLACE FUNCTION save_addrs_and_txs(height bigint,
                                               addresses tp_address[],
                                               txs tp_tx[],
-                                              address_state_changes tp_address_state_change[])
+                                              address_state_changes tp_address_state_change[],
+                                              deleted_flips tp_deleted_flip[])
     RETURNS tp_tx_hash_id[]
     LANGUAGE 'plpgsql'
 AS
@@ -1995,6 +2017,7 @@ DECLARE
     l_tx_id                  bigint;
     l_to                     bigint;
     res                      tp_tx_hash_id[];
+    deleted_flip             tp_deleted_flip;
 BEGIN
     for i in 1..cardinality(addresses)
         loop
@@ -2053,6 +2076,16 @@ BEGIN
                 values (l_address_id, address_state_change_row.new_state, true, height,
                         (select id from transactions where lower(hash) = lower(address_state_change_row.tx_hash)),
                         l_prev_state_id);
+            end loop;
+    end if;
+
+    if deleted_flips is not null then
+        for i in 1..cardinality(deleted_flips)
+            loop
+                deleted_flip = deleted_flips[i];
+                update flips
+                set delete_tx_id=(SELECT ID FROM TRANSACTIONS WHERE LOWER(HASH) = lower(deleted_flip.tx_hash))
+                where lower(cid) = lower(deleted_flip.cid);
             end loop;
     end if;
 

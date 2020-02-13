@@ -238,22 +238,24 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) *result 
 		blockHeight:       incomingBlock.Height(),
 		prevStateReadOnly: prevState,
 		newStateReadOnly:  newState,
-		addresses:         make(map[string]*db.Address),
+	}
+	collector := &conversionCollector{
+		addresses: make(map[string]*db.Address),
 	}
 	epoch := uint64(prevState.State.Epoch())
 
 	indexer.pm.Complete("InitCtx")
 	indexer.pm.Start("ConvertBlock")
-	block := indexer.convertBlock(incomingBlock, ctx)
+	block := indexer.convertBlock(incomingBlock, ctx, collector)
 	indexer.pm.Complete("ConvertBlock")
 	identities, flipStats, birthdays, memPoolFlipKeys, notFailedValidation := indexer.detectEpochResult(incomingBlock, ctx)
 
 	firstAddresses := indexer.detectFirstAddresses(incomingBlock, ctx)
 	for _, addr := range firstAddresses {
-		if curAddr, present := ctx.addresses[addr.Address]; present {
+		if curAddr, present := collector.addresses[addr.Address]; present {
 			curAddr.StateChanges = append(curAddr.StateChanges, addr.StateChanges...)
 		} else {
-			ctx.addresses[addr.Address] = addr
+			collector.addresses[addr.Address] = addr
 		}
 	}
 
@@ -269,12 +271,12 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) *result 
 		ValidationTime:    *big.NewInt(ctx.newStateReadOnly.State.NextValidationTime().Unix()),
 		Block:             block,
 		Identities:        identities,
-		SubmittedFlips:    ctx.submittedFlips,
-		FlipKeys:          ctx.flipKeys,
-		FlipsWords:        ctx.flipsWords,
-		FlipSizeUpdates:   ctx.flipSizeUpdates,
+		SubmittedFlips:    collector.submittedFlips,
+		DeletedFlips:      collector.deletedFlips,
+		FlipKeys:          collector.flipKeys,
+		FlipsWords:        collector.flipsWords,
 		FlipStats:         flipStats,
-		Addresses:         ctx.getAddresses(),
+		Addresses:         collector.getAddresses(),
 		BalanceUpdates:    balanceUpdates,
 		Birthdays:         birthdays,
 		MemPoolFlipKeys:   memPoolFlipKeys,
@@ -290,7 +292,7 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) *result 
 	resData := &resultData{
 		totalBalance: totalBalance,
 		totalStake:   totalStake,
-		flipTxs:      ctx.flipTxs,
+		flipTxs:      collector.flipTxs,
 	}
 	return &result{
 		dbData:  dbData,
@@ -365,9 +367,13 @@ func (indexer *Indexer) detectFirstAddresses(incomingBlock *types.Block, ctx *co
 	return addresses
 }
 
-func (indexer *Indexer) convertBlock(incomingBlock *types.Block, ctx *conversionContext) db.Block {
+func (indexer *Indexer) convertBlock(
+	incomingBlock *types.Block,
+	ctx *conversionContext,
+	collector *conversionCollector,
+) db.Block {
 	stateToApply := ctx.newStateReadOnly.Readonly(ctx.blockHeight - 1)
-	txs := indexer.convertTransactions(incomingBlock.Body.Transactions, stateToApply, ctx)
+	txs := indexer.convertTransactions(incomingBlock.Body.Transactions, ctx, stateToApply, collector)
 
 	incomingBlock.Header.Flags()
 	proposerVrfScore, _ := getProposerVrfScore(
@@ -404,30 +410,44 @@ func convertFlags(incomingFlags types.BlockFlag) []string {
 	return flags
 }
 
-func (indexer *Indexer) convertTransactions(incomingTxs []*types.Transaction, stateToApply *appstate.AppState, ctx *conversionContext) []db.Transaction {
+func (indexer *Indexer) convertTransactions(
+	incomingTxs []*types.Transaction,
+	ctx *conversionContext,
+	stateToApply *appstate.AppState,
+	collector *conversionCollector,
+) []db.Transaction {
 	if len(incomingTxs) == 0 {
 		return nil
 	}
 	var txs []db.Transaction
 	for _, incomingTx := range incomingTxs {
-		txs = append(txs, indexer.convertTransaction(incomingTx, ctx, stateToApply))
+		txs = append(txs, indexer.convertTransaction(incomingTx, ctx, stateToApply, collector))
 	}
 	return txs
 }
 
-func (indexer *Indexer) convertTransaction(incomingTx *types.Transaction, ctx *conversionContext, stateToApply *appstate.AppState) db.Transaction {
+func (indexer *Indexer) convertTransaction(
+	incomingTx *types.Transaction,
+	ctx *conversionContext,
+	stateToApply *appstate.AppState,
+	collector *conversionCollector,
+) db.Transaction {
 	if f, h := indexer.detectSubmittedFlip(incomingTx); f != nil {
-		ctx.submittedFlips = append(ctx.submittedFlips, *f)
-		ctx.flipTxs = append(ctx.flipTxs, *h)
+		collector.submittedFlips = append(collector.submittedFlips, *f)
+		collector.flipTxs = append(collector.flipTxs, *h)
 	}
 
-	indexer.convertShortAnswers(incomingTx, ctx)
+	if deletedFlip := indexer.detectDeletedFlip(incomingTx); deletedFlip != nil {
+		collector.deletedFlips = append(collector.deletedFlips, *deletedFlip)
+	}
+
+	indexer.convertShortAnswers(incomingTx, ctx, collector)
 	txHash := convertHash(incomingTx.Hash())
 
 	sender, _ := types.Sender(incomingTx)
 	from := conversion.ConvertAddress(sender)
-	if _, present := ctx.addresses[from]; !present {
-		ctx.addresses[from] = &db.Address{
+	if _, present := collector.addresses[from]; !present {
+		collector.addresses[from] = &db.Address{
 			Address: from,
 		}
 	}
@@ -436,8 +456,8 @@ func (indexer *Indexer) convertTransaction(incomingTx *types.Transaction, ctx *c
 	var recipientPrevState *state.IdentityState
 	if incomingTx.To != nil {
 		to = conversion.ConvertAddress(*incomingTx.To)
-		if _, present := ctx.addresses[to]; !present {
-			ctx.addresses[to] = &db.Address{
+		if _, present := collector.addresses[to]; !present {
+			collector.addresses[to] = &db.Address{
 				Address: to,
 			}
 		}
@@ -455,22 +475,24 @@ func (indexer *Indexer) convertTransaction(incomingTx *types.Transaction, ctx *c
 
 	if senderNewState != senderPrevState {
 		if incomingTx.Type == types.ActivationTx && senderNewState == state.Killed {
-			ctx.addresses[from].IsTemporary = true
+			collector.addresses[from].IsTemporary = true
 		}
-		ctx.addresses[from].StateChanges = append(ctx.addresses[from].StateChanges, db.AddressStateChange{
-			PrevState: convertIdentityState(senderPrevState),
-			NewState:  convertIdentityState(senderNewState),
-			TxHash:    txHash,
-		})
+		collector.addresses[from].StateChanges = append(collector.addresses[from].StateChanges,
+			db.AddressStateChange{
+				PrevState: convertIdentityState(senderPrevState),
+				NewState:  convertIdentityState(senderNewState),
+				TxHash:    txHash,
+			})
 	}
 	if recipientPrevState != nil && *incomingTx.To != sender {
 		recipientNewState := stateToApply.State.GetIdentityState(*incomingTx.To)
 		if recipientNewState != *recipientPrevState {
-			ctx.addresses[to].StateChanges = append(ctx.addresses[to].StateChanges, db.AddressStateChange{
-				PrevState: convertIdentityState(*recipientPrevState),
-				NewState:  convertIdentityState(recipientNewState),
-				TxHash:    txHash,
-			})
+			collector.addresses[to].StateChanges = append(collector.addresses[to].StateChanges,
+				db.AddressStateChange{
+					PrevState: convertIdentityState(*recipientPrevState),
+					NewState:  convertIdentityState(recipientNewState),
+					TxHash:    txHash,
+				})
 		}
 	}
 
@@ -666,7 +688,31 @@ func (indexer *Indexer) detectSubmittedFlip(tx *types.Transaction) (*db.Flip, *f
 	return f, h
 }
 
-func (indexer *Indexer) convertShortAnswers(tx *types.Transaction, ctx *conversionContext) {
+func (indexer *Indexer) detectDeletedFlip(tx *types.Transaction) *db.DeletedFlip {
+	if tx.Type != types.DeleteFlipTx {
+		return nil
+	}
+	attachment := attachments.ParseDeleteFlipAttachment(tx)
+	if attachment == nil {
+		log.Error("Unable to parse delete flip tx payload. Skipped.", "tx", tx.Hash())
+		return nil
+	}
+	flipCid, err := cid.Parse(attachment.Cid)
+	if err != nil {
+		log.Error("Unable to parse deleted flip cid. Skipped.", "tx", tx.Hash(), "err", err)
+		return nil
+	}
+	return &db.DeletedFlip{
+		TxHash: convertHash(tx.Hash()),
+		Cid:    convertCid(flipCid),
+	}
+}
+
+func (indexer *Indexer) convertShortAnswers(
+	tx *types.Transaction,
+	ctx *conversionContext,
+	collector *conversionCollector,
+) {
 	if tx.Type != types.SubmitShortAnswersTx {
 		return
 	}
@@ -685,7 +731,7 @@ func (indexer *Indexer) convertShortAnswers(tx *types.Transaction, ctx *conversi
 	}
 
 	if len(attachment.Key) > 0 {
-		ctx.flipKeys = append(ctx.flipKeys, db.FlipKey{
+		collector.flipKeys = append(collector.flipKeys, db.FlipKey{
 			TxHash: convertHash(tx.Hash()),
 			Key:    hex.EncodeToString(attachment.Key),
 		})
@@ -698,7 +744,7 @@ func (indexer *Indexer) convertShortAnswers(tx *types.Transaction, ctx *conversi
 				log.Error("Unable to get flip words. Skipped.", "tx", tx.Hash(), "cid", f.Cid, "err", err)
 				continue
 			}
-			ctx.flipsWords = append(ctx.flipsWords, db.FlipWords{
+			collector.flipsWords = append(collector.flipsWords, db.FlipWords{
 				FlipId: f.Id,
 				TxHash: convertHash(tx.Hash()),
 				Word1:  uint16(word1),

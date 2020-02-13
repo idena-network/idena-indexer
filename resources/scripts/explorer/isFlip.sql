@@ -1,1 +1,1 @@
-select exists(select 1 from flips where lower(cid) = lower($1))
+select exists(select 1 from flips where lower(cid) = lower($1) and delete_tx_id is null)

@@ -247,6 +247,11 @@ set status_block_height=null,
     answer=null,
     wrong_words=null
 where status_block_height > $1;
+update flips
+set delete_tx_id=null
+where delete_tx_id in (select t.id
+                       from transactions t
+                       where t.block_height > $1);
 
 -- flip_keys
 delete

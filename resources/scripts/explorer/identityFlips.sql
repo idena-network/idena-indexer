@@ -18,7 +18,7 @@ select f.Cid,
        coalesce(wd2.description, '')  word_desc_2
 from flips f
          join transactions t on t.id = f.tx_id
-         join addresses a on a.id = t.from
+         join addresses a on a.id = t.from and lower(a.address) = lower($1)
          join blocks b on b.height = t.block_height
          left join (select a.flip_id, count(*) answers from answers a where a.is_short = true group by a.flip_id) short
                    on short.flip_id = f.id
@@ -37,7 +37,7 @@ from flips f
          left join words_dictionary wd2 on wd2.id = fw.word_2
          left join dic_flip_statuses dfs on dfs.id = f.status
          left join dic_answers da on da.id = f.answer
-where lower(a.address) = lower($1)
+where f.delete_tx_id is null
 order by t.id desc
 limit $3
 offset

@@ -7,19 +7,22 @@ import (
 
 type conversionContext struct {
 	blockHeight       uint64
-	submittedFlips    []db.Flip
-	flipKeys          []db.FlipKey
-	flipsWords        []db.FlipWords
-	flipSizeUpdates   []db.FlipSizeUpdate
-	addresses         map[string]*db.Address
 	prevStateReadOnly *appstate.AppState
 	newStateReadOnly  *appstate.AppState
-	flipTxs           []flipTx
 }
 
-func (ctx *conversionContext) getAddresses() []db.Address {
+type conversionCollector struct {
+	submittedFlips []db.Flip
+	deletedFlips   []db.DeletedFlip
+	flipTxs        []flipTx
+	flipKeys       []db.FlipKey
+	flipsWords     []db.FlipWords
+	addresses      map[string]*db.Address
+}
+
+func (collector *conversionCollector) getAddresses() []db.Address {
 	var addresses []db.Address
-	for _, addr := range ctx.addresses {
+	for _, addr := range collector.addresses {
 		addresses = append(addresses, *addr)
 	}
 	return addresses

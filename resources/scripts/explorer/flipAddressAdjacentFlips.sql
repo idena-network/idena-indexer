@@ -11,8 +11,10 @@ from (select f.cid,
              over (order by t.id DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) last_cid
       from flips f
                join transactions t on t.id = f.tx_id
-      where t.from = (select t.from
+      where f.delete_tx_id is null
+        and t.from = (select t.from
                       from flips f
                                join transactions t on t.id = f.tx_id
-                      where lower(f.cid) = lower($1))) rel
+                      where lower(f.cid) = lower($1)
+                        and f.delete_tx_id is null)) rel
 where lower(rel.cid) = lower($1)

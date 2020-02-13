@@ -27,11 +27,11 @@ type Data struct {
 	Block             Block
 	Identities        []EpochIdentity
 	SubmittedFlips    []Flip
+	DeletedFlips      []DeletedFlip
 	FlipKeys          []FlipKey
 	FlipsWords        []FlipWords
 	FlipStats         []FlipStats
 	Addresses         []Address
-	FlipSizeUpdates   []FlipSizeUpdate
 	BalanceUpdates    []Balance
 	Birthdays         []Birthday
 	MemPoolFlipKeys   []*MemPoolFlipKey
@@ -136,6 +136,11 @@ type Flip struct {
 	TxHash string
 	Cid    string
 	Pair   uint8
+}
+
+type DeletedFlip struct {
+	TxHash string
+	Cid    string
 }
 
 type FlipStats struct {

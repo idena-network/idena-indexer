@@ -10,6 +10,7 @@ const (
 	selectEpochFlipsWithoutSizeQuery = "selectEpochFlipsWithoutSize.sql"
 	selectFlipsToLoadContentQuery    = "selectFlipsToLoadContent.sql"
 	saveFlipsContentQuery            = "saveFlipsContent.sql"
+	updateFlipSizeQuery              = "updateFlipSize.sql"
 )
 
 func (a *postgresAccessor) SaveFlipSize(flipCid string, size int) error {

@@ -35,14 +35,12 @@ values ($1,
               blocks b
          where t.block_height = b.height
            and b.epoch = $1
-           and t.type = (select id from dic_tx_types where name='InviteTx')),
+           and t.type = (select id from dic_tx_types where name = 'InviteTx')),
         (select count(*)
-         from flips f,
-              transactions t,
-              blocks b
-         where f.tx_id = t.id
-           and t.block_height = b.height
-           and b.epoch = $1),
+         from flips f
+                  join transactions t on t.id = f.tx_id
+                  join blocks b on b.height = t.block_height and b.epoch = $1
+         where f.delete_tx_id is null),
         (select coalesce(sum(burnt), 0)
          from coins c
                   join blocks b on b.height = c.block_height

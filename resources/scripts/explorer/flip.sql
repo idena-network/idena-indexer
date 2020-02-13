@@ -31,3 +31,4 @@ from flips f
          left join dic_flip_statuses dfs on dfs.id = f.status
          left join dic_answers da on da.id = f.answer
 where LOWER(f.cid) = LOWER($1)
+  and f.delete_tx_id is null

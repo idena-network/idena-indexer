@@ -26,8 +26,6 @@ const (
 	initQuery                           = "init.sql"
 	maxHeightQuery                      = "maxHeight.sql"
 	currentFlipsQuery                   = "currentFlips.sql"
-	currentFlipCidsWithoutDataQuery     = "currentFlipCidsWithoutData.sql"
-	updateFlipSizeQuery                 = "updateFlipSize.sql"
 	insertBlockQuery                    = "insertBlock.sql"
 	insertBlockProposerQuery            = "insertBlockProposer.sql"
 	insertBlockProposerVrfScoreQuery    = "insertBlockProposerVrfScore.sql"
@@ -111,24 +109,6 @@ func (a *postgresAccessor) GetCurrentFlips(address string) ([]Flip, error) {
 	return res, nil
 }
 
-func (a *postgresAccessor) GetCurrentFlipsWithoutData(limit uint32) ([]AddressFlipCid, error) {
-	rows, err := a.db.Query(a.getQuery(currentFlipCidsWithoutDataQuery), limit)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var res []AddressFlipCid
-	for rows.Next() {
-		item := AddressFlipCid{}
-		err = rows.Scan(&item.FlipId, &item.Cid, &item.Address)
-		if err != nil {
-			return nil, err
-		}
-		res = append(res, item)
-	}
-	return res, nil
-}
-
 func (a *postgresAccessor) ResetTo(height uint64) error {
 	tx, err := a.db.Begin()
 	if err != nil {
@@ -178,7 +158,8 @@ func (a *postgresAccessor) Save(data *Data) error {
 		return err
 	}
 
-	if ctx.txIdsPerHash, err = a.saveAddressesAndTransactions(ctx, data.Addresses, data.Block.Transactions); err != nil {
+	if ctx.txIdsPerHash, err = a.saveAddressesAndTransactions(ctx, data.Addresses, data.Block.Transactions,
+		data.DeletedFlips); err != nil {
 		return err
 	}
 
@@ -211,10 +192,6 @@ func (a *postgresAccessor) Save(data *Data) error {
 	}
 
 	if err := a.saveFlipsWords(ctx, data.FlipsWords); err != nil {
-		return err
-	}
-
-	if err := a.updateFlipSizes(ctx, data.FlipSizeUpdates); err != nil {
 		return err
 	}
 
@@ -284,23 +261,6 @@ func (a *postgresAccessor) saveFlipsStats(ctx *context, flipsStats []FlipStats) 
 		answersArray,
 		statesArray)
 	return errors.Wrap(err, "unable to save flip stats")
-}
-
-func (a *postgresAccessor) updateFlipSizes(ctx *context, flipSizeUpdates []FlipSizeUpdate) error {
-	if len(flipSizeUpdates) == 0 {
-		return nil
-	}
-	for _, flipSizeUpdate := range flipSizeUpdates {
-		if err := a.updateFlipSize(ctx, flipSizeUpdate); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (a *postgresAccessor) updateFlipSize(ctx *context, flipSizeUpdate FlipSizeUpdate) error {
-	_, err := ctx.tx.Exec(a.getQuery(updateFlipSizeQuery), flipSizeUpdate.Size, flipSizeUpdate.Cid)
-	return err
 }
 
 func (a *postgresAccessor) saveEpoch(ctx *context, epoch uint64, validationTime big.Int) error {
@@ -416,8 +376,12 @@ func (a *postgresAccessor) saveIdentities(ctx *context, identities []EpochIdenti
 	return errors.Wrap(err, "unable to save identities")
 }
 
-func (a *postgresAccessor) saveAddressesAndTransactions(ctx *context, addresses []Address,
-	txs []Transaction) (map[string]int64, error) {
+func (a *postgresAccessor) saveAddressesAndTransactions(
+	ctx *context,
+	addresses []Address,
+	txs []Transaction,
+	deletedFlips []DeletedFlip,
+) (map[string]int64, error) {
 
 	if len(addresses)+len(txs) == 0 {
 		return nil, nil
@@ -429,7 +393,9 @@ func (a *postgresAccessor) saveAddressesAndTransactions(ctx *context, addresses 
 		ctx.blockHeight,
 		addressesArray,
 		pq.Array(txs),
-		addressStateChangesArray).Scan(pq.Array(&txHashIds))
+		addressStateChangesArray,
+		pq.Array(deletedFlips),
+	).Scan(pq.Array(&txHashIds))
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to save addresses and transactions")
 	}
