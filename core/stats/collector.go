@@ -307,3 +307,37 @@ func (c *statsCollector) AfterAddStake(addr common.Address, amount *big.Int) {
 	}
 	c.addBurntCoins(addr, amount, db.KilledBurntCoins, nil)
 }
+
+func (c *statsCollector) AddActivationTxBalanceTransfer(tx *types.Transaction, amount *big.Int) {
+	sender, _ := types.Sender(tx)
+	if sender == *tx.To {
+		return
+	}
+	if amount == nil || amount.Sign() == 0 {
+		return
+	}
+	c.stats.ActivationTxs = append(c.stats.ActivationTxs, db.ActivationTxSpecificPart{
+		TxHash:          conversion.ConvertHash(tx.Hash()),
+		BalanceTransfer: blockchain.ConvertToFloat(amount),
+	})
+}
+
+func (c *statsCollector) AddKillTxStakeTransfer(tx *types.Transaction, amount *big.Int) {
+	if amount == nil || amount.Sign() == 0 {
+		return
+	}
+	c.stats.KillTxs = append(c.stats.KillTxs, db.KillTxSpecificPart{
+		TxHash:        conversion.ConvertHash(tx.Hash()),
+		StakeTransfer: blockchain.ConvertToFloat(amount),
+	})
+}
+
+func (c *statsCollector) AddKillInviteeTxStakeTransfer(tx *types.Transaction, amount *big.Int) {
+	if amount == nil || amount.Sign() == 0 {
+		return
+	}
+	c.stats.KillInviteeTxs = append(c.stats.KillInviteeTxs, db.KillInviteeTxSpecificPart{
+		TxHash:        conversion.ConvertHash(tx.Hash()),
+		StakeTransfer: blockchain.ConvertToFloat(amount),
+	})
+}

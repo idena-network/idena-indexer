@@ -11,3 +11,7 @@ func BytesToAddr(bytes []byte) common.Address {
 	addr.SetBytes(bytes[1:])
 	return addr
 }
+
+func ConvertHash(hash common.Hash) string {
+	return hash.Hex()
+}

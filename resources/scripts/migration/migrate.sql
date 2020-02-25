@@ -36,6 +36,18 @@ insert into transactions (select * from OLD_SCHEMA_TAG.transactions where block_
 select setval('transactions_id_seq', max(id))
 from transactions;
 
+insert into activation_tx_transfers (select *
+                            from OLD_SCHEMA_TAG.activation_tx_transfers
+                            where tx_id in (select id from OLD_SCHEMA_TAG.transactions where block_height <= $1));
+
+insert into kill_tx_transfers (select *
+                      from OLD_SCHEMA_TAG.kill_tx_transfers
+                      where tx_id in (select id from OLD_SCHEMA_TAG.transactions where block_height <= $1));
+
+insert into kill_invitee_tx_transfers (select *
+                              from OLD_SCHEMA_TAG.kill_invitee_tx_transfers
+                              where tx_id in (select id from OLD_SCHEMA_TAG.transactions where block_height <= $1));
+
 -- burnt_coins
 insert into burnt_coins (select * from OLD_SCHEMA_TAG.burnt_coins where block_height <= $1);
 

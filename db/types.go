@@ -25,6 +25,9 @@ type Data struct {
 	Epoch             uint64
 	ValidationTime    big.Int
 	Block             Block
+	ActivationTxs     []ActivationTxSpecificPart
+	KillTxs           []KillTxSpecificPart
+	KillInviteeTxs    []KillInviteeTxSpecificPart
 	Identities        []EpochIdentity
 	SubmittedFlips    []Flip
 	DeletedFlips      []DeletedFlip
@@ -112,6 +115,21 @@ type Transaction struct {
 	Fee     decimal.Decimal
 	Payload []byte
 	Size    int
+}
+
+type ActivationTxSpecificPart struct {
+	TxHash          string
+	BalanceTransfer decimal.Decimal
+}
+
+type KillTxSpecificPart struct {
+	TxHash        string
+	StakeTransfer decimal.Decimal
+}
+
+type KillInviteeTxSpecificPart struct {
+	TxHash        string
+	StakeTransfer decimal.Decimal
 }
 
 type EpochIdentity struct {

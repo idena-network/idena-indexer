@@ -4,8 +4,23 @@ import (
 	"database/sql"
 	"github.com/idena-network/idena-go/common"
 	"github.com/idena-network/idena-indexer/explorer/types"
+	"github.com/shopspring/decimal"
 	"math/big"
 )
+
+type NullDecimal struct {
+	Decimal decimal.Decimal
+	Valid   bool
+}
+
+func (n *NullDecimal) Scan(value interface{}) error {
+	n.Valid = value != nil
+	n.Decimal = decimal.Decimal{}
+	if n.Valid {
+		return n.Decimal.Scan(value)
+	}
+	return nil
+}
 
 func (a *postgresAccessor) count(queryName string, args ...interface{}) (uint64, error) {
 	var res uint64
@@ -50,7 +65,9 @@ func readTxs(rows *sql.Rows) ([]types.TransactionSummary, error) {
 	for rows.Next() {
 		item := types.TransactionSummary{}
 		var timestamp int64
-		if err := rows.Scan(&item.Hash,
+		var transfer NullDecimal
+		if err := rows.Scan(
+			&item.Hash,
 			&item.Type,
 			&timestamp,
 			&item.From,
@@ -59,10 +76,15 @@ func readTxs(rows *sql.Rows) ([]types.TransactionSummary, error) {
 			&item.Tips,
 			&item.MaxFee,
 			&item.Fee,
-			&item.Size); err != nil {
+			&item.Size,
+			&transfer,
+		); err != nil {
 			return nil, err
 		}
 		item.Timestamp = common.TimestampToTime(big.NewInt(timestamp))
+		if transfer.Valid {
+			item.Transfer = &transfer.Decimal
+		}
 		res = append(res, item)
 	}
 	return res, nil

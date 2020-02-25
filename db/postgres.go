@@ -158,8 +158,15 @@ func (a *postgresAccessor) Save(data *Data) error {
 		return err
 	}
 
-	if ctx.txIdsPerHash, err = a.saveAddressesAndTransactions(ctx, data.Addresses, data.Block.Transactions,
-		data.DeletedFlips); err != nil {
+	if ctx.txIdsPerHash, err = a.saveAddressesAndTransactions(
+		ctx,
+		data.Addresses,
+		data.Block.Transactions,
+		data.ActivationTxs,
+		data.KillTxs,
+		data.KillInviteeTxs,
+		data.DeletedFlips,
+	); err != nil {
 		return err
 	}
 
@@ -380,6 +387,9 @@ func (a *postgresAccessor) saveAddressesAndTransactions(
 	ctx *context,
 	addresses []Address,
 	txs []Transaction,
+	activationTxs []ActivationTxSpecificPart,
+	killTxs []KillTxSpecificPart,
+	killInviteeTxs []KillInviteeTxSpecificPart,
 	deletedFlips []DeletedFlip,
 ) (map[string]int64, error) {
 
@@ -393,6 +403,9 @@ func (a *postgresAccessor) saveAddressesAndTransactions(
 		ctx.blockHeight,
 		addressesArray,
 		pq.Array(txs),
+		pq.Array(activationTxs),
+		pq.Array(killTxs),
+		pq.Array(killInviteeTxs),
 		addressStateChangesArray,
 		pq.Array(deletedFlips),
 	).Scan(pq.Array(&txHashIds))

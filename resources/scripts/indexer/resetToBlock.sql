@@ -261,6 +261,30 @@ where tx_id in
        from transactions t
        where t.block_height > $1);
 
+-- activation_tx_transfers
+delete
+from activation_tx_transfers
+where tx_id in
+      (select t.id
+       from transactions t
+       where t.block_height > $1);
+
+-- kill_tx_transfers
+delete
+from kill_tx_transfers
+where tx_id in
+      (select t.id
+       from transactions t
+       where t.block_height > $1);
+
+-- kill_invitee_tx_transfers
+delete
+from kill_invitee_tx_transfers
+where tx_id in
+      (select t.id
+       from transactions t
+       where t.block_height > $1);
+
 -- transactions
 delete
 from transactions

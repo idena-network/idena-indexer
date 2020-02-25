@@ -518,6 +518,45 @@ CREATE INDEX IF NOT EXISTS transactions_from_idx on transactions ("from");
 CREATE INDEX IF NOT EXISTS transactions_to_idx on transactions ("to") WHERE "to" is not null;
 CREATE INDEX IF NOT EXISTS transactions_block_height_idx on transactions (block_height);
 
+-- Table: activation_tx_transfers
+
+CREATE TABLE IF NOT EXISTS activation_tx_transfers
+(
+    tx_id            bigint          NOT NULL,
+    balance_transfer numeric(30, 18) NOT NULL,
+    CONSTRAINT activation_tx_transfers_pkey PRIMARY KEY (tx_id),
+    CONSTRAINT activation_tx_transfers_tx_id_fkey FOREIGN KEY (tx_id)
+        REFERENCES transactions (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+);
+
+-- Table: kill_tx_transfers
+
+CREATE TABLE IF NOT EXISTS kill_tx_transfers
+(
+    tx_id          bigint          NOT NULL,
+    stake_transfer numeric(30, 18) NOT NULL,
+    CONSTRAINT kill_tx_transfers_pkey PRIMARY KEY (tx_id),
+    CONSTRAINT kill_tx_transfers_tx_id_fkey FOREIGN KEY (tx_id)
+        REFERENCES transactions (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+);
+
+-- Table: kill_invitee_tx_transfers
+
+CREATE TABLE IF NOT EXISTS kill_invitee_tx_transfers
+(
+    tx_id          bigint          NOT NULL,
+    stake_transfer numeric(30, 18) NOT NULL,
+    CONSTRAINT kill_invitee_tx_transfers_pkey PRIMARY KEY (tx_id),
+    CONSTRAINT kill_invitee_tx_transfers_tx_id_fkey FOREIGN KEY (tx_id)
+        REFERENCES transactions (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+);
+
 -- SEQUENCE: address_states_id_seq
 
 -- DROP SEQUENCE address_states_id_seq;
@@ -1652,6 +1691,48 @@ $$;
 DO
 $$
     BEGIN
+        -- Type: tp_activation_tx_transfer
+        CREATE TYPE tp_activation_tx_transfer AS
+        (
+            tx_hash          character(66),
+            balance_transfer numeric(30, 18)
+        );
+    EXCEPTION
+        WHEN duplicate_object THEN null;
+    END
+$$;
+
+DO
+$$
+    BEGIN
+        -- Type: tp_kill_tx_transfer
+        CREATE TYPE tp_kill_tx_transfer AS
+        (
+            tx_hash        character(66),
+            stake_transfer numeric(30, 18)
+        );
+    EXCEPTION
+        WHEN duplicate_object THEN null;
+    END
+$$;
+
+DO
+$$
+    BEGIN
+        -- Type: tp_kill_invitee_tx_transfer
+        CREATE TYPE tp_kill_invitee_tx_transfer AS
+        (
+            tx_hash        character(66),
+            stake_transfer numeric(30, 18)
+        );
+    EXCEPTION
+        WHEN duplicate_object THEN null;
+    END
+$$;
+
+DO
+$$
+    BEGIN
         -- Type: tp_tx_hash_id
         CREATE TYPE tp_tx_hash_id AS
         (
@@ -2002,6 +2083,9 @@ $BODY$;
 CREATE OR REPLACE FUNCTION save_addrs_and_txs(height bigint,
                                               addresses tp_address[],
                                               txs tp_tx[],
+                                              p_activation_tx_transfers tp_activation_tx_transfer[],
+                                              p_kill_tx_transfers tp_kill_tx_transfer[],
+                                              p_kill_invitee_tx_transfers tp_kill_invitee_tx_transfer[],
                                               address_state_changes tp_address_state_change[],
                                               deleted_flips tp_deleted_flip[])
     RETURNS tp_tx_hash_id[]
@@ -2056,6 +2140,18 @@ BEGIN
             end loop;
     end if;
 
+    if p_activation_tx_transfers is not null then
+        call save_activation_tx_transfers(p_activation_tx_transfers);
+    end if;
+
+    if p_kill_tx_transfers is not null then
+        call save_kill_tx_transfers(p_kill_tx_transfers);
+    end if;
+
+    if p_kill_invitee_tx_transfers is not null then
+        call save_kill_invitee_tx_transfers(p_kill_invitee_tx_transfers);
+    end if;
+
     if address_state_changes is not null then
         for i in 1..cardinality(address_state_changes)
             loop
@@ -2090,6 +2186,60 @@ BEGIN
     end if;
 
     return res;
+END
+$BODY$;
+
+-- PROCEDURE: save_activation_tx_transfers
+CREATE OR REPLACE PROCEDURE save_activation_tx_transfers(p_activation_tx_transfers tp_activation_tx_transfer[])
+    LANGUAGE 'plpgsql'
+AS
+$BODY$
+DECLARE
+    l_activation_tx_transfer tp_activation_tx_transfer;
+BEGIN
+    for i in 1..cardinality(p_activation_tx_transfers)
+        loop
+            l_activation_tx_transfer := p_activation_tx_transfers[i];
+            insert into activation_tx_transfers (tx_id, balance_transfer)
+            values ((select id from transactions where lower(hash) = lower(l_activation_tx_transfer.tx_hash)),
+                    l_activation_tx_transfer.balance_transfer);
+        end loop;
+END
+$BODY$;
+
+-- PROCEDURE: save_kill_tx_transfers
+CREATE OR REPLACE PROCEDURE save_kill_tx_transfers(p_kill_tx_transfers tp_kill_tx_transfer[])
+    LANGUAGE 'plpgsql'
+AS
+$BODY$
+DECLARE
+    l_kill_tx_transfer tp_kill_tx_transfer;
+BEGIN
+    for i in 1..cardinality(p_kill_tx_transfers)
+        loop
+            l_kill_tx_transfer := p_kill_tx_transfers[i];
+            insert into kill_tx_transfers (tx_id, stake_transfer)
+            values ((select id from transactions where lower(hash) = lower(l_kill_tx_transfer.tx_hash)),
+                    l_kill_tx_transfer.stake_transfer);
+        end loop;
+END
+$BODY$;
+
+-- PROCEDURE: save_kill_invitee_tx_transfers
+CREATE OR REPLACE PROCEDURE save_kill_invitee_tx_transfers(p_kill_invitee_tx_transfers tp_kill_invitee_tx_transfer[])
+    LANGUAGE 'plpgsql'
+AS
+$BODY$
+DECLARE
+    l_kill_invitee_tx_transfer tp_kill_invitee_tx_transfer;
+BEGIN
+    for i in 1..cardinality(p_kill_invitee_tx_transfers)
+        loop
+            l_kill_invitee_tx_transfer := p_kill_invitee_tx_transfers[i];
+            insert into kill_invitee_tx_transfers (tx_id, stake_transfer)
+            values ((select id from transactions where lower(hash) = lower(l_kill_invitee_tx_transfer.tx_hash)),
+                    l_kill_invitee_tx_transfer.stake_transfer);
+        end loop;
 END
 $BODY$;
 

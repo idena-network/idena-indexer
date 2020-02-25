@@ -270,6 +270,9 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) *result 
 		Epoch:             epoch,
 		ValidationTime:    *big.NewInt(ctx.newStateReadOnly.State.NextValidationTime().Unix()),
 		Block:             block,
+		ActivationTxs:     indexer.statsHolder().GetStats().ActivationTxs,
+		KillTxs:           indexer.statsHolder().GetStats().KillTxs,
+		KillInviteeTxs:    indexer.statsHolder().GetStats().KillInviteeTxs,
 		Identities:        identities,
 		SubmittedFlips:    collector.submittedFlips,
 		DeletedFlips:      collector.deletedFlips,
@@ -385,7 +388,7 @@ func (indexer *Indexer) convertBlock(
 	encodedBlock, _ := rlp.EncodeToBytes(incomingBlock)
 	return db.Block{
 		Height:               incomingBlock.Height(),
-		Hash:                 convertHash(incomingBlock.Hash()),
+		Hash:                 conversion.ConvertHash(incomingBlock.Hash()),
 		Time:                 *incomingBlock.Header.Time(),
 		Transactions:         txs,
 		Proposer:             getProposer(incomingBlock),
@@ -442,7 +445,7 @@ func (indexer *Indexer) convertTransaction(
 	}
 
 	indexer.convertShortAnswers(incomingTx, ctx, collector)
-	txHash := convertHash(incomingTx.Hash())
+	txHash := conversion.ConvertHash(incomingTx.Hash())
 
 	sender, _ := types.Sender(incomingTx)
 	from := conversion.ConvertAddress(sender)
@@ -543,10 +546,6 @@ func convertStatsAnswer(incomingAnswer statsTypes.FlipAnswerStats) db.Answer {
 		WrongWords: incomingAnswer.WrongWords,
 		Point:      incomingAnswer.Point,
 	}
-}
-
-func convertHash(hash common.Hash) string {
-	return hash.Hex()
 }
 
 func convertCid(cid cid.Cid) string {
@@ -677,7 +676,7 @@ func (indexer *Indexer) detectSubmittedFlip(tx *types.Transaction) (*db.Flip, *f
 		return nil, nil
 	}
 	f := &db.Flip{
-		TxHash: convertHash(tx.Hash()),
+		TxHash: conversion.ConvertHash(tx.Hash()),
 		Cid:    convertCid(flipCid),
 		Pair:   attachment.Pair,
 	}
@@ -703,7 +702,7 @@ func (indexer *Indexer) detectDeletedFlip(tx *types.Transaction) *db.DeletedFlip
 		return nil
 	}
 	return &db.DeletedFlip{
-		TxHash: convertHash(tx.Hash()),
+		TxHash: conversion.ConvertHash(tx.Hash()),
 		Cid:    convertCid(flipCid),
 	}
 }
@@ -732,7 +731,7 @@ func (indexer *Indexer) convertShortAnswers(
 
 	if len(attachment.Key) > 0 {
 		collector.flipKeys = append(collector.flipKeys, db.FlipKey{
-			TxHash: convertHash(tx.Hash()),
+			TxHash: conversion.ConvertHash(tx.Hash()),
 			Key:    hex.EncodeToString(attachment.Key),
 		})
 	}
@@ -746,7 +745,7 @@ func (indexer *Indexer) convertShortAnswers(
 			}
 			collector.flipsWords = append(collector.flipsWords, db.FlipWords{
 				FlipId: f.Id,
-				TxHash: convertHash(tx.Hash()),
+				TxHash: conversion.ConvertHash(tx.Hash()),
 				Word1:  uint16(word1),
 				Word2:  uint16(word2),
 			})

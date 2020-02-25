@@ -38,6 +38,18 @@ func (v Transaction) Value() (driver.Value, error) {
 		v.Hash, v.Type, v.From, v.To, v.Amount, v.Tips, v.MaxFee, v.Fee, v.Size), nil
 }
 
+func (v ActivationTxSpecificPart) Value() (driver.Value, error) {
+	return fmt.Sprintf("(%v,%v)", v.TxHash, v.BalanceTransfer), nil
+}
+
+func (v KillTxSpecificPart) Value() (driver.Value, error) {
+	return fmt.Sprintf("(%v,%v)", v.TxHash, v.StakeTransfer), nil
+}
+
+func (v KillInviteeTxSpecificPart) Value() (driver.Value, error) {
+	return fmt.Sprintf("(%v,%v)", v.TxHash, v.StakeTransfer), nil
+}
+
 func (v DeletedFlip) Value() (driver.Value, error) {
 	return fmt.Sprintf("(%v,%v)", v.TxHash, v.Cid), nil
 }

@@ -160,8 +160,10 @@ func (a *postgresAccessor) getQuery(name string) string {
 func (a *postgresAccessor) Transaction(hash string) (types.TransactionDetail, error) {
 	res := types.TransactionDetail{}
 	var timestamp int64
+	var transfer NullDecimal
 	err := a.db.QueryRow(a.getQuery(transactionQuery), hash).Scan(&res.Epoch, &res.BlockHeight, &res.BlockHash,
-		&res.Hash, &res.Type, &timestamp, &res.From, &res.To, &res.Amount, &res.Tips, &res.MaxFee, &res.Fee, &res.Size)
+		&res.Hash, &res.Type, &timestamp, &res.From, &res.To, &res.Amount, &res.Tips, &res.MaxFee, &res.Fee, &res.Size,
+		&transfer)
 	if err == sql.ErrNoRows {
 		err = NoDataFound
 	}
@@ -169,6 +171,9 @@ func (a *postgresAccessor) Transaction(hash string) (types.TransactionDetail, er
 		return types.TransactionDetail{}, err
 	}
 	res.Timestamp = common.TimestampToTime(big.NewInt(timestamp))
+	if transfer.Valid {
+		res.Transfer = &transfer.Decimal
+	}
 	return res, nil
 }
 

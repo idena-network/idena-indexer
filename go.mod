@@ -9,7 +9,7 @@ require (
 	github.com/go-stack/stack v1.8.0
 	github.com/gorilla/handlers v1.4.2
 	github.com/gorilla/mux v1.7.3
-	github.com/idena-network/idena-go v0.17.2-0.20200210201600-c1cedd16a196
+	github.com/idena-network/idena-go v0.17.2-0.20200218045808-359800d30552
 	github.com/ipfs/go-cid v0.0.5
 	github.com/lib/pq v1.1.1
 	github.com/patrickmn/go-cache v2.1.0+incompatible

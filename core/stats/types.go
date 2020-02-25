@@ -32,6 +32,9 @@ type Stats struct {
 	MintedCoins          *big.Int
 	BalanceUpdateAddrs   mapset.Set
 	KilledAddrs          mapset.Set
+	ActivationTxs        []db.ActivationTxSpecificPart
+	KillTxs              []db.KillTxSpecificPart
+	KillInviteeTxs       []db.KillInviteeTxSpecificPart
 }
 
 type RewardsStats struct {

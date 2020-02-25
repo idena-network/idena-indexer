@@ -65,32 +65,34 @@ type BlockDetail struct {
 }
 
 type TransactionSummary struct {
-	Hash      string          `json:"hash"`
-	Type      string          `json:"type"`
-	Timestamp time.Time       `json:"timestamp"`
-	From      string          `json:"from"`
-	To        string          `json:"to,omitempty"`
-	Amount    decimal.Decimal `json:"amount"`
-	Tips      decimal.Decimal `json:"tips"`
-	MaxFee    decimal.Decimal `json:"maxFee"`
-	Fee       decimal.Decimal `json:"fee"`
-	Size      uint32          `json:"size"`
+	Hash      string           `json:"hash"`
+	Type      string           `json:"type"`
+	Timestamp time.Time        `json:"timestamp"`
+	From      string           `json:"from"`
+	To        string           `json:"to,omitempty"`
+	Amount    decimal.Decimal  `json:"amount"`
+	Tips      decimal.Decimal  `json:"tips"`
+	MaxFee    decimal.Decimal  `json:"maxFee"`
+	Fee       decimal.Decimal  `json:"fee"`
+	Size      uint32           `json:"size"`
+	Transfer  *decimal.Decimal `json:"transfer,omitempty"`
 }
 
 type TransactionDetail struct {
-	Epoch       uint64          `json:"epoch"`
-	BlockHeight uint64          `json:"blockHeight"`
-	BlockHash   string          `json:"blockHash"`
-	Hash        string          `json:"hash"`
-	Type        string          `json:"type"`
-	Timestamp   time.Time       `json:"timestamp"`
-	From        string          `json:"from"`
-	To          string          `json:"to,omitempty"`
-	Amount      decimal.Decimal `json:"amount"`
-	Tips        decimal.Decimal `json:"tips"`
-	MaxFee      decimal.Decimal `json:"maxFee"`
-	Fee         decimal.Decimal `json:"fee"`
-	Size        uint32          `json:"size"`
+	Epoch       uint64           `json:"epoch"`
+	BlockHeight uint64           `json:"blockHeight"`
+	BlockHash   string           `json:"blockHash"`
+	Hash        string           `json:"hash"`
+	Type        string           `json:"type"`
+	Timestamp   time.Time        `json:"timestamp"`
+	From        string           `json:"from"`
+	To          string           `json:"to,omitempty"`
+	Amount      decimal.Decimal  `json:"amount"`
+	Tips        decimal.Decimal  `json:"tips"`
+	MaxFee      decimal.Decimal  `json:"maxFee"`
+	Fee         decimal.Decimal  `json:"fee"`
+	Size        uint32           `json:"size"`
+	Transfer    *decimal.Decimal `json:"transfer,omitempty"`
 }
 
 type FlipSummary struct {
