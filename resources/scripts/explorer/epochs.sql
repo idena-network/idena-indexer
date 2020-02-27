@@ -15,7 +15,8 @@ SELECT e.epoch,
        COALESCE(es.validated_count, (select count(*)
                                      from address_states
                                      where is_actual
-                                       and (state = 3 or state = 7)))    AS validated_count,
+                                       -- 'Verified', 'Newbie', 'Human'
+                                       and state in (3, 7, 8)))          AS validated_count,
        COALESCE(es.block_count, (SELECT count(*) AS count
                                  FROM blocks b
                                  WHERE b.epoch = e.epoch))               AS block_count,

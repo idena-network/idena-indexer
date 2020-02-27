@@ -48,6 +48,7 @@ var identityStatesByName = map[string]uint8{
 	"Killed":    5,
 	"Zombie":    6,
 	"Newbie":    7,
+	"Human":     8,
 }
 
 func convertIdentityStates(names []string) ([]uint8, error) {

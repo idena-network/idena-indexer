@@ -110,7 +110,7 @@ func (updater *currentOnlineIdentitiesCacheUpdater) update() {
 	activityMap := updater.offlineDetector.GetActivityMap()
 	var onlineCount int
 	appState.State.IterateOverIdentities(func(address common.Address, identity state.Identity) {
-		if identity.State != state.Newbie && identity.State != state.Verified {
+		if identity.State != state.Newbie && identity.State != state.Verified && identity.State != state.Human {
 			return
 		}
 		addressStr := conversion.ConvertAddress(address)

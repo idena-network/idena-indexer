@@ -16,8 +16,8 @@ values ($1,
          from epoch_identities ei
                   join address_states s on s.id = ei.address_state_id
          where ei.epoch = $1
-           -- 'Verified', 'Newbie'
-           and s.state in (3, 7)),
+           -- 'Verified', 'Newbie', 'Human'
+           and s.state in (3, 7, 8)),
         (select count(*)
          from blocks b
          where b.epoch = $1),

@@ -4,8 +4,8 @@ select case
                           join addresses a on a.id = s.address_id
                  where lower(a.address) = lower($1)
                    and s.is_actual) in
-               -- 'Verified', 'Suspended', 'Zombie', 'Newbie'
-                (3, 4, 6, 7)
+               -- 'Verified', 'Suspended', 'Zombie', 'Newbie', 'Human'
+                (3, 4, 6, 7, 8)
                then (select max(epoch) from epochs) -
                     coalesce((select bd.birth_epoch
                               from birthdays bd

@@ -60,6 +60,9 @@ ON CONFLICT DO NOTHING;
 INSERT INTO dic_identity_states
 values (7, 'Newbie')
 ON CONFLICT DO NOTHING;
+INSERT INTO dic_identity_states
+values (8, 'Human')
+ON CONFLICT DO NOTHING;
 
 -- Table: dic_tx_types
 
