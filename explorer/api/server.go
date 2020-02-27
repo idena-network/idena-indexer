@@ -57,7 +57,7 @@ func (s *httpServer) requestFilter(next http.Handler) http.Handler {
 		if !strings.Contains(strings.ToLower(r.URL.Path), "/search") {
 			urlToLog = r.URL
 		}
-		s.log.Debug("Got api request", "reqId", reqId, "url", urlToLog, "from", r.RemoteAddr)
+		s.log.Debug("Got api request", "reqId", reqId, "url", urlToLog, "from", server.GetIP(r))
 		defer s.log.Debug("Completed api request", "reqId", reqId)
 		err := r.ParseForm()
 		if err != nil {

@@ -7,13 +7,11 @@ select f.cid,
        coalesce(dfs.name, '')         status,
        a.point
 from answers a
-         join flips f on f.id = a.flip_id
-         join epoch_identities ei on ei.id = a.epoch_identity_id
+         join flips f on f.tx_id = a.flip_tx_id
+         join epoch_identities ei on ei.address_state_id = a.ei_address_state_id and ei.epoch = $1
          join address_states s on s.id = ei.address_state_id
-         join addresses ad on ad.id = s.address_id
+         join addresses ad on ad.id = s.address_id and lower(ad.address) = lower($2)
          left join dic_flip_statuses dfs on dfs.id = f.status
          left join dic_answers fda on fda.id = f.answer
          join dic_answers ida on ida.id = a.answer
-where ei.epoch = $1
-  and lower(ad.address) = lower($2)
-  and a.is_short = $3
+where a.is_short = $3

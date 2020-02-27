@@ -744,10 +744,10 @@ func (indexer *Indexer) convertShortAnswers(
 				continue
 			}
 			collector.flipsWords = append(collector.flipsWords, db.FlipWords{
-				FlipId: f.Id,
-				TxHash: conversion.ConvertHash(tx.Hash()),
-				Word1:  uint16(word1),
-				Word2:  uint16(word2),
+				FlipTxId: f.TxId,
+				TxHash:   conversion.ConvertHash(tx.Hash()),
+				Word1:    uint16(word1),
+				Word2:    uint16(word2),
 			})
 		}
 	} else {
@@ -765,6 +765,10 @@ func getFlipWords(addr common.Address, attachment *attachments.ShortAnswerAttach
 func convertCids(idxs []int, cids [][]byte, block *types.Block) []string {
 	var res []string
 	for _, idx := range idxs {
+		if idx >= len(cids) {
+			log.Error("Unable to get flip cid by idx. Skipped.", "b", block.Height(), "idx", idx)
+			continue
+		}
 		c, err := cid.Parse(cids[idx])
 		if err != nil {
 			log.Error("Unable to parse cid. Skipped.", "b", block.Height(), "idx", idx, "err", err)

@@ -4,11 +4,9 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"github.com/idena-network/idena-go/common"
 	"github.com/idena-network/idena-indexer/explorer/types"
 	"github.com/idena-network/idena-indexer/log"
 	"github.com/shopspring/decimal"
-	"math/big"
 	"strconv"
 )
 
@@ -170,7 +168,7 @@ func (a *postgresAccessor) Transaction(hash string) (types.TransactionDetail, er
 	if err != nil {
 		return types.TransactionDetail{}, err
 	}
-	res.Timestamp = common.TimestampToTime(big.NewInt(timestamp))
+	res.Timestamp = timestampToTimeUTC(timestamp)
 	if transfer.Valid {
 		res.Transfer = &transfer.Decimal
 	}

@@ -1,9 +1,7 @@
 package postgres
 
 import (
-	"github.com/idena-network/idena-go/common"
 	"github.com/idena-network/idena-indexer/explorer/types"
-	"math/big"
 )
 
 const (
@@ -49,7 +47,7 @@ func (a *postgresAccessor) Epochs(startIndex uint64, count uint64) ([]types.Epoc
 		if err != nil {
 			return nil, err
 		}
-		epoch.ValidationTime = common.TimestampToTime(big.NewInt(validationTime))
+		epoch.ValidationTime = timestampToTimeUTC(validationTime)
 		epochs = append(epochs, epoch)
 	}
 	return epochs, nil

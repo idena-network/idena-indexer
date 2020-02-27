@@ -150,7 +150,7 @@ type EpochIdentity struct {
 }
 
 type Flip struct {
-	Id     uint64
+	TxId   uint64
 	TxHash string
 	Cid    string
 	Pair   uint8
@@ -188,10 +188,10 @@ type MemPoolFlipKey struct {
 }
 
 type FlipWords struct {
-	FlipId uint64
-	TxHash string
-	Word1  uint16
-	Word2  uint16
+	FlipTxId uint64
+	TxHash   string
+	Word1    uint16
+	Word2    uint16
 }
 
 type FlipSizeUpdate struct {

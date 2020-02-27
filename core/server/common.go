@@ -7,6 +7,7 @@ import (
 	"github.com/pkg/errors"
 	"net/http"
 	"strconv"
+	"strings"
 )
 
 type Response struct {
@@ -73,4 +74,15 @@ func ReadPaginatorParams(vars map[string]string) (uint64, uint64, error) {
 		return 0, 0, errors.Errorf("too big value limit=%d", count)
 	}
 	return startIndex, count, nil
+}
+
+func GetIP(r *http.Request) string {
+	header := r.Header.Get("X-Forwarded-For")
+	if len(header) > 0 {
+		return strings.Split(header, ", ")[0]
+	}
+	if strings.Contains(r.RemoteAddr, ":") {
+		return strings.Split(r.RemoteAddr, ":")[0]
+	}
+	return r.RemoteAddr
 }

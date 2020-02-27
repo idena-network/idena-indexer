@@ -8,9 +8,6 @@ insert into blocks (select * from OLD_SCHEMA_TAG.blocks where height <= $1);
 
 -- block_flags
 insert into block_flags (select * from OLD_SCHEMA_TAG.block_flags where block_height <= $1);
--- block_flags sequence
-select setval('block_flags_id_seq', max(id))
-from block_flags;
 
 -- addresses
 insert into addresses (select * from OLD_SCHEMA_TAG.addresses where block_height <= $1);
@@ -56,13 +53,8 @@ insert into flip_keys (select *
                        from OLD_SCHEMA_TAG.flip_keys
                        where tx_id in (select id from OLD_SCHEMA_TAG.transactions where block_height <= $1));
 
--- flip_keys sequence
-select setval('flip_keys_id_seq', max(id))
-from flip_keys;
-
 -- flips
-insert into flips (select id,
-                          tx_id,
+insert into flips (select tx_id,
                           cid,
                           size,
                           pair,
@@ -73,14 +65,6 @@ insert into flips (select id,
                           (case when delete_tx_id <= (select max(id) from transactions) then delete_tx_id else null end)
                    from OLD_SCHEMA_TAG.flips
                    where tx_id in (select id from OLD_SCHEMA_TAG.transactions where block_height <= $1));
--- flips sequence
-select setval('flips_id_seq', max(id))
-from flips;
-
--- deleted_flips
-insert into deleted_flips (select *
-                           from OLD_SCHEMA_TAG.deleted_flips
-                           where tx_id in (select id from OLD_SCHEMA_TAG.transactions where block_height <= $1));
 
 --flip_words
 insert into flip_words (select *
@@ -88,25 +72,27 @@ insert into flip_words (select *
                         where tx_id in (select id from OLD_SCHEMA_TAG.transactions where block_height <= $1));
 
 -- flips_data
-insert into flips_data (select * from OLD_SCHEMA_TAG.flips_data where block_height <= $1);
--- flips_data sequence
-select setval('flips_data_id_seq', max(id))
-from flips_data;
+insert into flips_data (select *
+                        from OLD_SCHEMA_TAG.flips_data
+                        where flip_tx_id in (select id from OLD_SCHEMA_TAG.transactions where block_height <= $1));
 
 -- flip_pic_orders
 insert into flip_pic_orders (select *
                              from OLD_SCHEMA_TAG.flip_pic_orders
-                             where flip_data_id in (select id from OLD_SCHEMA_TAG.flips_data where block_height <= $1));
+                             where fd_flip_tx_id in
+                                   (select id from OLD_SCHEMA_TAG.transactions where block_height <= $1));
 
 -- flip_icons
 insert into flip_icons (select *
                         from OLD_SCHEMA_TAG.flip_icons
-                        where flip_data_id in (select id from OLD_SCHEMA_TAG.flips_data where block_height <= $1));
+                        where fd_flip_tx_id in
+                              (select id from OLD_SCHEMA_TAG.transactions where block_height <= $1));
 
 -- flip_pics
 insert into flip_pics (select *
                        from OLD_SCHEMA_TAG.flip_pics
-                       where flip_data_id in (select id from OLD_SCHEMA_TAG.flips_data where block_height <= $1));
+                       where fd_flip_tx_id in
+                             (select id from OLD_SCHEMA_TAG.transactions where block_height <= $1));
 
 -- address_states
 insert into address_states (select * from OLD_SCHEMA_TAG.address_states where block_height <= $1);
@@ -130,42 +116,24 @@ insert into epoch_identities (select *
                               from OLD_SCHEMA_TAG.epoch_identities
                               where address_state_id in
                                     (select id from OLD_SCHEMA_TAG.address_states where block_height <= $1));
--- epoch_identities sequence
-select setval('epoch_identities_id_seq', max(id))
-from epoch_identities;
 
 -- mem_pool_flip_keys
 insert into mem_pool_flip_keys
     (select *
      from OLD_SCHEMA_TAG.mem_pool_flip_keys
-     where epoch_identity_id in (select id
-                                 from OLD_SCHEMA_TAG.epoch_identities
-                                 where address_state_id in
-                                       (select id from OLD_SCHEMA_TAG.address_states where block_height <= $1)));
+     where ei_address_state_id in (select id from OLD_SCHEMA_TAG.address_states where block_height <= $1));
 
 -- answers
 insert into answers
     (select *
      from OLD_SCHEMA_TAG.answers
-     where epoch_identity_id in (select id
-                                 from OLD_SCHEMA_TAG.epoch_identities
-                                 where address_state_id in
-                                       (select id from OLD_SCHEMA_TAG.address_states where block_height <= $1)));
--- answers sequence
-select setval('answers_id_seq', max(id))
-from answers;
+     where ei_address_state_id in (select id from OLD_SCHEMA_TAG.address_states where block_height <= $1));
 
 -- flips_to_solve
 insert into flips_to_solve
     (select *
      from OLD_SCHEMA_TAG.flips_to_solve
-     where epoch_identity_id in (select id
-                                 from OLD_SCHEMA_TAG.epoch_identities
-                                 where address_state_id in
-                                       (select id from OLD_SCHEMA_TAG.address_states where block_height <= $1)));
--- flips_to_solve sequence
-select setval('flips_to_solve_id_seq', max(id))
-from flips_to_solve;
+     where ei_address_state_id in (select id from OLD_SCHEMA_TAG.address_states where block_height <= $1));
 
 -- coins
 insert into coins (select * from OLD_SCHEMA_TAG.coins where block_height <= $1);
@@ -193,37 +161,25 @@ insert into fund_rewards (select * from OLD_SCHEMA_TAG.fund_rewards where block_
 insert into bad_authors
     (select *
      from OLD_SCHEMA_TAG.bad_authors
-     where epoch_identity_id in (select id
-                                 from OLD_SCHEMA_TAG.epoch_identities
-                                 where address_state_id in
-                                       (select id from OLD_SCHEMA_TAG.address_states where block_height <= $1)));
+     where ei_address_state_id in (select id from OLD_SCHEMA_TAG.address_states where block_height <= $1));
 
 -- total_rewards
 insert into good_authors
     (select *
      from OLD_SCHEMA_TAG.good_authors
-     where epoch_identity_id in (select id
-                                 from OLD_SCHEMA_TAG.epoch_identities
-                                 where address_state_id in
-                                       (select id from OLD_SCHEMA_TAG.address_states where block_height <= $1)));
+     where ei_address_state_id in (select id from OLD_SCHEMA_TAG.address_states where block_height <= $1));
 
 -- validation_rewards
 insert into validation_rewards
     (select *
      from OLD_SCHEMA_TAG.validation_rewards
-     where epoch_identity_id in (select id
-                                 from OLD_SCHEMA_TAG.epoch_identities
-                                 where address_state_id in
-                                       (select id from OLD_SCHEMA_TAG.address_states where block_height <= $1)));
+     where ei_address_state_id in (select id from OLD_SCHEMA_TAG.address_states where block_height <= $1));
 
 -- reward_ages
 insert into reward_ages
     (select *
      from OLD_SCHEMA_TAG.reward_ages
-     where epoch_identity_id in (select id
-                                 from OLD_SCHEMA_TAG.epoch_identities
-                                 where address_state_id in
-                                       (select id from OLD_SCHEMA_TAG.address_states where block_height <= $1)));
+     where ei_address_state_id in (select id from OLD_SCHEMA_TAG.address_states where block_height <= $1));
 
 -- failed_validations
 insert into failed_validations (select * from OLD_SCHEMA_TAG.failed_validations where block_height <= $1);

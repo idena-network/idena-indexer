@@ -2,9 +2,7 @@ package postgres
 
 import (
 	"database/sql"
-	"github.com/idena-network/idena-go/common"
 	"github.com/idena-network/idena-indexer/explorer/types"
-	"math/big"
 	"time"
 )
 
@@ -60,7 +58,7 @@ func (a *postgresAccessor) AddressPenalties(address string, startIndex uint64, c
 		if err != nil {
 			return nil, err
 		}
-		item.Timestamp = common.TimestampToTime(big.NewInt(timestamp))
+		item.Timestamp = timestampToTimeUTC(timestamp)
 		res = append(res, item)
 	}
 	return res, nil
@@ -135,7 +133,7 @@ func (a *postgresAccessor) AddressStates(address string, startIndex uint64, coun
 		if err != nil {
 			return nil, err
 		}
-		item.Timestamp = common.TimestampToTime(big.NewInt(timestamp))
+		item.Timestamp = timestampToTimeUTC(timestamp)
 		res = append(res, item)
 	}
 	return res, nil

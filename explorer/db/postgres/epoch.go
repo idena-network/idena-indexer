@@ -2,11 +2,9 @@ package postgres
 
 import (
 	"database/sql"
-	"github.com/idena-network/idena-go/common"
 	"github.com/idena-network/idena-indexer/explorer/types"
 	"github.com/lib/pq"
 	"github.com/pkg/errors"
-	"math/big"
 )
 
 const (
@@ -87,7 +85,7 @@ func (a *postgresAccessor) epoch(queryName string, args ...interface{}) (types.E
 	if err != nil {
 		return types.EpochDetail{}, err
 	}
-	res.ValidationTime = common.TimestampToTime(big.NewInt(validationTime))
+	res.ValidationTime = timestampToTimeUTC(validationTime)
 	return res, nil
 }
 
@@ -126,7 +124,7 @@ func (a *postgresAccessor) EpochBlocks(epoch uint64, startIndex uint64, count ui
 		if err != nil {
 			return nil, err
 		}
-		block.Timestamp = common.TimestampToTime(big.NewInt(timestamp))
+		block.Timestamp = timestampToTimeUTC(timestamp)
 		blocks = append(blocks, block)
 	}
 	return blocks, nil

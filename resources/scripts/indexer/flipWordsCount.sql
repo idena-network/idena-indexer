@@ -1,3 +1,3 @@
 select count(*)
 from flip_words
-where flip_id = $1
+where flip_tx_id = $1

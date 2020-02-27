@@ -517,6 +517,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS transactions_hash_unique_idx on transactions (
 CREATE INDEX IF NOT EXISTS transactions_from_idx on transactions ("from");
 CREATE INDEX IF NOT EXISTS transactions_to_idx on transactions ("to") WHERE "to" is not null;
 CREATE INDEX IF NOT EXISTS transactions_block_height_idx on transactions (block_height);
+CREATE INDEX IF NOT EXISTS transactions_invite_id_idx on transactions (id) WHERE type = 2;
 
 -- Table: activation_tx_transfers
 
@@ -616,29 +617,14 @@ ALTER TABLE address_states
 
 CREATE INDEX IF NOT EXISTS address_states_actual_idx on address_states (address_id) WHERE is_actual;
 
--- SEQUENCE: epoch_identities_id_seq
-
--- DROP SEQUENCE epoch_identities_id_seq;
-
-CREATE SEQUENCE IF NOT EXISTS epoch_identities_id_seq
-    INCREMENT 1
-    START 1
-    MINVALUE 1
-    MAXVALUE 9223372036854775807
-    CACHE 1;
-
-ALTER SEQUENCE epoch_identities_id_seq
-    OWNER TO postgres;
-
 -- Table: epoch_identities
 
 -- DROP TABLE epoch_identities;
 
 CREATE TABLE IF NOT EXISTS epoch_identities
 (
-    id                bigint   NOT NULL DEFAULT nextval('epoch_identities_id_seq'::regclass),
-    epoch             bigint   NOT NULL,
     address_state_id  bigint   NOT NULL,
+    epoch             bigint   NOT NULL,
     short_point       real     NOT NULL,
     short_flips       integer  NOT NULL,
     total_short_point real     NOT NULL,
@@ -649,8 +635,7 @@ CREATE TABLE IF NOT EXISTS epoch_identities
     missed            boolean  NOT NULL,
     required_flips    smallint NOT NULL,
     made_flips        smallint NOT NULL,
-    CONSTRAINT epoch_identities_pkey PRIMARY KEY (id),
-    CONSTRAINT epoch_identities_epoch_identity_id_key UNIQUE (epoch, address_state_id),
+    CONSTRAINT epoch_identities_pkey PRIMARY KEY (address_state_id),
     CONSTRAINT epoch_identities_address_state_id_fkey FOREIGN KEY (address_state_id)
         REFERENCES address_states (id) MATCH SIMPLE
         ON UPDATE NO ACTION
@@ -668,27 +653,12 @@ CREATE TABLE IF NOT EXISTS epoch_identities
 ALTER TABLE epoch_identities
     OWNER to postgres;
 
--- SEQUENCE: flips_id_seq
-
--- DROP SEQUENCE flips_id_seq;
-
-CREATE SEQUENCE IF NOT EXISTS flips_id_seq
-    INCREMENT 1
-    START 1
-    MINVALUE 1
-    MAXVALUE 9223372036854775807
-    CACHE 1;
-
-ALTER SEQUENCE flips_id_seq
-    OWNER TO postgres;
-
 -- Table: flips
 
 -- DROP TABLE flips;
 
 CREATE TABLE IF NOT EXISTS flips
 (
-    id                  bigint                                              NOT NULL DEFAULT nextval('flips_id_seq'::regclass),
     tx_id               bigint                                              NOT NULL,
     cid                 character varying(100) COLLATE pg_catalog."default" NOT NULL,
     size                integer                                             NOT NULL,
@@ -698,7 +668,7 @@ CREATE TABLE IF NOT EXISTS flips
     wrong_words         boolean,
     status              smallint,
     delete_tx_id        bigint,
-    CONSTRAINT flips_pkey PRIMARY KEY (id),
+    CONSTRAINT flips_pkey PRIMARY KEY (tx_id),
     CONSTRAINT flips_status_block_height_fkey FOREIGN KEY (status_block_height)
         REFERENCES blocks (height) MATCH SIMPLE
         ON UPDATE NO ACTION
@@ -733,30 +703,15 @@ CREATE INDEX IF NOT EXISTS flips_wrong_words_idx on flips ((1)) WHERE wrong_word
 CREATE INDEX IF NOT EXISTS flips_zero_size_idx on flips (tx_id) WHERE size = 0 and delete_tx_id is NULL;
 CREATE INDEX IF NOT EXISTS flips_actual_idx on flips (tx_id) WHERE delete_tx_id is NULL;
 
--- SEQUENCE: flip_keys_id_seq
-
--- DROP SEQUENCE flip_keys_id_seq;
-
-CREATE SEQUENCE IF NOT EXISTS flip_keys_id_seq
-    INCREMENT 1
-    START 1
-    MINVALUE 1
-    MAXVALUE 9223372036854775807
-    CACHE 1;
-
-ALTER SEQUENCE flip_keys_id_seq
-    OWNER TO postgres;
-
 -- Table: flip_keys
 
 -- DROP TABLE flip_keys;
 
 CREATE TABLE IF NOT EXISTS flip_keys
 (
-    id    bigint                                              NOT NULL DEFAULT nextval('flip_keys_id_seq'::regclass),
     tx_id bigint                                              NOT NULL,
     key   character varying(100) COLLATE pg_catalog."default" NOT NULL,
-    CONSTRAINT flip_keys_pkey PRIMARY KEY (id),
+    CONSTRAINT flip_keys_pkey PRIMARY KEY (tx_id),
     CONSTRAINT flip_keys_tx_id_fkey FOREIGN KEY (tx_id)
         REFERENCES transactions (id) MATCH SIMPLE
         ON UPDATE NO ACTION
@@ -772,11 +727,11 @@ ALTER TABLE flip_keys
 
 CREATE TABLE IF NOT EXISTS mem_pool_flip_keys
 (
-    epoch_identity_id bigint                                              NOT NULL,
-    key               character varying(100) COLLATE pg_catalog."default" NOT NULL,
-    CONSTRAINT mem_pool_flip_keys_epoch_identity_id_type_key UNIQUE (epoch_identity_id),
-    CONSTRAINT mem_pool_flip_keys_epoch_identity_id_fkey FOREIGN KEY (epoch_identity_id)
-        REFERENCES epoch_identities (id) MATCH SIMPLE
+    ei_address_state_id bigint                                              NOT NULL,
+    key                 character varying(100) COLLATE pg_catalog."default" NOT NULL,
+    CONSTRAINT mem_pool_flip_keys_pkey PRIMARY KEY (ei_address_state_id),
+    CONSTRAINT mem_pool_flip_keys_ei_address_state_id_fkey FOREIGN KEY (ei_address_state_id)
+        REFERENCES epoch_identities (address_state_id) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION
 ) WITH (
@@ -787,40 +742,24 @@ CREATE TABLE IF NOT EXISTS mem_pool_flip_keys
 ALTER TABLE mem_pool_flip_keys
     OWNER to postgres;
 
--- SEQUENCE: answers_id_seq
-
--- DROP SEQUENCE answers_id_seq;
-
-CREATE SEQUENCE IF NOT EXISTS answers_id_seq
-    INCREMENT 1
-    START 1
-    MINVALUE 1
-    MAXVALUE 9223372036854775807
-    CACHE 1;
-
-ALTER SEQUENCE answers_id_seq
-    OWNER TO postgres;
-
 -- Table: answers
 
 -- DROP TABLE answers;
 
 CREATE TABLE IF NOT EXISTS answers
 (
-    id                bigint   NOT NULL DEFAULT nextval('answers_id_seq'::regclass),
-    flip_id           bigint   NOT NULL,
-    epoch_identity_id bigint   NOT NULL,
-    is_short          boolean  NOT NULL,
-    answer            smallint NOT NULL,
-    wrong_words       boolean  NOT NULL,
-    point             real     NOT NULL,
-    CONSTRAINT answers_pkey PRIMARY KEY (id),
-    CONSTRAINT answers_epoch_identity_id_fkey FOREIGN KEY (epoch_identity_id)
-        REFERENCES epoch_identities (id) MATCH SIMPLE
+    flip_tx_id          bigint   NOT NULL,
+    ei_address_state_id bigint   NOT NULL,
+    is_short            boolean  NOT NULL,
+    answer              smallint NOT NULL,
+    wrong_words         boolean  NOT NULL,
+    point               real     NOT NULL,
+    CONSTRAINT answers_ei_address_state_id_fkey FOREIGN KEY (ei_address_state_id)
+        REFERENCES epoch_identities (address_state_id) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION,
-    CONSTRAINT answers_flip_id_fkey FOREIGN KEY (flip_id)
-        REFERENCES flips (id) MATCH SIMPLE
+    CONSTRAINT answers_flip_tx_id_fkey FOREIGN KEY (flip_tx_id)
+        REFERENCES flips (tx_id) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION,
     CONSTRAINT answers_answer_fkey FOREIGN KEY (answer)
@@ -836,23 +775,9 @@ CREATE TABLE IF NOT EXISTS answers
 ALTER TABLE answers
     OWNER to postgres;
 
-CREATE INDEX IF NOT EXISTS answers_long_wrong_words_idx on answers (flip_id) WHERE not is_short and wrong_words;
-CREATE INDEX IF NOT EXISTS answers_short_idx on answers (flip_id) WHERE is_short;
-CREATE INDEX IF NOT EXISTS answers_long_idx on answers (flip_id) WHERE not is_short;
-
--- SEQUENCE: flips_to_solve_id_seq
-
--- DROP SEQUENCE flips_to_solve_id_seq;
-
-CREATE SEQUENCE IF NOT EXISTS flips_to_solve_id_seq
-    INCREMENT 1
-    START 1
-    MINVALUE 1
-    MAXVALUE 9223372036854775807
-    CACHE 1;
-
-ALTER SEQUENCE flips_to_solve_id_seq
-    OWNER TO postgres;
+CREATE INDEX IF NOT EXISTS answers_long_wrong_words_idx on answers (flip_tx_id) WHERE not is_short and wrong_words;
+CREATE INDEX IF NOT EXISTS answers_short_idx on answers (flip_tx_id) WHERE is_short;
+CREATE INDEX IF NOT EXISTS answers_long_idx on answers (flip_tx_id) WHERE not is_short;
 
 -- Table: flips_to_solve
 
@@ -860,17 +785,15 @@ ALTER SEQUENCE flips_to_solve_id_seq
 
 CREATE TABLE IF NOT EXISTS flips_to_solve
 (
-    id                bigint  NOT NULL DEFAULT nextval('flips_to_solve_id_seq'::regclass),
-    epoch_identity_id bigint  NOT NULL,
-    flip_id           bigint  NOT NULL,
-    is_short          boolean NOT NULL,
-    CONSTRAINT flips_to_solve_pkey PRIMARY KEY (id),
-    CONSTRAINT flips_to_solve_epoch_identity_id_fkey FOREIGN KEY (epoch_identity_id)
-        REFERENCES epoch_identities (id) MATCH SIMPLE
+    ei_address_state_id bigint  NOT NULL,
+    flip_tx_id          bigint  NOT NULL,
+    is_short            boolean NOT NULL,
+    CONSTRAINT flips_to_solve_ei_address_state_id_fkey FOREIGN KEY (ei_address_state_id)
+        REFERENCES epoch_identities (address_state_id) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION,
-    CONSTRAINT flips_to_solve_flip_id_fkey FOREIGN KEY (flip_id)
-        REFERENCES flips (id) MATCH SIMPLE
+    CONSTRAINT flips_to_solve_flip_tx_id_fkey FOREIGN KEY (flip_tx_id)
+        REFERENCES flips (tx_id) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION
 )
@@ -891,7 +814,7 @@ CREATE TABLE IF NOT EXISTS balances
     address_id bigint NOT NULL,
     balance    numeric(30, 18),
     stake      numeric(30, 18),
-    CONSTRAINT balances_address_id_key UNIQUE (address_id),
+    CONSTRAINT balances_pkey PRIMARY KEY (address_id),
     CONSTRAINT balances_address_id_fkey FOREIGN KEY (address_id)
         REFERENCES addresses (id) MATCH SIMPLE
         ON UPDATE NO ACTION
@@ -913,7 +836,7 @@ CREATE TABLE IF NOT EXISTS birthdays
 (
     address_id  bigint  NOT NULL,
     birth_epoch integer NOT NULL,
-    CONSTRAINT birthdays_address_id_key UNIQUE (address_id),
+    CONSTRAINT birthdays_pkey PRIMARY KEY (address_id),
     CONSTRAINT birthdays_address_id_fkey FOREIGN KEY (address_id)
         REFERENCES addresses (id) MATCH SIMPLE
         ON UPDATE NO ACTION
@@ -952,30 +875,14 @@ CREATE TABLE IF NOT EXISTS coins
 ALTER TABLE coins
     OWNER to postgres;
 
--- SEQUENCE: block_flags_id_seq
-
--- DROP SEQUENCE block_flags_id_seq;
-
-CREATE SEQUENCE IF NOT EXISTS block_flags_id_seq
-    INCREMENT 1
-    START 1
-    MINVALUE 1
-    MAXVALUE 9223372036854775807
-    CACHE 1;
-
-ALTER SEQUENCE block_flags_id_seq
-    OWNER TO postgres;
-
 -- Table: block_flags
 
 -- DROP TABLE block_flags;
 
 CREATE TABLE IF NOT EXISTS block_flags
 (
-    id           bigint                                             NOT NULL DEFAULT nextval('block_flags_id_seq'::regclass),
     block_height bigint                                             NOT NULL,
     flag         character varying(50) COLLATE pg_catalog."default" NOT NULL,
-    CONSTRAINT block_flags_pkey PRIMARY KEY (id),
     CONSTRAINT block_flags_block_height_flag_key UNIQUE (block_height, flag),
     CONSTRAINT block_flags_block_height_fkey FOREIGN KEY (block_height)
         REFERENCES blocks (height) MATCH SIMPLE
@@ -1016,42 +923,16 @@ CREATE TABLE IF NOT EXISTS temporary_identities
 ALTER TABLE temporary_identities
     OWNER to postgres;
 
--- SEQUENCE: flips_data_id_seq
-
--- DROP SEQUENCE flips_data_id_seq;
-
-CREATE SEQUENCE IF NOT EXISTS flips_data_id_seq
-    INCREMENT 1
-    START 1
-    MINVALUE 1
-    MAXVALUE 9223372036854775807
-    CACHE 1;
-
-ALTER SEQUENCE flips_data_id_seq
-    OWNER TO postgres;
-
 -- Table: flips_data
 
 -- DROP TABLE flips_data;
 
 CREATE TABLE IF NOT EXISTS flips_data
 (
-    id           bigint NOT NULL DEFAULT nextval('flips_data_id_seq'::regclass),
-    flip_id      bigint NOT NULL,
-    block_height bigint,
-    tx_id        bigint,
-    CONSTRAINT flips_data_pkey PRIMARY KEY (id),
-    CONSTRAINT flips_data_flip_id_key UNIQUE (flip_id),
-    CONSTRAINT flips_data_block_height_fkey FOREIGN KEY (block_height)
-        REFERENCES blocks (height) MATCH SIMPLE
-        ON UPDATE NO ACTION
-        ON DELETE NO ACTION,
-    CONSTRAINT flips_data_flip_id_fkey FOREIGN KEY (flip_id)
-        REFERENCES flips (id) MATCH SIMPLE
-        ON UPDATE NO ACTION
-        ON DELETE NO ACTION,
-    CONSTRAINT flips_data_tx_id_fkey1 FOREIGN KEY (tx_id)
-        REFERENCES transactions (id) MATCH SIMPLE
+    flip_tx_id bigint NOT NULL,
+    CONSTRAINT flips_data_pkey PRIMARY KEY (flip_tx_id),
+    CONSTRAINT flips_data_flip_tx_id_fkey FOREIGN KEY (flip_tx_id)
+        REFERENCES flips (tx_id) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION
 )
@@ -1069,11 +950,11 @@ ALTER TABLE flips_data
 
 CREATE TABLE IF NOT EXISTS flip_pics
 (
-    flip_data_id bigint   NOT NULL,
-    index        smallint NOT NULL,
-    data         bytea    NOT NULL,
-    CONSTRAINT flip_pics_flip_data_id_fkey FOREIGN KEY (flip_data_id)
-        REFERENCES flips_data (id) MATCH SIMPLE
+    fd_flip_tx_id bigint   NOT NULL,
+    index         smallint NOT NULL,
+    data          bytea    NOT NULL,
+    CONSTRAINT flip_pics_fd_flip_tx_id_fkey FOREIGN KEY (fd_flip_tx_id)
+        REFERENCES flips_data (flip_tx_id) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION
 )
@@ -1085,7 +966,7 @@ CREATE TABLE IF NOT EXISTS flip_pics
 ALTER TABLE flip_pics
     OWNER to postgres;
 
-CREATE INDEX IF NOT EXISTS flip_pics_flip_data_id_idx on flip_pics (flip_data_id);
+CREATE INDEX IF NOT EXISTS flip_pics_fd_flip_tx_id_idx on flip_pics (fd_flip_tx_id);
 
 -- Table: flip_icons
 
@@ -1093,11 +974,11 @@ CREATE INDEX IF NOT EXISTS flip_pics_flip_data_id_idx on flip_pics (flip_data_id
 
 CREATE TABLE IF NOT EXISTS flip_icons
 (
-    flip_data_id bigint NOT NULL,
-    data         bytea  NOT NULL,
-    CONSTRAINT flip_icons_pkey PRIMARY KEY (flip_data_id),
-    CONSTRAINT flip_icons_flip_data_id_fkey FOREIGN KEY (flip_data_id)
-        REFERENCES flips_data (id) MATCH SIMPLE
+    fd_flip_tx_id bigint NOT NULL,
+    data          bytea  NOT NULL,
+    CONSTRAINT flip_icons_pkey PRIMARY KEY (fd_flip_tx_id),
+    CONSTRAINT flip_icons_fd_flip_tx_id_fkey FOREIGN KEY (fd_flip_tx_id)
+        REFERENCES flips_data (flip_tx_id) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION
 )
@@ -1115,12 +996,12 @@ ALTER TABLE flip_icons
 
 CREATE TABLE IF NOT EXISTS flip_pic_orders
 (
-    flip_data_id   bigint   NOT NULL,
+    fd_flip_tx_id  bigint   NOT NULL,
     answer_index   smallint NOT NULL,
     pos_index      smallint NOT NULL,
     flip_pic_index smallint NOT NULL,
-    CONSTRAINT flip_pic_orders_flip_data_id_fkey FOREIGN KEY (flip_data_id)
-        REFERENCES flips_data (id) MATCH SIMPLE
+    CONSTRAINT flip_pic_orders_fd_flip_tx_id_fkey FOREIGN KEY (fd_flip_tx_id)
+        REFERENCES flips_data (flip_tx_id) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION
 )
@@ -1132,7 +1013,7 @@ CREATE TABLE IF NOT EXISTS flip_pic_orders
 ALTER TABLE flip_pic_orders
     OWNER to postgres;
 
-CREATE INDEX IF NOT EXISTS flip_pic_orders_flip_data_id_idx on flip_pic_orders (flip_data_id);
+CREATE INDEX IF NOT EXISTS flip_pic_orders_fd_flip_tx_id_idx on flip_pic_orders (fd_flip_tx_id);
 
 -- SEQUENCE: penalties_id_seq
 
@@ -1216,8 +1097,8 @@ CREATE TABLE IF NOT EXISTS total_rewards
     invitations  numeric(30, 18) NOT NULL,
     foundation   numeric(30, 18) NOT NULL,
     zero_wallet  numeric(30, 18) NOT NULL,
-    CONSTRAINT total_validation_rewards_pkey UNIQUE (block_height),
-    CONSTRAINT total_validation_rewards_block_height_fkey FOREIGN KEY (block_height)
+    CONSTRAINT total_rewards_pkey PRIMARY KEY (block_height),
+    CONSTRAINT total_rewards_block_height_fkey FOREIGN KEY (block_height)
         REFERENCES blocks (height) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION
@@ -1235,13 +1116,13 @@ ALTER TABLE total_rewards
 
 CREATE TABLE IF NOT EXISTS validation_rewards
 (
-    epoch_identity_id bigint          NOT NULL,
-    balance           numeric(30, 18) NOT NULL,
-    stake             numeric(30, 18) NOT NULL,
-    type              smallint        NOT NULL,
-    CONSTRAINT validation_rewards_epoch_identity_id_type_key UNIQUE (epoch_identity_id, type),
-    CONSTRAINT validation_rewards_epoch_identity_id_fkey FOREIGN KEY (epoch_identity_id)
-        REFERENCES epoch_identities (id) MATCH SIMPLE
+    ei_address_state_id bigint          NOT NULL,
+    balance             numeric(30, 18) NOT NULL,
+    stake               numeric(30, 18) NOT NULL,
+    type                smallint        NOT NULL,
+    CONSTRAINT validation_rewards_ei_address_state_id_type_key UNIQUE (ei_address_state_id, type),
+    CONSTRAINT validation_rewards_ei_address_state_id_fkey FOREIGN KEY (ei_address_state_id)
+        REFERENCES epoch_identities (address_state_id) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION,
     CONSTRAINT validation_rewards_type_fkey FOREIGN KEY (type)
@@ -1262,11 +1143,11 @@ ALTER TABLE validation_rewards
 
 CREATE TABLE IF NOT EXISTS reward_ages
 (
-    epoch_identity_id bigint  NOT NULL,
-    age               integer NOT NULL,
-    CONSTRAINT reward_ages_epoch_identity_id_type_key UNIQUE (epoch_identity_id),
-    CONSTRAINT reward_ages_epoch_identity_id_fkey FOREIGN KEY (epoch_identity_id)
-        REFERENCES epoch_identities (id) MATCH SIMPLE
+    ei_address_state_id bigint  NOT NULL,
+    age                 integer NOT NULL,
+    CONSTRAINT reward_ages_pkey PRIMARY KEY (ei_address_state_id),
+    CONSTRAINT reward_ages_ei_address_state_id_fkey FOREIGN KEY (ei_address_state_id)
+        REFERENCES epoch_identities (address_state_id) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION
 ) WITH (
@@ -1313,10 +1194,10 @@ ALTER TABLE fund_rewards
 
 CREATE TABLE IF NOT EXISTS bad_authors
 (
-    epoch_identity_id bigint NOT NULL,
-    CONSTRAINT bad_authors_pkey UNIQUE (epoch_identity_id),
-    CONSTRAINT bad_authors_epoch_identity_id_fkey FOREIGN KEY (epoch_identity_id)
-        REFERENCES epoch_identities (id) MATCH SIMPLE
+    ei_address_state_id bigint NOT NULL,
+    CONSTRAINT bad_authors_pkey PRIMARY KEY (ei_address_state_id),
+    CONSTRAINT bad_authors_ei_address_state_id_fkey FOREIGN KEY (ei_address_state_id)
+        REFERENCES epoch_identities (address_state_id) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION
 )
@@ -1334,13 +1215,13 @@ ALTER TABLE bad_authors
 
 CREATE TABLE IF NOT EXISTS good_authors
 (
-    epoch_identity_id  bigint   NOT NULL,
-    strong_flips       smallint NOT NULL,
-    weak_flips         smallint NOT NULL,
-    successful_invites smallint NOT NULL,
-    CONSTRAINT good_authors_pkey UNIQUE (epoch_identity_id),
-    CONSTRAINT good_authors_epoch_identity_id_fkey FOREIGN KEY (epoch_identity_id)
-        REFERENCES epoch_identities (id) MATCH SIMPLE
+    ei_address_state_id bigint   NOT NULL,
+    strong_flips        smallint NOT NULL,
+    weak_flips          smallint NOT NULL,
+    successful_invites  smallint NOT NULL,
+    CONSTRAINT good_authors_pkey PRIMARY KEY (ei_address_state_id),
+    CONSTRAINT good_authors_ei_address_state_id_fkey FOREIGN KEY (ei_address_state_id)
+        REFERENCES epoch_identities (address_state_id) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION
 )
@@ -1358,13 +1239,13 @@ ALTER TABLE good_authors
 
 CREATE TABLE IF NOT EXISTS flip_words
 (
-    flip_id bigint   NOT NULL,
-    word_1  smallint NOT NULL,
-    word_2  smallint NOT NULL,
-    tx_id   bigint   NOT NULL,
-    CONSTRAINT flip_words_flip_id_key UNIQUE (flip_id),
-    CONSTRAINT flip_words_flip_id_fkey FOREIGN KEY (flip_id)
-        REFERENCES flips (id) MATCH SIMPLE
+    flip_tx_id bigint   NOT NULL,
+    word_1     smallint NOT NULL,
+    word_2     smallint NOT NULL,
+    tx_id      bigint   NOT NULL,
+    CONSTRAINT flip_words_pkey PRIMARY KEY (flip_tx_id),
+    CONSTRAINT flip_words_flip_tx_id_fkey FOREIGN KEY (flip_tx_id)
+        REFERENCES flips (tx_id) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION,
     CONSTRAINT flip_words_tx_id_fkey FOREIGN KEY (tx_id)
@@ -1526,85 +1407,6 @@ WHERE t.type = 1 -- 'ActivationTx'
 ORDER BY b.epoch, it."to", ib.height DESC;
 
 ALTER TABLE used_invites
-    OWNER TO postgres;
-
--- View: epochs_detail
-
--- DROP VIEW epochs_detail;
-
-CREATE OR REPLACE VIEW epochs_detail AS
-SELECT e.epoch,
-       COALESCE(es.validated_count::bigint, (SELECT count(*) AS count
-                                             FROM epoch_identities ei
-                                                      JOIN address_states s ON s.id = ei.address_state_id
-                                             WHERE ei.epoch = e.epoch
-                                               AND (s.state::text = ANY
-                                                 -- 'Verified', 'Newbie'
-                                                    (ARRAY [3::smallint, 7::smallint]::text[])))) AS validated_count,
-       COALESCE(es.block_count, (SELECT count(*) AS count
-                                 FROM blocks b
-                                 WHERE b.epoch = e.epoch))                                        AS block_count,
-       COALESCE(es.empty_block_count, (SELECT count(*) AS count
-                                       FROM blocks b
-                                       WHERE b.epoch = e.epoch
-                                         and b.is_empty))                                         AS empty_block_count,
-       COALESCE(es.tx_count, (SELECT count(*) AS count
-                              FROM transactions t,
-                                   blocks b
-                              WHERE t.block_height = b.height
-                                AND b.epoch = e.epoch))                                           AS tx_count,
-       COALESCE(es.invite_count, (SELECT count(*) AS count
-                                  FROM transactions t,
-                                       blocks b
-                                  WHERE t.block_height = b.height
-                                    AND b.epoch = e.epoch
-                                    AND t.type = 2))                                              AS invite_count,
-       COALESCE(es.flip_count::bigint, (select count(*)
-                                        from flips f
-                                                 join transactions t on t.id = f.tx_id
-                                                 join blocks b on b.height = t.block_height and b.epoch = e.epoch
-                                        where f.delete_tx_id is null))                            AS flip_count,
-       COALESCE(es.burnt, (SELECT COALESCE(sum(c.burnt), 0::numeric) AS "coalesce"
-                           FROM coins c
-                                    JOIN blocks b ON b.height = c.block_height
-                           WHERE b.epoch = e.epoch))                                              AS burnt,
-       COALESCE(es.minted, (SELECT COALESCE(sum(c.minted), 0::numeric) AS "coalesce"
-                            FROM coins c
-                                     JOIN blocks b ON b.height = c.block_height
-                            WHERE b.epoch = e.epoch))                                             AS minted,
-       COALESCE(es.total_balance, (SELECT c.total_balance
-                                   FROM coins c
-                                            JOIN blocks b ON b.height = c.block_height
-                                   WHERE b.epoch = e.epoch
-                                   ORDER BY c.block_height DESC
-                                   LIMIT 1))                                                      AS total_balance,
-       COALESCE(es.total_stake, (SELECT c.total_stake
-                                 FROM coins c
-                                          JOIN blocks b ON b.height = c.block_height
-                                 WHERE b.epoch = e.epoch
-                                 ORDER BY c.block_height DESC
-                                 LIMIT 1))                                                        AS total_stake,
-       e.validation_time                                                                             validation_time,
-       coalesce(trew.total, 0)                                                                       total_reward,
-       coalesce(trew.validation, 0)                                                                  validation_reward,
-       coalesce(trew.flips, 0)                                                                       flips_reward,
-       coalesce(trew.invitations, 0)                                                                 invitations_reward,
-       coalesce(trew.foundation, 0)                                                                  foundation_payout,
-       coalesce(trew.zero_wallet, 0)                                                                 zero_wallet_payout
-FROM epochs e
-         LEFT JOIN epoch_summaries es ON es.epoch = e.epoch
-         left join (select b.epoch,
-                           trew.total,
-                           trew.validation,
-                           trew.flips,
-                           trew.invitations,
-                           trew.foundation,
-                           trew.zero_wallet
-                    from total_rewards trew
-                             join blocks b on b.height = trew.block_height) trew on trew.epoch = e.epoch
-ORDER BY e.epoch DESC;
-
-ALTER TABLE epochs_detail
     OWNER TO postgres;
 
 -- Types
@@ -2269,21 +2071,25 @@ CREATE OR REPLACE PROCEDURE save_flip_stats(block_height bigint,
 AS
 $BODY$
 DECLARE
-    answer  tp_answer;
-    state   tp_flip_state;
-    flip_id bigint;
+    answer       tp_answer;
+    state        tp_flip_state;
+    l_flip_tx_id bigint;
 BEGIN
-    for i in 1..cardinality(answers)
-        loop
-            answer := answers[i];
-            IF char_length(answer.flip_cid) > 0 THEN
-                select id into flip_id from flips where lower(cid) = lower(answer.flip_cid);
-            end if;
-            INSERT INTO ANSWERS (FLIP_ID, EPOCH_IDENTITY_ID, IS_SHORT, ANSWER, WRONG_WORDS, POINT)
-            VALUES (flip_id,
-                    (select epoch_identity_id from cur_epoch_identities where lower(address) = lower(answer.address)),
-                    answer.is_short, answer.answer, answer.wrong_words, answer.point);
-        end loop;
+    if answers is not null then
+        for i in 1..cardinality(answers)
+            loop
+                answer := answers[i];
+                IF char_length(answer.flip_cid) > 0 THEN
+                    select tx_id into l_flip_tx_id from flips where lower(cid) = lower(answer.flip_cid);
+                end if;
+                INSERT INTO ANSWERS (FLIP_TX_ID, ei_address_state_id, IS_SHORT, ANSWER, WRONG_WORDS, POINT)
+                VALUES (l_flip_tx_id,
+                        (select address_state_id
+                         from cur_epoch_identities
+                         where lower(address) = lower(answer.address)),
+                        answer.is_short, answer.answer, answer.wrong_words, answer.point);
+            end loop;
+    end if;
     for i in 1..cardinality(states)
         loop
             state := states[i];
@@ -2306,17 +2112,16 @@ CREATE OR REPLACE PROCEDURE save_epoch_identities(p_epoch bigint,
 AS
 $BODY$
 DECLARE
-    identity            tp_epoch_identity;
-    l_address_id        bigint;
-    l_prev_state_id     bigint;
-    l_state_id          bigint;
-    l_epoch_identity_id bigint;
+    identity        tp_epoch_identity;
+    l_address_id    bigint;
+    l_prev_state_id bigint;
+    l_state_id      bigint;
 BEGIN
 
     CREATE TEMP TABLE cur_epoch_identities
     (
-        address           character(42),
-        epoch_identity_id bigint
+        address          character(42),
+        address_state_id bigint
     ) ON COMMIT DROP;
     CREATE UNIQUE INDEX ON cur_epoch_identities (lower(address));
 
@@ -2341,10 +2146,9 @@ BEGIN
                                           required_flips, made_flips)
             values (p_epoch, l_state_id, identity.short_point, identity.short_flips, identity.total_short_point,
                     identity.total_short_flips, identity.long_point, identity.long_flips, identity.approved,
-                    identity.missed, identity.required_flips, identity.made_flips)
-            RETURNING id into l_epoch_identity_id;
+                    identity.missed, identity.required_flips, identity.made_flips);
 
-            insert into cur_epoch_identities values (identity.address, l_epoch_identity_id);
+            insert into cur_epoch_identities values (identity.address, l_state_id);
 
         end loop;
     if p_flips_to_solve is not null then
@@ -2359,23 +2163,23 @@ CREATE OR REPLACE PROCEDURE save_flips_to_solve(p_flips_to_solve tp_flip_to_solv
 AS
 $BODY$
 DECLARE
-    l_flip_to_solve     tp_flip_to_solve;
-    l_epoch_identity_id bigint;
+    l_flip_to_solve    tp_flip_to_solve;
+    l_address_state_id bigint;
 BEGIN
     for i in 1..cardinality(p_flips_to_solve)
         loop
             l_flip_to_solve := p_flips_to_solve[i];
 
             if char_length(l_flip_to_solve.address) > 0 then
-                select epoch_identity_id
-                into l_epoch_identity_id
+                select address_state_id
+                into l_address_state_id
                 from cur_epoch_identities
                 where lower(address) = lower(l_flip_to_solve.address);
             end if;
 
-            insert into flips_to_solve (epoch_identity_id, flip_id, is_short)
-            values (l_epoch_identity_id,
-                    (select id from flips where lower(cid) = lower(l_flip_to_solve.cid)),
+            insert into flips_to_solve (ei_address_state_id, flip_tx_id, is_short)
+            values (l_address_state_id,
+                    (select tx_id from flips where lower(cid) = lower(l_flip_to_solve.cid)),
                     l_flip_to_solve.is_short);
         end loop;
 END
@@ -2422,8 +2226,8 @@ $BODY$
 BEGIN
     for i in 1..cardinality(p_bad_authors)
         loop
-            insert into bad_authors (epoch_identity_id)
-            values ((select epoch_identity_id
+            insert into bad_authors (ei_address_state_id)
+            values ((select address_state_id
                      from cur_epoch_identities
                      where lower(address) = lower(p_bad_authors[i])));
         end loop;
@@ -2440,8 +2244,8 @@ BEGIN
     for i in 1..cardinality(p_good_authors)
         loop
             l_good_author := p_good_authors[i];
-            insert into good_authors (epoch_identity_id, strong_flips, weak_flips, successful_invites)
-            values ((select epoch_identity_id
+            insert into good_authors (ei_address_state_id, strong_flips, weak_flips, successful_invites)
+            values ((select address_state_id
                      from cur_epoch_identities
                      where lower(address) = lower(l_good_author.address)),
                     l_good_author.strong_flips,
@@ -2478,8 +2282,8 @@ BEGIN
     for i in 1..cardinality(p_validation_rewards)
         loop
             l_validation_reward := p_validation_rewards[i];
-            insert into validation_rewards (epoch_identity_id, balance, stake, type)
-            values ((select epoch_identity_id
+            insert into validation_rewards (ei_address_state_id, balance, stake, type)
+            values ((select address_state_id
                      from cur_epoch_identities
                      where lower(address) = lower(l_validation_reward.address)),
                     l_validation_reward.balance,
@@ -2499,8 +2303,8 @@ BEGIN
     for i in 1..cardinality(p_ages)
         loop
             l_age := p_ages[i];
-            insert into reward_ages (epoch_identity_id, age)
-            values ((select epoch_identity_id
+            insert into reward_ages (ei_address_state_id, age)
+            values ((select address_state_id
                      from cur_epoch_identities
                      where lower(address) = lower(l_age.address)),
                     l_age.age);
@@ -2538,8 +2342,8 @@ BEGIN
     for i in 1..cardinality(p_keys)
         loop
             l_key := p_keys[i];
-            insert into mem_pool_flip_keys (epoch_identity_id, key)
-            values ((select epoch_identity_id
+            insert into mem_pool_flip_keys (ei_address_state_id, key)
+            values ((select address_state_id
                      from cur_epoch_identities
                      where lower(address) = lower(l_key.address)),
                     l_key.key);
@@ -2563,21 +2367,16 @@ BEGIN
                  transactions t
                      left join (
                      select distinct on (t.from) fk.key, t.from
-                     from flip_keys fk,
-                          transactions t,
-                          blocks b
-                     where fk.tx_id = t.id
-                       and t.block_height = b.height
-                       and b.epoch = l_epoch
+                     from flip_keys fk
+                              join transactions t on t.id = fk.tx_id
+                              join blocks b on b.height = t.block_height and b.epoch = l_epoch
                  ) fk on t.from = fk.from
                      left join (
                      select mpfk.key, s.address_id
-                     from mem_pool_flip_keys mpfk,
-                          epoch_identities ei,
-                          address_states s
-                     where mpfk.epoch_identity_id = ei.id
-                       and ei.address_state_id = s.id
-                       and ei.epoch = l_epoch
+                     from mem_pool_flip_keys mpfk
+                              join epoch_identities ei
+                                   on ei.address_state_id = mpfk.ei_address_state_id and ei.epoch = l_epoch
+                              join address_states s on s.id = ei.address_state_id
                  ) mpfk on t.from = mpfk.address_id
             where f.tx_id = t.id
               and t.block_height = b.height
@@ -2593,10 +2392,10 @@ CREATE OR REPLACE PROCEDURE save_flips_content(p_fails tp_failed_flip_content[],
 AS
 $BODY$
 DECLARE
-    l_fail         tp_failed_flip_content;
-    l_content      jsonb;
-    l_flip_data_id bigint;
-    l_cid          text;
+    l_fail       tp_failed_flip_content;
+    l_content    jsonb;
+    l_flip_tx_id bigint;
+    l_cid        text;
 BEGIN
     if p_fails is not null then
         for i in 1..cardinality(p_fails)
@@ -2620,15 +2419,16 @@ BEGIN
 
                 delete from flips_queue where lower(cid) = l_cid;
 
-                insert into flips_data (flip_id)
-                values ((select id from flips where lower(cid) = l_cid))
-                returning id into l_flip_data_id;
+                select tx_id into l_flip_tx_id from flips where lower(cid) = l_cid;
+
+                insert into flips_data (flip_tx_id)
+                values (l_flip_tx_id);
 
                 if l_content -> 'pics' is not null then
                     for j in 0..jsonb_array_length(l_content -> 'pics') - 1
                         loop
-                            insert into flip_pics (flip_data_id, index, data)
-                            values (l_flip_data_id, j, decode(l_content -> 'pics' ->> j, 'hex'));
+                            insert into flip_pics (fd_flip_tx_id, index, data)
+                            values (l_flip_tx_id, j, decode(l_content -> 'pics' ->> j, 'hex'));
                         end loop;
                 end if;
 
@@ -2637,16 +2437,16 @@ BEGIN
                         loop
                             for l_pos_index in 0..jsonb_array_length(l_content -> 'orders' -> l_answer_index) - 1
                                 loop
-                                    insert into flip_pic_orders (flip_data_id, answer_index, pos_index, flip_pic_index)
-                                    values (l_flip_data_id, l_answer_index, l_pos_index,
+                                    insert into flip_pic_orders (fd_flip_tx_id, answer_index, pos_index, flip_pic_index)
+                                    values (l_flip_tx_id, l_answer_index, l_pos_index,
                                             (l_content -> 'orders' -> l_answer_index ->> l_pos_index)::smallint);
                                 end loop;
                         end loop;
                 end if;
 
                 if l_content -> 'icon' is not null then
-                    insert into flip_icons (flip_data_id, data)
-                    values (l_flip_data_id, decode(l_content ->> 'icon', 'hex'));
+                    insert into flip_icons (fd_flip_tx_id, data)
+                    values (l_flip_tx_id, decode(l_content ->> 'icon', 'hex'));
                 end if;
 
             end loop;

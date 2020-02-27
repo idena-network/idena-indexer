@@ -22,10 +22,6 @@ func NewSecondaryStorage(db db.Accessor) *SecondaryStorage {
 	}
 }
 
-func (s *SecondaryStorage) GetFlipContent(cid string) (indexerDb.FlipContent, error) {
-	return s.db.GetFlipContent(cid)
-}
-
 func (s *SecondaryStorage) GetProposerVrfScore(blockHeight uint64) (float64, error) {
 	return s.db.GetProposerVrfScore(blockHeight)
 }

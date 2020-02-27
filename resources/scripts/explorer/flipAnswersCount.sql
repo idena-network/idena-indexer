@@ -1,5 +1,4 @@
 select count(*) answer_count
 from answers a
-         join flips f on f.id = a.flip_id
-where lower(f.cid) = lower($1)
-  and a.is_short = $2
+         join flips f on f.tx_id = a.flip_tx_id and lower(f.cid) = lower($1)
+where a.is_short = $2

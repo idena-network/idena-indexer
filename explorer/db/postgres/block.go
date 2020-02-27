@@ -2,10 +2,8 @@ package postgres
 
 import (
 	"database/sql"
-	"github.com/idena-network/idena-go/common"
 	"github.com/idena-network/idena-indexer/explorer/types"
 	"github.com/lib/pq"
-	"math/big"
 )
 
 const (
@@ -52,7 +50,7 @@ func (a *postgresAccessor) block(query string, id interface{}) (types.BlockDetai
 	if err != nil {
 		return types.BlockDetail{}, err
 	}
-	res.Timestamp = common.TimestampToTime(big.NewInt(timestamp))
+	res.Timestamp = timestampToTimeUTC(timestamp)
 	return res, nil
 }
 

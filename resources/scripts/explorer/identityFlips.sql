@@ -20,25 +20,24 @@ from flips f
          join transactions t on t.id = f.tx_id
          join addresses a on a.id = t.from and lower(a.address) = lower($1)
          join blocks b on b.height = t.block_height
-         left join (select a.flip_id, count(*) answers from answers a where a.is_short = true group by a.flip_id) short
-                   on short.flip_id = f.id
-         left join (select a.flip_id, count(*) answers from answers a where a.is_short = false group by a.flip_id) long
-                   on long.flip_id = f.id
-         left join (select a.flip_id, count(*) cnt
+         left join (select a.flip_tx_id, count(*) answers from answers a where a.is_short = true group by a.flip_tx_id) short
+                   on short.flip_tx_id = f.tx_id
+         left join (select a.flip_tx_id, count(*) answers from answers a where a.is_short = false group by a.flip_tx_id) long
+                   on long.flip_tx_id = f.tx_id
+         left join (select a.flip_tx_id, count(*) cnt
                     from answers a
                     where not a.is_short
                       and a.wrong_words
-                    group by a.flip_id) ww
-                   on ww.flip_id = f.id
-         left join flips_data fd on fd.flip_id = f.id
-         left join flip_icons fi on fi.flip_data_id = fd.id
-         left join flip_words fw on fw.flip_id = f.id
+                    group by a.flip_tx_id) ww
+                   on ww.flip_tx_id = f.tx_id
+         left join flip_icons fi on fi.fd_flip_tx_id = f.tx_id
+         left join flip_words fw on fw.flip_tx_id = f.tx_id
          left join words_dictionary wd1 on wd1.id = fw.word_1
          left join words_dictionary wd2 on wd2.id = fw.word_2
          left join dic_flip_statuses dfs on dfs.id = f.status
          left join dic_answers da on da.id = f.answer
 where f.delete_tx_id is null
-order by t.id desc
+order by f.tx_id desc
 limit $3
 offset
 $2

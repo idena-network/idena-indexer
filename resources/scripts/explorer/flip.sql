@@ -19,15 +19,15 @@ from flips f
          join transactions t on t.id = f.tx_id
          join blocks b on b.height = t.block_height
          join addresses a on a.id = t.from
-         left join flip_words fw on fw.flip_id = f.id
+         left join flip_words fw on fw.flip_tx_id = f.tx_id
          left join words_dictionary wd1 on wd1.id = fw.word_1
          left join words_dictionary wd2 on wd2.id = fw.word_2
-         left join (select a.flip_id, count(*) cnt
+         left join (select a.flip_tx_id, count(*) cnt
                     from answers a
                     where not a.is_short
                       and a.wrong_words
-                    group by a.flip_id) ww
-                   on ww.flip_id = f.id
+                    group by a.flip_tx_id) ww
+                   on ww.flip_tx_id = f.tx_id
          left join dic_flip_statuses dfs on dfs.id = f.status
          left join dic_answers da on da.id = f.answer
 where LOWER(f.cid) = LOWER($1)

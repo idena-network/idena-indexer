@@ -6,7 +6,12 @@ import (
 	"github.com/idena-network/idena-indexer/explorer/types"
 	"github.com/shopspring/decimal"
 	"math/big"
+	"time"
 )
+
+func timestampToTimeUTC(timestamp int64) time.Time {
+	return common.TimestampToTime(big.NewInt(timestamp)).UTC()
+}
 
 type NullDecimal struct {
 	Decimal decimal.Decimal
@@ -49,9 +54,9 @@ func readInvites(rows *sql.Rows) ([]types.Invite, error) {
 		); err != nil {
 			return nil, err
 		}
-		item.Timestamp = common.TimestampToTime(big.NewInt(timestamp))
+		item.Timestamp = timestampToTimeUTC(timestamp)
 		if activationTimestamp > 0 {
-			at := common.TimestampToTime(big.NewInt(activationTimestamp))
+			at := timestampToTimeUTC(activationTimestamp)
 			item.ActivationTimestamp = &at
 		}
 		res = append(res, item)
@@ -81,7 +86,7 @@ func readTxs(rows *sql.Rows) ([]types.TransactionSummary, error) {
 		); err != nil {
 			return nil, err
 		}
-		item.Timestamp = common.TimestampToTime(big.NewInt(timestamp))
+		item.Timestamp = timestampToTimeUTC(timestamp)
 		if transfer.Valid {
 			item.Transfer = &transfer.Decimal
 		}
@@ -168,7 +173,7 @@ func (a *postgresAccessor) flips(queryName string, args ...interface{}) ([]types
 		if err != nil {
 			return nil, err
 		}
-		item.Timestamp = common.TimestampToTime(big.NewInt(timestamp))
+		item.Timestamp = timestampToTimeUTC(timestamp)
 		if !words.IsEmpty() {
 			item.Words = &words
 		}

@@ -3,10 +3,9 @@ select a.address,
        ga.weak_flips,
        ga.successful_invites
 from good_authors ga
-         join epoch_identities ei on ei.id = ga.epoch_identity_id
+         join epoch_identities ei on ei.address_state_id = ga.ei_address_state_id and ei.epoch = $1
          join address_states s on s.id = ei.address_state_id
          join addresses a on a.id = s.address_id
-where ei.epoch = $1
 limit $3
 offset
 $2

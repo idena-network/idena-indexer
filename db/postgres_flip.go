@@ -14,8 +14,7 @@ const (
 )
 
 func (a *postgresAccessor) SaveFlipSize(flipCid string, size int) error {
-	var flipId int64
-	err := a.db.QueryRow(a.getQuery(updateFlipSizeQuery), size, flipCid).Scan(&flipId)
+	_, err := a.db.Exec(a.getQuery(updateFlipSizeQuery), size, flipCid)
 	return errors.Wrapf(err, "unable to save flip size (cid %s, size %d)", flipCid, size)
 }
 

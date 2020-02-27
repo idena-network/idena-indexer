@@ -2,11 +2,9 @@ package postgres
 
 import (
 	"database/sql"
-	"github.com/idena-network/idena-go/common"
 	"github.com/idena-network/idena-go/common/hexutil"
 	"github.com/idena-network/idena-indexer/explorer/types"
 	"github.com/idena-network/idena-indexer/log"
-	"math/big"
 )
 
 const (
@@ -48,7 +46,7 @@ func (a *postgresAccessor) Flip(hash string) (types.Flip, error) {
 	if err != nil {
 		return types.Flip{}, err
 	}
-	flip.Timestamp = common.TimestampToTime(big.NewInt(timestamp))
+	flip.Timestamp = timestampToTimeUTC(timestamp)
 	if !words.IsEmpty() {
 		flip.Words = &words
 	}

@@ -5,11 +5,10 @@ select a.address,
        vr.stake,
        dert.name "type"
 from validation_rewards vr
-         join epoch_identities ei on ei.id = vr.epoch_identity_id
+         join epoch_identities ei on ei.address_state_id = vr.ei_address_state_id and ei.epoch = $1
          join address_states s on s.id = ei.address_state_id
          join addresses a on a.id = s.address_id
          join dic_epoch_reward_types dert on dert.id = vr.type
-where ei.epoch = $1
 limit $3
 offset
 $2
