@@ -233,6 +233,12 @@ ON CONFLICT DO NOTHING;
 INSERT INTO dic_epoch_reward_types
 values (6, 'Invitations3')
 ON CONFLICT DO NOTHING;
+INSERT INTO dic_epoch_reward_types
+values (7, 'SavedInvite')
+ON CONFLICT DO NOTHING;
+INSERT INTO dic_epoch_reward_types
+values (8, 'SavedInviteWin')
+ON CONFLICT DO NOTHING;
 
 -- Table: epochs
 

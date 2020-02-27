@@ -93,9 +93,15 @@ func (c *statsCollector) AddFlipsReward(addr common.Address, balance *big.Int, s
 	c.addReward(addr, balance, stake, Flips)
 }
 
-func (c *statsCollector) AddInvitationsReward(addr common.Address, balance *big.Int, stake *big.Int, age uint16) {
+func (c *statsCollector) AddInvitationsReward(addr common.Address, balance *big.Int, stake *big.Int, age uint16, isSavedInviteWinner bool) {
 	var rewardType RewardType
 	switch age {
+	case 0:
+		if isSavedInviteWinner {
+			rewardType = SavedInviteWin
+		} else {
+			rewardType = SavedInvite
+		}
 	case 1:
 		rewardType = Invitations
 	case 2:
@@ -134,7 +140,8 @@ func (c *statsCollector) addReward(addr common.Address, balance *big.Int, stake 
 }
 
 func (c *statsCollector) increaseInvitationRewardIfExists(rewardsStats *RewardStats) bool {
-	if rewardsStats.Type != Invitations && rewardsStats.Type != Invitations2 && rewardsStats.Type != Invitations3 {
+	if rewardsStats.Type != Invitations && rewardsStats.Type != Invitations2 && rewardsStats.Type != Invitations3 &&
+		rewardsStats.Type != SavedInvite && rewardsStats.Type != SavedInviteWin {
 		return false
 	}
 	c.initInvitationRewardsByAddrAndType()

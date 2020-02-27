@@ -19,6 +19,8 @@ const (
 	ZeroWalletFund    RewardType = 4
 	Invitations2      RewardType = 5
 	Invitations3      RewardType = 6
+	SavedInvite       RewardType = 7
+	SavedInviteWin    RewardType = 8
 )
 
 type Stats struct {
