@@ -267,30 +267,32 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) *result 
 	coins, totalBalance, totalStake := indexer.getCoins(indexer.isFirstBlock(incomingBlock), diff)
 
 	dbData := &db.Data{
-		Epoch:             epoch,
-		ValidationTime:    *big.NewInt(ctx.newStateReadOnly.State.NextValidationTime().Unix()),
-		Block:             block,
-		ActivationTxs:     indexer.statsHolder().GetStats().ActivationTxs,
-		KillTxs:           indexer.statsHolder().GetStats().KillTxs,
-		KillInviteeTxs:    indexer.statsHolder().GetStats().KillInviteeTxs,
-		Identities:        identities,
-		SubmittedFlips:    collector.submittedFlips,
-		DeletedFlips:      collector.deletedFlips,
-		FlipKeys:          collector.flipKeys,
-		FlipsWords:        collector.flipsWords,
-		FlipStats:         flipStats,
-		Addresses:         collector.getAddresses(),
-		BalanceUpdates:    balanceUpdates,
-		Birthdays:         birthdays,
-		MemPoolFlipKeys:   memPoolFlipKeys,
-		Coins:             coins,
-		SaveEpochSummary:  incomingBlock.Header.Flags().HasFlag(types.ValidationFinished),
-		Penalty:           detectChargedPenalty(incomingBlock, ctx.newStateReadOnly),
-		BurntPenalties:    convertBurntPenalties(indexer.statsHolder().GetStats().BurntPenaltiesByAddr),
-		EpochRewards:      indexer.detectEpochRewards(incomingBlock),
-		MiningRewards:     indexer.statsHolder().GetStats().MiningRewards,
-		BurntCoinsPerAddr: indexer.statsHolder().GetStats().BurntCoinsByAddr,
-		FailedValidation:  !notFailedValidation,
+		Epoch:                  epoch,
+		ValidationTime:         *big.NewInt(ctx.newStateReadOnly.State.NextValidationTime().Unix()),
+		Block:                  block,
+		ActivationTxTransfers:  indexer.statsHolder().GetStats().ActivationTxTransfers,
+		KillTxTransfers:        indexer.statsHolder().GetStats().KillTxTransfers,
+		KillInviteeTxTransfers: indexer.statsHolder().GetStats().KillInviteeTxTransfers,
+		ActivationTxs:          collector.activationTxs,
+		KillInviteeTxs:         collector.killInviteeTxs,
+		Identities:             identities,
+		SubmittedFlips:         collector.submittedFlips,
+		DeletedFlips:           collector.deletedFlips,
+		FlipKeys:               collector.flipKeys,
+		FlipsWords:             collector.flipsWords,
+		FlipStats:              flipStats,
+		Addresses:              collector.getAddresses(),
+		BalanceUpdates:         balanceUpdates,
+		Birthdays:              birthdays,
+		MemPoolFlipKeys:        memPoolFlipKeys,
+		Coins:                  coins,
+		SaveEpochSummary:       incomingBlock.Header.Flags().HasFlag(types.ValidationFinished),
+		Penalty:                detectChargedPenalty(incomingBlock, ctx.newStateReadOnly),
+		BurntPenalties:         convertBurntPenalties(indexer.statsHolder().GetStats().BurntPenaltiesByAddr),
+		EpochRewards:           indexer.detectEpochRewards(incomingBlock),
+		MiningRewards:          indexer.statsHolder().GetStats().MiningRewards,
+		BurntCoinsPerAddr:      indexer.statsHolder().GetStats().BurntCoinsByAddr,
+		FailedValidation:       !notFailedValidation,
 	}
 	resData := &resultData{
 		totalBalance: totalBalance,
@@ -435,13 +437,21 @@ func (indexer *Indexer) convertTransaction(
 	stateToApply *appstate.AppState,
 	collector *conversionCollector,
 ) db.Transaction {
-	if f, h := indexer.detectSubmittedFlip(incomingTx); f != nil {
+	if f, h := detectSubmittedFlip(incomingTx); f != nil {
 		collector.submittedFlips = append(collector.submittedFlips, *f)
 		collector.flipTxs = append(collector.flipTxs, *h)
 	}
 
-	if deletedFlip := indexer.detectDeletedFlip(incomingTx); deletedFlip != nil {
+	if deletedFlip := detectDeletedFlip(incomingTx); deletedFlip != nil {
 		collector.deletedFlips = append(collector.deletedFlips, *deletedFlip)
+	}
+
+	if activationTx := detectActivationTx(incomingTx, ctx.prevStateReadOnly); activationTx != nil {
+		collector.activationTxs = append(collector.activationTxs, *activationTx)
+	}
+
+	if killInviteeTx := detectKillInviteeTx(incomingTx, ctx.prevStateReadOnly); killInviteeTx != nil {
+		collector.killInviteeTxs = append(collector.killInviteeTxs, *killInviteeTx)
 	}
 
 	indexer.convertShortAnswers(incomingTx, ctx, collector)
@@ -471,7 +481,7 @@ func (indexer *Indexer) convertTransaction(
 	senderPrevState := stateToApply.State.GetIdentityState(sender)
 	fee, err := indexer.listener.Blockchain().ApplyTxOnState(stateToApply, incomingTx, nil)
 	if err != nil {
-		log.Error("Unable to apply tx on state", "tx", incomingTx.Hash(), "err", err)
+		log.Error("Unable to apply tx on state", "tx", txHash, "err", err)
 	}
 
 	senderNewState := stateToApply.State.GetIdentityState(sender)
@@ -513,6 +523,29 @@ func (indexer *Indexer) convertTransaction(
 	}
 
 	return tx
+}
+
+func detectActivationTx(tx *types.Transaction, prevState *appstate.AppState) *db.ActivationTx {
+	if tx.Type != types.ActivationTx {
+		return nil
+	}
+	sender, _ := types.Sender(tx)
+	inviter := prevState.State.GetInviter(sender)
+	return &db.ActivationTx{
+		TxHash:       conversion.ConvertHash(tx.Hash()),
+		InviteTxHash: conversion.ConvertHash(inviter.TxHash),
+	}
+}
+
+func detectKillInviteeTx(tx *types.Transaction, prevState *appstate.AppState) *db.KillInviteeTx {
+	if tx.Type != types.KillInviteeTx {
+		return nil
+	}
+	inviter := prevState.State.GetInviter(*tx.To)
+	return &db.KillInviteeTx{
+		TxHash:       conversion.ConvertHash(tx.Hash()),
+		InviteTxHash: conversion.ConvertHash(inviter.TxHash),
+	}
 }
 
 func convertTxType(txType types.TxType) uint16 {
@@ -629,7 +662,7 @@ func (indexer *Indexer) detectMemPoolFlipKey(addr common.Address, identity state
 	}
 	key := indexer.listener.KeysPool().GetPublicFlipKey(addr)
 	if key == nil {
-		log.Error(fmt.Sprintf("Not found mem pool flip key for %s", addr.Hex()))
+		log.Warn(fmt.Sprintf("Not found mem pool flip key for %s", addr.Hex()))
 		return nil
 	}
 	return &db.MemPoolFlipKey{
@@ -661,7 +694,7 @@ func detectBirthday(address common.Address, prevBirthday, newBirthday uint16) *d
 	}
 }
 
-func (indexer *Indexer) detectSubmittedFlip(tx *types.Transaction) (*db.Flip, *flipTx) {
+func detectSubmittedFlip(tx *types.Transaction) (*db.Flip, *flipTx) {
 	if tx.Type != types.SubmitFlipTx {
 		return nil, nil
 	}
@@ -687,7 +720,7 @@ func (indexer *Indexer) detectSubmittedFlip(tx *types.Transaction) (*db.Flip, *f
 	return f, h
 }
 
-func (indexer *Indexer) detectDeletedFlip(tx *types.Transaction) *db.DeletedFlip {
+func detectDeletedFlip(tx *types.Transaction) *db.DeletedFlip {
 	if tx.Type != types.DeleteFlipTx {
 		return nil
 	}

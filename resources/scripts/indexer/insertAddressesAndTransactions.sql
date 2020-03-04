@@ -1,1 +1,1 @@
-select save_addrs_and_txs($1, $2, $3, $4, $5, $6, $7, $8)
+select save_addrs_and_txs($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)

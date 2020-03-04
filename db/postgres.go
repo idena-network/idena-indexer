@@ -162,10 +162,12 @@ func (a *postgresAccessor) Save(data *Data) error {
 		ctx,
 		data.Addresses,
 		data.Block.Transactions,
-		data.ActivationTxs,
-		data.KillTxs,
-		data.KillInviteeTxs,
+		data.ActivationTxTransfers,
+		data.KillTxTransfers,
+		data.KillInviteeTxTransfers,
 		data.DeletedFlips,
+		data.ActivationTxs,
+		data.KillInviteeTxs,
 	); err != nil {
 		return err
 	}
@@ -387,10 +389,12 @@ func (a *postgresAccessor) saveAddressesAndTransactions(
 	ctx *context,
 	addresses []Address,
 	txs []Transaction,
-	activationTxs []ActivationTxSpecificPart,
-	killTxs []KillTxSpecificPart,
-	killInviteeTxs []KillInviteeTxSpecificPart,
+	activationTxTransfers []ActivationTxTransfer,
+	killTxs []KillTxTransfer,
+	killInviteeTxTransfers []KillInviteeTxTransfer,
 	deletedFlips []DeletedFlip,
+	activationTxs []ActivationTx,
+	killInviteeTxs []KillInviteeTx,
 ) (map[string]int64, error) {
 
 	if len(addresses)+len(txs) == 0 {
@@ -403,11 +407,13 @@ func (a *postgresAccessor) saveAddressesAndTransactions(
 		ctx.blockHeight,
 		addressesArray,
 		pq.Array(txs),
-		pq.Array(activationTxs),
+		pq.Array(activationTxTransfers),
 		pq.Array(killTxs),
-		pq.Array(killInviteeTxs),
+		pq.Array(killInviteeTxTransfers),
 		addressStateChangesArray,
 		pq.Array(deletedFlips),
+		pq.Array(activationTxs),
+		pq.Array(killInviteeTxs),
 	).Scan(pq.Array(&txHashIds))
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to save addresses and transactions")

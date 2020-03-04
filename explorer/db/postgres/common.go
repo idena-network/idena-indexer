@@ -41,23 +41,30 @@ func readInvites(rows *sql.Rows) ([]types.Invite, error) {
 	var res []types.Invite
 	for rows.Next() {
 		item := types.Invite{}
-		var timestamp int64
-		var activationTimestamp int64
+		var timestamp, activationTimestamp, killInviteeTimestamp int64
 		if err := rows.Scan(
 			&item.Hash,
 			&item.Author,
 			&timestamp,
+			&item.Epoch,
 			&item.ActivationHash,
 			&item.ActivationAuthor,
 			&activationTimestamp,
 			&item.State,
+			&item.KillInviteeHash,
+			&killInviteeTimestamp,
+			&item.KillInviteeEpoch,
 		); err != nil {
 			return nil, err
 		}
 		item.Timestamp = timestampToTimeUTC(timestamp)
 		if activationTimestamp > 0 {
-			at := timestampToTimeUTC(activationTimestamp)
-			item.ActivationTimestamp = &at
+			t := timestampToTimeUTC(activationTimestamp)
+			item.ActivationTimestamp = &t
+		}
+		if killInviteeTimestamp > 0 {
+			t := timestampToTimeUTC(killInviteeTimestamp)
+			item.KillInviteeTimestamp = &t
 		}
 		res = append(res, item)
 	}

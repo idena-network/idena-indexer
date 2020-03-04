@@ -112,13 +112,17 @@ type FlipSummary struct {
 }
 
 type Invite struct {
-	Hash                string     `json:"hash"`
-	Author              string     `json:"author"`
-	Timestamp           time.Time  `json:"timestamp"`
-	ActivationHash      string     `json:"activationHash"`
-	ActivationAuthor    string     `json:"activationAuthor"`
-	ActivationTimestamp *time.Time `json:"activationTimestamp"`
-	State               string     `json:"state"`
+	Hash                 string     `json:"hash"`
+	Author               string     `json:"author"`
+	Timestamp            time.Time  `json:"timestamp"`
+	Epoch                uint64     `json:"epoch"`
+	ActivationHash       string     `json:"activationHash"`
+	ActivationAuthor     string     `json:"activationAuthor"`
+	ActivationTimestamp  *time.Time `json:"activationTimestamp"`
+	State                string     `json:"state"`
+	KillInviteeHash      string     `json:"killInviteeHash,omitempty"`
+	KillInviteeTimestamp *time.Time `json:"killInviteeTimestamp,omitempty"`
+	KillInviteeEpoch     uint64     `json:"killInviteeEpoch,omitempty"`
 }
 
 type EpochIdentitySummary struct {

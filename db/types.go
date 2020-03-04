@@ -22,30 +22,32 @@ type RestoredData struct {
 }
 
 type Data struct {
-	Epoch             uint64
-	ValidationTime    big.Int
-	Block             Block
-	ActivationTxs     []ActivationTxSpecificPart
-	KillTxs           []KillTxSpecificPart
-	KillInviteeTxs    []KillInviteeTxSpecificPart
-	Identities        []EpochIdentity
-	SubmittedFlips    []Flip
-	DeletedFlips      []DeletedFlip
-	FlipKeys          []FlipKey
-	FlipsWords        []FlipWords
-	FlipStats         []FlipStats
-	Addresses         []Address
-	BalanceUpdates    []Balance
-	Birthdays         []Birthday
-	MemPoolFlipKeys   []*MemPoolFlipKey
-	Coins             Coins
-	SaveEpochSummary  bool
-	Penalty           *Penalty
-	BurntPenalties    []Penalty
-	EpochRewards      *EpochRewards
-	MiningRewards     []*MiningReward
-	BurntCoinsPerAddr map[common.Address][]*BurntCoins
-	FailedValidation  bool
+	Epoch                  uint64
+	ValidationTime         big.Int
+	Block                  Block
+	ActivationTxTransfers  []ActivationTxTransfer
+	KillTxTransfers        []KillTxTransfer
+	KillInviteeTxTransfers []KillInviteeTxTransfer
+	ActivationTxs          []ActivationTx
+	KillInviteeTxs         []KillInviteeTx
+	Identities             []EpochIdentity
+	SubmittedFlips         []Flip
+	DeletedFlips           []DeletedFlip
+	FlipKeys               []FlipKey
+	FlipsWords             []FlipWords
+	FlipStats              []FlipStats
+	Addresses              []Address
+	BalanceUpdates         []Balance
+	Birthdays              []Birthday
+	MemPoolFlipKeys        []*MemPoolFlipKey
+	Coins                  Coins
+	SaveEpochSummary       bool
+	Penalty                *Penalty
+	BurntPenalties         []Penalty
+	EpochRewards           *EpochRewards
+	MiningRewards          []*MiningReward
+	BurntCoinsPerAddr      map[common.Address][]*BurntCoins
+	FailedValidation       bool
 }
 
 type EpochRewards struct {
@@ -117,19 +119,29 @@ type Transaction struct {
 	Size    int
 }
 
-type ActivationTxSpecificPart struct {
+type ActivationTxTransfer struct {
 	TxHash          string
 	BalanceTransfer decimal.Decimal
 }
 
-type KillTxSpecificPart struct {
+type KillTxTransfer struct {
 	TxHash        string
 	StakeTransfer decimal.Decimal
 }
 
-type KillInviteeTxSpecificPart struct {
+type KillInviteeTxTransfer struct {
 	TxHash        string
 	StakeTransfer decimal.Decimal
+}
+
+type ActivationTx struct {
+	TxHash       string
+	InviteTxHash string
+}
+
+type KillInviteeTx struct {
+	TxHash       string
+	InviteTxHash string
 }
 
 type EpochIdentity struct {

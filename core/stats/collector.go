@@ -323,7 +323,7 @@ func (c *statsCollector) AddActivationTxBalanceTransfer(tx *types.Transaction, a
 	if amount == nil || amount.Sign() == 0 {
 		return
 	}
-	c.stats.ActivationTxs = append(c.stats.ActivationTxs, db.ActivationTxSpecificPart{
+	c.stats.ActivationTxTransfers = append(c.stats.ActivationTxTransfers, db.ActivationTxTransfer{
 		TxHash:          conversion.ConvertHash(tx.Hash()),
 		BalanceTransfer: blockchain.ConvertToFloat(amount),
 	})
@@ -333,7 +333,7 @@ func (c *statsCollector) AddKillTxStakeTransfer(tx *types.Transaction, amount *b
 	if amount == nil || amount.Sign() == 0 {
 		return
 	}
-	c.stats.KillTxs = append(c.stats.KillTxs, db.KillTxSpecificPart{
+	c.stats.KillTxTransfers = append(c.stats.KillTxTransfers, db.KillTxTransfer{
 		TxHash:        conversion.ConvertHash(tx.Hash()),
 		StakeTransfer: blockchain.ConvertToFloat(amount),
 	})
@@ -343,7 +343,7 @@ func (c *statsCollector) AddKillInviteeTxStakeTransfer(tx *types.Transaction, am
 	if amount == nil || amount.Sign() == 0 {
 		return
 	}
-	c.stats.KillInviteeTxs = append(c.stats.KillInviteeTxs, db.KillInviteeTxSpecificPart{
+	c.stats.KillInviteeTxTransfers = append(c.stats.KillInviteeTxTransfers, db.KillInviteeTxTransfer{
 		TxHash:        conversion.ConvertHash(tx.Hash()),
 		StakeTransfer: blockchain.ConvertToFloat(amount),
 	})

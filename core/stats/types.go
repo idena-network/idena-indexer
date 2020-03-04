@@ -24,19 +24,19 @@ const (
 )
 
 type Stats struct {
-	ValidationStats      *statsTypes.ValidationStats
-	RewardsStats         *RewardsStats
-	MiningRewards        []*db.MiningReward
-	FinalCommittee       []common.Address
-	BurntPenaltiesByAddr map[common.Address]*big.Int
-	BurntCoins           *big.Int
-	BurntCoinsByAddr     map[common.Address][]*db.BurntCoins
-	MintedCoins          *big.Int
-	BalanceUpdateAddrs   mapset.Set
-	KilledAddrs          mapset.Set
-	ActivationTxs        []db.ActivationTxSpecificPart
-	KillTxs              []db.KillTxSpecificPart
-	KillInviteeTxs       []db.KillInviteeTxSpecificPart
+	ValidationStats        *statsTypes.ValidationStats
+	RewardsStats           *RewardsStats
+	MiningRewards          []*db.MiningReward
+	FinalCommittee         []common.Address
+	BurntPenaltiesByAddr   map[common.Address]*big.Int
+	BurntCoins             *big.Int
+	BurntCoinsByAddr       map[common.Address][]*db.BurntCoins
+	MintedCoins            *big.Int
+	BalanceUpdateAddrs     mapset.Set
+	KilledAddrs            mapset.Set
+	ActivationTxTransfers  []db.ActivationTxTransfer
+	KillTxTransfers        []db.KillTxTransfer
+	KillInviteeTxTransfers []db.KillInviteeTxTransfer
 }
 
 type RewardsStats struct {

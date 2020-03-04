@@ -1303,6 +1303,38 @@ ALTER TABLE burnt_coins
 
 CREATE INDEX IF NOT EXISTS burnt_coins_block_height_desc_idx on burnt_coins (block_height desc);
 
+CREATE TABLE IF NOT EXISTS activation_txs
+(
+    tx_id        bigint NOT NULL,
+    invite_tx_id bigint NOT NULL,
+    CONSTRAINT activation_txs_pkey PRIMARY KEY (tx_id),
+    CONSTRAINT activation_txs_tx_id_fkey FOREIGN KEY (tx_id)
+        REFERENCES transactions (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT activation_txs_invite_tx_id_key UNIQUE (invite_tx_id),
+    CONSTRAINT activation_txs_invite_tx_id_fkey FOREIGN KEY (invite_tx_id)
+        REFERENCES transactions (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+);
+
+CREATE TABLE IF NOT EXISTS kill_invitee_txs
+(
+    tx_id        bigint NOT NULL,
+    invite_tx_id bigint NOT NULL,
+    CONSTRAINT kill_invitee_txs_pkey PRIMARY KEY (tx_id),
+    CONSTRAINT kill_invitee_txs_tx_id_fkey FOREIGN KEY (tx_id)
+        REFERENCES transactions (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT kill_invitee_txs_invite_tx_id_key UNIQUE (invite_tx_id),
+    CONSTRAINT kill_invitee_txs_invite_tx_id_fkey FOREIGN KEY (invite_tx_id)
+        REFERENCES transactions (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+);
+
 -- Table: flip_key_timestamps
 
 -- DROP TABLE flip_key_timestamps;
@@ -1397,25 +1429,6 @@ WHERE s.is_actual
                                            (ARRAY [0::smallint, 5::smallint]::text[])));
 
 ALTER TABLE epoch_identity_states
-    OWNER TO postgres;
-
--- View: used_invites
-
--- DROP VIEW used_invites;
-
-CREATE OR REPLACE VIEW used_invites AS
-SELECT DISTINCT ON (b.epoch, it."to") it.id AS invite_tx_id,
-                                      t.id  AS activation_tx_id
-FROM transactions t
-         JOIN blocks b ON b.height = t.block_height
-         JOIN blocks ib ON ib.epoch = b.epoch AND ib.height < b.height
-         JOIN transactions it ON it.block_height = ib.height AND
-                                 it.type = 2 AND -- 'InviteTx'
-                                 it."to" = t."from"
-WHERE t.type = 1 -- 'ActivationTx'
-ORDER BY b.epoch, it."to", ib.height DESC;
-
-ALTER TABLE used_invites
     OWNER TO postgres;
 
 -- Types
@@ -1823,6 +1836,34 @@ $$
     END
 $$;
 
+DO
+$$
+    BEGIN
+        -- Type: tp_activation_tx
+        CREATE TYPE tp_activation_tx AS
+        (
+            tx_hash        character(66),
+            invite_tx_hash character(66)
+        );
+    EXCEPTION
+        WHEN duplicate_object THEN null;
+    END
+$$;
+
+DO
+$$
+    BEGIN
+        -- Type: tp_kill_invitee_tx
+        CREATE TYPE tp_kill_invitee_tx AS
+        (
+            tx_hash        character(66),
+            invite_tx_hash character(66)
+        );
+    EXCEPTION
+        WHEN duplicate_object THEN null;
+    END
+$$;
+
 -- PROCEDURE: save_mining_rewards
 
 CREATE OR REPLACE PROCEDURE save_mining_rewards(height bigint, mr tp_mining_reward[])
@@ -1898,7 +1939,9 @@ CREATE OR REPLACE FUNCTION save_addrs_and_txs(height bigint,
                                               p_kill_tx_transfers tp_kill_tx_transfer[],
                                               p_kill_invitee_tx_transfers tp_kill_invitee_tx_transfer[],
                                               address_state_changes tp_address_state_change[],
-                                              deleted_flips tp_deleted_flip[])
+                                              deleted_flips tp_deleted_flip[],
+                                              p_activation_txs tp_activation_tx[],
+                                              p_kill_invitee_txs tp_kill_invitee_tx[])
     RETURNS tp_tx_hash_id[]
     LANGUAGE 'plpgsql'
 AS
@@ -1961,6 +2004,14 @@ BEGIN
 
     if p_kill_invitee_tx_transfers is not null then
         call save_kill_invitee_tx_transfers(p_kill_invitee_tx_transfers);
+    end if;
+
+    if p_activation_txs is not null then
+        call save_activation_txs(p_activation_txs);
+    end if;
+
+    if p_kill_invitee_txs is not null then
+        call save_kill_invitee_txs(p_kill_invitee_txs);
     end if;
 
     if address_state_changes is not null then
@@ -2050,6 +2101,42 @@ BEGIN
             insert into kill_invitee_tx_transfers (tx_id, stake_transfer)
             values ((select id from transactions where lower(hash) = lower(l_kill_invitee_tx_transfer.tx_hash)),
                     l_kill_invitee_tx_transfer.stake_transfer);
+        end loop;
+END
+$BODY$;
+
+-- PROCEDURE: save_activation_txs
+CREATE OR REPLACE PROCEDURE save_activation_txs(p_activation_txs tp_activation_tx[])
+    LANGUAGE 'plpgsql'
+AS
+$BODY$
+DECLARE
+    l_activation_tx tp_activation_tx;
+BEGIN
+    for i in 1..cardinality(p_activation_txs)
+        loop
+            l_activation_tx := p_activation_txs[i];
+            insert into activation_txs (tx_id, invite_tx_id)
+            values ((select id from transactions where lower(hash) = lower(l_activation_tx.tx_hash)),
+                    (select id from transactions where lower(hash) = lower(l_activation_tx.invite_tx_hash)));
+        end loop;
+END
+$BODY$;
+
+-- PROCEDURE: save_kill_invitee_txs
+CREATE OR REPLACE PROCEDURE save_kill_invitee_txs(p_kill_invitee_txs tp_kill_invitee_tx[])
+    LANGUAGE 'plpgsql'
+AS
+$BODY$
+DECLARE
+    l_kill_invitee_tx tp_kill_invitee_tx;
+BEGIN
+    for i in 1..cardinality(p_kill_invitee_txs)
+        loop
+            l_kill_invitee_tx := p_kill_invitee_txs[i];
+            insert into kill_invitee_txs (tx_id, invite_tx_id)
+            values ((select id from transactions where lower(hash) = lower(l_kill_invitee_tx.tx_hash)),
+                    (select id from transactions where lower(hash) = lower(l_kill_invitee_tx.invite_tx_hash)));
         end loop;
 END
 $BODY$;
