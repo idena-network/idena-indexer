@@ -1,20 +1,21 @@
-select a.address                      author,
+select a.address                       author,
        f.size,
        b.timestamp,
-       coalesce(da.name, '')          answer,
-       COALESCE(f.wrong_words, false) wrongWords,
-       COALESCE(ww.cnt, 0)            wrong_words_votes,
-       COALESCE(dfs.name, '')         status,
-       t.hash                         tx_hash,
-       b.hash                         block_hash,
-       b.height                       block_height,
-       b.epoch                        epoch,
-       coalesce(fw.word_1, 0)         word_id_1,
-       coalesce(wd1.name, '')         word_name_1,
-       coalesce(wd1.description, '')  word_desc_1,
-       coalesce(fw.word_2, 0)         word_id_2,
-       coalesce(wd2.name, '')         word_name_2,
-       coalesce(wd2.description, '')  word_desc_2
+       coalesce(da.name, '')           answer,
+       COALESCE(f.wrong_words, false)  wrongWords,
+       COALESCE(ww.cnt, 0)             wrong_words_votes,
+       COALESCE(dfs.name, '')          status,
+       t.hash                          tx_hash,
+       b.hash                          block_hash,
+       b.height                        block_height,
+       b.epoch                         epoch,
+       coalesce(fw.word_1, 0)          word_id_1,
+       coalesce(wd1.name, '')          word_name_1,
+       coalesce(wd1.description, '')   word_desc_1,
+       coalesce(fw.word_2, 0)          word_id_2,
+       coalesce(wd2.name, '')          word_name_2,
+       coalesce(wd2.description, '')   word_desc_2,
+       coalesce(pics_count.cnt, 0) = 2 with_private_part
 from flips f
          join transactions t on t.id = f.tx_id
          join blocks b on b.height = t.block_height
@@ -30,5 +31,8 @@ from flips f
                    on ww.flip_tx_id = f.tx_id
          left join dic_flip_statuses dfs on dfs.id = f.status
          left join dic_answers da on da.id = f.answer
+         left join (select fd_flip_tx_id, count(*) cnt
+                    from flip_pics
+                    group by fd_flip_tx_id) pics_count on pics_count.fd_flip_tx_id = f.tx_id
 where LOWER(f.cid) = LOWER($1)
   and f.delete_tx_id is null

@@ -176,7 +176,8 @@ func (a *postgresAccessor) flips(queryName string, args ...interface{}) ([]types
 			&words.Word1.Desc,
 			&words.Word2.Index,
 			&words.Word2.Name,
-			&words.Word2.Desc)
+			&words.Word2.Desc,
+			&item.WithPrivatePart)
 		if err != nil {
 			return nil, err
 		}

@@ -109,6 +109,7 @@ type FlipSummary struct {
 	Size            uint32        `json:"size"`
 	Icon            hexutil.Bytes `json:"icon,omitempty"`
 	Words           *FlipWords    `json:"words"`
+	WithPrivatePart bool          `json:"withPrivatePart"`
 }
 
 type Invite struct {
@@ -164,6 +165,7 @@ type Flip struct {
 	BlockHeight     uint64     `json:"blockHeight"`
 	Epoch           uint64     `json:"epoch"`
 	Words           *FlipWords `json:"words"`
+	WithPrivatePart bool       `json:"withPrivatePart"`
 }
 
 type FlipWords struct {

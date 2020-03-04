@@ -39,7 +39,8 @@ func (a *postgresAccessor) Flip(hash string) (types.Flip, error) {
 			&words.Word1.Desc,
 			&words.Word2.Index,
 			&words.Word2.Name,
-			&words.Word2.Desc)
+			&words.Word2.Desc,
+			&flip.WithPrivatePart)
 	if err == sql.ErrNoRows {
 		err = NoDataFound
 	}
