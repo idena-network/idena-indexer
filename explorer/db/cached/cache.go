@@ -10,6 +10,7 @@ import (
 type Cache interface {
 	Get(key string) (interface{}, bool)
 	Set(key string, value interface{}, lifeTime time.Duration)
+	Clear()
 	ItemsCount() int
 }
 
@@ -44,6 +45,10 @@ func (c *cacheImpl) Set(key string, value interface{}, lifeTime time.Duration) {
 		}
 	}
 	c.cache.Set(key, value, lifeTime)
+}
+
+func (c *cacheImpl) Clear() {
+	c.cache.Flush()
 }
 
 func (c *cacheImpl) ItemsCount() int {

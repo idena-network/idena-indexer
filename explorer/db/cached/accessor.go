@@ -6,6 +6,7 @@ import (
 	"github.com/idena-network/idena-indexer/explorer/types"
 	"github.com/idena-network/idena-indexer/log"
 	"github.com/patrickmn/go-cache"
+	"github.com/pkg/errors"
 	"github.com/shopspring/decimal"
 	"sort"
 	"strings"
@@ -40,7 +41,47 @@ func NewCachedAccessor(
 			a.log()
 		}
 	}()
+	go a.monitorEpochChange()
 	return a
+}
+
+func (a *cachedAccessor) monitorEpochChange() {
+	isFirst := true
+	epoch := uint64(0)
+	const delay = time.Second * 5
+	for {
+		time.Sleep(delay)
+		lastEpoch, err := a.Accessor.LastEpoch()
+		if err != nil {
+			a.logger.Warn(errors.Wrap(err, "Unable to get last epoch from db to detect new one").Error())
+			continue
+		}
+		a.logger.Debug(fmt.Sprintf("epoch: %v, lastEpoch: %v", epoch, lastEpoch.Epoch))
+		if lastEpoch.Epoch > epoch {
+			epoch = lastEpoch.Epoch
+			if isFirst {
+				isFirst = false
+			} else {
+				a.logger.Debug("Detected new epoch")
+				a.clearCache()
+			}
+		}
+		timeToStartMonitoring := lastEpoch.ValidationTime.Add(time.Minute * 25)
+		now := time.Now()
+		if timeToStartMonitoring.After(now) {
+			<-time.After(timeToStartMonitoring.Sub(now))
+		}
+	}
+}
+
+func (a *cachedAccessor) clearCache() {
+	a.mutex.Lock()
+	defer a.mutex.Unlock()
+
+	for method, dbCache := range a.cachesByMethod {
+		dbCache.Clear()
+		a.logger.Debug(fmt.Sprintf("Cleared %v cache", method))
+	}
 }
 
 func (a *cachedAccessor) log() {
