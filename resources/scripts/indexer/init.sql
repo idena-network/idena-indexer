@@ -625,6 +625,7 @@ ALTER TABLE address_states
     OWNER to postgres;
 
 CREATE INDEX IF NOT EXISTS address_states_actual_idx on address_states (address_id) WHERE is_actual;
+CREATE INDEX IF NOT EXISTS address_states_address_id_idx on address_states (address_id);
 
 -- Table: epoch_identities
 
