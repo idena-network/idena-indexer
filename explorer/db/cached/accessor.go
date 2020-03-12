@@ -14,9 +14,15 @@ import (
 	"time"
 )
 
+const (
+	activeAddressesCountMethod = "ActiveAddressesCount"
+)
+
 type cachedAccessor struct {
 	db.Accessor
+	maxItemCountsByMethod    map[string]int
 	defaultCacheMaxItemCount int
+	maxItemLifeTimesByMethod map[string]time.Duration
 	defaultCacheItemLifeTime time.Duration
 	cachesByMethod           map[string]Cache
 	mutex                    sync.Mutex
@@ -31,7 +37,9 @@ func NewCachedAccessor(
 ) db.Accessor {
 	a := &cachedAccessor{
 		Accessor:                 db,
+		maxItemCountsByMethod:    createMaxItemCountsByMethod(),
 		defaultCacheMaxItemCount: defaultCacheMaxItemCount,
+		maxItemLifeTimesByMethod: createMaxItemLifeTimesByMethod(),
 		defaultCacheItemLifeTime: defaultCacheItemLifeTime,
 		logger:                   logger,
 	}
@@ -43,6 +51,18 @@ func NewCachedAccessor(
 	}()
 	go a.monitorEpochChange()
 	return a
+}
+
+func createMaxItemCountsByMethod() map[string]int {
+	return map[string]int{
+		activeAddressesCountMethod: 1,
+	}
+}
+
+func createMaxItemLifeTimesByMethod() map[string]time.Duration {
+	return map[string]time.Duration{
+		activeAddressesCountMethod: time.Minute * 5,
+	}
 }
 
 func (a *cachedAccessor) monitorEpochChange() {
@@ -161,9 +181,17 @@ func (a *cachedAccessor) getCache(method string) Cache {
 	}
 	dbCache, ok := a.cachesByMethod[method]
 	if !ok {
+		maxSize := a.defaultCacheMaxItemCount
+		if count, ok := a.maxItemCountsByMethod[method]; ok {
+			maxSize = count
+		}
+		defaultExpiration := a.defaultCacheItemLifeTime
+		if lifeTime, ok := a.maxItemLifeTimesByMethod[method]; ok {
+			defaultExpiration = lifeTime
+		}
 		dbCache = NewCache(
-			a.defaultCacheMaxItemCount,
-			a.defaultCacheItemLifeTime,
+			maxSize,
+			defaultExpiration,
 			a.logger.New("component", fmt.Sprintf("cache-%s", method)),
 		)
 		a.cachesByMethod[method] = dbCache
@@ -190,6 +218,13 @@ func (a *cachedAccessor) CirculatingSupply() (decimal.Decimal, error) {
 		return a.Accessor.CirculatingSupply()
 	})
 	return res.(decimal.Decimal), err
+}
+
+func (a *cachedAccessor) ActiveAddressesCount(afterTime time.Time) (uint64, error) {
+	res, err := a.getOrLoad(activeAddressesCountMethod, func() (interface{}, error) {
+		return a.Accessor.ActiveAddressesCount(afterTime)
+	})
+	return res.(uint64), err
 }
 
 func (a *cachedAccessor) EpochsCount() (uint64, error) {

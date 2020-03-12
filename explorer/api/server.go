@@ -22,24 +22,26 @@ type Server interface {
 	InitRouter(router *mux.Router)
 }
 
-func NewServer(port int, latestHours int, db db.Accessor, logger log.Logger, pm monitoring.PerformanceMonitor) Server {
+func NewServer(port int, latestHours int, activeAddrHours int, db db.Accessor, logger log.Logger, pm monitoring.PerformanceMonitor) Server {
 	return &httpServer{
-		port:        port,
-		db:          db,
-		log:         logger,
-		latestHours: latestHours,
-		pm:          pm,
+		port:            port,
+		db:              db,
+		log:             logger,
+		latestHours:     latestHours,
+		activeAddrHours: activeAddrHours,
+		pm:              pm,
 	}
 }
 
 type httpServer struct {
-	port        int
-	latestHours int
-	db          db.Accessor
-	log         log.Logger
-	pm          monitoring.PerformanceMonitor
-	counter     int
-	mutex       sync.Mutex
+	port            int
+	latestHours     int
+	activeAddrHours int
+	db              db.Accessor
+	log             log.Logger
+	pm              monitoring.PerformanceMonitor
+	counter         int
+	mutex           sync.Mutex
 }
 
 func (s *httpServer) generateReqId() int {
@@ -101,6 +103,9 @@ func (s *httpServer) InitRouter(router *mux.Router) {
 		HandlerFunc(s.circulatingSupply)
 	router.Path(strings.ToLower("/CirculatingSupply")).
 		HandlerFunc(s.circulatingSupply)
+
+	router.Path(strings.ToLower("/ActiveAddresses/Count")).
+		HandlerFunc(s.activeAddressesCount)
 
 	router.Path(strings.ToLower("/Epochs/Count")).HandlerFunc(s.epochsCount)
 	router.Path(strings.ToLower("/Epochs")).
@@ -324,6 +329,14 @@ func (s *httpServer) circulatingSupply(w http.ResponseWriter, r *http.Request) {
 		server.WriteResponse(w, blockchain.ConvertToInt(resp), err, s.log)
 		return
 	}
+	server.WriteResponse(w, resp, err, s.log)
+}
+
+func (s *httpServer) activeAddressesCount(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("activeAddressesCount", r.RequestURI)
+	defer s.pm.Complete(id)
+
+	resp, err := s.db.ActiveAddressesCount(getOffsetUTC(s.activeAddrHours))
 	server.WriteResponse(w, resp, err, s.log)
 }
 
@@ -1439,5 +1452,9 @@ func (s *httpServer) totalLatestBurntCoins(w http.ResponseWriter, r *http.Reques
 }
 
 func (s *httpServer) getOffsetUTC() time.Time {
-	return time.Now().UTC().Add(-time.Hour * time.Duration(s.latestHours))
+	return getOffsetUTC(s.latestHours)
+}
+
+func getOffsetUTC(hours int) time.Time {
+	return time.Now().UTC().Add(-time.Hour * time.Duration(hours))
 }

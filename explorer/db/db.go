@@ -11,6 +11,7 @@ type Accessor interface {
 
 	Coins() (types.AllCoins, error)
 	CirculatingSupply() (decimal.Decimal, error)
+	ActiveAddressesCount(afterTime time.Time) (uint64, error)
 
 	EpochsCount() (uint64, error)
 	Epochs(startIndex uint64, count uint64) ([]types.EpochSummary, error)

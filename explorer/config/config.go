@@ -14,6 +14,7 @@ type Config struct {
 	PostgresConnStr             string
 	ScriptsDir                  string
 	LatestHours                 int
+	ActiveAddressHours          int
 	MaxReqCount                 int
 	ReqTimeoutSec               int
 	DefaultCacheMaxItemCount    int
@@ -48,6 +49,7 @@ func newDefaultConfig() *Config {
 		ScriptsDir:                  filepath.Join("resources", "scripts", "explorer"),
 		Verbosity:                   3,
 		LatestHours:                 24,
+		ActiveAddressHours:          24,
 		MaxReqCount:                 50,
 		ReqTimeoutSec:               60,
 		DefaultCacheMaxItemCount:    100,

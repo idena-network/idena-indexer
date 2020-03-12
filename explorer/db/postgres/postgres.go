@@ -8,6 +8,7 @@ import (
 	"github.com/idena-network/idena-indexer/log"
 	"github.com/shopspring/decimal"
 	"strconv"
+	"time"
 )
 
 type postgresAccessor struct {
@@ -17,15 +18,16 @@ type postgresAccessor struct {
 }
 
 const (
-	transactionQuery         = "transaction.sql"
-	isAddressQuery           = "isAddress.sql"
-	isBlockHashQuery         = "isBlockHash.sql"
-	isBlockHeightQuery       = "isBlockHeight.sql"
-	isEpochQuery             = "isEpoch.sql"
-	isFlipQuery              = "isFlip.sql"
-	isTxQuery                = "isTx.sql"
-	coinsBurntAndMintedQuery = "coinsBurntAndMinted.sql"
-	coinsTotalQuery          = "coinsTotal.sql"
+	transactionQuery          = "transaction.sql"
+	isAddressQuery            = "isAddress.sql"
+	isBlockHashQuery          = "isBlockHash.sql"
+	isBlockHeightQuery        = "isBlockHeight.sql"
+	isEpochQuery              = "isEpoch.sql"
+	isFlipQuery               = "isFlip.sql"
+	isTxQuery                 = "isTx.sql"
+	coinsBurntAndMintedQuery  = "coinsBurntAndMinted.sql"
+	coinsTotalQuery           = "coinsTotal.sql"
+	activeAddressesCountQuery = "activeAddressesCount.sql"
 )
 
 var NoDataFound = errors.New("no data found")
@@ -137,6 +139,10 @@ func (a *postgresAccessor) CirculatingSupply() (decimal.Decimal, error) {
 		return decimal.Decimal{}, err
 	}
 	return totalBalance.Add(totalStake), nil
+}
+
+func (a *postgresAccessor) ActiveAddressesCount(afterTime time.Time) (uint64, error) {
+	return a.count(activeAddressesCountQuery, afterTime.Unix())
 }
 
 func (a *postgresAccessor) isEntity(value, queryName string) (bool, error) {
