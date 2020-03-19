@@ -9,6 +9,13 @@ import (
 	"time"
 )
 
+const (
+	activationTx   = "ActivationTx"
+	killTx         = "KillTx"
+	killInviteeTx  = "KillInviteeTx"
+	onlineStatusTx = "OnlineStatusTx"
+)
+
 func timestampToTimeUTC(timestamp int64) time.Time {
 	return common.TimestampToTime(big.NewInt(timestamp)).UTC()
 }
@@ -78,6 +85,7 @@ func readTxs(rows *sql.Rows) ([]types.TransactionSummary, error) {
 		item := types.TransactionSummary{}
 		var timestamp int64
 		var transfer NullDecimal
+		var becomeOnline sql.NullBool
 		if err := rows.Scan(
 			&item.Hash,
 			&item.Type,
@@ -90,6 +98,7 @@ func readTxs(rows *sql.Rows) ([]types.TransactionSummary, error) {
 			&item.Fee,
 			&item.Size,
 			&transfer,
+			&becomeOnline,
 		); err != nil {
 			return nil, err
 		}
@@ -97,9 +106,59 @@ func readTxs(rows *sql.Rows) ([]types.TransactionSummary, error) {
 		if transfer.Valid {
 			item.Transfer = &transfer.Decimal
 		}
+		item.Data = readTxSpecificData(item.Type, transfer, becomeOnline)
 		res = append(res, item)
 	}
 	return res, nil
+}
+
+func readTxSpecificData(txType string, transfer NullDecimal, becomeOnline sql.NullBool) interface{} {
+	var res interface{}
+	switch txType {
+	case activationTx:
+		if data := readActivationTxSpecificData(transfer); data != nil {
+			res = data
+		}
+	case killTx:
+		if data := readKillTxSpecificData(transfer); data != nil {
+			res = data
+		}
+	case killInviteeTx:
+		if data := readKillInviteeTxSpecificData(transfer); data != nil {
+			res = data
+		}
+	case onlineStatusTx:
+		if data := readOnlineStatusTxSpecificData(becomeOnline); data != nil {
+			res = data
+		}
+	}
+	return res
+}
+
+func readActivationTxSpecificData(transfer NullDecimal) *types.ActivationTxSpecificData {
+	if !transfer.Valid {
+		return nil
+	}
+	return &types.ActivationTxSpecificData{
+		Transfer: &transfer.Decimal,
+	}
+}
+
+func readKillTxSpecificData(transfer NullDecimal) *types.KillTxSpecificData {
+	return readActivationTxSpecificData(transfer)
+}
+
+func readKillInviteeTxSpecificData(transfer NullDecimal) *types.KillInviteeTxSpecificData {
+	return readActivationTxSpecificData(transfer)
+}
+
+func readOnlineStatusTxSpecificData(becomeOnline sql.NullBool) *types.OnlineStatusTxSpecificData {
+	if !becomeOnline.Valid {
+		return nil
+	}
+	return &types.OnlineStatusTxSpecificData{
+		BecomeOnline: becomeOnline.Bool,
+	}
 }
 
 func (a *postgresAccessor) strValueCounts(queryName string, args ...interface{}) ([]types.StrValueCount, error) {

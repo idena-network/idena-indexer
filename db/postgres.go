@@ -168,6 +168,8 @@ func (a *postgresAccessor) Save(data *Data) error {
 		data.DeletedFlips,
 		data.ActivationTxs,
 		data.KillInviteeTxs,
+		data.BecomeOnlineTxs,
+		data.BecomeOfflineTxs,
 	); err != nil {
 		return err
 	}
@@ -395,6 +397,8 @@ func (a *postgresAccessor) saveAddressesAndTransactions(
 	deletedFlips []DeletedFlip,
 	activationTxs []ActivationTx,
 	killInviteeTxs []KillInviteeTx,
+	becomeOnlineTxs []string,
+	becomeOfflineTxs []string,
 ) (map[string]int64, error) {
 
 	if len(addresses)+len(txs) == 0 {
@@ -414,6 +418,8 @@ func (a *postgresAccessor) saveAddressesAndTransactions(
 		pq.Array(deletedFlips),
 		pq.Array(activationTxs),
 		pq.Array(killInviteeTxs),
+		pq.Array(becomeOnlineTxs),
+		pq.Array(becomeOfflineTxs),
 	).Scan(pq.Array(&txHashIds))
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to save addresses and transactions")

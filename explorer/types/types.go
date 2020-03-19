@@ -75,7 +75,8 @@ type TransactionSummary struct {
 	MaxFee    decimal.Decimal  `json:"maxFee"`
 	Fee       decimal.Decimal  `json:"fee"`
 	Size      uint32           `json:"size"`
-	Transfer  *decimal.Decimal `json:"transfer,omitempty"`
+	Transfer  *decimal.Decimal `json:"transfer,omitempty"` // todo deprecated
+	Data      interface{}      `json:"data,omitempty"`
 }
 
 type TransactionDetail struct {
@@ -92,7 +93,20 @@ type TransactionDetail struct {
 	MaxFee      decimal.Decimal  `json:"maxFee"`
 	Fee         decimal.Decimal  `json:"fee"`
 	Size        uint32           `json:"size"`
-	Transfer    *decimal.Decimal `json:"transfer,omitempty"`
+	Transfer    *decimal.Decimal `json:"transfer,omitempty"` // todo deprecated
+	Data        interface{}      `json:"data,omitempty"`
+}
+
+type ActivationTxSpecificData struct {
+	Transfer *decimal.Decimal `json:"transfer,omitempty"`
+}
+
+type KillTxSpecificData = ActivationTxSpecificData
+
+type KillInviteeTxSpecificData = ActivationTxSpecificData
+
+type OnlineStatusTxSpecificData struct {
+	BecomeOnline bool
 }
 
 type FlipSummary struct {

@@ -30,6 +30,8 @@ type Data struct {
 	KillInviteeTxTransfers []KillInviteeTxTransfer
 	ActivationTxs          []ActivationTx
 	KillInviteeTxs         []KillInviteeTx
+	BecomeOnlineTxs        []string
+	BecomeOfflineTxs       []string
 	Identities             []EpochIdentity
 	SubmittedFlips         []Flip
 	DeletedFlips           []DeletedFlip

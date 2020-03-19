@@ -1336,6 +1336,26 @@ CREATE TABLE IF NOT EXISTS kill_invitee_txs
         ON DELETE NO ACTION
 );
 
+CREATE TABLE IF NOT EXISTS become_online_txs
+(
+    tx_id bigint NOT NULL,
+    CONSTRAINT become_online_txs_pkey PRIMARY KEY (tx_id),
+    CONSTRAINT become_online_txs_tx_id_fkey FOREIGN KEY (tx_id)
+        REFERENCES transactions (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+);
+
+CREATE TABLE IF NOT EXISTS become_offline_txs
+(
+    tx_id bigint NOT NULL,
+    CONSTRAINT become_offline_txs_pkey PRIMARY KEY (tx_id),
+    CONSTRAINT become_offline_txs_tx_id_fkey FOREIGN KEY (tx_id)
+        REFERENCES transactions (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+);
+
 -- Table: flip_key_timestamps
 
 -- DROP TABLE flip_key_timestamps;
@@ -1932,7 +1952,6 @@ BEGIN
 END
 $BODY$;
 
--- FUNCTION: save_addrs_and_txs
 CREATE OR REPLACE FUNCTION save_addrs_and_txs(height bigint,
                                               addresses tp_address[],
                                               txs tp_tx[],
@@ -1942,7 +1961,9 @@ CREATE OR REPLACE FUNCTION save_addrs_and_txs(height bigint,
                                               address_state_changes tp_address_state_change[],
                                               deleted_flips tp_deleted_flip[],
                                               p_activation_txs tp_activation_tx[],
-                                              p_kill_invitee_txs tp_kill_invitee_tx[])
+                                              p_kill_invitee_txs tp_kill_invitee_tx[],
+                                              p_become_online_txs character(66)[],
+                                              p_become_offline_txs character(66)[])
     RETURNS tp_tx_hash_id[]
     LANGUAGE 'plpgsql'
 AS
@@ -2013,6 +2034,14 @@ BEGIN
 
     if p_kill_invitee_txs is not null then
         call save_kill_invitee_txs(p_kill_invitee_txs);
+    end if;
+
+    if p_become_online_txs is not null then
+        call save_become_online_txs(p_become_online_txs);
+    end if;
+
+    if p_become_offline_txs is not null then
+        call save_become_offline_txs(p_become_offline_txs);
     end if;
 
     if address_state_changes is not null then
@@ -2138,6 +2167,38 @@ BEGIN
             insert into kill_invitee_txs (tx_id, invite_tx_id)
             values ((select id from transactions where lower(hash) = lower(l_kill_invitee_tx.tx_hash)),
                     (select id from transactions where lower(hash) = lower(l_kill_invitee_tx.invite_tx_hash)));
+        end loop;
+END
+$BODY$;
+
+CREATE OR REPLACE PROCEDURE save_become_online_txs(p_become_online_txs character(66)[])
+    LANGUAGE 'plpgsql'
+AS
+$BODY$
+DECLARE
+    l_become_online_tx character(66);
+BEGIN
+    for i in 1..cardinality(p_become_online_txs)
+        loop
+            l_become_online_tx := p_become_online_txs[i];
+            insert into become_online_txs (tx_id)
+            values ((select id from transactions where lower(hash) = lower(l_become_online_tx)));
+        end loop;
+END
+$BODY$;
+
+CREATE OR REPLACE PROCEDURE save_become_offline_txs(p_become_offline_txs character(66)[])
+    LANGUAGE 'plpgsql'
+AS
+$BODY$
+DECLARE
+    l_become_offline_tx character(66);
+BEGIN
+    for i in 1..cardinality(p_become_offline_txs)
+        loop
+            l_become_offline_tx := p_become_offline_txs[i];
+            insert into become_offline_txs (tx_id)
+            values ((select id from transactions where lower(hash) = lower(l_become_offline_tx)));
         end loop;
 END
 $BODY$;

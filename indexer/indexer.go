@@ -275,6 +275,8 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) *result 
 		KillInviteeTxTransfers: indexer.statsHolder().GetStats().KillInviteeTxTransfers,
 		ActivationTxs:          collector.activationTxs,
 		KillInviteeTxs:         collector.killInviteeTxs,
+		BecomeOnlineTxs:        collector.becomeOnlineTxs,
+		BecomeOfflineTxs:       collector.becomeOfflineTxs,
 		Identities:             identities,
 		SubmittedFlips:         collector.submittedFlips,
 		DeletedFlips:           collector.deletedFlips,
@@ -454,6 +456,12 @@ func (indexer *Indexer) convertTransaction(
 		collector.killInviteeTxs = append(collector.killInviteeTxs, *killInviteeTx)
 	}
 
+	if becomeOnlineTxHash, becomeOfflineTxHash := detectOnlineStatusTx(incomingTx); becomeOnlineTxHash != nil {
+		collector.becomeOnlineTxs = append(collector.becomeOnlineTxs, *becomeOnlineTxHash)
+	} else if becomeOfflineTxHash != nil {
+		collector.becomeOfflineTxs = append(collector.becomeOfflineTxs, *becomeOfflineTxHash)
+	}
+
 	indexer.convertShortAnswers(incomingTx, ctx, collector)
 	txHash := conversion.ConvertHash(incomingTx.Hash())
 
@@ -546,6 +554,24 @@ func detectKillInviteeTx(tx *types.Transaction, prevState *appstate.AppState) *d
 		TxHash:       conversion.ConvertHash(tx.Hash()),
 		InviteTxHash: conversion.ConvertHash(inviter.TxHash),
 	}
+}
+
+func detectOnlineStatusTx(tx *types.Transaction) (becomeOnlineTxHash, becomeOfflineTxHash *string) {
+	if tx.Type != types.OnlineStatusTx {
+		return
+	}
+	attachment := attachments.ParseOnlineStatusAttachment(tx)
+	if attachment == nil {
+		log.Error("Unable to parse online status payload. Skipped.", "tx", tx.Hash())
+		return
+	}
+	h := conversion.ConvertHash(tx.Hash())
+	if attachment.Online {
+		becomeOnlineTxHash = &h
+	} else {
+		becomeOfflineTxHash = &h
+	}
+	return
 }
 
 func convertTxType(txType types.TxType) uint16 {

@@ -41,6 +41,14 @@ insert into kill_invitee_txs (select *
                               from OLD_SCHEMA_TAG.kill_invitee_txs
                               where tx_id in (select id from OLD_SCHEMA_TAG.transactions where block_height <= $1));
 
+insert into become_online_txs (select *
+                               from OLD_SCHEMA_TAG.become_online_txs
+                               where tx_id in (select id from OLD_SCHEMA_TAG.transactions where block_height <= $1));
+
+insert into become_offline_txs (select *
+                                from OLD_SCHEMA_TAG.become_offline_txs
+                                where tx_id in (select id from OLD_SCHEMA_TAG.transactions where block_height <= $1));
+
 insert into activation_tx_transfers (select *
                                      from OLD_SCHEMA_TAG.activation_tx_transfers
                                      where tx_id in

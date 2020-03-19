@@ -231,6 +231,20 @@ where tx_id in
        from transactions t
        where t.block_height > $1);
 
+delete
+from become_online_txs
+where tx_id in
+      (select t.id
+       from transactions t
+       where t.block_height > $1);
+
+delete
+from become_offline_txs
+where tx_id in
+      (select t.id
+       from transactions t
+       where t.block_height > $1);
+
 -- activation_tx_transfers
 delete
 from activation_tx_transfers

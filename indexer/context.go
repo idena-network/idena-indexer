@@ -12,14 +12,16 @@ type conversionContext struct {
 }
 
 type conversionCollector struct {
-	submittedFlips []db.Flip
-	deletedFlips   []db.DeletedFlip
-	flipTxs        []flipTx
-	flipKeys       []db.FlipKey
-	flipsWords     []db.FlipWords
-	addresses      map[string]*db.Address
-	activationTxs  []db.ActivationTx
-	killInviteeTxs []db.KillInviteeTx
+	submittedFlips   []db.Flip
+	deletedFlips     []db.DeletedFlip
+	flipTxs          []flipTx
+	flipKeys         []db.FlipKey
+	flipsWords       []db.FlipWords
+	addresses        map[string]*db.Address
+	activationTxs    []db.ActivationTx
+	killInviteeTxs   []db.KillInviteeTx
+	becomeOnlineTxs  []string
+	becomeOfflineTxs []string
 }
 
 func (collector *conversionCollector) getAddresses() []db.Address {
