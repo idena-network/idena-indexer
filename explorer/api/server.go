@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/hex"
+	"fmt"
 	"github.com/gorilla/mux"
 	"github.com/idena-network/idena-go/blockchain"
 	"github.com/idena-network/idena-go/crypto"
@@ -59,7 +60,7 @@ func (s *httpServer) requestFilter(next http.Handler) http.Handler {
 		if !strings.Contains(strings.ToLower(r.URL.Path), "/search") {
 			urlToLog = r.URL
 		}
-		s.log.Debug("Got api request", "reqId", reqId, "url", urlToLog, "from", server.GetIP(r))
+		s.log.Debug(fmt.Sprintf("Got api request, reqId=%v, url=%v, from=%v", reqId, urlToLog, server.GetIP(r)))
 		defer s.log.Debug("Completed api request", "reqId", reqId)
 		err := r.ParseForm()
 		if err != nil {
@@ -180,6 +181,8 @@ func (s *httpServer) InitRouter(router *mux.Router) {
 		HandlerFunc(s.epochIdentityValidationTxs)
 	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Identity/{address}/Rewards")).
 		HandlerFunc(s.epochIdentityRewards)
+	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Identity/{address}/RewardedFlips")).
+		HandlerFunc(s.epochIdentityFlipsWithRewardFlag)
 
 	router.Path(strings.ToLower("/Block/{id}")).HandlerFunc(s.block)
 	router.Path(strings.ToLower("/Block/{id}/Txs/Count")).HandlerFunc(s.blockTxsCount)
@@ -893,6 +896,20 @@ func (s *httpServer) epochIdentityFlips(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	resp, err := s.db.EpochIdentityFlips(epoch, vars["address"])
+	server.WriteResponse(w, resp, err, s.log)
+}
+
+func (s *httpServer) epochIdentityFlipsWithRewardFlag(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("epochIdentityFlipsWithRewardFlag", r.RequestURI)
+	defer s.pm.Complete(id)
+
+	vars := mux.Vars(r)
+	epoch, err := server.ToUint(vars, "epoch")
+	if err != nil {
+		server.WriteErrorResponse(w, err, s.log)
+		return
+	}
+	resp, err := s.db.EpochIdentityFlipsWithRewardFlag(epoch, vars["address"])
 	server.WriteResponse(w, resp, err, s.log)
 }
 

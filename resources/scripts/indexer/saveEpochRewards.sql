@@ -1,1 +1,1 @@
-call save_epoch_rewards($1, $2, $3, $4, $5, $6, $7)
+call save_epoch_rewards($1, $2, $3, $4, $5, $6, $7, $8)

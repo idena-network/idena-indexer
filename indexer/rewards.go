@@ -25,6 +25,7 @@ func (indexer *Indexer) detectEpochRewards(block *types.Block) *db.EpochRewards 
 	epochRewards.ValidationRewards, epochRewards.FundRewards = convertRewards(rewardsStats.Rewards)
 	epochRewards.Total = convertTotalRewards(rewardsStats)
 	epochRewards.AgesByAddress = rewardsStats.AgesByAddress
+	epochRewards.RewardedFlipCids = rewardsStats.RewardedFlipCids
 
 	return epochRewards
 }
@@ -42,8 +43,8 @@ func convertGoodAuthors(goodAuthors map[common.Address]*types.ValidationResult) 
 	for address, vr := range goodAuthors {
 		res = append(res, &db.ValidationResult{
 			Address:           conversion.ConvertAddress(address),
-			StrongFlips:       vr.StrongFlips,
-			WeakFlips:         vr.WeakFlips,
+			StrongFlips:       len(vr.StrongFlipCids),
+			WeakFlips:         len(vr.WeakFlipCids),
 			SuccessfulInvites: len(vr.SuccessfulInviteAges),
 		})
 	}

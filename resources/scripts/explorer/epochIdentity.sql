@@ -10,6 +10,7 @@ select dis.name                                  state,
        coalesce(ei.missed, false),
        coalesce(ei.required_flips, 0)            required_flips,
        coalesce(ei.made_flips, 0)                made_flips,
+       coalesce(ei.available_flips, 0)           available_flips,
        coalesce((select sum(vr.balance + vr.stake)
                  from validation_rewards vr
                  where vr.ei_address_state_id = eis.address_state_id

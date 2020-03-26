@@ -59,6 +59,7 @@ type EpochRewards struct {
 	ValidationRewards []*Reward
 	FundRewards       []*Reward
 	AgesByAddress     map[string]uint16
+	RewardedFlipCids  []string
 }
 
 type TotalRewards struct {
@@ -158,6 +159,7 @@ type EpochIdentity struct {
 	Approved             bool
 	Missed               bool
 	RequiredFlips        uint8
+	AvailableFlips       uint8
 	MadeFlips            uint8
 	ShortFlipCidsToSolve []string
 	LongFlipCidsToSolve  []string

@@ -644,6 +644,7 @@ CREATE TABLE IF NOT EXISTS epoch_identities
     approved          boolean  NOT NULL,
     missed            boolean  NOT NULL,
     required_flips    smallint NOT NULL,
+    available_flips   smallint NOT NULL,
     made_flips        smallint NOT NULL,
     CONSTRAINT epoch_identities_pkey PRIMARY KEY (address_state_id),
     CONSTRAINT epoch_identities_address_state_id_fkey FOREIGN KEY (address_state_id)
@@ -1356,6 +1357,16 @@ CREATE TABLE IF NOT EXISTS become_offline_txs
         ON DELETE NO ACTION
 );
 
+CREATE TABLE IF NOT EXISTS rewarded_flips
+(
+    flip_tx_id bigint NOT NULL,
+    CONSTRAINT rewarded_flips_pkey PRIMARY KEY (flip_tx_id),
+    CONSTRAINT rewarded_flips_flip_tx_id_fkey FOREIGN KEY (flip_tx_id)
+        REFERENCES flips (tx_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+);
+
 -- Table: flip_key_timestamps
 
 -- DROP TABLE flip_key_timestamps;
@@ -1701,6 +1712,7 @@ $$
             approved          boolean,
             missed            boolean,
             required_flips    smallint,
+            available_flips   smallint,
             made_flips        smallint
         );
 
@@ -2301,10 +2313,10 @@ BEGIN
 
             insert into epoch_identities (epoch, address_state_id, short_point, short_flips, total_short_point,
                                           total_short_flips, long_point, long_flips, approved, missed,
-                                          required_flips, made_flips)
+                                          required_flips, available_flips, made_flips)
             values (p_epoch, l_state_id, identity.short_point, identity.short_flips, identity.total_short_point,
                     identity.total_short_flips, identity.long_point, identity.long_flips, identity.approved,
-                    identity.missed, identity.required_flips, identity.made_flips);
+                    identity.missed, identity.required_flips, identity.available_flips, identity.made_flips);
 
             insert into cur_epoch_identities values (identity.address, l_state_id);
 
@@ -2350,7 +2362,8 @@ CREATE OR REPLACE PROCEDURE save_epoch_rewards(p_block_height bigint,
                                                p_total tp_total_epoch_reward,
                                                p_validation_rewards tp_epoch_reward[],
                                                p_ages tp_reward_age[],
-                                               p_fund_rewards tp_epoch_reward[])
+                                               p_fund_rewards tp_epoch_reward[],
+                                               p_rewarded_flip_cids text[])
     LANGUAGE 'plpgsql'
 AS
 $BODY$
@@ -2373,6 +2386,9 @@ BEGIN
     end if;
     if p_fund_rewards is not null then
         call save_fund_rewards(p_block_height, p_fund_rewards);
+    end if;
+    if p_rewarded_flip_cids is not null then
+        call save_rewarded_flips(p_rewarded_flip_cids);
     end if;
 END
 $BODY$;
@@ -2486,6 +2502,19 @@ BEGIN
                     p_block_height,
                     l_fund_reward.balance,
                     l_fund_reward.type);
+        end loop;
+END
+$BODY$;
+
+CREATE OR REPLACE PROCEDURE save_rewarded_flips(p_rewarded_flip_cids text[])
+    LANGUAGE 'plpgsql'
+AS
+$BODY$
+BEGIN
+    for i in 1..cardinality(p_rewarded_flip_cids)
+        loop
+            insert into rewarded_flips (flip_tx_id)
+            values ((select tx_id from flips where lower(cid) = lower(p_rewarded_flip_cids[i])));
         end loop;
 END
 $BODY$;

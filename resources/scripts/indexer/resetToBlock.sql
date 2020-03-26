@@ -47,6 +47,14 @@ where flip_tx_id in
                 join blocks b on b.height = t.block_height and
                                  b.epoch + 1 > (select epoch from blocks where height = greatest(2, $1)));
 
+delete
+from rewarded_flips
+where flip_tx_id in
+      (select t.id
+       from transactions t
+                join blocks b on b.height = t.block_height and
+                                 b.epoch + 1 > (select epoch from blocks where height = greatest(2, $1)));
+
 -- block_proposer_vrf_scores
 delete
 from block_proposer_vrf_scores

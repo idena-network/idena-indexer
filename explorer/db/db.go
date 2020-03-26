@@ -53,6 +53,7 @@ type Accessor interface {
 	EpochIdentityShortAnswers(epoch uint64, address string) ([]types.Answer, error)
 	EpochIdentityLongAnswers(epoch uint64, address string) ([]types.Answer, error)
 	EpochIdentityFlips(epoch uint64, address string) ([]types.FlipSummary, error)
+	EpochIdentityFlipsWithRewardFlag(epoch uint64, address string) ([]types.FlipWithRewardFlag, error)
 	EpochIdentityValidationTxs(epoch uint64, address string) ([]types.TransactionSummary, error)
 	EpochIdentityRewards(epoch uint64, address string) ([]types.Reward, error)
 

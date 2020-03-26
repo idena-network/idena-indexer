@@ -630,6 +630,8 @@ func (indexer *Indexer) detectEpochResult(block *types.Block, ctx *conversionCon
 		convertedIdentity.TotalShortPoint = ctx.prevStateReadOnly.State.GetShortFlipPoints(addr)
 		convertedIdentity.TotalShortFlips = ctx.prevStateReadOnly.State.GetQualifiedFlipsCount(addr)
 		convertedIdentity.RequiredFlips = ctx.prevStateReadOnly.State.GetRequiredFlips(addr)
+		identityPrevState := ctx.prevStateReadOnly.State.GetIdentity(addr)
+		convertedIdentity.AvailableFlips = identityPrevState.GetMaximumAvailableFlips()
 		convertedIdentity.MadeFlips = ctx.prevStateReadOnly.State.GetMadeFlips(addr)
 		if identityStats, present := validationStats.IdentitiesPerAddr[addr]; present {
 			convertedIdentity.ShortPoint = identityStats.ShortPoint

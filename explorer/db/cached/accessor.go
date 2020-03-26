@@ -487,6 +487,13 @@ func (a *cachedAccessor) EpochIdentityFlips(epoch uint64, address string) ([]typ
 	return res.([]types.FlipSummary), err
 }
 
+func (a *cachedAccessor) EpochIdentityFlipsWithRewardFlag(epoch uint64, address string) ([]types.FlipWithRewardFlag, error) {
+	res, err := a.getOrLoad("EpochIdentityFlipsWithRewardFlag", func() (interface{}, error) {
+		return a.Accessor.EpochIdentityFlipsWithRewardFlag(epoch, address)
+	}, epoch, address)
+	return res.([]types.FlipWithRewardFlag), err
+}
+
 func (a *cachedAccessor) EpochIdentityValidationTxs(epoch uint64, address string) ([]types.TransactionSummary, error) {
 	res, err := a.getOrLoad("EpochIdentityValidationTxs", func() (interface{}, error) {
 		return a.Accessor.EpochIdentityValidationTxs(epoch, address)

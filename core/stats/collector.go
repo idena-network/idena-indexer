@@ -11,6 +11,7 @@ import (
 	statsTypes "github.com/idena-network/idena-go/stats/types"
 	"github.com/idena-network/idena-indexer/core/conversion"
 	"github.com/idena-network/idena-indexer/db"
+	"github.com/ipfs/go-cid"
 	"github.com/shopspring/decimal"
 	"math/big"
 )
@@ -89,8 +90,25 @@ func (c *statsCollector) AddValidationReward(addr common.Address, age uint16, ba
 	c.stats.RewardsStats.AgesByAddress[conversion.ConvertAddress(addr)] = age + 1
 }
 
-func (c *statsCollector) AddFlipsReward(addr common.Address, balance *big.Int, stake *big.Int) {
+func (c *statsCollector) AddFlipsReward(addr common.Address, balance *big.Int, stake *big.Int,
+	rewardedStrongFlipCids [][]byte, rewardedWeakFlipCids [][]byte) {
 	c.addReward(addr, balance, stake, Flips)
+	c.addRewardedFlips(rewardedStrongFlipCids, rewardedWeakFlipCids)
+}
+
+func (c *statsCollector) addRewardedFlips(rewardedStrongFlipCids [][]byte, rewardedWeakFlipCids [][]byte) {
+	if len(rewardedStrongFlipCids)+len(rewardedWeakFlipCids) == 0 {
+		return
+	}
+	c.initRewardStats()
+	for _, cidBytes := range rewardedStrongFlipCids {
+		flipCid, _ := cid.Parse(cidBytes)
+		c.stats.RewardsStats.RewardedFlipCids = append(c.stats.RewardsStats.RewardedFlipCids, flipCid.String())
+	}
+	for _, cidBytes := range rewardedWeakFlipCids {
+		flipCid, _ := cid.Parse(cidBytes)
+		c.stats.RewardsStats.RewardedFlipCids = append(c.stats.RewardsStats.RewardedFlipCids, flipCid.String())
+	}
 }
 
 func (c *statsCollector) AddInvitationsReward(addr common.Address, balance *big.Int, stake *big.Int, age uint16, isSavedInviteWinner bool) {

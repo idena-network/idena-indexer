@@ -49,6 +49,7 @@ type RewardsStats struct {
 	ZeroWalletFund    *big.Int
 	Rewards           []*RewardStats
 	AgesByAddress     map[string]uint16
+	RewardedFlipCids  []string
 }
 
 type RewardStats struct {

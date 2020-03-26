@@ -8,7 +8,8 @@ select t.Hash,
        t.max_fee,
        t.Fee,
        t.size,
-       null                      transfer
+       null                      transfer,
+       false                     become_online
 from transactions t
          join blocks b on b.height = t.block_height and b.epoch = $1
          join addresses afrom on afrom.id = t.from and lower(afrom.address) = lower($2)

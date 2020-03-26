@@ -112,6 +112,11 @@ insert into flip_pics (select *
                        where fd_flip_tx_id in
                              (select id from OLD_SCHEMA_TAG.transactions where block_height <= $1));
 
+insert into rewarded_flips (select *
+                            from OLD_SCHEMA_TAG.rewarded_flips
+                            where flip_tx_id in
+                                  (select id from OLD_SCHEMA_TAG.transactions where block_height <= $1));
+
 -- address_states
 insert into address_states (select * from OLD_SCHEMA_TAG.address_states where block_height <= $1);
 -- restore actual states

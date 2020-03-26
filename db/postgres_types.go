@@ -315,11 +315,12 @@ type postgresEpochIdentity struct {
 	approved        bool
 	missed          bool
 	requiredFlips   uint8
+	availableFlips  uint8
 	madeFlips       uint8
 }
 
 func (v postgresEpochIdentity) Value() (driver.Value, error) {
-	return fmt.Sprintf("(%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v)",
+	return fmt.Sprintf("(%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v)",
 		v.address,
 		v.state,
 		v.shortPoint,
@@ -331,6 +332,7 @@ func (v postgresEpochIdentity) Value() (driver.Value, error) {
 		v.approved,
 		v.missed,
 		v.requiredFlips,
+		v.availableFlips,
 		v.madeFlips,
 	), nil
 }
@@ -387,6 +389,7 @@ func getEpochIdentitiesArrays(identities []EpochIdentity) (identitiesArray, flip
 			approved:        identity.Approved,
 			missed:          identity.Missed,
 			requiredFlips:   identity.RequiredFlips,
+			availableFlips:  identity.AvailableFlips,
 			madeFlips:       identity.MadeFlips,
 		})
 	}

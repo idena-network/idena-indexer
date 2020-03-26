@@ -278,6 +278,7 @@ func readEpochIdentity(rows *sql.Rows) (types.EpochIdentity, error) {
 		&res.LongAnswers.FlipsCount,
 		&res.RequiredFlips,
 		&res.MadeFlips,
+		&res.AvailableFlips,
 		&res.TotalValidationReward)
 	return res, err
 }

@@ -10,6 +10,7 @@ const (
 	epochIdentityAnswersQuery       = "epochIdentityAnswers.sql"
 	epochIdentityFlipsToSolveQuery  = "epochIdentityFlipsToSolve.sql"
 	epochIdentityFlipsQuery         = "epochIdentityFlips.sql"
+	epochIdentityRewardedFlipsQuery = "epochIdentityRewardedFlips.sql"
 	epochIdentityValidationTxsQuery = "epochIdentityValidationTxs.sql"
 	epochIdentityRewardsQuery       = "epochIdentityRewards.sql"
 )
@@ -28,6 +29,7 @@ func (a *postgresAccessor) EpochIdentity(epoch uint64, address string) (types.Ep
 		&res.Missed,
 		&res.RequiredFlips,
 		&res.MadeFlips,
+		&res.AvailableFlips,
 		&res.TotalValidationReward)
 	if err == sql.ErrNoRows {
 		err = NoDataFound
@@ -82,6 +84,49 @@ func (a *postgresAccessor) epochIdentityAnswers(epoch uint64, address string, is
 
 func (a *postgresAccessor) EpochIdentityFlips(epoch uint64, address string) ([]types.FlipSummary, error) {
 	return a.flips(epochIdentityFlipsQuery, epoch, address)
+}
+
+func (a *postgresAccessor) EpochIdentityFlipsWithRewardFlag(epoch uint64, address string) ([]types.FlipWithRewardFlag, error) {
+	rows, err := a.db.Query(a.getQuery(epochIdentityRewardedFlipsQuery), epoch, address)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var res []types.FlipWithRewardFlag
+	for rows.Next() {
+		item := types.FlipWithRewardFlag{}
+		var timestamp int64
+		words := types.FlipWords{}
+		err := rows.Scan(&item.Cid,
+			&item.Size,
+			&item.Author,
+			&item.Epoch,
+			&item.Status,
+			&item.Answer,
+			&item.WrongWords,
+			&item.WrongWordsVotes,
+			&item.ShortRespCount,
+			&item.LongRespCount,
+			&timestamp,
+			&item.Icon,
+			&words.Word1.Index,
+			&words.Word1.Name,
+			&words.Word1.Desc,
+			&words.Word2.Index,
+			&words.Word2.Name,
+			&words.Word2.Desc,
+			&item.WithPrivatePart,
+			&item.Rewarded)
+		if err != nil {
+			return nil, err
+		}
+		item.Timestamp = timestampToTimeUTC(timestamp)
+		if !words.IsEmpty() {
+			item.Words = &words
+		}
+		res = append(res, item)
+	}
+	return res, nil
 }
 
 func (a *postgresAccessor) EpochIdentityValidationTxs(epoch uint64, address string) ([]types.TransactionSummary, error) {

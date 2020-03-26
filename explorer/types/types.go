@@ -152,6 +152,7 @@ type EpochIdentity struct {
 	Missed                bool                   `json:"missed"`
 	RequiredFlips         uint8                  `json:"requiredFlips"`
 	MadeFlips             uint8                  `json:"madeFlips"`
+	AvailableFlips        uint8                  `json:"availableFlips"`
 	TotalValidationReward decimal.Decimal        `json:"totalValidationReward"`
 }
 
@@ -362,4 +363,9 @@ type AdjacentStrValues struct {
 type AdjacentStrValue struct {
 	Value  string `json:"value"`
 	Cycled bool   `json:"cycled"`
+}
+
+type FlipWithRewardFlag struct {
+	FlipSummary
+	Rewarded bool `json:"rewarded"`
 }
