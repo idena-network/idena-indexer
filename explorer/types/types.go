@@ -140,30 +140,19 @@ type Invite struct {
 	KillInviteeEpoch     uint64     `json:"killInviteeEpoch,omitempty"`
 }
 
-type EpochIdentitySummary struct {
-	Address           string                 `json:"address"`
-	Epoch             uint64                 `json:"epoch"`
-	PrevState         string                 `json:"prevState"`
-	State             string                 `json:"state"`
-	ShortAnswers      IdentityAnswersSummary `json:"shortAnswers"`
-	TotalShortAnswers IdentityAnswersSummary `json:"totalShortAnswers"`
-	LongAnswers       IdentityAnswersSummary `json:"longAnswers"`
-	Approved          bool                   `json:"approved"`
-	Missed            bool                   `json:"missed"`
-	RequiredFlips     uint8                  `json:"requiredFlips"`
-	MadeFlips         uint8                  `json:"madeFlips"`
-}
-
 type EpochIdentity struct {
-	PrevState         string                 `json:"prevState"`
-	State             string                 `json:"state"`
-	ShortAnswers      IdentityAnswersSummary `json:"shortAnswers"`
-	TotalShortAnswers IdentityAnswersSummary `json:"totalShortAnswers"`
-	LongAnswers       IdentityAnswersSummary `json:"longAnswers"`
-	Approved          bool                   `json:"approved"`
-	Missed            bool                   `json:"missed"`
-	RequiredFlips     uint8                  `json:"requiredFlips"`
-	MadeFlips         uint8                  `json:"madeFlips"`
+	Address               string                 `json:"address,omitempty"`
+	Epoch                 uint64                 `json:"epoch,omitempty"`
+	PrevState             string                 `json:"prevState"`
+	State                 string                 `json:"state"`
+	ShortAnswers          IdentityAnswersSummary `json:"shortAnswers"`
+	TotalShortAnswers     IdentityAnswersSummary `json:"totalShortAnswers"`
+	LongAnswers           IdentityAnswersSummary `json:"longAnswers"`
+	Approved              bool                   `json:"approved"`
+	Missed                bool                   `json:"missed"`
+	RequiredFlips         uint8                  `json:"requiredFlips"`
+	MadeFlips             uint8                  `json:"madeFlips"`
+	TotalValidationReward decimal.Decimal        `json:"totalValidationReward"`
 }
 
 type Flip struct {

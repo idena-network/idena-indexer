@@ -27,7 +27,7 @@ type Accessor interface {
 	EpochFlipWrongWordsSummary(epoch uint64) ([]types.NullableBoolValueCount, error)
 	EpochIdentitiesCount(epoch uint64, prevStates []string, states []string) (uint64, error)
 	EpochIdentities(epoch uint64, prevStates []string, states []string, startIndex uint64,
-		count uint64) ([]types.EpochIdentitySummary, error)
+		count uint64) ([]types.EpochIdentity, error)
 	EpochIdentityStatesSummary(epoch uint64) ([]types.StrValueCount, error)
 	EpochInvitesSummary(epoch uint64) (types.InvitesSummary, error)
 	EpochInviteStatesSummary(epoch uint64) ([]types.StrValueCount, error)
@@ -77,7 +77,7 @@ type Accessor interface {
 	IdentityAge(address string) (uint64, error)
 	IdentityCurrentFlipCids(address string) ([]string, error)
 	IdentityEpochsCount(address string) (uint64, error)
-	IdentityEpochs(address string, startIndex uint64, count uint64) ([]types.EpochIdentitySummary, error)
+	IdentityEpochs(address string, startIndex uint64, count uint64) ([]types.EpochIdentity, error)
 	IdentityFlipsCount(address string) (uint64, error)
 	IdentityFlips(address string, startIndex uint64, count uint64) ([]types.FlipSummary, error)
 	IdentityFlipQualifiedAnswers(address string) ([]types.StrValueCount, error)

@@ -312,11 +312,11 @@ func (a *cachedAccessor) EpochIdentitiesCount(epoch uint64, prevStates []string,
 }
 
 func (a *cachedAccessor) EpochIdentities(epoch uint64, prevStates []string, states []string, startIndex uint64,
-	count uint64) ([]types.EpochIdentitySummary, error) {
+	count uint64) ([]types.EpochIdentity, error) {
 	res, err := a.getOrLoad("EpochIdentities", func() (interface{}, error) {
 		return a.Accessor.EpochIdentities(epoch, prevStates, states, startIndex, count)
 	}, epoch, prevStates, states, startIndex, count)
-	return res.([]types.EpochIdentitySummary), err
+	return res.([]types.EpochIdentity), err
 }
 
 func (a *cachedAccessor) EpochIdentityStatesSummary(epoch uint64) ([]types.StrValueCount, error) {
@@ -634,11 +634,11 @@ func (a *cachedAccessor) IdentityEpochsCount(address string) (uint64, error) {
 	return res.(uint64), err
 }
 
-func (a *cachedAccessor) IdentityEpochs(address string, startIndex uint64, count uint64) ([]types.EpochIdentitySummary, error) {
+func (a *cachedAccessor) IdentityEpochs(address string, startIndex uint64, count uint64) ([]types.EpochIdentity, error) {
 	res, err := a.getOrLoad("IdentityEpochs", func() (interface{}, error) {
 		return a.Accessor.IdentityEpochs(address, startIndex, count)
 	}, address, startIndex, count)
-	return res.([]types.EpochIdentitySummary), err
+	return res.([]types.EpochIdentity), err
 }
 
 func (a *cachedAccessor) IdentityFlipsCount(address string) (uint64, error) {

@@ -249,31 +249,37 @@ func (a *postgresAccessor) flips(queryName string, args ...interface{}) ([]types
 	return res, nil
 }
 
-func readEpochIdentitySummaries(rows *sql.Rows) ([]types.EpochIdentitySummary, error) {
+func readEpochIdentities(rows *sql.Rows) ([]types.EpochIdentity, error) {
 	defer rows.Close()
-	var res []types.EpochIdentitySummary
+	var res []types.EpochIdentity
 	for rows.Next() {
-		item := types.EpochIdentitySummary{}
-		err := rows.Scan(&item.Address,
-			&item.Epoch,
-			&item.State,
-			&item.PrevState,
-			&item.Approved,
-			&item.Missed,
-			&item.ShortAnswers.Point,
-			&item.ShortAnswers.FlipsCount,
-			&item.TotalShortAnswers.Point,
-			&item.TotalShortAnswers.FlipsCount,
-			&item.LongAnswers.Point,
-			&item.LongAnswers.FlipsCount,
-			&item.RequiredFlips,
-			&item.MadeFlips)
+		item, err := readEpochIdentity(rows)
 		if err != nil {
 			return nil, err
 		}
 		res = append(res, item)
 	}
 	return res, nil
+}
+
+func readEpochIdentity(rows *sql.Rows) (types.EpochIdentity, error) {
+	res := types.EpochIdentity{}
+	err := rows.Scan(&res.Address,
+		&res.Epoch,
+		&res.State,
+		&res.PrevState,
+		&res.Approved,
+		&res.Missed,
+		&res.ShortAnswers.Point,
+		&res.ShortAnswers.FlipsCount,
+		&res.TotalShortAnswers.Point,
+		&res.TotalShortAnswers.FlipsCount,
+		&res.LongAnswers.Point,
+		&res.LongAnswers.FlipsCount,
+		&res.RequiredFlips,
+		&res.MadeFlips,
+		&res.TotalValidationReward)
+	return res, err
 }
 
 func readAnswers(rows *sql.Rows) ([]types.Answer, error) {

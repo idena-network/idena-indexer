@@ -163,7 +163,7 @@ func (a *postgresAccessor) EpochIdentitiesCount(epoch uint64, prevStates []strin
 	return a.count(epochIdentitiesQueryCount, epoch, pq.Array(prevStateIds), pq.Array(stateIds))
 }
 
-func (a *postgresAccessor) EpochIdentities(epoch uint64, prevStates []string, states []string, startIndex uint64, count uint64) ([]types.EpochIdentitySummary, error) {
+func (a *postgresAccessor) EpochIdentities(epoch uint64, prevStates []string, states []string, startIndex uint64, count uint64) ([]types.EpochIdentity, error) {
 	prevStateIds, err := convertIdentityStates(prevStates)
 	if err != nil {
 		return nil, err
@@ -182,7 +182,7 @@ func (a *postgresAccessor) EpochIdentities(epoch uint64, prevStates []string, st
 	if err != nil {
 		return nil, err
 	}
-	return readEpochIdentitySummaries(rows)
+	return readEpochIdentities(rows)
 }
 
 func (a *postgresAccessor) EpochIdentityStatesSummary(epoch uint64) ([]types.StrValueCount, error) {

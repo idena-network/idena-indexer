@@ -91,12 +91,12 @@ func (a *postgresAccessor) IdentityEpochsCount(address string) (uint64, error) {
 	return a.count(identityEpochsCountQuery, address)
 }
 
-func (a *postgresAccessor) IdentityEpochs(address string, startIndex uint64, count uint64) ([]types.EpochIdentitySummary, error) {
+func (a *postgresAccessor) IdentityEpochs(address string, startIndex uint64, count uint64) ([]types.EpochIdentity, error) {
 	rows, err := a.db.Query(a.getQuery(identityEpochsQuery), address, startIndex, count)
 	if err != nil {
 		return nil, err
 	}
-	return readEpochIdentitySummaries(rows)
+	return readEpochIdentities(rows)
 }
 
 func (a *postgresAccessor) IdentityFlipStates(address string) ([]types.StrValueCount, error) {

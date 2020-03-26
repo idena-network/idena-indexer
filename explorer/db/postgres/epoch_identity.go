@@ -11,7 +11,6 @@ const (
 	epochIdentityFlipsToSolveQuery  = "epochIdentityFlipsToSolve.sql"
 	epochIdentityFlipsQuery         = "epochIdentityFlips.sql"
 	epochIdentityValidationTxsQuery = "epochIdentityValidationTxs.sql"
-	epochIdentityRewardsCountQuery  = "epochIdentityRewardsCount.sql"
 	epochIdentityRewardsQuery       = "epochIdentityRewards.sql"
 )
 
@@ -28,7 +27,8 @@ func (a *postgresAccessor) EpochIdentity(epoch uint64, address string) (types.Ep
 		&res.Approved,
 		&res.Missed,
 		&res.RequiredFlips,
-		&res.MadeFlips)
+		&res.MadeFlips,
+		&res.TotalValidationReward)
 	if err == sql.ErrNoRows {
 		err = NoDataFound
 	}
