@@ -118,7 +118,7 @@ func (l *loaderImpl) processHeader(header *flipHeader) {
 		l.logger.Error(errors.Wrap(err, "Unable to load flip").Error())
 		return
 	}
-	if err := l.db.SaveFlipSize(body.cidStr, len(body.ipfsFlip.PublicPart)); err != nil {
+	if err := l.db.SaveFlipSize(body.cidStr, len(body.ipfsFlip.PublicPart)+len(body.ipfsFlip.PrivatePart)); err != nil {
 		l.logger.Error(errors.Wrap(err, "Unable to save flip size").Error())
 		return
 	}
