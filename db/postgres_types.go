@@ -71,6 +71,13 @@ func (v *ValidationResult) Value() (driver.Value, error) {
 	), nil
 }
 
+func (v *BadAuthor) Value() (driver.Value, error) {
+	return fmt.Sprintf("(%v,%v)",
+		v.Address,
+		v.Reason,
+	), nil
+}
+
 func (v *TotalRewards) Value() (driver.Value, error) {
 	if v == nil {
 		return nil, nil

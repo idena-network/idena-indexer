@@ -240,6 +240,24 @@ INSERT INTO dic_epoch_reward_types
 values (8, 'SavedInviteWin')
 ON CONFLICT DO NOTHING;
 
+CREATE TABLE IF NOT EXISTS dic_bad_author_reasons
+(
+    id   smallint                                           NOT NULL,
+    name character varying(20) COLLATE pg_catalog."default" NOT NULL,
+    CONSTRAINT dic_bad_author_reasons_pkey PRIMARY KEY (id),
+    CONSTRAINT dic_bad_author_reasons_name_key UNIQUE (name)
+);
+
+INSERT INTO dic_bad_author_reasons
+values (0, 'NoQualifiedFlips')
+ON CONFLICT DO NOTHING;
+INSERT INTO dic_bad_author_reasons
+values (1, 'QualifiedByNone')
+ON CONFLICT DO NOTHING;
+INSERT INTO dic_bad_author_reasons
+values (2, 'WrongWords')
+ON CONFLICT DO NOTHING;
+
 -- Table: epochs
 
 -- DROP TABLE epochs;
@@ -1202,26 +1220,20 @@ CREATE TABLE IF NOT EXISTS fund_rewards
 ALTER TABLE fund_rewards
     OWNER to postgres;
 
--- Table: bad_authors
-
--- DROP TABLE bad_authors;
-
 CREATE TABLE IF NOT EXISTS bad_authors
 (
-    ei_address_state_id bigint NOT NULL,
+    ei_address_state_id bigint   NOT NULL,
+    reason              smallint NOT NULL,
     CONSTRAINT bad_authors_pkey PRIMARY KEY (ei_address_state_id),
     CONSTRAINT bad_authors_ei_address_state_id_fkey FOREIGN KEY (ei_address_state_id)
         REFERENCES epoch_identities (address_state_id) MATCH SIMPLE
         ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT bad_authors_reason_fkey FOREIGN KEY (reason)
+        REFERENCES dic_bad_author_reasons (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
         ON DELETE NO ACTION
-)
-    WITH (
-        OIDS = FALSE
-    )
-    TABLESPACE pg_default;
-
-ALTER TABLE bad_authors
-    OWNER to postgres;
+);
 
 -- Table: good_authors
 
@@ -1757,6 +1769,22 @@ $$
         );
 
         ALTER TYPE tp_good_author
+            OWNER TO postgres;
+    EXCEPTION
+        WHEN duplicate_object THEN null;
+    END
+$$;
+
+DO
+$$
+    BEGIN
+        CREATE TYPE tp_bad_author AS
+        (
+            address character(42),
+            reason  smallint
+        );
+
+        ALTER TYPE tp_bad_author
             OWNER TO postgres;
     EXCEPTION
         WHEN duplicate_object THEN null;
@@ -2363,7 +2391,7 @@ $BODY$;
 
 -- PROCEDURE: save_epoch_rewards
 CREATE OR REPLACE PROCEDURE save_epoch_rewards(p_block_height bigint,
-                                               p_bad_authors text[],
+                                               p_bad_authors tp_bad_author[],
                                                p_good_authors tp_good_author[],
                                                p_total tp_total_epoch_reward,
                                                p_validation_rewards tp_epoch_reward[],
@@ -2399,17 +2427,20 @@ BEGIN
 END
 $BODY$;
 
-CREATE OR REPLACE PROCEDURE save_bad_authors(p_bad_authors text[])
+CREATE OR REPLACE PROCEDURE save_bad_authors(p_bad_authors tp_bad_author[])
     LANGUAGE 'plpgsql'
 AS
 $BODY$
+DECLARE
+    l_bad_author tp_bad_author;
 BEGIN
     for i in 1..cardinality(p_bad_authors)
         loop
-            insert into bad_authors (ei_address_state_id)
+            l_bad_author := p_bad_authors[i];
+            insert into bad_authors (ei_address_state_id, reason)
             values ((select address_state_id
                      from cur_epoch_identities
-                     where lower(address) = lower(p_bad_authors[i])));
+                     where lower(address) = lower(l_bad_author.address)), l_bad_author.reason);
         end loop;
 END
 $BODY$;

@@ -30,10 +30,13 @@ func (indexer *Indexer) detectEpochRewards(block *types.Block) *db.EpochRewards 
 	return epochRewards
 }
 
-func convertBadAuthors(badAuthors map[common.Address]struct{}) []string {
-	var res []string
-	for address := range badAuthors {
-		res = append(res, conversion.ConvertAddress(address))
+func convertBadAuthors(badAuthors map[common.Address]types.BadAuthorReason) []*db.BadAuthor {
+	var res []*db.BadAuthor
+	for address, reason := range badAuthors {
+		res = append(res, &db.BadAuthor{
+			Address: conversion.ConvertAddress(address),
+			Reason:  reason,
+		})
 	}
 	return res
 }

@@ -13,6 +13,7 @@ const (
 	epochIdentityRewardedFlipsQuery = "epochIdentityRewardedFlips.sql"
 	epochIdentityValidationTxsQuery = "epochIdentityValidationTxs.sql"
 	epochIdentityRewardsQuery       = "epochIdentityRewards.sql"
+	epochIdentityBadAuthorQuery     = "epochIdentityBadAuthor.sql"
 )
 
 func (a *postgresAccessor) EpochIdentity(epoch uint64, address string) (types.EpochIdentity, error) {
@@ -139,4 +140,23 @@ func (a *postgresAccessor) EpochIdentityValidationTxs(epoch uint64, address stri
 
 func (a *postgresAccessor) EpochIdentityRewards(epoch uint64, address string) ([]types.Reward, error) {
 	return a.rewards(epochIdentityRewardsQuery, epoch, address)
+}
+
+func (a *postgresAccessor) EpochIdentityBadAuthor(epoch uint64, address string) (*types.BadAuthor, error) {
+	res := types.BadAuthor{}
+	err := a.db.QueryRow(a.getQuery(epochIdentityBadAuthorQuery), epoch, address).Scan(
+		&res.Address,
+		&res.Epoch,
+		&res.WrongWords,
+		&res.Reason,
+		&res.PrevState,
+		&res.State,
+	)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &res, nil
 }

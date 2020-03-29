@@ -508,6 +508,13 @@ func (a *cachedAccessor) EpochIdentityRewards(epoch uint64, address string) ([]t
 	return res.([]types.Reward), err
 }
 
+func (a *cachedAccessor) EpochIdentityBadAuthor(epoch uint64, address string) (*types.BadAuthor, error) {
+	res, err := a.getOrLoad("EpochIdentityBadAuthor", func() (interface{}, error) {
+		return a.Accessor.EpochIdentityBadAuthor(epoch, address)
+	}, epoch, address)
+	return res.(*types.BadAuthor), err
+}
+
 func (a *cachedAccessor) BlockByHeight(height uint64) (types.BlockDetail, error) {
 	res, err := a.getOrLoad("BlockByHeight", func() (interface{}, error) {
 		return a.Accessor.BlockByHeight(height)

@@ -183,6 +183,8 @@ func (s *httpServer) InitRouter(router *mux.Router) {
 		HandlerFunc(s.epochIdentityRewards)
 	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Identity/{address}/RewardedFlips")).
 		HandlerFunc(s.epochIdentityFlipsWithRewardFlag)
+	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Identity/{address}/Authors/Bad")).
+		HandlerFunc(s.epochIdentityBadAuthor)
 
 	router.Path(strings.ToLower("/Block/{id}")).HandlerFunc(s.block)
 	router.Path(strings.ToLower("/Block/{id}/Txs/Count")).HandlerFunc(s.blockTxsCount)
@@ -910,6 +912,20 @@ func (s *httpServer) epochIdentityFlipsWithRewardFlag(w http.ResponseWriter, r *
 		return
 	}
 	resp, err := s.db.EpochIdentityFlipsWithRewardFlag(epoch, vars["address"])
+	server.WriteResponse(w, resp, err, s.log)
+}
+
+func (s *httpServer) epochIdentityBadAuthor(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("epochIdentityBadAuthor", r.RequestURI)
+	defer s.pm.Complete(id)
+
+	vars := mux.Vars(r)
+	epoch, err := server.ToUint(vars, "epoch")
+	if err != nil {
+		server.WriteErrorResponse(w, err, s.log)
+		return
+	}
+	resp, err := s.db.EpochIdentityBadAuthor(epoch, vars["address"])
 	server.WriteResponse(w, resp, err, s.log)
 }
 

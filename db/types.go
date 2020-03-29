@@ -53,7 +53,7 @@ type Data struct {
 }
 
 type EpochRewards struct {
-	BadAuthors        []string
+	BadAuthors        []*BadAuthor
 	GoodAuthors       []*ValidationResult
 	Total             *TotalRewards
 	ValidationRewards []*Reward
@@ -79,6 +79,11 @@ type Reward struct {
 	Balance decimal.Decimal
 	Stake   decimal.Decimal
 	Type    byte
+}
+
+type BadAuthor struct {
+	Address string
+	Reason  byte
 }
 
 type MiningReward struct {
