@@ -293,6 +293,9 @@ type RewardsSummary struct {
 	Invitations       decimal.Decimal `json:"invitations"`
 	FoundationPayouts decimal.Decimal `json:"foundationPayouts"`
 	ZeroWalletFund    decimal.Decimal `json:"zeroWalletFund"`
+	ValidationShare   decimal.Decimal `json:"validationShare"`
+	FlipsShare        decimal.Decimal `json:"flipsShare"`
+	InvitationsShare  decimal.Decimal `json:"invitationsShare"`
 }
 
 type AuthorValidationSummary struct {

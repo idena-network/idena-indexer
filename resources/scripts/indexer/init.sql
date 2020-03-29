@@ -1101,13 +1101,16 @@ ALTER TABLE penalties
 
 CREATE TABLE IF NOT EXISTS total_rewards
 (
-    block_height bigint          NOT NULL,
-    total        numeric(30, 18) NOT NULL,
-    validation   numeric(30, 18) NOT NULL,
-    flips        numeric(30, 18) NOT NULL,
-    invitations  numeric(30, 18) NOT NULL,
-    foundation   numeric(30, 18) NOT NULL,
-    zero_wallet  numeric(30, 18) NOT NULL,
+    block_height      bigint          NOT NULL,
+    total             numeric(30, 18) NOT NULL,
+    validation        numeric(30, 18) NOT NULL,
+    flips             numeric(30, 18) NOT NULL,
+    invitations       numeric(30, 18) NOT NULL,
+    foundation        numeric(30, 18) NOT NULL,
+    zero_wallet       numeric(30, 18) NOT NULL,
+    validation_share  numeric(30, 18) NOT NULL,
+    flips_share       numeric(30, 18) NOT NULL,
+    invitations_share numeric(30, 18) NOT NULL,
     CONSTRAINT total_rewards_pkey PRIMARY KEY (block_height),
     CONSTRAINT total_rewards_block_height_fkey FOREIGN KEY (block_height)
         REFERENCES blocks (height) MATCH SIMPLE
@@ -1766,12 +1769,15 @@ $$
         -- Type: tp_total_epoch_reward
         CREATE TYPE tp_total_epoch_reward AS
         (
-            total       numeric(30, 18),
-            validation  numeric(30, 18),
-            flips       numeric(30, 18),
-            invitations numeric(30, 18),
-            foundation  numeric(30, 18),
-            zero_wallet numeric(30, 18)
+            total             numeric(30, 18),
+            validation        numeric(30, 18),
+            flips             numeric(30, 18),
+            invitations       numeric(30, 18),
+            foundation        numeric(30, 18),
+            zero_wallet       numeric(30, 18),
+            validation_share  numeric(30, 18),
+            flips_share       numeric(30, 18),
+            invitations_share numeric(30, 18)
         );
 
         ALTER TYPE tp_total_epoch_reward
@@ -2435,14 +2441,25 @@ CREATE OR REPLACE PROCEDURE save_total_reward(p_block_height bigint,
 AS
 $BODY$
 BEGIN
-    insert into total_rewards (block_height, total, validation, flips, invitations, foundation, zero_wallet)
+    insert into total_rewards (block_height,
+                               total, validation,
+                               flips,
+                               invitations,
+                               foundation,
+                               zero_wallet,
+                               validation_share,
+                               flips_share,
+                               invitations_share)
     values (p_block_height,
             p_total.total,
             p_total.validation,
             p_total.flips,
             p_total.invitations,
             p_total.foundation,
-            p_total.zero_wallet);
+            p_total.zero_wallet,
+            p_total.validation_share,
+            p_total.flips_share,
+            p_total.invitations_share);
 END
 $BODY$;
 

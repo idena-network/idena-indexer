@@ -69,6 +69,9 @@ type TotalRewards struct {
 	Invitations       decimal.Decimal
 	FoundationPayouts decimal.Decimal
 	ZeroWalletFund    decimal.Decimal
+	ValidationShare   decimal.Decimal
+	FlipsShare        decimal.Decimal
+	InvitationsShare  decimal.Decimal
 }
 
 type Reward struct {

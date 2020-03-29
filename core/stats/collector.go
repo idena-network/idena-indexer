@@ -57,19 +57,22 @@ func (c *statsCollector) SetTotalReward(amount *big.Int) {
 	c.stats.RewardsStats.Total = amount
 }
 
-func (c *statsCollector) SetTotalValidationReward(amount *big.Int) {
+func (c *statsCollector) SetTotalValidationReward(amount *big.Int, share *big.Int) {
 	c.initRewardStats()
 	c.stats.RewardsStats.Validation = amount
+	c.stats.RewardsStats.ValidationShare = share
 }
 
-func (c *statsCollector) SetTotalFlipsReward(amount *big.Int) {
+func (c *statsCollector) SetTotalFlipsReward(amount *big.Int, share *big.Int) {
 	c.initRewardStats()
 	c.stats.RewardsStats.Flips = amount
+	c.stats.RewardsStats.FlipsShare = share
 }
 
-func (c *statsCollector) SetTotalInvitationsReward(amount *big.Int) {
+func (c *statsCollector) SetTotalInvitationsReward(amount *big.Int, share *big.Int) {
 	c.initRewardStats()
 	c.stats.RewardsStats.Invitations = amount
+	c.stats.RewardsStats.InvitationsShare = share
 }
 
 func (c *statsCollector) SetTotalFoundationPayouts(amount *big.Int) {

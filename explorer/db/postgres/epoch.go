@@ -236,13 +236,18 @@ func (a *postgresAccessor) EpochCoins(epoch uint64) (types.AllCoins, error) {
 func (a *postgresAccessor) EpochRewardsSummary(epoch uint64) (types.RewardsSummary, error) {
 	res := types.RewardsSummary{}
 	err := a.db.QueryRow(a.getQuery(epochRewardsSummaryQuery), epoch).
-		Scan(&res.Epoch,
+		Scan(
+			&res.Epoch,
 			&res.Total,
 			&res.Validation,
 			&res.Flips,
 			&res.Invitations,
 			&res.FoundationPayouts,
-			&res.ZeroWalletFund)
+			&res.ZeroWalletFund,
+			&res.ValidationShare,
+			&res.FlipsShare,
+			&res.InvitationsShare,
+		)
 	if err == sql.ErrNoRows {
 		err = NoDataFound
 	}
