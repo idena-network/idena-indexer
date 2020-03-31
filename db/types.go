@@ -53,13 +53,26 @@ type Data struct {
 }
 
 type EpochRewards struct {
-	BadAuthors        []*BadAuthor
-	GoodAuthors       []*ValidationResult
-	Total             *TotalRewards
-	ValidationRewards []*Reward
-	FundRewards       []*Reward
-	AgesByAddress     map[string]uint16
-	RewardedFlipCids  []string
+	BadAuthors          []*BadAuthor
+	GoodAuthors         []*ValidationResult
+	Total               *TotalRewards
+	ValidationRewards   []*Reward
+	FundRewards         []*Reward
+	AgesByAddress       map[string]uint16
+	RewardedFlipCids    []string
+	RewardedInvitations []*RewardedInvite
+	SavedInviteRewards  []*SavedInviteRewards
+}
+
+type RewardedInvite struct {
+	TxHash string
+	Type   byte
+}
+
+type SavedInviteRewards struct {
+	Address string
+	Type    byte
+	Count   uint8
 }
 
 type TotalRewards struct {
@@ -169,6 +182,7 @@ type EpochIdentity struct {
 	RequiredFlips        uint8
 	AvailableFlips       uint8
 	MadeFlips            uint8
+	NextEpochInvites     uint8
 	ShortFlipCidsToSolve []string
 	LongFlipCidsToSolve  []string
 }

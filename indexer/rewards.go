@@ -26,6 +26,8 @@ func (indexer *Indexer) detectEpochRewards(block *types.Block) *db.EpochRewards 
 	epochRewards.Total = convertTotalRewards(rewardsStats)
 	epochRewards.AgesByAddress = rewardsStats.AgesByAddress
 	epochRewards.RewardedFlipCids = rewardsStats.RewardedFlipCids
+	epochRewards.RewardedInvitations = rewardsStats.RewardedInvites
+	epochRewards.SavedInviteRewards = convertSavedInviteRewards(rewardsStats.SavedInviteRewardsCountByAddrAndType)
 
 	return epochRewards
 }
@@ -48,7 +50,7 @@ func convertGoodAuthors(goodAuthors map[common.Address]*types.ValidationResult) 
 			Address:           conversion.ConvertAddress(address),
 			StrongFlips:       len(vr.StrongFlipCids),
 			WeakFlips:         len(vr.WeakFlipCids),
-			SuccessfulInvites: len(vr.SuccessfulInviteAges),
+			SuccessfulInvites: len(vr.SuccessfulInvites),
 		})
 	}
 	return res
@@ -94,4 +96,18 @@ func convertReward(reward *stats.RewardStats) *db.Reward {
 
 func convertRewardType(rewardType stats.RewardType) byte {
 	return byte(rewardType)
+}
+
+func convertSavedInviteRewards(savedInviteRewardsCountByAddrAndType map[common.Address]map[stats.RewardType]uint8) []*db.SavedInviteRewards {
+	var res []*db.SavedInviteRewards
+	for addr, addrCountByType := range savedInviteRewardsCountByAddrAndType {
+		for rewardType, count := range addrCountByType {
+			res = append(res, &db.SavedInviteRewards{
+				Address: conversion.ConvertAddress(addr),
+				Type:    byte(rewardType),
+				Count:   count,
+			})
+		}
+	}
+	return res
 }

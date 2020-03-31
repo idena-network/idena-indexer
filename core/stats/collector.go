@@ -1,6 +1,7 @@
 package stats
 
 import (
+	"fmt"
 	mapset "github.com/deckarep/golang-set"
 	"github.com/idena-network/idena-go/blockchain"
 	"github.com/idena-network/idena-go/blockchain/types"
@@ -11,7 +12,9 @@ import (
 	statsTypes "github.com/idena-network/idena-go/stats/types"
 	"github.com/idena-network/idena-indexer/core/conversion"
 	"github.com/idena-network/idena-indexer/db"
+	"github.com/idena-network/idena-indexer/log"
 	"github.com/ipfs/go-cid"
+	"github.com/pkg/errors"
 	"github.com/shopspring/decimal"
 	"math/big"
 )
@@ -114,25 +117,54 @@ func (c *statsCollector) addRewardedFlips(rewardedStrongFlipCids [][]byte, rewar
 	}
 }
 
-func (c *statsCollector) AddInvitationsReward(addr common.Address, balance *big.Int, stake *big.Int, age uint16, isSavedInviteWinner bool) {
-	var rewardType RewardType
-	switch age {
-	case 0:
-		if isSavedInviteWinner {
-			rewardType = SavedInviteWin
-		} else {
-			rewardType = SavedInvite
-		}
-	case 1:
-		rewardType = Invitations
-	case 2:
-		rewardType = Invitations2
-	case 3:
-		rewardType = Invitations3
-	default:
+func (c *statsCollector) AddInvitationsReward(addr common.Address, balance *big.Int, stake *big.Int, age uint16,
+	txHash *common.Hash, isSavedInviteWinner bool) {
+	rewardType, err := determineInvitationsRewardType(age, isSavedInviteWinner)
+	if err != nil {
+		log.Warn(err.Error())
 		return
 	}
 	c.addReward(addr, balance, stake, rewardType)
+	c.addRewardedInvite(addr, txHash, rewardType)
+}
+
+func determineInvitationsRewardType(age uint16, isSavedInviteWinner bool) (RewardType, error) {
+	switch age {
+	case 0:
+		if isSavedInviteWinner {
+			return SavedInviteWin, nil
+		}
+		return SavedInvite, nil
+	case 1:
+		return Invitations, nil
+	case 2:
+		return Invitations2, nil
+	case 3:
+		return Invitations3, nil
+	default:
+		return 0, errors.Errorf("no invitations reward type for age: %v, isSavedInviteWinner: %v", age, isSavedInviteWinner)
+	}
+}
+
+func (c *statsCollector) addRewardedInvite(addr common.Address, txHash *common.Hash, rewardType RewardType) {
+	if rewardType == SavedInviteWin || rewardType == SavedInvite {
+		if c.stats.RewardsStats.SavedInviteRewardsCountByAddrAndType == nil {
+			c.stats.RewardsStats.SavedInviteRewardsCountByAddrAndType = make(map[common.Address]map[RewardType]uint8)
+		}
+		if _, ok := c.stats.RewardsStats.SavedInviteRewardsCountByAddrAndType[addr]; !ok {
+			c.stats.RewardsStats.SavedInviteRewardsCountByAddrAndType[addr] = make(map[RewardType]uint8)
+		}
+		c.stats.RewardsStats.SavedInviteRewardsCountByAddrAndType[addr][rewardType]++
+		return
+	}
+	if txHash == nil {
+		log.Warn(fmt.Sprintf("wrong value txHash=nil for rewardType=%v", rewardType))
+		return
+	}
+	c.stats.RewardsStats.RewardedInvites = append(c.stats.RewardsStats.RewardedInvites, &db.RewardedInvite{
+		TxHash: conversion.ConvertHash(*txHash),
+		Type:   byte(rewardType),
+	})
 }
 
 func (c *statsCollector) AddFoundationPayout(addr common.Address, balance *big.Int) {

@@ -515,6 +515,27 @@ func (a *cachedAccessor) EpochIdentityBadAuthor(epoch uint64, address string) (*
 	return res.(*types.BadAuthor), err
 }
 
+func (a *cachedAccessor) EpochIdentityInvitesWithRewardFlag(epoch uint64, address string) ([]types.InviteWithRewardFlag, error) {
+	res, err := a.getOrLoad("EpochIdentityInvitesWithRewardFlag", func() (interface{}, error) {
+		return a.Accessor.EpochIdentityInvitesWithRewardFlag(epoch, address)
+	}, epoch, address)
+	return res.([]types.InviteWithRewardFlag), err
+}
+
+func (a *cachedAccessor) EpochIdentitySavedInviteRewards(epoch uint64, address string) ([]types.StrValueCount, error) {
+	res, err := a.getOrLoad("EpochIdentitySavedInviteRewards", func() (interface{}, error) {
+		return a.Accessor.EpochIdentitySavedInviteRewards(epoch, address)
+	}, epoch, address)
+	return res.([]types.StrValueCount), err
+}
+
+func (a *cachedAccessor) EpochIdentityAvailableInvites(epoch uint64, address string) ([]types.EpochInvites, error) {
+	res, err := a.getOrLoad("EpochIdentityAvailableInvites", func() (interface{}, error) {
+		return a.Accessor.EpochIdentityAvailableInvites(epoch, address)
+	}, epoch, address)
+	return res.([]types.EpochInvites), err
+}
+
 func (a *cachedAccessor) BlockByHeight(height uint64) (types.BlockDetail, error) {
 	res, err := a.getOrLoad("BlockByHeight", func() (interface{}, error) {
 		return a.Accessor.BlockByHeight(height)

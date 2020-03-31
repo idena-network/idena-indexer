@@ -40,19 +40,21 @@ type Stats struct {
 }
 
 type RewardsStats struct {
-	Authors           *types.ValidationAuthors
-	Total             *big.Int
-	Validation        *big.Int
-	Flips             *big.Int
-	Invitations       *big.Int
-	FoundationPayouts *big.Int
-	ZeroWalletFund    *big.Int
-	ValidationShare   *big.Int
-	FlipsShare        *big.Int
-	InvitationsShare  *big.Int
-	Rewards           []*RewardStats
-	AgesByAddress     map[string]uint16
-	RewardedFlipCids  []string
+	Authors                              *types.ValidationAuthors
+	Total                                *big.Int
+	Validation                           *big.Int
+	Flips                                *big.Int
+	Invitations                          *big.Int
+	FoundationPayouts                    *big.Int
+	ZeroWalletFund                       *big.Int
+	ValidationShare                      *big.Int
+	FlipsShare                           *big.Int
+	InvitationsShare                     *big.Int
+	Rewards                              []*RewardStats
+	AgesByAddress                        map[string]uint16
+	RewardedFlipCids                     []string
+	RewardedInvites                      []*db.RewardedInvite
+	SavedInviteRewardsCountByAddrAndType map[common.Address]map[RewardType]uint8
 }
 
 type RewardStats struct {

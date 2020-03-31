@@ -57,6 +57,9 @@ type Accessor interface {
 	EpochIdentityValidationTxs(epoch uint64, address string) ([]types.TransactionSummary, error)
 	EpochIdentityRewards(epoch uint64, address string) ([]types.Reward, error)
 	EpochIdentityBadAuthor(epoch uint64, address string) (*types.BadAuthor, error)
+	EpochIdentityInvitesWithRewardFlag(epoch uint64, address string) ([]types.InviteWithRewardFlag, error)
+	EpochIdentitySavedInviteRewards(epoch uint64, address string) ([]types.StrValueCount, error)
+	EpochIdentityAvailableInvites(epoch uint64, address string) ([]types.EpochInvites, error)
 
 	BlockByHeight(height uint64) (types.BlockDetail, error)
 	BlockTxsCountByHeight(height uint64) (uint64, error)

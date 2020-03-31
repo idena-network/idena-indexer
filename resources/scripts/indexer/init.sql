@@ -651,19 +651,20 @@ CREATE INDEX IF NOT EXISTS address_states_address_id_idx on address_states (addr
 
 CREATE TABLE IF NOT EXISTS epoch_identities
 (
-    address_state_id  bigint   NOT NULL,
-    epoch             bigint   NOT NULL,
-    short_point       real     NOT NULL,
-    short_flips       integer  NOT NULL,
-    total_short_point real     NOT NULL,
-    total_short_flips integer  NOT NULL,
-    long_point        real     NOT NULL,
-    long_flips        integer  NOT NULL,
-    approved          boolean  NOT NULL,
-    missed            boolean  NOT NULL,
-    required_flips    smallint NOT NULL,
-    available_flips   smallint NOT NULL,
-    made_flips        smallint NOT NULL,
+    address_state_id   bigint   NOT NULL,
+    epoch              bigint   NOT NULL,
+    short_point        real     NOT NULL,
+    short_flips        integer  NOT NULL,
+    total_short_point  real     NOT NULL,
+    total_short_flips  integer  NOT NULL,
+    long_point         real     NOT NULL,
+    long_flips         integer  NOT NULL,
+    approved           boolean  NOT NULL,
+    missed             boolean  NOT NULL,
+    required_flips     smallint NOT NULL,
+    available_flips    smallint NOT NULL,
+    made_flips         smallint NOT NULL,
+    next_epoch_invites smallint NOT NULL,
     CONSTRAINT epoch_identities_pkey PRIMARY KEY (address_state_id),
     CONSTRAINT epoch_identities_address_state_id_fkey FOREIGN KEY (address_state_id)
         REFERENCES address_states (id) MATCH SIMPLE
@@ -1382,6 +1383,42 @@ CREATE TABLE IF NOT EXISTS rewarded_flips
         ON DELETE NO ACTION
 );
 
+CREATE TABLE IF NOT EXISTS rewarded_invitations
+(
+    invite_tx_id bigint   NOT NULL,
+    block_height bigint   NOT NULL,
+    reward_type  smallint NOT NULL,
+    CONSTRAINT rewarded_invitations_pkey PRIMARY KEY (invite_tx_id, block_height),
+    CONSTRAINT rewarded_invitations_invite_tx_id_fkey FOREIGN KEY (invite_tx_id)
+        REFERENCES transactions (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT rewarded_invitations_block_height_fkey FOREIGN KEY (block_height)
+        REFERENCES blocks (height) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT rewarded_invitations_reward_type_fkey FOREIGN KEY (reward_type)
+        REFERENCES dic_epoch_reward_types (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+);
+
+CREATE TABLE IF NOT EXISTS saved_invite_rewards
+(
+    ei_address_state_id bigint   NOT NULL,
+    reward_type         smallint NOT NULL,
+    count               smallint NOT NULL,
+    CONSTRAINT saved_invite_rewards_pkey PRIMARY KEY (ei_address_state_id, reward_type),
+    CONSTRAINT saved_invite_rewards_ei_address_state_id_fkey FOREIGN KEY (ei_address_state_id)
+        REFERENCES epoch_identities (address_state_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT saved_invite_rewards_reward_type_fkey FOREIGN KEY (reward_type)
+        REFERENCES dic_epoch_reward_types (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+);
+
 -- Table: flip_key_timestamps
 
 -- DROP TABLE flip_key_timestamps;
@@ -1716,19 +1753,20 @@ $$
         -- Type: tp_epoch_identity
         CREATE TYPE tp_epoch_identity AS
         (
-            address           character(42),
-            state             smallint,
-            short_point       real,
-            short_flips       integer,
-            total_short_point real,
-            total_short_flips integer,
-            long_point        real,
-            long_flips        integer,
-            approved          boolean,
-            missed            boolean,
-            required_flips    smallint,
-            available_flips   smallint,
-            made_flips        smallint
+            address            character(42),
+            state              smallint,
+            short_point        real,
+            short_flips        integer,
+            total_short_point  real,
+            total_short_flips  integer,
+            long_point         real,
+            long_flips         integer,
+            approved           boolean,
+            missed             boolean,
+            required_flips     smallint,
+            available_flips    smallint,
+            made_flips         smallint,
+            next_epoch_invites smallint
         );
 
         ALTER TYPE tp_epoch_identity
@@ -1925,6 +1963,33 @@ $$
         (
             tx_hash        character(66),
             invite_tx_hash character(66)
+        );
+    EXCEPTION
+        WHEN duplicate_object THEN null;
+    END
+$$;
+
+DO
+$$
+    BEGIN
+        CREATE TYPE tp_rewarded_invitation AS
+        (
+            tx_hash     character(66),
+            reward_type smallint
+        );
+    EXCEPTION
+        WHEN duplicate_object THEN null;
+    END
+$$;
+
+DO
+$$
+    BEGIN
+        CREATE TYPE tp_saved_invite_rewards AS
+        (
+            address     text,
+            reward_type smallint,
+            count       smallint
         );
     EXCEPTION
         WHEN duplicate_object THEN null;
@@ -2307,7 +2372,6 @@ BEGIN
 END
 $BODY$;
 
--- PROCEDURE: save_epoch_identities
 CREATE OR REPLACE PROCEDURE save_epoch_identities(p_epoch bigint,
                                                   p_height bigint,
                                                   p_identities tp_epoch_identity[],
@@ -2347,10 +2411,11 @@ BEGIN
 
             insert into epoch_identities (epoch, address_state_id, short_point, short_flips, total_short_point,
                                           total_short_flips, long_point, long_flips, approved, missed,
-                                          required_flips, available_flips, made_flips)
+                                          required_flips, available_flips, made_flips, next_epoch_invites)
             values (p_epoch, l_state_id, identity.short_point, identity.short_flips, identity.total_short_point,
                     identity.total_short_flips, identity.long_point, identity.long_flips, identity.approved,
-                    identity.missed, identity.required_flips, identity.available_flips, identity.made_flips);
+                    identity.missed, identity.required_flips, identity.available_flips, identity.made_flips,
+                    identity.next_epoch_invites);
 
             insert into cur_epoch_identities values (identity.address, l_state_id);
 
@@ -2397,7 +2462,9 @@ CREATE OR REPLACE PROCEDURE save_epoch_rewards(p_block_height bigint,
                                                p_validation_rewards tp_epoch_reward[],
                                                p_ages tp_reward_age[],
                                                p_fund_rewards tp_epoch_reward[],
-                                               p_rewarded_flip_cids text[])
+                                               p_rewarded_flip_cids text[],
+                                               p_rewarded_invitations tp_rewarded_invitation[],
+                                               p_saved_invite_rewards tp_saved_invite_rewards[])
     LANGUAGE 'plpgsql'
 AS
 $BODY$
@@ -2423,6 +2490,12 @@ BEGIN
     end if;
     if p_rewarded_flip_cids is not null then
         call save_rewarded_flips(p_rewarded_flip_cids);
+    end if;
+    if p_rewarded_invitations is not null then
+        call save_rewarded_invitations(p_block_height, p_rewarded_invitations);
+    end if;
+    if p_saved_invite_rewards is not null then
+        call save_saved_invite_rewards(p_saved_invite_rewards);
     end if;
 END
 $BODY$;
@@ -2563,6 +2636,45 @@ BEGIN
         loop
             insert into rewarded_flips (flip_tx_id)
             values ((select tx_id from flips where lower(cid) = lower(p_rewarded_flip_cids[i])));
+        end loop;
+END
+$BODY$;
+
+CREATE OR REPLACE PROCEDURE save_rewarded_invitations(p_block_height bigint,
+                                                      p_rewarded_invitations tp_rewarded_invitation[])
+    LANGUAGE 'plpgsql'
+AS
+$BODY$
+DECLARE
+    l_rewarded_invitation tp_rewarded_invitation;
+BEGIN
+    for i in 1..cardinality(p_rewarded_invitations)
+        loop
+            l_rewarded_invitation = p_rewarded_invitations[i];
+            insert into rewarded_invitations (invite_tx_id, block_height, reward_type)
+            values ((select id from transactions where lower(hash) = lower(l_rewarded_invitation.tx_hash)),
+                    p_block_height,
+                    l_rewarded_invitation.reward_type);
+        end loop;
+END
+$BODY$;
+
+CREATE OR REPLACE PROCEDURE save_saved_invite_rewards(p_saved_invite_rewards tp_saved_invite_rewards[])
+    LANGUAGE 'plpgsql'
+AS
+$BODY$
+DECLARE
+    l_saved_invite_rewards tp_saved_invite_rewards;
+BEGIN
+    for i in 1..cardinality(p_saved_invite_rewards)
+        loop
+            l_saved_invite_rewards = p_saved_invite_rewards[i];
+            insert into saved_invite_rewards (ei_address_state_id, reward_type, count)
+            values ((select address_state_id
+                     from cur_epoch_identities
+                     where lower(address) = lower(l_saved_invite_rewards.address)),
+                    l_saved_invite_rewards.reward_type,
+                    l_saved_invite_rewards.count);
         end loop;
 END
 $BODY$;

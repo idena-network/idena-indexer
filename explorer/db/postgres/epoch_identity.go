@@ -6,14 +6,17 @@ import (
 )
 
 const (
-	epochIdentityQuery              = "epochIdentity.sql"
-	epochIdentityAnswersQuery       = "epochIdentityAnswers.sql"
-	epochIdentityFlipsToSolveQuery  = "epochIdentityFlipsToSolve.sql"
-	epochIdentityFlipsQuery         = "epochIdentityFlips.sql"
-	epochIdentityRewardedFlipsQuery = "epochIdentityRewardedFlips.sql"
-	epochIdentityValidationTxsQuery = "epochIdentityValidationTxs.sql"
-	epochIdentityRewardsQuery       = "epochIdentityRewards.sql"
-	epochIdentityBadAuthorQuery     = "epochIdentityBadAuthor.sql"
+	epochIdentityQuery                   = "epochIdentity.sql"
+	epochIdentityAnswersQuery            = "epochIdentityAnswers.sql"
+	epochIdentityFlipsToSolveQuery       = "epochIdentityFlipsToSolve.sql"
+	epochIdentityFlipsQuery              = "epochIdentityFlips.sql"
+	epochIdentityRewardedFlipsQuery      = "epochIdentityRewardedFlips.sql"
+	epochIdentityValidationTxsQuery      = "epochIdentityValidationTxs.sql"
+	epochIdentityRewardsQuery            = "epochIdentityRewards.sql"
+	epochIdentityBadAuthorQuery          = "epochIdentityBadAuthor.sql"
+	epochIdentityRewardedInvitesQuery    = "epochIdentityRewardedInvites.sql"
+	epochIdentitySavedInviteRewardsQuery = "epochIdentitySavedInviteRewards.sql"
+	epochIdentityAvailableInvitesQuery   = "epochIdentityAvailableInvites.sql"
 )
 
 func (a *postgresAccessor) EpochIdentity(epoch uint64, address string) (types.EpochIdentity, error) {
@@ -159,4 +162,65 @@ func (a *postgresAccessor) EpochIdentityBadAuthor(epoch uint64, address string) 
 		return nil, err
 	}
 	return &res, nil
+}
+
+func (a *postgresAccessor) EpochIdentityInvitesWithRewardFlag(epoch uint64, address string) ([]types.InviteWithRewardFlag, error) {
+	rows, err := a.db.Query(a.getQuery(epochIdentityRewardedInvitesQuery), epoch, address)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var res []types.InviteWithRewardFlag
+	for rows.Next() {
+		item := types.InviteWithRewardFlag{}
+		var timestamp, activationTimestamp, killInviteeTimestamp int64
+		if err := rows.Scan(
+			&item.Hash,
+			&item.Author,
+			&timestamp,
+			&item.Epoch,
+			&item.ActivationHash,
+			&item.ActivationAuthor,
+			&activationTimestamp,
+			&item.State,
+			&item.KillInviteeHash,
+			&killInviteeTimestamp,
+			&item.KillInviteeEpoch,
+			&item.RewardType,
+		); err != nil {
+			return nil, err
+		}
+		item.Timestamp = timestampToTimeUTC(timestamp)
+		if activationTimestamp > 0 {
+			t := timestampToTimeUTC(activationTimestamp)
+			item.ActivationTimestamp = &t
+		}
+		if killInviteeTimestamp > 0 {
+			t := timestampToTimeUTC(killInviteeTimestamp)
+			item.KillInviteeTimestamp = &t
+		}
+		res = append(res, item)
+	}
+	return res, nil
+}
+
+func (a *postgresAccessor) EpochIdentitySavedInviteRewards(epoch uint64, address string) ([]types.StrValueCount, error) {
+	return a.strValueCounts(epochIdentitySavedInviteRewardsQuery, epoch, address)
+}
+
+func (a *postgresAccessor) EpochIdentityAvailableInvites(epoch uint64, address string) ([]types.EpochInvites, error) {
+	rows, err := a.db.Query(a.getQuery(epochIdentityAvailableInvitesQuery), epoch, address)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var res []types.EpochInvites
+	for rows.Next() {
+		item := types.EpochInvites{}
+		if err := rows.Scan(&item.Epoch, &item.Invites); err != nil {
+			return nil, err
+		}
+		res = append(res, item)
+	}
+	return res, nil
 }

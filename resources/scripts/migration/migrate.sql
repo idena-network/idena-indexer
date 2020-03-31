@@ -33,6 +33,8 @@ insert into transactions (select * from OLD_SCHEMA_TAG.transactions where block_
 select setval('transactions_id_seq', max(id))
 from transactions;
 
+insert into rewarded_invitations (select * from OLD_SCHEMA_TAG.rewarded_invitations where block_height <= $1);
+
 insert into activation_txs (select *
                             from OLD_SCHEMA_TAG.activation_txs
                             where tx_id in (select id from OLD_SCHEMA_TAG.transactions where block_height <= $1));
@@ -203,6 +205,11 @@ insert into reward_ages
     (select *
      from OLD_SCHEMA_TAG.reward_ages
      where ei_address_state_id in (select id from OLD_SCHEMA_TAG.address_states where block_height <= $1));
+
+insert into saved_invite_rewards
+    (select *
+     from OLD_SCHEMA_TAG.saved_invite_rewards
+     where ei_address_state_id in (select id from OLD_SCHEMA_TAG.saved_invite_rewards where block_height <= $1));
 
 -- failed_validations
 insert into failed_validations (select * from OLD_SCHEMA_TAG.failed_validations where block_height <= $1);

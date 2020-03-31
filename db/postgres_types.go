@@ -104,6 +104,21 @@ func (v *Reward) Value() (driver.Value, error) {
 	), nil
 }
 
+func (v *RewardedInvite) Value() (driver.Value, error) {
+	return fmt.Sprintf("(%v,%v)",
+		v.TxHash,
+		v.Type,
+	), nil
+}
+
+func (v *SavedInviteRewards) Value() (driver.Value, error) {
+	return fmt.Sprintf("(%v,%v,%v)",
+		v.Address,
+		v.Type,
+		v.Count,
+	), nil
+}
+
 func (v *FailedFlipContent) Value() (driver.Value, error) {
 	var timestamp int64
 	if v.NextAttemptTimestamp != nil {
@@ -314,23 +329,24 @@ func getFlipStatsArrays(stats []FlipStats) (answersArray, statesArray interface 
 }
 
 type postgresEpochIdentity struct {
-	address         string
-	state           uint8
-	shortPoint      float32
-	shortFlips      uint32
-	totalShortPoint float32
-	totalShortFlips uint32
-	longPoint       float32
-	longFlips       uint32
-	approved        bool
-	missed          bool
-	requiredFlips   uint8
-	availableFlips  uint8
-	madeFlips       uint8
+	address          string
+	state            uint8
+	shortPoint       float32
+	shortFlips       uint32
+	totalShortPoint  float32
+	totalShortFlips  uint32
+	longPoint        float32
+	longFlips        uint32
+	approved         bool
+	missed           bool
+	requiredFlips    uint8
+	availableFlips   uint8
+	madeFlips        uint8
+	nextEpochInvites uint8
 }
 
 func (v postgresEpochIdentity) Value() (driver.Value, error) {
-	return fmt.Sprintf("(%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v)",
+	return fmt.Sprintf("(%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v)",
 		v.address,
 		v.state,
 		v.shortPoint,
@@ -344,6 +360,7 @@ func (v postgresEpochIdentity) Value() (driver.Value, error) {
 		v.requiredFlips,
 		v.availableFlips,
 		v.madeFlips,
+		v.nextEpochInvites,
 	), nil
 }
 
@@ -388,19 +405,20 @@ func getEpochIdentitiesArrays(identities []EpochIdentity) (identitiesArray, flip
 			convertAndAddFlipToSolve(identity.Address, flipCid, false)
 		}
 		convertedIdentities = append(convertedIdentities, postgresEpochIdentity{
-			address:         identity.Address,
-			state:           identity.State,
-			shortPoint:      identity.ShortPoint,
-			shortFlips:      identity.ShortFlips,
-			totalShortPoint: identity.TotalShortPoint,
-			totalShortFlips: identity.TotalShortFlips,
-			longPoint:       identity.LongPoint,
-			longFlips:       identity.LongFlips,
-			approved:        identity.Approved,
-			missed:          identity.Missed,
-			requiredFlips:   identity.RequiredFlips,
-			availableFlips:  identity.AvailableFlips,
-			madeFlips:       identity.MadeFlips,
+			address:          identity.Address,
+			state:            identity.State,
+			shortPoint:       identity.ShortPoint,
+			shortFlips:       identity.ShortFlips,
+			totalShortPoint:  identity.TotalShortPoint,
+			totalShortFlips:  identity.TotalShortFlips,
+			longPoint:        identity.LongPoint,
+			longFlips:        identity.LongFlips,
+			approved:         identity.Approved,
+			missed:           identity.Missed,
+			requiredFlips:    identity.RequiredFlips,
+			availableFlips:   identity.AvailableFlips,
+			madeFlips:        identity.MadeFlips,
+			nextEpochInvites: identity.NextEpochInvites,
 		})
 	}
 	return pq.Array(convertedIdentities), pq.Array(convertedFlipsToSolve)

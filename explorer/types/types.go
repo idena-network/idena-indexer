@@ -373,3 +373,13 @@ type FlipWithRewardFlag struct {
 	FlipSummary
 	Rewarded bool `json:"rewarded"`
 }
+
+type InviteWithRewardFlag struct {
+	Invite
+	RewardType string `json:"rewardType,omitempty"`
+}
+
+type EpochInvites struct {
+	Epoch   uint64 `json:"epoch"`
+	Invites uint8  `json:"invites"`
+}

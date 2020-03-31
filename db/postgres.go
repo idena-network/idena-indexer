@@ -561,6 +561,8 @@ func (a *postgresAccessor) saveEpochRewards(ctx *context, epochRewards *EpochRew
 		getRewardAgesArray(epochRewards.AgesByAddress),
 		pq.Array(epochRewards.FundRewards),
 		pq.Array(epochRewards.RewardedFlipCids),
+		pq.Array(epochRewards.RewardedInvitations),
+		pq.Array(epochRewards.SavedInviteRewards),
 	)
 	return errors.Wrap(err, "unable to save epoch rewards")
 }

@@ -164,6 +164,13 @@ where ei_address_state_id in
        from address_states
        where block_height > $1);
 
+delete
+from saved_invite_rewards
+where ei_address_state_id in
+      (select id
+       from address_states
+       where block_height > $1);
+
 -- epoch_identities
 delete
 from epoch_identities
@@ -276,6 +283,10 @@ where tx_id in
       (select t.id
        from transactions t
        where t.block_height > $1);
+
+delete
+from rewarded_invitations
+where block_height > $1;
 
 -- transactions
 delete

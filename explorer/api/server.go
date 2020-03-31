@@ -185,6 +185,12 @@ func (s *httpServer) InitRouter(router *mux.Router) {
 		HandlerFunc(s.epochIdentityFlipsWithRewardFlag)
 	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Identity/{address}/Authors/Bad")).
 		HandlerFunc(s.epochIdentityBadAuthor)
+	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Identity/{address}/RewardedInvites")).
+		HandlerFunc(s.epochIdentityInvitesWithRewardFlag)
+	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Identity/{address}/SavedInviteRewards")).
+		HandlerFunc(s.epochIdentitySavedInviteRewards)
+	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Identity/{address}/AvailableInvites")).
+		HandlerFunc(s.epochIdentityAvailableInvites)
 
 	router.Path(strings.ToLower("/Block/{id}")).HandlerFunc(s.block)
 	router.Path(strings.ToLower("/Block/{id}/Txs/Count")).HandlerFunc(s.blockTxsCount)
@@ -954,6 +960,48 @@ func (s *httpServer) epochIdentityRewards(w http.ResponseWriter, r *http.Request
 		return
 	}
 	resp, err := s.db.EpochIdentityRewards(epoch, vars["address"])
+	server.WriteResponse(w, resp, err, s.log)
+}
+
+func (s *httpServer) epochIdentityInvitesWithRewardFlag(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("epochIdentityInvitesWithRewardFlag", r.RequestURI)
+	defer s.pm.Complete(id)
+
+	vars := mux.Vars(r)
+	epoch, err := server.ToUint(vars, "epoch")
+	if err != nil {
+		server.WriteErrorResponse(w, err, s.log)
+		return
+	}
+	resp, err := s.db.EpochIdentityInvitesWithRewardFlag(epoch, vars["address"])
+	server.WriteResponse(w, resp, err, s.log)
+}
+
+func (s *httpServer) epochIdentitySavedInviteRewards(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("epochIdentitySavedInviteRewards", r.RequestURI)
+	defer s.pm.Complete(id)
+
+	vars := mux.Vars(r)
+	epoch, err := server.ToUint(vars, "epoch")
+	if err != nil {
+		server.WriteErrorResponse(w, err, s.log)
+		return
+	}
+	resp, err := s.db.EpochIdentitySavedInviteRewards(epoch, vars["address"])
+	server.WriteResponse(w, resp, err, s.log)
+}
+
+func (s *httpServer) epochIdentityAvailableInvites(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("epochIdentityAvailableInvites", r.RequestURI)
+	defer s.pm.Complete(id)
+
+	vars := mux.Vars(r)
+	epoch, err := server.ToUint(vars, "epoch")
+	if err != nil {
+		server.WriteErrorResponse(w, err, s.log)
+		return
+	}
+	resp, err := s.db.EpochIdentityAvailableInvites(epoch, vars["address"])
 	server.WriteResponse(w, resp, err, s.log)
 }
 
