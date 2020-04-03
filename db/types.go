@@ -183,6 +183,7 @@ type EpochIdentity struct {
 	AvailableFlips       uint8
 	MadeFlips            uint8
 	NextEpochInvites     uint8
+	BirthEpoch           uint64
 	ShortFlipCidsToSolve []string
 	LongFlipCidsToSolve  []string
 }

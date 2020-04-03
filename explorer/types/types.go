@@ -154,6 +154,7 @@ type EpochIdentity struct {
 	MadeFlips             uint8                  `json:"madeFlips"`
 	AvailableFlips        uint8                  `json:"availableFlips"`
 	TotalValidationReward decimal.Decimal        `json:"totalValidationReward"`
+	BirthEpoch            uint64                 `json:"birthEpoch"`
 }
 
 type Flip struct {

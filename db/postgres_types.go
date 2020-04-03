@@ -343,10 +343,11 @@ type postgresEpochIdentity struct {
 	availableFlips   uint8
 	madeFlips        uint8
 	nextEpochInvites uint8
+	birthEpoch       uint64
 }
 
 func (v postgresEpochIdentity) Value() (driver.Value, error) {
-	return fmt.Sprintf("(%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v)",
+	return fmt.Sprintf("(%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v)",
 		v.address,
 		v.state,
 		v.shortPoint,
@@ -361,6 +362,7 @@ func (v postgresEpochIdentity) Value() (driver.Value, error) {
 		v.availableFlips,
 		v.madeFlips,
 		v.nextEpochInvites,
+		v.birthEpoch,
 	), nil
 }
 
@@ -419,6 +421,7 @@ func getEpochIdentitiesArrays(identities []EpochIdentity) (identitiesArray, flip
 			availableFlips:   identity.AvailableFlips,
 			madeFlips:        identity.MadeFlips,
 			nextEpochInvites: identity.NextEpochInvites,
+			birthEpoch:       identity.BirthEpoch,
 		})
 	}
 	return pq.Array(convertedIdentities), pq.Array(convertedFlipsToSolve)

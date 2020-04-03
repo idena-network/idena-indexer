@@ -20,7 +20,7 @@ from transactions t
          left join (select ei.epoch, s.address_id, s.state
                     from epoch_identities ei
                              join address_states s on s.id = ei.address_state_id) eis
-                   on eis.address_id = at.to and b.epoch = eis.epoch
+                   on eis.address_id = at.to and eis.epoch = $1
          left join dic_identity_states dis on dis.id = eis.state
          left join kill_invitee_txs kit on kit.invite_tx_id = t.id
          left join transactions kitt on kitt.id = kit.tx_id

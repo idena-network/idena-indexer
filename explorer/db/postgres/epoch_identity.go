@@ -21,7 +21,8 @@ const (
 
 func (a *postgresAccessor) EpochIdentity(epoch uint64, address string) (types.EpochIdentity, error) {
 	res := types.EpochIdentity{}
-	err := a.db.QueryRow(a.getQuery(epochIdentityQuery), epoch, address).Scan(&res.State,
+	err := a.db.QueryRow(a.getQuery(epochIdentityQuery), epoch, address).Scan(
+		&res.State,
 		&res.PrevState,
 		&res.ShortAnswers.Point,
 		&res.ShortAnswers.FlipsCount,
@@ -34,7 +35,9 @@ func (a *postgresAccessor) EpochIdentity(epoch uint64, address string) (types.Ep
 		&res.RequiredFlips,
 		&res.MadeFlips,
 		&res.AvailableFlips,
-		&res.TotalValidationReward)
+		&res.TotalValidationReward,
+		&res.BirthEpoch,
+	)
 	if err == sql.ErrNoRows {
 		err = NoDataFound
 	}

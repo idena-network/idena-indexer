@@ -264,7 +264,8 @@ func readEpochIdentities(rows *sql.Rows) ([]types.EpochIdentity, error) {
 
 func readEpochIdentity(rows *sql.Rows) (types.EpochIdentity, error) {
 	res := types.EpochIdentity{}
-	err := rows.Scan(&res.Address,
+	err := rows.Scan(
+		&res.Address,
 		&res.Epoch,
 		&res.State,
 		&res.PrevState,
@@ -279,7 +280,9 @@ func readEpochIdentity(rows *sql.Rows) (types.EpochIdentity, error) {
 		&res.RequiredFlips,
 		&res.MadeFlips,
 		&res.AvailableFlips,
-		&res.TotalValidationReward)
+		&res.TotalValidationReward,
+		&res.BirthEpoch,
+	)
 	return res, err
 }
 

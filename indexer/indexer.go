@@ -649,6 +649,13 @@ func (indexer *Indexer) detectEpochResult(block *types.Block, ctx *conversionCon
 			convertedIdentity.Approved = false
 			convertedIdentity.Missed = true
 		}
+
+		if identityPrevState.State == state.Invite || identityPrevState.State == state.Candidate {
+			convertedIdentity.BirthEpoch = uint64(ctx.prevStateReadOnly.State.Epoch())
+		} else {
+			convertedIdentity.BirthEpoch = uint64(identityPrevState.Birthday)
+		}
+
 		identities = append(identities, convertedIdentity)
 
 		birthday := detectBirthday(addr, identity.Birthday, ctx.newStateReadOnly.State.GetIdentity(addr).Birthday)

@@ -665,6 +665,7 @@ CREATE TABLE IF NOT EXISTS epoch_identities
     available_flips    smallint NOT NULL,
     made_flips         smallint NOT NULL,
     next_epoch_invites smallint NOT NULL,
+    birth_epoch        bigint   NOT NULL,
     CONSTRAINT epoch_identities_pkey PRIMARY KEY (address_state_id),
     CONSTRAINT epoch_identities_address_state_id_fkey FOREIGN KEY (address_state_id)
         REFERENCES address_states (id) MATCH SIMPLE
@@ -1766,7 +1767,8 @@ $$
             required_flips     smallint,
             available_flips    smallint,
             made_flips         smallint,
-            next_epoch_invites smallint
+            next_epoch_invites smallint,
+            birth_epoch        bigint
         );
 
         ALTER TYPE tp_epoch_identity
@@ -2411,11 +2413,11 @@ BEGIN
 
             insert into epoch_identities (epoch, address_state_id, short_point, short_flips, total_short_point,
                                           total_short_flips, long_point, long_flips, approved, missed,
-                                          required_flips, available_flips, made_flips, next_epoch_invites)
+                                          required_flips, available_flips, made_flips, next_epoch_invites, birth_epoch)
             values (p_epoch, l_state_id, identity.short_point, identity.short_flips, identity.total_short_point,
                     identity.total_short_flips, identity.long_point, identity.long_flips, identity.approved,
                     identity.missed, identity.required_flips, identity.available_flips, identity.made_flips,
-                    identity.next_epoch_invites);
+                    identity.next_epoch_invites, identity.birth_epoch);
 
             insert into cur_epoch_identities values (identity.address, l_state_id);
 

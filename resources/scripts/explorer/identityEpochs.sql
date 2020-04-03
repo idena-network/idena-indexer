@@ -16,7 +16,8 @@ select a.address,
        coalesce((select sum(vr.balance + vr.stake)
                  from validation_rewards vr
                  where vr.ei_address_state_id = eis.address_state_id
-                   and ei.epoch = eis.epoch), 0) total_validation_reward
+                   and ei.epoch = eis.epoch), 0) total_validation_reward,
+       coalesce(ei.birth_epoch, 0)               birth_epoch
 from epoch_identity_states eis
          join addresses a on a.id = eis.address_id
          left join address_states prevs on prevs.id = eis.prev_id
