@@ -316,18 +316,19 @@ CREATE INDEX IF NOT EXISTS blocks_timestamp_idx on blocks ("timestamp" desc);
 
 CREATE TABLE IF NOT EXISTS epoch_summaries
 (
-    epoch             bigint          NOT NULL,
-    validated_count   integer         NOT NULL,
-    block_count       bigint          NOT NULL,
-    empty_block_count bigint          NOT NULL,
-    tx_count          bigint          NOT NULL,
-    invite_count      bigint          NOT NULL,
-    flip_count        integer         NOT NULL,
-    burnt             numeric(30, 18) NOT NULL,
-    minted            numeric(30, 18) NOT NULL,
-    total_balance     numeric(30, 18) NOT NULL,
-    total_stake       numeric(30, 18) NOT NULL,
-    block_height      bigint          NOT NULL,
+    epoch                bigint          NOT NULL,
+    validated_count      integer         NOT NULL,
+    block_count          bigint          NOT NULL,
+    empty_block_count    bigint          NOT NULL,
+    tx_count             bigint          NOT NULL,
+    invite_count         bigint          NOT NULL,
+    flip_count           integer         NOT NULL,
+    burnt                numeric(30, 18) NOT NULL,
+    minted               numeric(30, 18) NOT NULL,
+    total_balance        numeric(30, 18) NOT NULL,
+    total_stake          numeric(30, 18) NOT NULL,
+    block_height         bigint          NOT NULL,
+    min_score_for_invite real            NOT NULL,
     CONSTRAINT epoch_summaries_pkey PRIMARY KEY (epoch),
     CONSTRAINT epoch_summaries_block_height_fkey FOREIGN KEY (block_height)
         REFERENCES blocks (height) MATCH SIMPLE

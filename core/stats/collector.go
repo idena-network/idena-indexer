@@ -50,6 +50,10 @@ func (c *statsCollector) SetValidation(validation *statsTypes.ValidationStats) {
 	c.stats.ValidationStats = validation
 }
 
+func (c *statsCollector) SetMinScoreForInvite(score float32) {
+	c.stats.MinScoreForInvite = &score
+}
+
 func (c *statsCollector) SetAuthors(authors *types.ValidationAuthors) {
 	c.initRewardStats()
 	c.stats.RewardsStats.Authors = authors

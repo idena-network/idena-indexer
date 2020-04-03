@@ -10,7 +10,8 @@ insert into epoch_summaries
  minted,
  total_balance,
  total_stake,
- block_height)
+ block_height,
+ min_score_for_invite)
 values ($1,
         (select count(*)
          from epoch_identities ei
@@ -51,4 +52,5 @@ values ($1,
          where b.epoch = $1),
         $3,
         $4,
-        $2)
+        $2,
+        $5)

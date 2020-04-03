@@ -13,22 +13,24 @@ type Entity struct {
 }
 
 type EpochSummary struct {
-	Epoch           uint64         `json:"epoch"`
-	ValidationTime  time.Time      `json:"validationTime"`
-	ValidatedCount  uint32         `json:"validatedCount"`
-	BlockCount      uint32         `json:"blockCount"`
-	EmptyBlockCount uint32         `json:"emptyBlockCount"`
-	TxCount         uint32         `json:"txCount"`
-	InviteCount     uint32         `json:"inviteCount"`
-	FlipCount       uint32         `json:"flipCount"`
-	Coins           AllCoins       `json:"coins"`
-	Rewards         RewardsSummary `json:"rewards"`
+	Epoch             uint64         `json:"epoch"`
+	ValidationTime    time.Time      `json:"validationTime"`
+	ValidatedCount    uint32         `json:"validatedCount"`
+	BlockCount        uint32         `json:"blockCount"`
+	EmptyBlockCount   uint32         `json:"emptyBlockCount"`
+	TxCount           uint32         `json:"txCount"`
+	InviteCount       uint32         `json:"inviteCount"`
+	FlipCount         uint32         `json:"flipCount"`
+	Coins             AllCoins       `json:"coins"`
+	Rewards           RewardsSummary `json:"rewards"`
+	MinScoreForInvite float32        `json:"minScoreForInvite"`
 }
 
 type EpochDetail struct {
 	Epoch                      uint64    `json:"epoch"`
 	ValidationTime             time.Time `json:"validationTime"`
 	ValidationFirstBlockHeight uint64    `json:"validationFirstBlockHeight"`
+	MinScoreForInvite          float32   `json:"minScoreForInvite"`
 }
 
 type BlockSummary struct {

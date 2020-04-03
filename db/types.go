@@ -50,6 +50,7 @@ type Data struct {
 	MiningRewards          []*MiningReward
 	BurntCoinsPerAddr      map[common.Address][]*BurntCoins
 	FailedValidation       bool
+	MinScoreForInvite      float32
 }
 
 type EpochRewards struct {

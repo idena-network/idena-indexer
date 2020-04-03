@@ -265,6 +265,10 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) *result 
 		ctx.newStateReadOnly)
 
 	coins, totalBalance, totalStake := indexer.getCoins(indexer.isFirstBlock(incomingBlock), diff)
+	var minScoreForInvite float32 = 0
+	if indexer.statsHolder().GetStats().MinScoreForInvite != nil {
+		minScoreForInvite = *indexer.statsHolder().GetStats().MinScoreForInvite
+	}
 
 	dbData := &db.Data{
 		Epoch:                  epoch,
@@ -295,6 +299,7 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) *result 
 		MiningRewards:          indexer.statsHolder().GetStats().MiningRewards,
 		BurntCoinsPerAddr:      indexer.statsHolder().GetStats().BurntCoinsByAddr,
 		FailedValidation:       !notFailedValidation,
+		MinScoreForInvite:      minScoreForInvite,
 	}
 	resData := &resultData{
 		totalBalance: totalBalance,

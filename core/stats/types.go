@@ -25,6 +25,7 @@ const (
 
 type Stats struct {
 	ValidationStats        *statsTypes.ValidationStats
+	MinScoreForInvite      *float32
 	RewardsStats           *RewardsStats
 	MiningRewards          []*db.MiningReward
 	FinalCommittee         []common.Address

@@ -77,9 +77,12 @@ func (a *postgresAccessor) Epoch(epoch uint64) (types.EpochDetail, error) {
 func (a *postgresAccessor) epoch(queryName string, args ...interface{}) (types.EpochDetail, error) {
 	res := types.EpochDetail{}
 	var validationTime int64
-	err := a.db.QueryRow(a.getQuery(queryName), args...).Scan(&res.Epoch,
+	err := a.db.QueryRow(a.getQuery(queryName), args...).Scan(
+		&res.Epoch,
 		&validationTime,
-		&res.ValidationFirstBlockHeight)
+		&res.ValidationFirstBlockHeight,
+		&res.MinScoreForInvite,
+	)
 	if err == sql.ErrNoRows {
 		err = NoDataFound
 	}

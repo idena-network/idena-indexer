@@ -220,7 +220,7 @@ func (a *postgresAccessor) Save(data *Data) error {
 
 	if data.SaveEpochSummary {
 		a.pm.Start("saveEpochSummary")
-		if err = a.saveEpochSummary(ctx, data.Coins); err != nil {
+		if err = a.saveEpochSummary(ctx, data.Coins, data.MinScoreForInvite); err != nil {
 			return err
 		}
 		a.pm.Complete("saveEpochSummary")
@@ -506,8 +506,14 @@ func (a *postgresAccessor) getFlipWordsCount(ctx *context, flipTxId uint64) (int
 	return count, errors.Wrapf(err, "unable to get flip words count for flip tx id %v", flipTxId)
 }
 
-func (a *postgresAccessor) saveEpochSummary(ctx *context, coins Coins) error {
-	_, err := ctx.tx.Exec(a.getQuery(insertEpochSummaryQuery), ctx.epoch, ctx.blockHeight, coins.TotalBalance, coins.TotalStake)
+func (a *postgresAccessor) saveEpochSummary(ctx *context, coins Coins, minScoreForInvite float32) error {
+	_, err := ctx.tx.Exec(a.getQuery(insertEpochSummaryQuery),
+		ctx.epoch,
+		ctx.blockHeight,
+		coins.TotalBalance,
+		coins.TotalStake,
+		minScoreForInvite,
+	)
 	return errors.Wrapf(err, "unable to save epoch summary for %v", ctx.epoch)
 }
 
