@@ -326,6 +326,13 @@ func (a *cachedAccessor) EpochIdentityStatesSummary(epoch uint64) ([]types.StrVa
 	return res.([]types.StrValueCount), err
 }
 
+func (a *cachedAccessor) EpochIdentityStatesInterimSummary(epoch uint64) ([]types.StrValueCount, error) {
+	res, err := a.getOrLoad("EpochIdentityStatesInterimSummary", func() (interface{}, error) {
+		return a.Accessor.EpochIdentityStatesInterimSummary(epoch)
+	}, epoch)
+	return res.([]types.StrValueCount), err
+}
+
 func (a *cachedAccessor) EpochInvitesSummary(epoch uint64) (types.InvitesSummary, error) {
 	res, err := a.getOrLoad("EpochInvitesSummary", func() (interface{}, error) {
 		return a.Accessor.EpochInvitesSummary(epoch)

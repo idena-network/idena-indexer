@@ -136,6 +136,10 @@ where id in
 select setval('address_states_id_seq', max(id))
 from address_states;
 
+insert into epoch_identity_interim_states (select *
+                                           from OLD_SCHEMA_TAG.epoch_identity_interim_states
+                                           where block_height <= $1);
+
 -- epoch_identities
 insert into epoch_identities (select *
                               from OLD_SCHEMA_TAG.epoch_identities

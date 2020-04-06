@@ -1,25 +1,10 @@
--- Table: words_dictionary
-
--- DROP TABLE words_dictionary;
-
 CREATE TABLE IF NOT EXISTS words_dictionary
 (
     id          bigint                                              NOT NULL,
     name        character varying(20) COLLATE pg_catalog."default"  NOT NULL,
     description character varying(100) COLLATE pg_catalog."default" NOT NULL,
     CONSTRAINT words_dictionary_pkey PRIMARY KEY (id)
-)
-    WITH (
-        OIDS = FALSE
-    )
-    TABLESPACE pg_default;
-
-ALTER TABLE words_dictionary
-    OWNER to postgres;
-
--- Table: dic_identity_states
-
--- DROP TABLE dic_identity_states;
+);
 
 CREATE TABLE IF NOT EXISTS dic_identity_states
 (
@@ -27,14 +12,7 @@ CREATE TABLE IF NOT EXISTS dic_identity_states
     name character varying(20) COLLATE pg_catalog."default" NOT NULL,
     CONSTRAINT dic_identity_states_pkey PRIMARY KEY (id),
     CONSTRAINT dic_identity_states_name_key UNIQUE (name)
-)
-    WITH (
-        OIDS = FALSE
-    )
-    TABLESPACE pg_default;
-
-ALTER TABLE dic_identity_states
-    OWNER to postgres;
+);
 
 INSERT INTO dic_identity_states
 values (0, 'Undefined')
@@ -64,24 +42,13 @@ INSERT INTO dic_identity_states
 values (8, 'Human')
 ON CONFLICT DO NOTHING;
 
--- Table: dic_tx_types
-
--- DROP TABLE dic_tx_types;
-
 CREATE TABLE IF NOT EXISTS dic_tx_types
 (
     id   smallint                                           NOT NULL,
     name character varying(20) COLLATE pg_catalog."default" NOT NULL,
     CONSTRAINT dic_tx_types_pkey PRIMARY KEY (id),
     CONSTRAINT dic_tx_types_name_key UNIQUE (name)
-)
-    WITH (
-        OIDS = FALSE
-    )
-    TABLESPACE pg_default;
-
-ALTER TABLE dic_tx_types
-    OWNER to postgres;
+);
 
 INSERT INTO dic_tx_types
 values (0, 'SendTx')
@@ -129,24 +96,13 @@ INSERT INTO dic_tx_types
 values (14, 'DeleteFlipTx')
 ON CONFLICT DO NOTHING;
 
--- Table: dic_flips_statuses
-
--- DROP TABLE dic_flips_statuses;
-
 CREATE TABLE IF NOT EXISTS dic_flip_statuses
 (
     id   smallint                                           NOT NULL,
     name character varying(20) COLLATE pg_catalog."default" NOT NULL,
     CONSTRAINT dic_flip_statuses_pkey PRIMARY KEY (id),
     CONSTRAINT dic_flip_statuses_name_key UNIQUE (name)
-)
-    WITH (
-        OIDS = FALSE
-    )
-    TABLESPACE pg_default;
-
-ALTER TABLE dic_flip_statuses
-    OWNER to postgres;
+);
 
 INSERT INTO dic_flip_statuses
 values (0, 'NotQualified')
@@ -161,24 +117,13 @@ INSERT INTO dic_flip_statuses
 values (3, 'QualifiedByNone')
 ON CONFLICT DO NOTHING;
 
--- Table: dic_answers
-
--- DROP TABLE dic_answers;
-
 CREATE TABLE IF NOT EXISTS dic_answers
 (
     id   smallint                                           NOT NULL,
     name character varying(20) COLLATE pg_catalog."default" NOT NULL,
     CONSTRAINT dic_answers_pkey PRIMARY KEY (id),
     CONSTRAINT dic_answers_name_key UNIQUE (name)
-)
-    WITH (
-        OIDS = FALSE
-    )
-    TABLESPACE pg_default;
-
-ALTER TABLE dic_answers
-    OWNER to postgres;
+);
 
 INSERT INTO dic_answers
 values (0, 'None')
@@ -193,24 +138,13 @@ INSERT INTO dic_answers
 values (3, 'Inappropriate')
 ON CONFLICT DO NOTHING;
 
--- Table: dic_validation_reward_types
-
--- DROP TABLE dic_validation_reward_types;
-
 CREATE TABLE IF NOT EXISTS dic_epoch_reward_types
 (
     id   smallint                                           NOT NULL,
     name character varying(20) COLLATE pg_catalog."default" NOT NULL,
     CONSTRAINT dic_epoch_reward_types_pkey PRIMARY KEY (id),
     CONSTRAINT dic_epoch_reward_types_name_key UNIQUE (name)
-)
-    WITH (
-        OIDS = FALSE
-    )
-    TABLESPACE pg_default;
-
-ALTER TABLE dic_epoch_reward_types
-    OWNER to postgres;
+);
 
 INSERT INTO dic_epoch_reward_types
 values (0, 'Validation')
@@ -644,11 +578,9 @@ ALTER TABLE address_states
     OWNER to postgres;
 
 CREATE INDEX IF NOT EXISTS address_states_actual_idx on address_states (address_id) WHERE is_actual;
+CREATE INDEX IF NOT EXISTS address_states_actual_terminated_idx on address_states (block_height)
+    WHERE is_actual and state in (0, 5);
 CREATE INDEX IF NOT EXISTS address_states_address_id_idx on address_states (address_id);
-
--- Table: epoch_identities
-
--- DROP TABLE epoch_identities;
 
 CREATE TABLE IF NOT EXISTS epoch_identities
 (
@@ -676,14 +608,18 @@ CREATE TABLE IF NOT EXISTS epoch_identities
         REFERENCES epochs (epoch) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION
-)
-    WITH (
-        OIDS = FALSE
-    )
-    TABLESPACE pg_default;
+);
 
-ALTER TABLE epoch_identities
-    OWNER to postgres;
+CREATE TABLE IF NOT EXISTS epoch_identity_interim_states
+(
+    address_state_id bigint NOT NULL,
+    block_height     bigint NOT NULL,
+    CONSTRAINT epoch_identity_interim_states_pkey PRIMARY KEY (address_state_id, block_height),
+    CONSTRAINT epoch_identity_interim_states_block_height_fkey FOREIGN KEY (block_height)
+        REFERENCES blocks (height) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+);
 
 -- Table: flips
 
@@ -2422,7 +2358,25 @@ BEGIN
 
             insert into cur_epoch_identities values (identity.address, l_state_id);
 
+            if l_prev_state_id is not null then
+                insert into epoch_identity_interim_states (address_state_id, block_height)
+                values (l_prev_state_id, p_height);
+            end if;
+
         end loop;
+
+    insert into epoch_identity_interim_states (
+        select s.id, p_height
+        from address_states s
+                 join blocks b on b.height = s.block_height and b.epoch = p_epoch
+                 left join temporary_identities ti on ti.address_id = s.address_id
+                 left join cur_epoch_identities ei on ei.address_state_id = s.id
+        where s.is_actual
+          and s.state in (0, 5)
+          and ti.address_id is null -- exclude temporary identities
+          and ei.address_state_id is null -- exclude epoch identities (at least god node if it was killed before validation)
+    );
+
     if p_flips_to_solve is not null then
         call save_flips_to_solve(p_flips_to_solve);
     end if;

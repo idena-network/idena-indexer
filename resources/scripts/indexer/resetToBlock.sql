@@ -55,6 +55,10 @@ where flip_tx_id in
                 join blocks b on b.height = t.block_height and
                                  b.epoch + 1 > (select epoch from blocks where height = greatest(2, $1)));
 
+delete
+from epoch_identity_interim_states
+where block_height > $1;
+
 -- block_proposer_vrf_scores
 delete
 from block_proposer_vrf_scores
