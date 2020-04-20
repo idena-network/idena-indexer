@@ -101,9 +101,9 @@ func (updater *currentOnlineIdentitiesCacheUpdater) update() {
 		return
 	}
 	height := updater.chain.Head.Height()
-	appState := updater.appState.Readonly(height)
-	if appState == nil {
-		updater.log.Error(fmt.Sprintf("Unable to update due to empty app state, height %v", height))
+	appState, err := updater.appState.Readonly(height)
+	if err != nil {
+		updater.log.Error(fmt.Sprintf("Unable to update, height %v, err %v", height, err.Error()))
 		return
 	}
 

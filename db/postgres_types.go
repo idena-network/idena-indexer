@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/idena-network/idena-go/blockchain"
 	"github.com/idena-network/idena-go/common"
 	"github.com/idena-network/idena-indexer/core/conversion"
 	"github.com/lib/pq"
@@ -20,6 +21,23 @@ func (v *MiningReward) Value() (driver.Value, error) {
 
 func (v Balance) Value() (driver.Value, error) {
 	return fmt.Sprintf("(%v,%v,%v)", v.Address, v.Balance, v.Stake), nil
+}
+
+func (v *BalanceUpdate) Value() (driver.Value, error) {
+	var txHash string
+	if v.TxHash != nil {
+		txHash = conversion.ConvertHash(*v.TxHash)
+	}
+	return fmt.Sprintf("(%v,%v,%v,%v,%v,%v,%v,%v,%v)",
+		conversion.ConvertAddress(v.Address),
+		blockchain.ConvertToFloat(v.BalanceOld),
+		blockchain.ConvertToFloat(v.StakeOld),
+		blockchain.ConvertToFloat(v.PenaltyOld),
+		blockchain.ConvertToFloat(v.BalanceNew),
+		blockchain.ConvertToFloat(v.StakeNew),
+		blockchain.ConvertToFloat(v.PenaltyNew),
+		txHash,
+		v.Reason), nil
 }
 
 func (v Birthday) Value() (driver.Value, error) {

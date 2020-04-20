@@ -34,10 +34,11 @@ type Stats struct {
 	BurntCoinsByAddr       map[common.Address][]*db.BurntCoins
 	MintedCoins            *big.Int
 	BalanceUpdateAddrs     mapset.Set
-	KilledAddrs            mapset.Set
 	ActivationTxTransfers  []db.ActivationTxTransfer
 	KillTxTransfers        []db.KillTxTransfer
 	KillInviteeTxTransfers []db.KillInviteeTxTransfer
+	BalanceUpdates         []*db.BalanceUpdate
+	CommitteeRewardShare   *big.Int
 }
 
 type RewardsStats struct {
@@ -63,9 +64,4 @@ type RewardStats struct {
 	Balance *big.Int
 	Stake   *big.Int
 	Type    RewardType
-}
-
-type BalanceUpdate struct {
-	Balance *big.Int
-	Stake   *big.Int
 }

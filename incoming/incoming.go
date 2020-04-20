@@ -17,7 +17,7 @@ import (
 
 type Listener interface {
 	Listen(handleBlock func(block *types.Block), expectedHeadHeight uint64)
-	AppStateReadonly(height uint64) *appstate.AppState
+	AppStateReadonly(height uint64) (*appstate.AppState, error)
 	AppState() *appstate.AppState
 	NodeCtx() *node.NodeCtx
 	StatsCollector() collector.StatsCollector
@@ -101,7 +101,7 @@ func NewListener(nodeConfigFile string, pm monitoring.PerformanceMonitor) Listen
 	return l
 }
 
-func (l *listenerImpl) AppStateReadonly(height uint64) *appstate.AppState {
+func (l *listenerImpl) AppStateReadonly(height uint64) (*appstate.AppState, error) {
 	return l.appState.Readonly(height)
 }
 

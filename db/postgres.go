@@ -3,6 +3,7 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"github.com/idena-network/idena-go/blockchain"
 	"github.com/idena-network/idena-go/common"
 	"github.com/idena-network/idena-indexer/log"
 	"github.com/idena-network/idena-indexer/monitoring"
@@ -11,15 +12,15 @@ import (
 	"github.com/pkg/errors"
 	"github.com/shopspring/decimal"
 	"math/big"
-	"strings"
 	"sync"
 )
 
 type postgresAccessor struct {
-	db      *sql.DB
-	pm      monitoring.PerformanceMonitor
-	queries map[string]string
-	mutex   sync.Mutex
+	db                         *sql.DB
+	pm                         monitoring.PerformanceMonitor
+	queries                    map[string]string
+	mutex                      sync.Mutex
+	committeeRewardBlocksCount int
 }
 
 const (
@@ -110,25 +111,8 @@ func (a *postgresAccessor) GetCurrentFlips(address string) ([]Flip, error) {
 }
 
 func (a *postgresAccessor) ResetTo(height uint64) error {
-	tx, err := a.db.Begin()
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-
-	queries := strings.Split(a.getQuery(resetToBlockQuery), ";")
-	for _, query := range queries {
-		if strings.Contains(query, "$") {
-			_, err = tx.Exec(query, height)
-		} else {
-			_, err = tx.Exec(query)
-		}
-		if err != nil {
-			return err
-		}
-	}
-
-	return tx.Commit()
+	_, err := a.db.Exec(a.getQuery(resetToBlockQuery), height)
+	return err
 }
 
 func (a *postgresAccessor) Save(data *Data) error {
@@ -186,9 +170,11 @@ func (a *postgresAccessor) Save(data *Data) error {
 		return err
 	}
 
-	if err := a.saveBalances(ctx.tx, data.BalanceUpdates); err != nil {
+	a.pm.Start("saveBalances")
+	if err := a.saveBalances(ctx.tx, ctx.blockHeight, data.ChangedBalances, data.BalanceUpdates, data.CommitteeRewardShare); err != nil {
 		return err
 	}
+	a.pm.Complete("saveBalances")
 
 	if err := a.saveBirthdays(ctx.tx, data.Birthdays); err != nil {
 		return err
@@ -346,11 +332,16 @@ func (a *postgresAccessor) saveCoins(ctx *context, coins Coins) error {
 	return errors.Wrapf(err, "unable to save coins %v", coins)
 }
 
-func (a *postgresAccessor) saveBalances(tx *sql.Tx, balances []Balance) error {
-	if len(balances) == 0 {
-		return nil
-	}
-	if _, err := tx.Exec(a.getQuery(saveBalancesQuery), pq.Array(balances)); err != nil {
+func (a *postgresAccessor) saveBalances(tx *sql.Tx, blockHeight uint64, balances []Balance,
+	balanceUpdates []*BalanceUpdate, committeeRewardShare *big.Int) error {
+	if _, err := tx.Exec(
+		a.getQuery(saveBalancesQuery),
+		blockHeight,
+		pq.Array(balances),
+		pq.Array(balanceUpdates),
+		a.committeeRewardBlocksCount,
+		blockchain.ConvertToFloat(committeeRewardShare),
+	); err != nil {
 		return err
 	}
 	return nil

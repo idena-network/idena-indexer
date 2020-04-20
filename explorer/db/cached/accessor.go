@@ -859,6 +859,20 @@ func (a *cachedAccessor) AddressBadAuthors(address string, startIndex uint64, co
 	return res.([]types.BadAuthor), err
 }
 
+func (a *cachedAccessor) AddressBalanceUpdatesCount(address string) (uint64, error) {
+	res, err := a.getOrLoad("AddressBalanceUpdatesCount", func() (interface{}, error) {
+		return a.Accessor.AddressBalanceUpdatesCount(address)
+	}, address)
+	return res.(uint64), err
+}
+
+func (a *cachedAccessor) AddressBalanceUpdates(address string, startIndex uint64, count uint64) ([]types.BalanceUpdate, error) {
+	res, err := a.getOrLoad("AddressBalanceUpdates", func() (interface{}, error) {
+		return a.Accessor.AddressBalanceUpdates(address, startIndex, count)
+	}, address, startIndex, count)
+	return res.([]types.BalanceUpdate), err
+}
+
 func (a *cachedAccessor) Transaction(hash string) (types.TransactionDetail, error) {
 	res, err := a.getOrLoad("Transaction", func() (interface{}, error) {
 		return a.Accessor.Transaction(hash)

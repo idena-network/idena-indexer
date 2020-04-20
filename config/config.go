@@ -9,17 +9,18 @@ import (
 )
 
 type Config struct {
-	Postgres           PostgresConfig
-	RuntimeMigration   RuntimeMigrationConfig
-	Migration          Migration
-	NodeConfigFile     string
-	WordsFile          string
-	Verbosity          int
-	NodeVerbosity      int
-	GenesisBlockHeight int
-	RestoreInitially   bool
-	PerformanceMonitor PerformanceMonitorConfig
-	FlipContentLoader  FlipContentLoaderConfig
+	Postgres                   PostgresConfig
+	RuntimeMigration           RuntimeMigrationConfig
+	Migration                  Migration
+	NodeConfigFile             string
+	WordsFile                  string
+	Verbosity                  int
+	NodeVerbosity              int
+	GenesisBlockHeight         int
+	RestoreInitially           bool
+	PerformanceMonitor         PerformanceMonitorConfig
+	FlipContentLoader          FlipContentLoaderConfig
+	CommitteeRewardBlocksCount int
 }
 
 type PerformanceMonitorConfig struct {
@@ -81,5 +82,6 @@ func newDefaultConfig() *Config {
 			AttemptsLimit:    5,
 			RetryIntervalMin: 10,
 		},
+		CommitteeRewardBlocksCount: 1000,
 	}
 }

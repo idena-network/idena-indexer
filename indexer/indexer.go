@@ -150,8 +150,14 @@ func (indexer *Indexer) indexBlock(block *types.Block) {
 		}
 
 		indexer.pm.Start("Convert")
-		indexer.initializeStateIfNeeded(block)
-		res := indexer.convertIncomingData(block)
+		err := indexer.initializeStateIfNeeded(block)
+		if err != nil {
+			panic(err)
+		}
+		res, err := indexer.convertIncomingData(block)
+		if err != nil {
+			panic(err)
+		}
 		indexer.pm.Complete("Convert")
 
 		indexer.pm.Start("Save")
@@ -170,11 +176,7 @@ func (indexer *Indexer) indexBlock(block *types.Block) {
 			log.Info("Completed runtime migration")
 		}
 
-		if block.Height()%1000 == 0 {
-			log.Info(fmt.Sprintf("Processed block %d", block.Height()))
-		} else {
-			log.Debug(fmt.Sprintf("Processed block %d", block.Height()))
-		}
+		log.Info(fmt.Sprintf("Processed block %d", block.Height()))
 
 		return
 	}
@@ -210,11 +212,14 @@ func (indexer *Indexer) loadState() *indexerState {
 	}
 }
 
-func (indexer *Indexer) initializeStateIfNeeded(block *types.Block) {
+func (indexer *Indexer) initializeStateIfNeeded(block *types.Block) error {
 	if indexer.state.totalStake != nil && indexer.state.totalBalance != nil {
-		return
+		return nil
 	}
-	prevState := indexer.listener.AppStateReadonly(block.Height() - 1)
+	prevState, err := indexer.listener.AppStateReadonly(block.Height() - 1)
+	if err != nil {
+		return err
+	}
 	totalBalance := big.NewInt(0)
 	totalStake := big.NewInt(0)
 	prevState.State.IterateAccounts(func(key []byte, _ []byte) bool {
@@ -228,12 +233,19 @@ func (indexer *Indexer) initializeStateIfNeeded(block *types.Block) {
 	})
 	indexer.state.totalBalance = totalBalance
 	indexer.state.totalStake = totalStake
+	return nil
 }
 
-func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) *result {
+func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) (*result, error) {
 	indexer.pm.Start("InitCtx")
-	prevState := indexer.listener.AppStateReadonly(incomingBlock.Height() - 1)
-	newState := indexer.listener.AppStateReadonly(incomingBlock.Height())
+	prevState, err := indexer.listener.AppStateReadonly(incomingBlock.Height() - 1)
+	if err != nil {
+		return nil, err
+	}
+	newState, err := indexer.listener.AppStateReadonly(incomingBlock.Height())
+	if err != nil {
+		return nil, err
+	}
 	ctx := &conversionContext{
 		blockHeight:       incomingBlock.Height(),
 		prevStateReadOnly: prevState,
@@ -242,11 +254,15 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) *result 
 	collector := &conversionCollector{
 		addresses: make(map[string]*db.Address),
 	}
+	collectorStats := indexer.statsHolder().GetStats()
 	epoch := uint64(prevState.State.Epoch())
 
 	indexer.pm.Complete("InitCtx")
 	indexer.pm.Start("ConvertBlock")
-	block := indexer.convertBlock(incomingBlock, ctx, collector)
+	block, err := indexer.convertBlock(incomingBlock, ctx, collector)
+	if err != nil {
+		return nil, err
+	}
 	indexer.pm.Complete("ConvertBlock")
 	identities, flipStats, birthdays, memPoolFlipKeys, notFailedValidation := indexer.detectEpochResult(incomingBlock, ctx)
 
@@ -260,23 +276,23 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) *result 
 	}
 
 	balanceUpdates, diff := determineBalanceUpdates(indexer.isFirstBlock(incomingBlock),
-		indexer.statsHolder().GetStats().BalanceUpdateAddrs,
+		collectorStats.BalanceUpdateAddrs,
 		ctx.prevStateReadOnly,
 		ctx.newStateReadOnly)
 
 	coins, totalBalance, totalStake := indexer.getCoins(indexer.isFirstBlock(incomingBlock), diff)
 	var minScoreForInvite float32 = 0
-	if indexer.statsHolder().GetStats().MinScoreForInvite != nil {
-		minScoreForInvite = *indexer.statsHolder().GetStats().MinScoreForInvite
+	if collectorStats.MinScoreForInvite != nil {
+		minScoreForInvite = *collectorStats.MinScoreForInvite
 	}
 
 	dbData := &db.Data{
 		Epoch:                  epoch,
 		ValidationTime:         *big.NewInt(ctx.newStateReadOnly.State.NextValidationTime().Unix()),
 		Block:                  block,
-		ActivationTxTransfers:  indexer.statsHolder().GetStats().ActivationTxTransfers,
-		KillTxTransfers:        indexer.statsHolder().GetStats().KillTxTransfers,
-		KillInviteeTxTransfers: indexer.statsHolder().GetStats().KillInviteeTxTransfers,
+		ActivationTxTransfers:  collectorStats.ActivationTxTransfers,
+		KillTxTransfers:        collectorStats.KillTxTransfers,
+		KillInviteeTxTransfers: collectorStats.KillInviteeTxTransfers,
 		ActivationTxs:          collector.activationTxs,
 		KillInviteeTxs:         collector.killInviteeTxs,
 		BecomeOnlineTxs:        collector.becomeOnlineTxs,
@@ -288,18 +304,20 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) *result 
 		FlipsWords:             collector.flipsWords,
 		FlipStats:              flipStats,
 		Addresses:              collector.getAddresses(),
-		BalanceUpdates:         balanceUpdates,
+		ChangedBalances:        balanceUpdates,
 		Birthdays:              birthdays,
 		MemPoolFlipKeys:        memPoolFlipKeys,
 		Coins:                  coins,
 		SaveEpochSummary:       incomingBlock.Header.Flags().HasFlag(types.ValidationFinished),
 		Penalty:                detectChargedPenalty(incomingBlock, ctx.newStateReadOnly),
-		BurntPenalties:         convertBurntPenalties(indexer.statsHolder().GetStats().BurntPenaltiesByAddr),
+		BurntPenalties:         convertBurntPenalties(collectorStats.BurntPenaltiesByAddr),
 		EpochRewards:           indexer.detectEpochRewards(incomingBlock),
-		MiningRewards:          indexer.statsHolder().GetStats().MiningRewards,
-		BurntCoinsPerAddr:      indexer.statsHolder().GetStats().BurntCoinsByAddr,
+		MiningRewards:          collectorStats.MiningRewards,
+		BurntCoinsPerAddr:      collectorStats.BurntCoinsByAddr,
 		FailedValidation:       !notFailedValidation,
 		MinScoreForInvite:      minScoreForInvite,
+		BalanceUpdates:         collectorStats.BalanceUpdates,
+		CommitteeRewardShare:   collectorStats.CommitteeRewardShare,
 	}
 	resData := &resultData{
 		totalBalance: totalBalance,
@@ -309,7 +327,7 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) *result 
 	return &result{
 		dbData:  dbData,
 		resData: resData,
-	}
+	}, nil
 }
 
 func (indexer *Indexer) getCoins(
@@ -383,9 +401,15 @@ func (indexer *Indexer) convertBlock(
 	incomingBlock *types.Block,
 	ctx *conversionContext,
 	collector *conversionCollector,
-) db.Block {
-	stateToApply := ctx.newStateReadOnly.Readonly(ctx.blockHeight - 1)
-	txs := indexer.convertTransactions(incomingBlock.Body.Transactions, ctx, stateToApply, collector)
+) (db.Block, error) {
+	var txs []db.Transaction
+	if len(incomingBlock.Body.Transactions) > 0 {
+		stateToApply, err := ctx.newStateReadOnly.Readonly(ctx.blockHeight - 1)
+		if err != nil {
+			return db.Block{}, err
+		}
+		txs = indexer.convertTransactions(incomingBlock.Body.Transactions, ctx, stateToApply, collector)
+	}
 
 	incomingBlock.Header.Flags()
 	proposerVrfScore, _ := getProposerVrfScore(
@@ -409,7 +433,7 @@ func (indexer *Indexer) convertBlock(
 		VrfProposerThreshold: ctx.prevStateReadOnly.State.VrfProposerThreshold(),
 		ProposerVrfScore:     proposerVrfScore,
 		FeeRate:              blockchain.ConvertToFloat(ctx.prevStateReadOnly.State.FeePerByte()),
-	}
+	}, nil
 }
 
 func convertFlags(incomingFlags types.BlockFlag) []string {

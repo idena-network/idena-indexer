@@ -110,6 +110,8 @@ type Accessor interface {
 	AddressTotalLatestBurntCoins(afterTime time.Time, address string) (types.AddressBurntCoins, error)
 	AddressBadAuthorsCount(address string) (uint64, error)
 	AddressBadAuthors(address string, startIndex uint64, count uint64) ([]types.BadAuthor, error)
+	AddressBalanceUpdatesCount(address string) (uint64, error)
+	AddressBalanceUpdates(address string, startIndex uint64, count uint64) ([]types.BalanceUpdate, error)
 
 	Transaction(hash string) (types.TransactionDetail, error)
 

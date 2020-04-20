@@ -64,9 +64,9 @@ func (r *Restorer) collectBalances() ([]db.Balance, error) {
 		return nil, errors.New("blockchain header is nil")
 	}
 	height := head.Height() - 1
-	appState := r.appState.Readonly(height)
-	if appState == nil {
-		return nil, errors.Errorf("appState for height=%d is absent", height)
+	appState, err := r.appState.Readonly(height)
+	if err != nil {
+		return nil, errors.Errorf("unable to get appState for height %d, err %v", height, err.Error())
 	}
 	var balances []db.Balance
 	appState.State.IterateAccounts(func(key []byte, _ []byte) bool {
@@ -91,9 +91,9 @@ func (r *Restorer) collectBirthdays() ([]db.Birthday, error) {
 		return nil, errors.New("blockchain header is nil")
 	}
 	height := head.Height() - 1
-	appState := r.appState.Readonly(height)
-	if appState == nil {
-		return nil, errors.Errorf("appState for height=%d is absent", height)
+	appState, err := r.appState.Readonly(height)
+	if err != nil {
+		return nil, errors.Errorf("unable to get appState for height %d, err %v", height, err.Error())
 	}
 	var res []db.Birthday
 	appState.State.IterateOverIdentities(func(addr common.Address, identity state.Identity) {

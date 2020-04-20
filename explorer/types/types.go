@@ -386,3 +386,29 @@ type EpochInvites struct {
 	Epoch   uint64 `json:"epoch"`
 	Invites uint8  `json:"invites"`
 }
+
+type BalanceUpdate struct {
+	BalanceOld  decimal.Decimal `json:"balanceOld"`
+	StakeOld    decimal.Decimal `json:"stakeOld"`
+	PenaltyOld  decimal.Decimal `json:"penaltyOld"`
+	BalanceNew  decimal.Decimal `json:"balanceNew"`
+	StakeNew    decimal.Decimal `json:"stakeNew"`
+	PenaltyNew  decimal.Decimal `json:"penaltyNew"`
+	Reason      string          `json:"reason"`
+	BlockHeight uint64          `json:"blockHeight"`
+	BlockHash   string          `json:"blockHash"`
+	Timestamp   time.Time       `json:"timestamp"`
+	Data        interface{}     `json:"data,omitempty"`
+}
+
+type TransactionBalanceUpdate struct {
+	TxHash string `json:"txHash"`
+}
+
+type CommitteeRewardBalanceUpdate struct {
+	LastBlockHeight    uint64          `json:"lastBlockHeight"`
+	LastBlockHash      string          `json:"lastBlockHash"`
+	LastBlockTimestamp time.Time       `json:"lastBlockTimestamp"`
+	RewardShare        decimal.Decimal `json:"rewardShare"`
+	BlocksCount        uint32          `json:"blocksCount"`
+}

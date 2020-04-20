@@ -3,6 +3,7 @@ package postgres
 import (
 	"database/sql"
 	"github.com/idena-network/idena-indexer/explorer/types"
+	"github.com/shopspring/decimal"
 	"time"
 )
 
@@ -20,6 +21,11 @@ const (
 	addressTotalLatestBurntCoinsQuery   = "addressTotalLatestBurntCoins.sql"
 	addressBadAuthorsCountQuery         = "addressBadAuthorsCount.sql"
 	addressBadAuthorsQuery              = "addressBadAuthors.sql"
+	addressBalanceUpdatesCountQuery     = "addressBalanceUpdatesCount.sql"
+	addressBalanceUpdatesQuery          = "addressBalanceUpdates.sql"
+
+	txBalanceUpdateReason              = "Tx"
+	committeeRewardBalanceUpdateReason = "CommitteeReward"
 )
 
 func (a *postgresAccessor) Address(address string) (types.Address, error) {
@@ -169,4 +175,75 @@ func (a *postgresAccessor) AddressBadAuthors(address string, startIndex uint64, 
 		return nil, err
 	}
 	return readBadAuthors(rows)
+}
+
+func (a *postgresAccessor) AddressBalanceUpdatesCount(address string) (uint64, error) {
+	return a.count(addressBalanceUpdatesCountQuery, address)
+}
+
+type balanceUpdateOptionalData struct {
+	txHash             string
+	lastBlockHeight    uint64
+	lastBlockHash      string
+	lastBlockTimestamp int64
+	rewardShare        decimal.Decimal
+	blocksCount        uint32
+}
+
+func (a *postgresAccessor) AddressBalanceUpdates(address string, startIndex uint64, count uint64) ([]types.BalanceUpdate, error) {
+	rows, err := a.db.Query(a.getQuery(addressBalanceUpdatesQuery), address, startIndex, count)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var res []types.BalanceUpdate
+	for rows.Next() {
+		item := types.BalanceUpdate{}
+		var timestamp int64
+		optionalData := &balanceUpdateOptionalData{}
+		err = rows.Scan(
+			&item.BalanceOld,
+			&item.StakeOld,
+			&item.PenaltyOld,
+			&item.BalanceNew,
+			&item.StakeNew,
+			&item.PenaltyNew,
+			&item.Reason,
+			&item.BlockHeight,
+			&item.BlockHash,
+			&timestamp,
+			&optionalData.txHash,
+			&optionalData.lastBlockHeight,
+			&optionalData.lastBlockHash,
+			&optionalData.lastBlockTimestamp,
+			&optionalData.rewardShare,
+			&optionalData.blocksCount,
+		)
+		if err != nil {
+			return nil, err
+		}
+		item.Timestamp = timestampToTimeUTC(timestamp)
+		item.Data = readBalanceUpdateSpecificData(item.Reason, optionalData)
+		res = append(res, item)
+	}
+	return res, nil
+}
+
+func readBalanceUpdateSpecificData(reason string, optionalData *balanceUpdateOptionalData) interface{} {
+	var res interface{}
+	switch reason {
+	case txBalanceUpdateReason:
+		res = &types.TransactionBalanceUpdate{
+			TxHash: optionalData.txHash,
+		}
+	case committeeRewardBalanceUpdateReason:
+		res = &types.CommitteeRewardBalanceUpdate{
+			LastBlockHeight:    optionalData.lastBlockHeight,
+			LastBlockHash:      optionalData.lastBlockHash,
+			LastBlockTimestamp: timestampToTimeUTC(optionalData.lastBlockTimestamp),
+			RewardShare:        optionalData.rewardShare,
+			BlocksCount:        optionalData.blocksCount,
+		}
+	}
+	return res
 }

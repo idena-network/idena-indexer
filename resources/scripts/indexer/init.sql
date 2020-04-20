@@ -192,6 +192,38 @@ INSERT INTO dic_bad_author_reasons
 values (2, 'WrongWords')
 ON CONFLICT DO NOTHING;
 
+CREATE TABLE IF NOT EXISTS dic_balance_update_reasons
+(
+    id   smallint                                           NOT NULL,
+    name character varying(20) COLLATE pg_catalog."default" NOT NULL,
+    CONSTRAINT dic_balance_update_reasons_pkey PRIMARY KEY (id),
+    CONSTRAINT dic_balance_update_reasons_name_key UNIQUE (name)
+);
+
+INSERT INTO dic_balance_update_reasons
+values (0, 'Tx')
+ON CONFLICT DO NOTHING;
+INSERT INTO dic_balance_update_reasons
+values (1, 'VerifiedStake')
+ON CONFLICT DO NOTHING;
+INSERT INTO dic_balance_update_reasons
+values (2, 'ProposerReward')
+ON CONFLICT DO NOTHING;
+INSERT INTO dic_balance_update_reasons
+values (3, 'CommitteeReward')
+ON CONFLICT DO NOTHING;
+INSERT INTO dic_balance_update_reasons
+values (4, 'EpochReward')
+ON CONFLICT DO NOTHING;
+INSERT INTO dic_balance_update_reasons
+values (5, 'FailedValidation')
+ON CONFLICT DO NOTHING;
+INSERT INTO dic_balance_update_reasons
+values (6, 'Penalty')
+ON CONFLICT DO NOTHING;
+INSERT INTO dic_balance_update_reasons
+values (7, 'EpochPenaltyReset')
+ON CONFLICT DO NOTHING;
 -- Table: epochs
 
 -- DROP TABLE epochs;
@@ -1357,6 +1389,87 @@ CREATE TABLE IF NOT EXISTS saved_invite_rewards
         ON DELETE NO ACTION
 );
 
+CREATE SEQUENCE IF NOT EXISTS balance_updates_id_seq
+    INCREMENT 1
+    START 1
+    MINVALUE 1
+    MAXVALUE 9223372036854775807
+    CACHE 1;
+
+CREATE TABLE IF NOT EXISTS balance_updates
+(
+    id                     bigint          NOT NULL DEFAULT nextval('balance_updates_id_seq'::regclass),
+    address_id             bigint          NOT NULL,
+    balance_old            numeric(30, 18) NOT NULL,
+    stake_old              numeric(30, 18) NOT NULL,
+    penalty_old            numeric(30, 18),
+    balance_new            numeric(30, 18) NOT NULL,
+    stake_new              numeric(30, 18) NOT NULL,
+    penalty_new            numeric(30, 18),
+    reason                 smallint        NOT NULL,
+    block_height           bigint          NOT NULL,
+    tx_id                  bigint,
+    last_block_height      bigint,
+    committee_reward_share numeric(30, 18),
+    blocks_count           integer,
+    CONSTRAINT balance_updates_pkey PRIMARY KEY (id),
+    CONSTRAINT balance_updates_address_id_fkey FOREIGN KEY (address_id)
+        REFERENCES addresses (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT balance_updates_reason_fkey FOREIGN KEY (reason)
+        REFERENCES dic_balance_update_reasons (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT balance_updates_block_height_fkey FOREIGN KEY (block_height)
+        REFERENCES blocks (height) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT balance_updates_tx_id_fkey FOREIGN KEY (tx_id)
+        REFERENCES transactions (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT balance_updates_last_block_height_fkey FOREIGN KEY (last_block_height)
+        REFERENCES blocks (height) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+);
+
+CREATE INDEX IF NOT EXISTS balance_updates_id_address_id_idx on balance_updates (id desc, address_id);
+CREATE INDEX IF NOT EXISTS balance_updates_address_id_idx on balance_updates (address_id);
+CREATE INDEX IF NOT EXISTS balance_updates_block_height_idx on balance_updates (block_height);
+
+CREATE TABLE IF NOT EXISTS latest_committee_reward_balance_updates
+(
+    block_height      bigint          NOT NULL,
+    address_id        bigint          NOT NULL,
+    balance_old       numeric(30, 18) NOT NULL,
+    stake_old         numeric(30, 18) NOT NULL,
+    penalty_old       numeric(30, 18),
+    balance_new       numeric(30, 18) NOT NULL,
+    stake_new         numeric(30, 18) NOT NULL,
+    penalty_new       numeric(30, 18),
+    balance_update_id bigint          NOT NULL,
+    CONSTRAINT latest_committee_reward_balance_updates_pkey PRIMARY KEY (block_height, address_id),
+    CONSTRAINT latest_committee_reward_balance_updates_block_height_fkey FOREIGN KEY (block_height)
+        REFERENCES blocks (height) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT latest_committee_reward_balance_updates_bu_id_fkey FOREIGN KEY (balance_update_id)
+        REFERENCES balance_updates (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT latest_committee_reward_balance_updates_address_id_fkey FOREIGN KEY (address_id)
+        REFERENCES addresses (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+);
+
+CREATE INDEX IF NOT EXISTS latest_committee_reward_block_height_idx
+    on latest_committee_reward_balance_updates (block_height);
+CREATE INDEX IF NOT EXISTS latest_committee_reward_du_id_idx
+    on latest_committee_reward_balance_updates (balance_update_id);
+
 -- Table: flip_key_timestamps
 
 -- DROP TABLE flip_key_timestamps;
@@ -1935,6 +2048,26 @@ $$
     END
 $$;
 
+DO
+$$
+    BEGIN
+        CREATE TYPE tp_balance_update AS
+        (
+            address     text,
+            balance_old numeric(30, 18),
+            stake_old   numeric(30, 18),
+            penalty_old numeric(30, 18),
+            balance_new numeric(30, 18),
+            stake_new   numeric(30, 18),
+            penalty_new numeric(30, 18),
+            tx_hash     text,
+            reason      smallint
+        );
+    EXCEPTION
+        WHEN duplicate_object THEN null;
+    END
+$$;
+
 -- PROCEDURE: save_mining_rewards
 
 CREATE OR REPLACE PROCEDURE save_mining_rewards(height bigint, mr tp_mining_reward[])
@@ -1982,23 +2115,163 @@ BEGIN
 END
 $BODY$;
 
--- PROCEDURE: save_balances
-
-CREATE OR REPLACE PROCEDURE save_balances(b tp_balance[])
+CREATE OR REPLACE PROCEDURE save_balances(p_block_height bigint,
+                                          b tp_balance[],
+                                          p_updates tp_balance_update[],
+                                          p_blocks_count integer,
+                                          p_committee_reward_share numeric(30, 18))
     LANGUAGE 'plpgsql'
 AS
 $BODY$
 DECLARE
     b_row tp_balance;
 BEGIN
-    for i in 1..cardinality(b)
+    if b is not null then
+        for i in 1..cardinality(b)
+            loop
+                b_row = b[i];
+                insert into balances (address_id, balance, stake)
+                values ((select id from addresses where lower(address) = lower(b_row.address)),
+                        b_row.balance, b_row.stake)
+                on conflict (address_id) do update set balance=b_row.balance, stake=b_row.stake;
+            end loop;
+    end if;
+
+    if p_updates is not null then
+        call save_balance_updates(p_block_height, p_updates, p_committee_reward_share);
+    end if;
+
+    delete
+    from latest_committee_reward_balance_updates
+    where block_height <= p_block_height - p_blocks_count;
+END
+$BODY$;
+
+CREATE OR REPLACE PROCEDURE save_balance_updates(p_block_height bigint,
+                                                 p_updates tp_balance_update[],
+                                                 p_committee_reward_share numeric(30, 18))
+    LANGUAGE 'plpgsql'
+AS
+$BODY$
+DECLARE
+    COMMITTEE_REASON CONSTANT smallint = 3;
+    l_balance_update          tp_balance_update;
+    l_tx_id                   bigint;
+BEGIN
+    if p_updates is null then
+        return;
+    end if;
+
+    for i in 1..cardinality(p_updates)
         loop
-            b_row = b[i];
-            insert into balances (address_id, balance, stake)
-            values ((select id from addresses where lower(address) = lower(b_row.address)),
-                    b_row.balance, b_row.stake)
-            on conflict (address_id) do update set balance=b_row.balance, stake=b_row.stake;
+            l_balance_update = p_updates[i];
+            if l_balance_update.reason = COMMITTEE_REASON then
+                call save_committee_reward_balance_update(p_block_height, l_balance_update,
+                                                          p_committee_reward_share);
+            else
+                if char_length(l_balance_update.tx_hash) > 0 then
+                    select id into l_tx_id from transactions where lower(hash) = lower(l_balance_update.tx_hash);
+                else
+                    l_tx_id = null;
+                end if;
+                insert into balance_updates (address_id, balance_old, stake_old, penalty_old, balance_new, stake_new,
+                                             penalty_new, reason, block_height, tx_id, last_block_height,
+                                             committee_reward_share, blocks_count)
+                values ((select id from addresses where lower(address) = lower(l_balance_update.address)),
+                        l_balance_update.balance_old,
+                        l_balance_update.stake_old,
+                        null_if_zero(l_balance_update.penalty_old),
+                        l_balance_update.balance_new,
+                        l_balance_update.stake_new,
+                        null_if_zero(l_balance_update.penalty_new),
+                        l_balance_update.reason,
+                        p_block_height,
+                        l_tx_id,
+                        null,
+                        null,
+                        null);
+            end if;
         end loop;
+END
+$BODY$;
+
+CREATE OR REPLACE PROCEDURE save_committee_reward_balance_update(p_block_height bigint,
+                                                                 p_update tp_balance_update,
+                                                                 p_committee_reward_share numeric(30, 18))
+    LANGUAGE 'plpgsql'
+AS
+$BODY$
+DECLARE
+    COMMITTEE_REASON CONSTANT smallint = 3;
+    l_address_id              bigint;
+    l_balance_update_id       bigint;
+    l_reason                  smallint;
+    l_committee_reward        numeric(30, 18);
+BEGIN
+    select id
+    into l_address_id
+    from addresses
+    where lower(address) = lower(p_update.address);
+
+    select id, reason, committee_reward_share
+    into l_balance_update_id, l_reason, l_committee_reward
+    from balance_updates
+    where address_id = l_address_id
+    order by id desc
+    limit 1;
+
+    if l_reason = COMMITTEE_REASON and l_committee_reward = p_committee_reward_share then
+        update balance_updates
+        set balance_new       = p_update.balance_new,
+            stake_new         = p_update.stake_new,
+            penalty_new       = null_if_zero(p_update.penalty_new),
+            blocks_count      = blocks_count + 1,
+            last_block_height = p_block_height
+        where id = l_balance_update_id;
+    else
+        insert into balance_updates (address_id, balance_old, stake_old, penalty_old, balance_new, stake_new,
+                                     penalty_new, reason, block_height, tx_id, last_block_height,
+                                     committee_reward_share, blocks_count)
+        values (l_address_id,
+                p_update.balance_old,
+                p_update.stake_old,
+                null_if_zero(p_update.penalty_old),
+                p_update.balance_new,
+                p_update.stake_new,
+                null_if_zero(p_update.penalty_new),
+                COMMITTEE_REASON,
+                p_block_height,
+                null,
+                p_block_height,
+                p_committee_reward_share,
+                1)
+        returning id into l_balance_update_id;
+    end if;
+
+    insert into latest_committee_reward_balance_updates (block_height, address_id, balance_old, stake_old, penalty_old,
+                                                         balance_new, stake_new, penalty_new, balance_update_id)
+    values (p_block_height,
+            l_address_id,
+            p_update.balance_old,
+            p_update.stake_old,
+            null_if_zero(p_update.penalty_old),
+            p_update.balance_new,
+            p_update.stake_new,
+            null_if_zero(p_update.penalty_new),
+            l_balance_update_id);
+END
+$BODY$;
+
+CREATE OR REPLACE FUNCTION null_if_zero(v numeric)
+    RETURNS numeric
+    LANGUAGE 'plpgsql'
+AS
+$BODY$
+BEGIN
+    if v = 0.0 then
+        return null;
+    end if;
+    return v;
 END
 $BODY$;
 
@@ -2757,3 +3030,400 @@ BEGIN
     end if;
 END
 $BODY$;
+
+CREATE OR REPLACE PROCEDURE reset_to(p_block_height bigint)
+    LANGUAGE 'plpgsql'
+AS
+$BODY$
+DECLARE
+BEGIN
+
+    call reset_balance_updates_to(p_block_height);
+
+    delete
+    from flips_queue
+    where lower(cid) in (
+        select f.cid
+        from flips f,
+             transactions t,
+             blocks b
+        where f.tx_id = t.id
+          and t.block_height = b.height
+          and b.epoch + 1 > (select epoch from blocks where height = greatest(2, p_block_height))
+    );
+
+    delete
+    from flip_pics
+    where fd_flip_tx_id in
+          (select t.id
+           from transactions t
+                    join blocks b on b.height = t.block_height and
+                                     b.epoch + 1 >
+                                     (select epoch from blocks where height = greatest(2, p_block_height)));
+
+    delete
+    from flip_icons
+    where fd_flip_tx_id in
+          (select t.id
+           from transactions t
+                    join blocks b on b.height = t.block_height and
+                                     b.epoch + 1 >
+                                     (select epoch from blocks where height = greatest(2, p_block_height)));
+
+    delete
+    from flip_pic_orders
+    where fd_flip_tx_id in
+          (select t.id
+           from transactions t
+                    join blocks b on b.height = t.block_height and
+                                     b.epoch + 1 >
+                                     (select epoch from blocks where height = greatest(2, p_block_height)));
+
+    delete
+    from flips_data
+    where flip_tx_id in
+          (select t.id
+           from transactions t
+                    join blocks b on b.height = t.block_height and
+                                     b.epoch + 1 >
+                                     (select epoch from blocks where height = greatest(2, p_block_height)));
+
+    delete
+    from rewarded_flips
+    where flip_tx_id in
+          (select t.id
+           from transactions t
+                    join blocks b on b.height = t.block_height and
+                                     b.epoch + 1 >
+                                     (select epoch from blocks where height = greatest(2, p_block_height)));
+
+    delete
+    from epoch_identity_interim_states
+    where block_height > p_block_height;
+
+    delete
+    from block_proposer_vrf_scores
+    where block_height > p_block_height;
+
+    delete
+    from burnt_coins
+    where block_height > p_block_height;
+
+    delete
+    from failed_validations
+    where block_height > p_block_height;
+
+    delete
+    from fund_rewards
+    where block_height > p_block_height;
+
+    delete
+    from total_rewards
+    where block_height > p_block_height;
+
+    delete
+    from paid_penalties
+    where block_height > p_block_height;
+
+    delete
+    from penalties
+    where block_height > p_block_height;
+
+    delete
+    from epoch_summaries
+    where block_height > p_block_height;
+
+    delete
+    from balances;
+
+    delete
+    from birthdays;
+
+    delete
+    from coins
+    where block_height > p_block_height;
+
+    delete
+    from mem_pool_flip_keys
+    where ei_address_state_id in
+          (select id
+           from address_states
+           where block_height > p_block_height);
+
+    delete
+    from flips_to_solve
+    where ei_address_state_id in
+          (select id
+           from address_states
+           where block_height > p_block_height);
+
+    delete
+    from answers
+    where ei_address_state_id in
+          (select id
+           from address_states
+           where block_height > p_block_height);
+
+    delete
+    from validation_rewards
+    where ei_address_state_id in
+          (select id
+           from address_states
+           where block_height > p_block_height);
+
+    delete
+    from reward_ages
+    where ei_address_state_id in
+          (select id
+           from address_states
+           where block_height > p_block_height);
+
+    delete
+    from bad_authors
+    where ei_address_state_id in
+          (select id
+           from address_states
+           where block_height > p_block_height);
+
+    delete
+    from good_authors
+    where ei_address_state_id in
+          (select id
+           from address_states
+           where block_height > p_block_height);
+
+    delete
+    from saved_invite_rewards
+    where ei_address_state_id in
+          (select id
+           from address_states
+           where block_height > p_block_height);
+
+    delete
+    from epoch_identities
+    where address_state_id in
+          (select id
+           from address_states
+           where block_height > p_block_height);
+
+    delete
+    from address_states
+    where block_height > p_block_height;
+    update address_states
+    set is_actual = true
+    where id in
+          (select s.id
+           from address_states s
+           where (s.address_id, s.block_height) in
+                 (select s.address_id, max(s.block_height)
+                  from address_states s
+                  group by address_id)
+             and not s.is_actual);
+
+    delete
+    from flip_words
+    where tx_id in
+          (select t.id
+           from transactions t
+           where t.block_height > p_block_height);
+
+    delete
+    from flips
+    where tx_id in
+          (select id
+           from transactions
+           where block_height > p_block_height);
+    update flips
+    set status_block_height=null,
+        status=null,
+        answer=null,
+        wrong_words=null
+    where status_block_height > p_block_height;
+    update flips
+    set delete_tx_id=null
+    where delete_tx_id in (select t.id
+                           from transactions t
+                           where t.block_height > p_block_height);
+
+    delete
+    from flip_keys
+    where tx_id in
+          (select t.id
+           from transactions t
+           where t.block_height > p_block_height);
+
+    delete
+    from activation_txs
+    where tx_id in
+          (select t.id
+           from transactions t
+           where t.block_height > p_block_height);
+
+    delete
+    from kill_invitee_txs
+    where tx_id in
+          (select t.id
+           from transactions t
+           where t.block_height > p_block_height);
+
+    delete
+    from become_online_txs
+    where tx_id in
+          (select t.id
+           from transactions t
+           where t.block_height > p_block_height);
+
+    delete
+    from become_offline_txs
+    where tx_id in
+          (select t.id
+           from transactions t
+           where t.block_height > p_block_height);
+
+    delete
+    from activation_tx_transfers
+    where tx_id in
+          (select t.id
+           from transactions t
+           where t.block_height > p_block_height);
+
+    delete
+    from kill_tx_transfers
+    where tx_id in
+          (select t.id
+           from transactions t
+           where t.block_height > p_block_height);
+
+    delete
+    from kill_invitee_tx_transfers
+    where tx_id in
+          (select t.id
+           from transactions t
+           where t.block_height > p_block_height);
+
+    delete
+    from rewarded_invitations
+    where block_height > p_block_height;
+
+    delete
+    from transactions
+    where block_height > p_block_height;
+
+    delete
+    from block_proposers
+    where block_height > p_block_height;
+
+    delete
+    from mining_rewards
+    where block_height > p_block_height;
+
+    delete
+    from temporary_identities
+    where block_height > p_block_height;
+
+    delete
+    from addresses
+    where block_height > p_block_height;
+
+    delete
+    from block_flags
+    where block_height > p_block_height;
+
+    delete
+    from blocks
+    where height > p_block_height;
+
+    delete
+    from epochs
+    where epoch not in (select distinct epoch from blocks);
+
+END
+$BODY$;
+
+CREATE OR REPLACE PROCEDURE reset_balance_updates_to(p_block_height bigint)
+    LANGUAGE 'plpgsql'
+AS
+$$
+DECLARE
+    rec                  record;
+    l_history_min_height bigint;
+    l_last_block_height  bigint;
+BEGIN
+    select min(block_height) into l_history_min_height from latest_committee_reward_balance_updates;
+
+    if l_history_min_height is null then
+        raise exception 'there is no committee rewards history to restore balance updates';
+    end if;
+
+    if p_block_height < l_history_min_height then
+        raise exception 'height to reset is lower than committee rewards history min height';
+    end if;
+
+    delete
+    from latest_committee_reward_balance_updates
+    where balance_update_id in (select id from balance_updates where block_height > p_block_height);
+
+    delete from balance_updates where block_height > p_block_height;
+
+    for rec in select block_height, address_id, balance_old, stake_old, penalty_old, balance_update_id
+               from latest_committee_reward_balance_updates
+               where block_height > p_block_height
+               order by block_height desc
+        loop
+            select max(block_height)
+            into l_last_block_height
+            from latest_committee_reward_balance_updates
+            where address_id = rec.address_id
+              and block_height < rec.block_height;
+
+            update balance_updates
+            set balance_new       = rec.balance_old,
+                stake_new         = rec.stake_old,
+                penalty_new       = rec.penalty_old,
+                blocks_count      = blocks_count - 1,
+                last_block_height = l_last_block_height
+            where id = rec.balance_update_id;
+        end loop;
+
+    delete
+    from latest_committee_reward_balance_updates
+    where block_height > p_block_height;
+END
+$$;
+
+CREATE OR REPLACE PROCEDURE migrate_balance_updates(p_block_height bigint,
+                                                    p_old_schema text)
+    LANGUAGE 'plpgsql'
+AS
+$$
+DECLARE
+    l_history_min_height bigint;
+    l_max                bigint;
+BEGIN
+    EXECUTE 'set search_path to ' || p_old_schema;
+
+    select min(block_height) into l_history_min_height from latest_committee_reward_balance_updates;
+
+    if l_history_min_height is null then
+        raise exception 'there is no committee rewards history to restore balance updates';
+    end if;
+
+    if p_block_height < l_history_min_height then
+        raise exception 'height to migrate is lower than committee rewards history min height';
+    end if;
+
+    RESET search_path;
+
+    EXECUTE FORMAT('insert into balance_updates (select * from %s.balance_updates where block_height <= %s)',
+                   p_old_schema, p_block_height);
+    select max(id) into l_max from balance_updates;
+    select setval('balance_updates_id_seq', l_max) into l_max;
+
+    EXECUTE FORMAT(
+            'insert into latest_committee_reward_balance_updates (select * from %s.latest_committee_reward_balance_updates)',
+            p_old_schema);
+
+
+    call reset_balance_updates_to(p_block_height);
+END
+$$;

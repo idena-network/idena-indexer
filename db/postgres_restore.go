@@ -7,7 +7,7 @@ func (a *postgresAccessor) SaveRestoredData(data *RestoredData) error {
 	}
 	defer tx.Rollback()
 
-	if err := a.saveBalances(tx, data.Balances); err != nil {
+	if err := a.saveBalances(tx, 0, data.Balances, nil, nil); err != nil {
 		return err
 	}
 

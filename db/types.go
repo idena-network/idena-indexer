@@ -7,6 +7,7 @@ import (
 )
 
 type BurntCoinsReason = uint8
+type BalanceUpdateReason = uint8
 
 const (
 	PenaltyBurntCoins BurntCoinsReason = 0x0
@@ -14,6 +15,15 @@ const (
 	FeeBurntCoins     BurntCoinsReason = 0x2
 	KilledBurntCoins  BurntCoinsReason = 0x4
 	BurnTxBurntCoins  BurntCoinsReason = 0x5
+
+	TxReason                    BalanceUpdateReason = 0x0
+	VerifiedStakeTransferReason BalanceUpdateReason = 0x1
+	ProposerRewardReason        BalanceUpdateReason = 0x2
+	CommitteeRewardReason       BalanceUpdateReason = 0x3
+	EpochRewardReason           BalanceUpdateReason = 0x4
+	FailedValidationReason      BalanceUpdateReason = 0x5
+	PenaltyReason               BalanceUpdateReason = 0x6
+	EpochPenaltyResetReason     BalanceUpdateReason = 0x7
 )
 
 type RestoredData struct {
@@ -39,7 +49,7 @@ type Data struct {
 	FlipsWords             []FlipWords
 	FlipStats              []FlipStats
 	Addresses              []Address
-	BalanceUpdates         []Balance
+	ChangedBalances        []Balance
 	Birthdays              []Birthday
 	MemPoolFlipKeys        []*MemPoolFlipKey
 	Coins                  Coins
@@ -51,6 +61,8 @@ type Data struct {
 	BurntCoinsPerAddr      map[common.Address][]*BurntCoins
 	FailedValidation       bool
 	MinScoreForInvite      float32
+	BalanceUpdates         []*BalanceUpdate
+	CommitteeRewardShare   *big.Int
 }
 
 type EpochRewards struct {
@@ -315,4 +327,16 @@ type FailedFlipContent struct {
 	Cid                  string
 	AttemptsLimitReached bool
 	NextAttemptTimestamp *big.Int
+}
+
+type BalanceUpdate struct {
+	Address    common.Address
+	BalanceOld *big.Int
+	StakeOld   *big.Int
+	PenaltyOld *big.Int
+	BalanceNew *big.Int
+	StakeNew   *big.Int
+	PenaltyNew *big.Int
+	TxHash     *common.Hash
+	Reason     BalanceUpdateReason
 }

@@ -11,7 +11,9 @@ import (
 func NewPostgresAccessor(
 	connStr string,
 	scriptsDirPath string,
-	wordsLoader words.Loader, pm monitoring.PerformanceMonitor,
+	wordsLoader words.Loader,
+	pm monitoring.PerformanceMonitor,
+	committeeRewardBlocksCount int,
 ) Accessor {
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
@@ -19,9 +21,10 @@ func NewPostgresAccessor(
 	}
 
 	a := &postgresAccessor{
-		db:      db,
-		pm:      pm,
-		queries: ReadQueries(scriptsDirPath),
+		db:                         db,
+		pm:                         pm,
+		queries:                    ReadQueries(scriptsDirPath),
+		committeeRewardBlocksCount: committeeRewardBlocksCount,
 	}
 	for {
 		if err := a.init(wordsLoader); err != nil {

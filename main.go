@@ -107,7 +107,7 @@ func initIndexer(config *config.Config) (*indexer.Indexer, incoming.Listener) {
 	wordsLoader := words.NewLoader(config.WordsFile)
 	listener := incoming.NewListener(config.NodeConfigFile, performanceMonitor)
 	dbAccessor := db.NewPostgresAccessor(config.Postgres.ConnStr, config.Postgres.ScriptsDir, wordsLoader,
-		performanceMonitor)
+		performanceMonitor, config.CommitteeRewardBlocksCount)
 	restorer := restore.NewRestorer(dbAccessor, listener.AppState(), listener.Blockchain())
 	var secondaryStorage *runtimeMigration.SecondaryStorage
 	if config.RuntimeMigration.Enabled {
@@ -123,6 +123,7 @@ func initIndexer(config *config.Config) (*indexer.Indexer, incoming.Listener) {
 
 	memPoolIndexer := mempool.NewIndexer(dbAccessor, log.New("component", "mpi"))
 
+	flipLoaderLogger := log.New("component", "flipLoader")
 	flipLoader := flip.NewLoader(
 		func() uint64 {
 			return uint64(listener.AppState().State.Epoch())
@@ -132,13 +133,14 @@ func initIndexer(config *config.Config) (*indexer.Indexer, incoming.Listener) {
 			if head == nil {
 				return false
 			}
-			prevState := listener.AppState().Readonly(head.Height() - 1)
-			if prevState == nil {
+			prevState, err := listener.AppState().Readonly(head.Height() - 1)
+			if err != nil {
+				flipLoaderLogger.Error(fmt.Sprintf("Unable to get app state for height %d, err %v", head.Height()-1, err))
 				return false
 			}
 			return prevState.State.ValidationPeriod() < state.FlipLotteryPeriod
 		},
-		dbAccessor, listener.Flipper(), log.New("component", "flipLoader"))
+		dbAccessor, listener.Flipper(), flipLoaderLogger)
 
 	flip.StartContentLoader(
 		dbAccessor,

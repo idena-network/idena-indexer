@@ -213,7 +213,7 @@ insert into reward_ages
 insert into saved_invite_rewards
     (select *
      from OLD_SCHEMA_TAG.saved_invite_rewards
-     where ei_address_state_id in (select id from OLD_SCHEMA_TAG.saved_invite_rewards where block_height <= $1));
+     where ei_address_state_id in (select id from OLD_SCHEMA_TAG.address_states where block_height <= $1));
 
 -- failed_validations
 insert into failed_validations (select * from OLD_SCHEMA_TAG.failed_validations where block_height <= $1);
@@ -227,3 +227,5 @@ insert into flip_key_timestamps (select *
 insert into answers_hash_tx_timestamps (select *
                                         from OLD_SCHEMA_TAG.answers_hash_tx_timestamps
                                         where epoch in (select epoch from epochs));
+
+call migrate_balance_updates($1, 'OLD_SCHEMA_TAG');

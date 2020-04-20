@@ -274,6 +274,10 @@ func (s *httpServer) InitRouter(router *mux.Router) {
 	router.Path(strings.ToLower("/Address/{address}/Authors/Bad")).
 		Queries("skip", "{skip}", "limit", "{limit}").
 		HandlerFunc(s.addressBadAuthors)
+	router.Path(strings.ToLower("/Address/{address}/Balance/Changes/Count")).HandlerFunc(s.addressBalanceUpdatesCount)
+	router.Path(strings.ToLower("/Address/{address}/Balance/Changes")).
+		Queries("skip", "{skip}", "limit", "{limit}").
+		HandlerFunc(s.addressBalanceUpdates)
 
 	router.Path(strings.ToLower("/Balances/Count")).HandlerFunc(s.balancesCount)
 	router.Path(strings.ToLower("/Balances")).
@@ -1472,6 +1476,28 @@ func (s *httpServer) addressBadAuthors(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	resp, err := s.db.AddressBadAuthors(vars["address"], startIndex, count)
+	server.WriteResponse(w, resp, err, s.log)
+}
+
+func (s *httpServer) addressBalanceUpdatesCount(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("addressBalanceUpdatesCount", r.RequestURI)
+	defer s.pm.Complete(id)
+
+	resp, err := s.db.AddressBalanceUpdatesCount(mux.Vars(r)["address"])
+	server.WriteResponse(w, resp, err, s.log)
+}
+
+func (s *httpServer) addressBalanceUpdates(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("addressBalanceUpdates", r.RequestURI)
+	defer s.pm.Complete(id)
+
+	vars := mux.Vars(r)
+	startIndex, count, err := server.ReadPaginatorParams(vars)
+	if err != nil {
+		server.WriteErrorResponse(w, err, s.log)
+		return
+	}
+	resp, err := s.db.AddressBalanceUpdates(vars["address"], startIndex, count)
 	server.WriteResponse(w, resp, err, s.log)
 }
 
