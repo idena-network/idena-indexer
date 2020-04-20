@@ -20,6 +20,7 @@ type Config struct {
 	DefaultCacheMaxItemCount    int
 	DefaultCacheItemLifeTimeSec int
 	PerformanceMonitor          PerformanceMonitorConfig
+	FrozenBalanceAddrs          []string
 }
 
 type PerformanceMonitorConfig struct {

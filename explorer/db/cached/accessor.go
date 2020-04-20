@@ -213,9 +213,9 @@ func (a *cachedAccessor) Coins() (types.AllCoins, error) {
 	return res.(types.AllCoins), err
 }
 
-func (a *cachedAccessor) CirculatingSupply() (decimal.Decimal, error) {
+func (a *cachedAccessor) CirculatingSupply(addressesToExclude []string) (decimal.Decimal, error) {
 	res, err := a.getOrLoad("CirculatingSupply", func() (interface{}, error) {
-		return a.Accessor.CirculatingSupply()
+		return a.Accessor.CirculatingSupply(addressesToExclude)
 	})
 	return res.(decimal.Decimal), err
 }

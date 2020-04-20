@@ -23,26 +23,40 @@ type Server interface {
 	InitRouter(router *mux.Router)
 }
 
-func NewServer(port int, latestHours int, activeAddrHours int, db db.Accessor, logger log.Logger, pm monitoring.PerformanceMonitor) Server {
+func NewServer(
+	port int,
+	latestHours int,
+	activeAddrHours int,
+	frozenBalanceAddrs []string,
+	db db.Accessor,
+	logger log.Logger,
+	pm monitoring.PerformanceMonitor,
+) Server {
+	var lowerFrozenBalanceAddrs []string
+	for _, frozenBalanceAddr := range frozenBalanceAddrs {
+		lowerFrozenBalanceAddrs = append(lowerFrozenBalanceAddrs, strings.ToLower(frozenBalanceAddr))
+	}
 	return &httpServer{
-		port:            port,
-		db:              db,
-		log:             logger,
-		latestHours:     latestHours,
-		activeAddrHours: activeAddrHours,
-		pm:              pm,
+		port:               port,
+		db:                 db,
+		log:                logger,
+		latestHours:        latestHours,
+		activeAddrHours:    activeAddrHours,
+		frozenBalanceAddrs: lowerFrozenBalanceAddrs,
+		pm:                 pm,
 	}
 }
 
 type httpServer struct {
-	port            int
-	latestHours     int
-	activeAddrHours int
-	db              db.Accessor
-	log             log.Logger
-	pm              monitoring.PerformanceMonitor
-	counter         int
-	mutex           sync.Mutex
+	port               int
+	latestHours        int
+	activeAddrHours    int
+	frozenBalanceAddrs []string
+	db                 db.Accessor
+	log                log.Logger
+	pm                 monitoring.PerformanceMonitor
+	counter            int
+	mutex              sync.Mutex
 }
 
 func (s *httpServer) generateReqId() int {
@@ -340,7 +354,7 @@ func (s *httpServer) circulatingSupply(w http.ResponseWriter, r *http.Request) {
 
 	full := "full" == strings.ToLower(vars["format"])
 
-	resp, err := s.db.CirculatingSupply()
+	resp, err := s.db.CirculatingSupply(s.frozenBalanceAddrs)
 	if err == nil && full {
 		server.WriteResponse(w, blockchain.ConvertToInt(resp), err, s.log)
 		return

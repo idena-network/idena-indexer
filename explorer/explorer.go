@@ -39,7 +39,15 @@ func NewExplorer(c *config.Config) Explorer {
 		logger.New("component", "cachedDbAccessor"),
 	)
 	e := &explorer{
-		server: api.NewServer(c.Port, c.LatestHours, c.ActiveAddressHours, accessor, logger, pm),
+		server: api.NewServer(
+			c.Port,
+			c.LatestHours,
+			c.ActiveAddressHours,
+			c.FrozenBalanceAddrs,
+			accessor,
+			logger,
+			pm,
+		),
 		db:     accessor,
 		logger: logger,
 	}

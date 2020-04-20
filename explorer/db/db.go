@@ -10,7 +10,7 @@ type Accessor interface {
 	Search(value string) ([]types.Entity, error)
 
 	Coins() (types.AllCoins, error)
-	CirculatingSupply() (decimal.Decimal, error)
+	CirculatingSupply(addressesToExclude []string) (decimal.Decimal, error)
 	ActiveAddressesCount(afterTime time.Time) (uint64, error)
 
 	EpochsCount() (uint64, error)

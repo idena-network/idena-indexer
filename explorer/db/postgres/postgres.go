@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/idena-network/idena-indexer/explorer/types"
 	"github.com/idena-network/idena-indexer/log"
+	"github.com/lib/pq"
 	"github.com/shopspring/decimal"
 	"strconv"
 	"time"
@@ -27,6 +28,7 @@ const (
 	isTxQuery                 = "isTx.sql"
 	coinsBurntAndMintedQuery  = "coinsBurntAndMinted.sql"
 	coinsTotalQuery           = "coinsTotal.sql"
+	circulatingSupplyQuery    = "circulatingSupply.sql"
 	activeAddressesCountQuery = "activeAddressesCount.sql"
 )
 
@@ -129,9 +131,14 @@ func (a *postgresAccessor) Coins() (types.AllCoins, error) {
 	return res, nil
 }
 
-func (a *postgresAccessor) CirculatingSupply() (decimal.Decimal, error) {
+func (a *postgresAccessor) CirculatingSupply(addressesToExclude []string) (decimal.Decimal, error) {
 	var totalBalance, totalStake decimal.Decimal
-	err := a.db.QueryRow(a.getQuery(coinsTotalQuery)).Scan(&totalBalance, &totalStake)
+	var err error
+	if len(addressesToExclude) == 0 {
+		err = a.db.QueryRow(a.getQuery(coinsTotalQuery)).Scan(&totalBalance, &totalStake)
+	} else {
+		err = a.db.QueryRow(a.getQuery(circulatingSupplyQuery), pq.Array(addressesToExclude)).Scan(&totalBalance, &totalStake)
+	}
 	if err == sql.ErrNoRows {
 		err = NoDataFound
 	}
