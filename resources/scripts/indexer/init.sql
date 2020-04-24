@@ -224,6 +224,9 @@ ON CONFLICT DO NOTHING;
 INSERT INTO dic_balance_update_reasons
 values (7, 'EpochPenaltyReset')
 ON CONFLICT DO NOTHING;
+INSERT INTO dic_balance_update_reasons
+values (8, 'Initial')
+ON CONFLICT DO NOTHING;
 -- Table: epochs
 
 -- DROP TABLE epochs;
