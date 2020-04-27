@@ -91,6 +91,9 @@ func (s *Server) requestFilter(next http.Handler) http.Handler {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
+		for name, value := range r.Form {
+			r.Form[strings.ToLower(name)] = value
+		}
 		r.URL.Path = strings.ToLower(r.URL.Path)
 		next.ServeHTTP(w, r)
 	})
