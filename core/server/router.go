@@ -33,6 +33,10 @@ func (ri *routerInitializer) InitRouter(router *mux.Router) {
 	router.Path(strings.ToLower("/OnlineIdentity/{address}")).HandlerFunc(ri.onlineIdentity)
 
 	router.Path(strings.ToLower("/OnlineMiners/Count")).HandlerFunc(ri.onlineCount)
+
+	router.Path(strings.ToLower("/SignatureAddress")).
+		Queries("value", "{value}", "signature", "{signature}").
+		HandlerFunc(ri.signatureAddress)
 }
 
 func (ri *routerInitializer) onlineIdentitiesCount(w http.ResponseWriter, r *http.Request) {
@@ -58,4 +62,11 @@ func (ri *routerInitializer) onlineIdentity(w http.ResponseWriter, r *http.Reque
 func (ri *routerInitializer) onlineCount(w http.ResponseWriter, r *http.Request) {
 	resp := ri.api.GetOnlineCount()
 	WriteResponse(w, resp, nil, ri.logger)
+}
+
+func (ri *routerInitializer) signatureAddress(w http.ResponseWriter, r *http.Request) {
+	value := mux.Vars(r)["value"]
+	signature := mux.Vars(r)["signature"]
+	resp, err := ri.api.SignatureAddress(value, signature)
+	WriteResponse(w, resp, err, ri.logger)
 }
