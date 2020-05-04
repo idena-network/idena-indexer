@@ -15,7 +15,28 @@ import (
 )
 
 const (
-	activeAddressesCountMethod = "ActiveAddressesCount"
+	permanentDataLifeTime                   = time.Hour * 2
+	activeAddressesCountMethod              = "ActiveAddressesCount"
+	epochFlipAnswersSummaryMethod           = "EpochFlipAnswersSummary"
+	epochFlipStatesSummaryMethod            = "EpochFlipStatesSummary"
+	epochFlipWrongWordsSummaryMethod        = "EpochFlipWrongWordsSummary"
+	epochIdentityStatesSummaryMethod        = "EpochIdentityStatesSummary"
+	epochIdentityStatesInterimSummaryMethod = "EpochIdentityStatesInterimSummary"
+	epochInvitesSummaryMethod               = "EpochInvitesSummary"
+	epochInviteStatesSummaryMethod          = "EpochInviteStatesSummary"
+	epochRewardsSummaryMethod               = "EpochRewardsSummary"
+	epochBadAuthorsCountMethod              = "EpochBadAuthorsCount"
+	epochBadAuthorsMethod                   = "EpochBadAuthors"
+	epochGoodAuthorsCountMethod             = "EpochGoodAuthorsCount"
+	epochGoodAuthorsMethod                  = "EpochGoodAuthors"
+	epochRewardsCountMethod                 = "EpochRewardsCount"
+	epochRewardsMethod                      = "EpochRewards"
+	epochIdentitiesRewardsCountMethod       = "EpochIdentitiesRewardsCount"
+	epochIdentitiesRewardsMethod            = "EpochIdentitiesRewards"
+	epochFundPaymentsMethod                 = "EpochFundPayments"
+	flipEpochAdjacentFlipsMethod            = "FlipEpochAdjacentFlips"
+	flipAddressAdjacentFlipsMethod          = "FlipAddressAdjacentFlips"
+	flipEpochIdentityAdjacentFlipsMethod    = "FlipEpochIdentityAdjacentFlips"
 )
 
 type cachedAccessor struct {
@@ -61,7 +82,27 @@ func createMaxItemCountsByMethod() map[string]int {
 
 func createMaxItemLifeTimesByMethod() map[string]time.Duration {
 	return map[string]time.Duration{
-		activeAddressesCountMethod: time.Minute * 5,
+		activeAddressesCountMethod:              time.Minute * 5,
+		epochIdentityStatesInterimSummaryMethod: time.Minute * 5,
+		epochInvitesSummaryMethod:               time.Minute * 3,
+		epochInviteStatesSummaryMethod:          time.Minute * 3,
+		flipEpochAdjacentFlipsMethod:            time.Minute * 20,
+		flipAddressAdjacentFlipsMethod:          time.Minute * 20,
+		flipEpochIdentityAdjacentFlipsMethod:    time.Minute * 20,
+		epochFlipAnswersSummaryMethod:           permanentDataLifeTime,
+		epochFlipStatesSummaryMethod:            permanentDataLifeTime,
+		epochFlipWrongWordsSummaryMethod:        permanentDataLifeTime,
+		epochIdentityStatesSummaryMethod:        permanentDataLifeTime,
+		epochRewardsSummaryMethod:               permanentDataLifeTime,
+		epochBadAuthorsCountMethod:              permanentDataLifeTime,
+		epochBadAuthorsMethod:                   permanentDataLifeTime,
+		epochGoodAuthorsCountMethod:             permanentDataLifeTime,
+		epochGoodAuthorsMethod:                  permanentDataLifeTime,
+		epochRewardsCountMethod:                 permanentDataLifeTime,
+		epochRewardsMethod:                      permanentDataLifeTime,
+		epochIdentitiesRewardsCountMethod:       permanentDataLifeTime,
+		epochIdentitiesRewardsMethod:            permanentDataLifeTime,
+		epochFundPaymentsMethod:                 permanentDataLifeTime,
 	}
 }
 
@@ -284,21 +325,21 @@ func (a *cachedAccessor) EpochFlips(epoch uint64, startIndex uint64, count uint6
 }
 
 func (a *cachedAccessor) EpochFlipAnswersSummary(epoch uint64) ([]types.StrValueCount, error) {
-	res, err := a.getOrLoad("EpochFlipAnswersSummary", func() (interface{}, error) {
+	res, err := a.getOrLoad(epochFlipAnswersSummaryMethod, func() (interface{}, error) {
 		return a.Accessor.EpochFlipAnswersSummary(epoch)
 	}, epoch)
 	return res.([]types.StrValueCount), err
 }
 
 func (a *cachedAccessor) EpochFlipStatesSummary(epoch uint64) ([]types.StrValueCount, error) {
-	res, err := a.getOrLoad("EpochFlipStatesSummary", func() (interface{}, error) {
+	res, err := a.getOrLoad(epochFlipStatesSummaryMethod, func() (interface{}, error) {
 		return a.Accessor.EpochFlipStatesSummary(epoch)
 	}, epoch)
 	return res.([]types.StrValueCount), err
 }
 
 func (a *cachedAccessor) EpochFlipWrongWordsSummary(epoch uint64) ([]types.NullableBoolValueCount, error) {
-	res, err := a.getOrLoad("EpochFlipWrongWordsSummary", func() (interface{}, error) {
+	res, err := a.getOrLoad(epochFlipWrongWordsSummaryMethod, func() (interface{}, error) {
 		return a.Accessor.EpochFlipWrongWordsSummary(epoch)
 	}, epoch)
 	return res.([]types.NullableBoolValueCount), err
@@ -320,28 +361,28 @@ func (a *cachedAccessor) EpochIdentities(epoch uint64, prevStates []string, stat
 }
 
 func (a *cachedAccessor) EpochIdentityStatesSummary(epoch uint64) ([]types.StrValueCount, error) {
-	res, err := a.getOrLoad("EpochIdentityStatesSummary", func() (interface{}, error) {
+	res, err := a.getOrLoad(epochIdentityStatesSummaryMethod, func() (interface{}, error) {
 		return a.Accessor.EpochIdentityStatesSummary(epoch)
 	}, epoch)
 	return res.([]types.StrValueCount), err
 }
 
 func (a *cachedAccessor) EpochIdentityStatesInterimSummary(epoch uint64) ([]types.StrValueCount, error) {
-	res, err := a.getOrLoad("EpochIdentityStatesInterimSummary", func() (interface{}, error) {
+	res, err := a.getOrLoad(epochIdentityStatesInterimSummaryMethod, func() (interface{}, error) {
 		return a.Accessor.EpochIdentityStatesInterimSummary(epoch)
 	}, epoch)
 	return res.([]types.StrValueCount), err
 }
 
 func (a *cachedAccessor) EpochInvitesSummary(epoch uint64) (types.InvitesSummary, error) {
-	res, err := a.getOrLoad("EpochInvitesSummary", func() (interface{}, error) {
+	res, err := a.getOrLoad(epochInvitesSummaryMethod, func() (interface{}, error) {
 		return a.Accessor.EpochInvitesSummary(epoch)
 	}, epoch)
 	return res.(types.InvitesSummary), err
 }
 
 func (a *cachedAccessor) EpochInviteStatesSummary(epoch uint64) ([]types.StrValueCount, error) {
-	res, err := a.getOrLoad("EpochInviteStatesSummary", func() (interface{}, error) {
+	res, err := a.getOrLoad(epochInviteStatesSummaryMethod, func() (interface{}, error) {
 		return a.Accessor.EpochInviteStatesSummary(epoch)
 	}, epoch)
 	return res.([]types.StrValueCount), err
@@ -383,70 +424,70 @@ func (a *cachedAccessor) EpochCoins(epoch uint64) (types.AllCoins, error) {
 }
 
 func (a *cachedAccessor) EpochRewardsSummary(epoch uint64) (types.RewardsSummary, error) {
-	res, err := a.getOrLoad("EpochRewardsSummary", func() (interface{}, error) {
+	res, err := a.getOrLoad(epochRewardsSummaryMethod, func() (interface{}, error) {
 		return a.Accessor.EpochRewardsSummary(epoch)
 	}, epoch)
 	return res.(types.RewardsSummary), err
 }
 
 func (a *cachedAccessor) EpochBadAuthorsCount(epoch uint64) (uint64, error) {
-	res, err := a.getOrLoad("EpochBadAuthorsCount", func() (interface{}, error) {
+	res, err := a.getOrLoad(epochBadAuthorsCountMethod, func() (interface{}, error) {
 		return a.Accessor.EpochBadAuthorsCount(epoch)
 	}, epoch)
 	return res.(uint64), err
 }
 
 func (a *cachedAccessor) EpochBadAuthors(epoch uint64, startIndex uint64, count uint64) ([]types.BadAuthor, error) {
-	res, err := a.getOrLoad("EpochBadAuthors", func() (interface{}, error) {
+	res, err := a.getOrLoad(epochBadAuthorsMethod, func() (interface{}, error) {
 		return a.Accessor.EpochBadAuthors(epoch, startIndex, count)
 	}, epoch, startIndex, count)
 	return res.([]types.BadAuthor), err
 }
 
 func (a *cachedAccessor) EpochGoodAuthorsCount(epoch uint64) (uint64, error) {
-	res, err := a.getOrLoad("EpochGoodAuthorsCount", func() (interface{}, error) {
+	res, err := a.getOrLoad(epochGoodAuthorsCountMethod, func() (interface{}, error) {
 		return a.Accessor.EpochGoodAuthorsCount(epoch)
 	}, epoch)
 	return res.(uint64), err
 }
 
 func (a *cachedAccessor) EpochGoodAuthors(epoch uint64, startIndex uint64, count uint64) ([]types.AuthorValidationSummary, error) {
-	res, err := a.getOrLoad("EpochGoodAuthors", func() (interface{}, error) {
+	res, err := a.getOrLoad(epochGoodAuthorsMethod, func() (interface{}, error) {
 		return a.Accessor.EpochGoodAuthors(epoch, startIndex, count)
 	}, epoch, startIndex, count)
 	return res.([]types.AuthorValidationSummary), err
 }
 
 func (a *cachedAccessor) EpochRewardsCount(epoch uint64) (uint64, error) {
-	res, err := a.getOrLoad("EpochRewardsCount", func() (interface{}, error) {
+	res, err := a.getOrLoad(epochRewardsCountMethod, func() (interface{}, error) {
 		return a.Accessor.EpochRewardsCount(epoch)
 	}, epoch)
 	return res.(uint64), err
 }
 
 func (a *cachedAccessor) EpochRewards(epoch uint64, startIndex uint64, count uint64) ([]types.Reward, error) {
-	res, err := a.getOrLoad("EpochRewards", func() (interface{}, error) {
+	res, err := a.getOrLoad(epochRewardsMethod, func() (interface{}, error) {
 		return a.Accessor.EpochRewards(epoch, startIndex, count)
 	}, epoch, startIndex, count)
 	return res.([]types.Reward), err
 }
 
 func (a *cachedAccessor) EpochIdentitiesRewardsCount(epoch uint64) (uint64, error) {
-	res, err := a.getOrLoad("EpochIdentitiesRewardsCount", func() (interface{}, error) {
+	res, err := a.getOrLoad(epochIdentitiesRewardsCountMethod, func() (interface{}, error) {
 		return a.Accessor.EpochIdentitiesRewardsCount(epoch)
 	}, epoch)
 	return res.(uint64), err
 }
 
 func (a *cachedAccessor) EpochIdentitiesRewards(epoch uint64, startIndex uint64, count uint64) ([]types.Rewards, error) {
-	res, err := a.getOrLoad("EpochIdentitiesRewards", func() (interface{}, error) {
+	res, err := a.getOrLoad(epochIdentitiesRewardsMethod, func() (interface{}, error) {
 		return a.Accessor.EpochIdentitiesRewards(epoch, startIndex, count)
 	}, epoch, startIndex, count)
 	return res.([]types.Rewards), err
 }
 
 func (a *cachedAccessor) EpochFundPayments(epoch uint64) ([]types.FundPayment, error) {
-	res, err := a.getOrLoad("EpochFundPayments", func() (interface{}, error) {
+	res, err := a.getOrLoad(epochFundPaymentsMethod, func() (interface{}, error) {
 		return a.Accessor.EpochFundPayments(epoch)
 	}, epoch)
 	return res.([]types.FundPayment), err
@@ -628,21 +669,21 @@ func (a *cachedAccessor) FlipAnswers(hash string, isShort bool, startIndex uint6
 }
 
 func (a *cachedAccessor) FlipEpochAdjacentFlips(hash string) (types.AdjacentStrValues, error) {
-	res, err := a.getOrLoad("FlipEpochAdjacentFlips", func() (interface{}, error) {
+	res, err := a.getOrLoad(flipEpochAdjacentFlipsMethod, func() (interface{}, error) {
 		return a.Accessor.FlipEpochAdjacentFlips(hash)
 	}, hash)
 	return res.(types.AdjacentStrValues), err
 }
 
 func (a *cachedAccessor) FlipAddressAdjacentFlips(hash string) (types.AdjacentStrValues, error) {
-	res, err := a.getOrLoad("FlipAddressAdjacentFlips", func() (interface{}, error) {
+	res, err := a.getOrLoad(flipAddressAdjacentFlipsMethod, func() (interface{}, error) {
 		return a.Accessor.FlipAddressAdjacentFlips(hash)
 	}, hash)
 	return res.(types.AdjacentStrValues), err
 }
 
 func (a *cachedAccessor) FlipEpochIdentityAdjacentFlips(hash string) (types.AdjacentStrValues, error) {
-	res, err := a.getOrLoad("FlipEpochIdentityAdjacentFlips", func() (interface{}, error) {
+	res, err := a.getOrLoad(flipEpochIdentityAdjacentFlipsMethod, func() (interface{}, error) {
 		return a.Accessor.FlipEpochIdentityAdjacentFlips(hash)
 	}, hash)
 	return res.(types.AdjacentStrValues), err

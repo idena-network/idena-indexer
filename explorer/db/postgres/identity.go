@@ -37,14 +37,14 @@ func (a *postgresAccessor) Identity(address string) (types.Identity, error) {
 	}
 	identity.Address = address
 
-	if identity.ShortAnswers, identity.TotalShortAnswers, identity.LongAnswers, err = a.identityAnswerPoints(address); err != nil {
+	if identity.TotalShortAnswers, err = a.identityAnswerPoints(address); err != nil {
 		return types.Identity{}, err
 	}
 
 	return identity, nil
 }
 
-func (a *postgresAccessor) identityAnswerPoints(address string) (short, totalShort, long types.IdentityAnswersSummary, err error) {
+func (a *postgresAccessor) identityAnswerPoints(address string) (totalShort types.IdentityAnswersSummary, err error) {
 	rows, err := a.db.Query(a.getQuery(identityAnswerPointsQuery), address)
 	if err != nil {
 		return
@@ -53,7 +53,7 @@ func (a *postgresAccessor) identityAnswerPoints(address string) (short, totalSho
 	if !rows.Next() {
 		return
 	}
-	err = rows.Scan(&short.Point, &short.FlipsCount, &totalShort.Point, &totalShort.FlipsCount, &long.Point, &long.FlipsCount)
+	err = rows.Scan(&totalShort.Point, &totalShort.FlipsCount)
 	return
 }
 

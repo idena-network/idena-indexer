@@ -1,3 +1,1 @@
-select count(*) block_count
-from blocks b
-where b.epoch = $1
+select coalesce((select block_count from epoch_summaries where epoch = $1), 0)

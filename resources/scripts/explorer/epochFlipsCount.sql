@@ -1,5 +1,1 @@
-select count(*) flip_count
-from flips f
-         join transactions t on t.id = f.tx_id
-         join blocks b on b.height = t.block_height and b.epoch = $1
-where f.delete_tx_id is null
+select coalesce((select flip_count from epoch_summaries where epoch = $1), 0)

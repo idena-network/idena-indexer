@@ -214,9 +214,7 @@ type Answer struct {
 type Identity struct {
 	Address           string                 `json:"address"`
 	State             string                 `json:"state"`
-	ShortAnswers      IdentityAnswersSummary `json:"shortAnswers"`
 	TotalShortAnswers IdentityAnswersSummary `json:"totalShortAnswers"`
-	LongAnswers       IdentityAnswersSummary `json:"longAnswers"`
 }
 
 type IdentityFlipsSummary struct {

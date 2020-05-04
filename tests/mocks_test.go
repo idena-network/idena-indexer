@@ -53,8 +53,8 @@ func (l *TestListener) Listen(handleBlock func(block *types.Block), expectedHead
 		})
 }
 
-func (l *TestListener) AppStateReadonly(height uint64) *appstate.AppState {
-	return l.appState
+func (l *TestListener) AppStateReadonly(height uint64) (*appstate.AppState, error) {
+	return l.appState, nil
 }
 
 func (l *TestListener) AppState() *appstate.AppState {

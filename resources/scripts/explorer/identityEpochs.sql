@@ -1,31 +1,25 @@
 select a.address,
-       eis.epoch,
-       dis.name                                  state,
-       coalesce(prevdis.name, '')                prev_state,
-       coalesce(ei.approved, false),
-       coalesce(ei.missed, false),
-       coalesce(ei.short_point, 0),
-       coalesce(ei.short_flips, 0),
-       coalesce(ei.total_short_point, 0),
-       coalesce(ei.total_short_flips, 0),
-       coalesce(ei.long_point, 0),
-       coalesce(ei.long_flips, 0),
-       coalesce(ei.required_flips, 0)            required_flips,
-       coalesce(ei.made_flips, 0)                made_flips,
-       coalesce(ei.available_flips, 0)           available_flips,
-       coalesce((select sum(vr.balance + vr.stake)
-                 from validation_rewards vr
-                 where vr.ei_address_state_id = eis.address_state_id
-                   and ei.epoch = eis.epoch), 0) total_validation_reward,
-       coalesce(ei.birth_epoch, 0)               birth_epoch
-from epoch_identity_states eis
-         join addresses a on a.id = eis.address_id
-         left join address_states prevs on prevs.id = eis.prev_id
-         left join epoch_identities ei on ei.epoch = eis.epoch and ei.address_state_id = eis.address_state_id
-         join dic_identity_states dis on dis.id = eis.state
+       ei.epoch,
+       dis.name                   state,
+       coalesce(prevdis.name, '') prev_state,
+       ei.approved,
+       ei.missed,
+       ei.short_point,
+       ei.short_flips,
+       ei.total_short_point,
+       ei.total_short_flips,
+       ei.long_point,
+       ei.long_flips,
+       ei.required_flips,
+       ei.made_flips,
+       ei.available_flips,
+       ei.total_validation_reward,
+       ei.birth_epoch
+from epoch_identities ei
+         join address_states s on s.id = ei.address_state_id
+         join addresses a on a.id = s.address_id and lower(a.address) = lower($1)
+         join dic_identity_states dis on dis.id = s.state
+         left join address_states prevs on prevs.id = s.prev_id
          left join dic_identity_states prevdis on prevdis.id = prevs.state
-where lower(a.address) = lower($1)
-order by eis.epoch desc
-limit $3
-offset
-$2
+order by ei.address_state_id desc
+limit $3 offset $2

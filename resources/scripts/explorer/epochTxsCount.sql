@@ -1,4 +1,1 @@
-select count(*) txs_count
-from transactions t
-         join blocks b on b.height = t.block_height
-where b.epoch = $1
+select coalesce((select tx_count from epoch_summaries where epoch = $1), 0)

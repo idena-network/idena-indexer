@@ -37,7 +37,6 @@ const (
 	insertFlipKeyQuery                  = "insertFlipKey.sql"
 	insertFlipWordsQuery                = "insertFlipWords.sql"
 	flipWordsCountQuery                 = "flipWordsCount.sql"
-	selectEpochQuery                    = "selectEpoch.sql"
 	insertEpochQuery                    = "insertEpoch.sql"
 	resetToBlockQuery                   = "resetToBlock.sql"
 	saveBalancesQuery                   = "saveBalances.sql"
@@ -204,19 +203,6 @@ func (a *postgresAccessor) Save(data *Data) error {
 		return err
 	}
 
-	if data.SaveEpochSummary {
-		a.pm.Start("saveEpochSummary")
-		if err = a.saveEpochSummary(ctx, data.Coins, data.MinScoreForInvite); err != nil {
-			return err
-		}
-		a.pm.Complete("saveEpochSummary")
-		a.pm.Start("updateFlipsQueue")
-		if err = a.updateFlipsQueue(ctx); err != nil {
-			return err
-		}
-		a.pm.Complete("updateFlipsQueue")
-	}
-
 	if err = a.savePenalty(ctx, data.Penalty); err != nil {
 		return err
 	}
@@ -242,6 +228,20 @@ func (a *postgresAccessor) Save(data *Data) error {
 	if err = a.saveFailedValidation(ctx, data.FailedValidation); err != nil {
 		return err
 	}
+
+	if data.SaveEpochSummary {
+		a.pm.Start("saveEpochSummary")
+		if err = a.saveEpochSummary(ctx, data.MinScoreForInvite); err != nil {
+			return err
+		}
+		a.pm.Complete("saveEpochSummary")
+		a.pm.Start("updateFlipsQueue")
+		if err = a.updateFlipsQueue(ctx); err != nil {
+			return err
+		}
+		a.pm.Complete("updateFlipsQueue")
+	}
+
 	a.pm.Complete("RunTx")
 	a.pm.Start("CommitTx")
 	defer a.pm.Complete("CommitTx")
@@ -261,15 +261,7 @@ func (a *postgresAccessor) saveFlipsStats(ctx *context, flipsStats []FlipStats) 
 }
 
 func (a *postgresAccessor) saveEpoch(ctx *context, epoch uint64, validationTime big.Int) error {
-	var savedEpoch int64
-	err := ctx.tx.QueryRow(a.getQuery(selectEpochQuery), epoch).Scan(&savedEpoch)
-	if err == nil {
-		return nil
-	}
-	if err != sql.ErrNoRows {
-		return err
-	}
-	_, err = ctx.tx.Exec(a.getQuery(insertEpochQuery), epoch, validationTime.Int64())
+	_, err := ctx.tx.Exec(a.getQuery(insertEpochQuery), epoch, validationTime.Int64())
 	return err
 }
 
@@ -497,12 +489,10 @@ func (a *postgresAccessor) getFlipWordsCount(ctx *context, flipTxId uint64) (int
 	return count, errors.Wrapf(err, "unable to get flip words count for flip tx id %v", flipTxId)
 }
 
-func (a *postgresAccessor) saveEpochSummary(ctx *context, coins Coins, minScoreForInvite float32) error {
+func (a *postgresAccessor) saveEpochSummary(ctx *context, minScoreForInvite float32) error {
 	_, err := ctx.tx.Exec(a.getQuery(insertEpochSummaryQuery),
 		ctx.epoch,
 		ctx.blockHeight,
-		coins.TotalBalance,
-		coins.TotalStake,
 		minScoreForInvite,
 	)
 	return errors.Wrapf(err, "unable to save epoch summary for %v", ctx.epoch)

@@ -279,43 +279,6 @@ CREATE UNIQUE INDEX IF NOT EXISTS blocks_hash_unique_idx on blocks (LOWER(hash))
 CREATE INDEX IF NOT EXISTS blocks_epoch_idx on blocks (epoch);
 CREATE INDEX IF NOT EXISTS blocks_timestamp_idx on blocks ("timestamp" desc);
 
--- Table: epoch_summaries
-
--- DROP TABLE epoch_summaries;
-
-CREATE TABLE IF NOT EXISTS epoch_summaries
-(
-    epoch                bigint          NOT NULL,
-    validated_count      integer         NOT NULL,
-    block_count          bigint          NOT NULL,
-    empty_block_count    bigint          NOT NULL,
-    tx_count             bigint          NOT NULL,
-    invite_count         bigint          NOT NULL,
-    flip_count           integer         NOT NULL,
-    burnt                numeric(30, 18) NOT NULL,
-    minted               numeric(30, 18) NOT NULL,
-    total_balance        numeric(30, 18) NOT NULL,
-    total_stake          numeric(30, 18) NOT NULL,
-    block_height         bigint          NOT NULL,
-    min_score_for_invite real            NOT NULL,
-    CONSTRAINT epoch_summaries_pkey PRIMARY KEY (epoch),
-    CONSTRAINT epoch_summaries_block_height_fkey FOREIGN KEY (block_height)
-        REFERENCES blocks (height) MATCH SIMPLE
-        ON UPDATE NO ACTION
-        ON DELETE NO ACTION,
-    CONSTRAINT epoch_summaries_epoch_fkey FOREIGN KEY (epoch)
-        REFERENCES epochs (epoch) MATCH SIMPLE
-        ON UPDATE NO ACTION
-        ON DELETE NO ACTION
-)
-    WITH (
-        OIDS = FALSE
-    )
-    TABLESPACE pg_default;
-
-ALTER TABLE epoch_summaries
-    OWNER to postgres;
-
 -- Table: failed_validations
 
 -- DROP TABLE failed_validations;
@@ -619,21 +582,22 @@ CREATE INDEX IF NOT EXISTS address_states_address_id_idx on address_states (addr
 
 CREATE TABLE IF NOT EXISTS epoch_identities
 (
-    address_state_id   bigint   NOT NULL,
-    epoch              bigint   NOT NULL,
-    short_point        real     NOT NULL,
-    short_flips        integer  NOT NULL,
-    total_short_point  real     NOT NULL,
-    total_short_flips  integer  NOT NULL,
-    long_point         real     NOT NULL,
-    long_flips         integer  NOT NULL,
-    approved           boolean  NOT NULL,
-    missed             boolean  NOT NULL,
-    required_flips     smallint NOT NULL,
-    available_flips    smallint NOT NULL,
-    made_flips         smallint NOT NULL,
-    next_epoch_invites smallint NOT NULL,
-    birth_epoch        bigint   NOT NULL,
+    address_state_id        bigint          NOT NULL,
+    epoch                   bigint          NOT NULL,
+    short_point             real            NOT NULL,
+    short_flips             integer         NOT NULL,
+    total_short_point       real            NOT NULL,
+    total_short_flips       integer         NOT NULL,
+    long_point              real            NOT NULL,
+    long_flips              integer         NOT NULL,
+    approved                boolean         NOT NULL,
+    missed                  boolean         NOT NULL,
+    required_flips          smallint        NOT NULL,
+    available_flips         smallint        NOT NULL,
+    made_flips              smallint        NOT NULL,
+    next_epoch_invites      smallint        NOT NULL,
+    birth_epoch             bigint          NOT NULL,
+    total_validation_reward numeric(30, 18) NOT NULL,
     CONSTRAINT epoch_identities_pkey PRIMARY KEY (address_state_id),
     CONSTRAINT epoch_identities_address_state_id_fkey FOREIGN KEY (address_state_id)
         REFERENCES address_states (id) MATCH SIMPLE
@@ -781,6 +745,8 @@ ALTER TABLE answers
 CREATE INDEX IF NOT EXISTS answers_long_wrong_words_idx on answers (flip_tx_id) WHERE not is_short and wrong_words;
 CREATE INDEX IF NOT EXISTS answers_short_idx on answers (flip_tx_id) WHERE is_short;
 CREATE INDEX IF NOT EXISTS answers_long_idx on answers (flip_tx_id) WHERE not is_short;
+CREATE INDEX IF NOT EXISTS answers_short_respondent_idx on answers (ei_address_state_id) WHERE is_short;
+CREATE INDEX IF NOT EXISTS answers_long_respondent_idx on answers (ei_address_state_id) WHERE not is_short;
 
 -- Table: flips_to_solve
 
@@ -1473,48 +1439,6 @@ CREATE INDEX IF NOT EXISTS latest_committee_reward_block_height_idx
 CREATE INDEX IF NOT EXISTS latest_committee_reward_du_id_idx
     on latest_committee_reward_balance_updates (balance_update_id);
 
--- Table: flip_key_timestamps
-
--- DROP TABLE flip_key_timestamps;
-
-CREATE TABLE IF NOT EXISTS flip_key_timestamps
-(
-    address     character(42) COLLATE pg_catalog."default" NOT NULL,
-    epoch       bigint                                     NOT NULL,
-    "timestamp" bigint                                     NOT NULL
-)
-    WITH (
-        OIDS = FALSE
-    )
-    TABLESPACE pg_default;
-
-ALTER TABLE flip_key_timestamps
-    OWNER to postgres;
-
-CREATE UNIQUE INDEX IF NOT EXISTS flip_key_timestamps_address_epoch_unique_idx on flip_key_timestamps
-    (LOWER(address), epoch);
-
--- Table: answers_hash_tx_timestamps
-
--- DROP TABLE answers_hash_tx_timestamps;
-
-CREATE TABLE IF NOT EXISTS answers_hash_tx_timestamps
-(
-    address     character(42) COLLATE pg_catalog."default" NOT NULL,
-    epoch       bigint                                     NOT NULL,
-    "timestamp" bigint                                     NOT NULL
-)
-    WITH (
-        OIDS = FALSE
-    )
-    TABLESPACE pg_default;
-
-ALTER TABLE answers_hash_tx_timestamps
-    OWNER to postgres;
-
-CREATE UNIQUE INDEX IF NOT EXISTS answers_hash_tx_timestamps_address_epoch_unique_idx on answers_hash_tx_timestamps
-    (LOWER(address), epoch);
-
 CREATE TABLE IF NOT EXISTS flips_queue
 (
     cid                    character varying(100) COLLATE pg_catalog."default" NOT NULL,
@@ -1532,10 +1456,6 @@ ALTER TABLE flips_queue
 
 CREATE INDEX IF NOT EXISTS flips_queue_next_attempt_timestamp_idx on flips_queue (next_attempt_timestamp desc);
 CREATE UNIQUE INDEX IF NOT EXISTS flips_cid_unique_idx on flips (LOWER(cid));
-
--- View: epoch_identity_states
-
--- DROP VIEW epoch_identity_states;
 
 CREATE OR REPLACE VIEW epoch_identity_states AS
 SELECT s.id AS address_state_id,
@@ -2304,6 +2224,8 @@ DECLARE
     l_to                     bigint;
     res                      tp_tx_hash_id[];
     deleted_flip             tp_deleted_flip;
+    l_invites_count          integer;
+    l_flips_count_diff       integer;
 BEGIN
     for i in 1..cardinality(addresses)
         loop
@@ -2326,6 +2248,8 @@ BEGIN
         end loop;
 
     if txs is not null then
+        l_invites_count = 0;
+        l_flips_count_diff = 0;
         for i in 1..cardinality(txs)
             loop
                 tx = txs[i];
@@ -2339,7 +2263,25 @@ BEGIN
                         l_to, tx.amount, tx.tips, tx.max_fee, tx.fee, tx.size)
                 RETURNING id into l_tx_id;
                 res = array_append(res, (tx.hash, l_tx_id)::tp_tx_hash_id);
+
+                if tx.type = 2 then
+                    -- InviteTx
+                    l_invites_count = l_invites_count + 1;
+                end if;
+                if tx.type = 4 then
+                    -- SubmitFlipTx
+                    l_flips_count_diff = l_flips_count_diff + 1;
+                end if;
+                if tx.type = 14 then
+                    -- DeleteFlipTx
+                    l_flips_count_diff = l_flips_count_diff - 1;
+                end if;
             end loop;
+
+        call update_epoch_summary(p_block_height => height,
+                                  p_tx_count_diff => cardinality(txs),
+                                  p_invite_count_diff =>l_invites_count,
+                                  p_flip_count_diff => l_flips_count_diff);
     end if;
 
     if p_activation_tx_transfers is not null then
@@ -2626,11 +2568,12 @@ BEGIN
 
             insert into epoch_identities (epoch, address_state_id, short_point, short_flips, total_short_point,
                                           total_short_flips, long_point, long_flips, approved, missed,
-                                          required_flips, available_flips, made_flips, next_epoch_invites, birth_epoch)
+                                          required_flips, available_flips, made_flips, next_epoch_invites, birth_epoch,
+                                          total_validation_reward)
             values (p_epoch, l_state_id, identity.short_point, identity.short_flips, identity.total_short_point,
                     identity.total_short_flips, identity.long_point, identity.long_flips, identity.approved,
                     identity.missed, identity.required_flips, identity.available_flips, identity.made_flips,
-                    identity.next_epoch_invites, identity.birth_epoch);
+                    identity.next_epoch_invites, identity.birth_epoch, 0);
 
             insert into cur_epoch_identities values (identity.address, l_state_id);
 
@@ -2966,82 +2909,17 @@ BEGIN
 END
 $BODY$;
 
-CREATE OR REPLACE PROCEDURE save_flips_content(p_fails tp_failed_flip_content[],
-                                               p_contents jsonb[])
-    LANGUAGE 'plpgsql'
-AS
-$BODY$
-DECLARE
-    l_fail       tp_failed_flip_content;
-    l_content    jsonb;
-    l_flip_tx_id bigint;
-    l_cid        text;
-BEGIN
-    if p_fails is not null then
-        for i in 1..cardinality(p_fails)
-            loop
-                l_fail := p_fails[i];
-                if l_fail.attempts_limit_reached then
-                    delete from flips_queue where lower(cid) = lower(l_fail.cid);
-                else
-                    update flips_queue
-                    set attempts              = attempts + 1,
-                        next_attempt_timestamp=l_fail.next_attempt_timestamp
-                    where lower(cid) = lower(l_fail.cid);
-                end if;
-            end loop;
-    end if;
-    if p_contents is not null then
-        for i in 1..cardinality(p_contents)
-            loop
-                l_content := p_contents[i];
-                l_cid := lower((l_content ->> 'cid')::text);
-
-                delete from flips_queue where lower(cid) = l_cid;
-
-                select tx_id into l_flip_tx_id from flips where lower(cid) = l_cid;
-
-                insert into flips_data (flip_tx_id)
-                values (l_flip_tx_id);
-
-                if l_content -> 'pics' is not null then
-                    for j in 0..jsonb_array_length(l_content -> 'pics') - 1
-                        loop
-                            insert into flip_pics (fd_flip_tx_id, index, data)
-                            values (l_flip_tx_id, j, decode(l_content -> 'pics' ->> j, 'hex'));
-                        end loop;
-                end if;
-
-                if l_content -> 'orders' is not null then
-                    for l_answer_index in 0..jsonb_array_length(l_content -> 'orders') - 1
-                        loop
-                            for l_pos_index in 0..jsonb_array_length(l_content -> 'orders' -> l_answer_index) - 1
-                                loop
-                                    insert into flip_pic_orders (fd_flip_tx_id, answer_index, pos_index, flip_pic_index)
-                                    values (l_flip_tx_id, l_answer_index, l_pos_index,
-                                            (l_content -> 'orders' -> l_answer_index ->> l_pos_index)::smallint);
-                                end loop;
-                        end loop;
-                end if;
-
-                if l_content -> 'icon' is not null then
-                    insert into flip_icons (fd_flip_tx_id, data)
-                    values (l_flip_tx_id, decode(l_content ->> 'icon', 'hex'));
-                end if;
-
-            end loop;
-    end if;
-END
-$BODY$;
-
 CREATE OR REPLACE PROCEDURE reset_to(p_block_height bigint)
     LANGUAGE 'plpgsql'
 AS
 $BODY$
 DECLARE
+    l_epoch bigint;
 BEGIN
 
     call reset_balance_updates_to(p_block_height);
+
+    select epoch into l_epoch from blocks where height = greatest(2, p_block_height);
 
     delete
     from flips_queue
@@ -3052,7 +2930,7 @@ BEGIN
              blocks b
         where f.tx_id = t.id
           and t.block_height = b.height
-          and b.epoch + 1 > (select epoch from blocks where height = greatest(2, p_block_height))
+          and b.epoch + 1 > l_epoch
     );
 
     delete
@@ -3061,8 +2939,7 @@ BEGIN
           (select t.id
            from transactions t
                     join blocks b on b.height = t.block_height and
-                                     b.epoch + 1 >
-                                     (select epoch from blocks where height = greatest(2, p_block_height)));
+                                     b.epoch + 1 > l_epoch);
 
     delete
     from flip_icons
@@ -3070,8 +2947,7 @@ BEGIN
           (select t.id
            from transactions t
                     join blocks b on b.height = t.block_height and
-                                     b.epoch + 1 >
-                                     (select epoch from blocks where height = greatest(2, p_block_height)));
+                                     b.epoch + 1 > l_epoch);
 
     delete
     from flip_pic_orders
@@ -3079,8 +2955,7 @@ BEGIN
           (select t.id
            from transactions t
                     join blocks b on b.height = t.block_height and
-                                     b.epoch + 1 >
-                                     (select epoch from blocks where height = greatest(2, p_block_height)));
+                                     b.epoch + 1 > l_epoch);
 
     delete
     from flips_data
@@ -3088,8 +2963,7 @@ BEGIN
           (select t.id
            from transactions t
                     join blocks b on b.height = t.block_height and
-                                     b.epoch + 1 >
-                                     (select epoch from blocks where height = greatest(2, p_block_height)));
+                                     b.epoch + 1 > l_epoch);
 
     delete
     from rewarded_flips
@@ -3097,8 +2971,15 @@ BEGIN
           (select t.id
            from transactions t
                     join blocks b on b.height = t.block_height and
-                                     b.epoch + 1 >
-                                     (select epoch from blocks where height = greatest(2, p_block_height)));
+                                     b.epoch + 1 > l_epoch);
+
+    delete
+    from flip_summaries
+    where flip_tx_id in
+          (select t.id
+           from transactions t
+                    join blocks b on b.height = t.block_height and
+                                     b.epoch + 1 > l_epoch);
 
     delete
     from epoch_identity_interim_states
@@ -3340,6 +3221,8 @@ BEGIN
     from epochs
     where epoch not in (select distinct epoch from blocks);
 
+    call restore_coins_summary();
+    call restore_epoch_summary(p_block_height);
 END
 $BODY$;
 
@@ -3355,11 +3238,23 @@ BEGIN
     select min(block_height) into l_history_min_height from latest_committee_reward_balance_updates;
 
     if l_history_min_height is null then
-        raise exception 'there is no committee rewards history to restore balance updates';
+        if (select exists(select 1
+                          from balance_updates
+                          where block_height <= p_block_height
+                            and last_block_height is not null
+                            and last_block_height > p_block_height)) then
+            raise exception 'there is no committee rewards history to restore balance updates';
+        end if;
     end if;
 
     if p_block_height < l_history_min_height then
-        raise exception 'height to reset is lower than committee rewards history min height';
+        if (select exists(select 1
+                          from balance_updates
+                          where block_height <= p_block_height
+                            and last_block_height is not null
+                            and last_block_height > p_block_height)) then
+            raise exception 'height to reset is lower than committee rewards history min height';
+        end if;
     end if;
 
     delete
@@ -3408,11 +3303,23 @@ BEGIN
     select min(block_height) into l_history_min_height from latest_committee_reward_balance_updates;
 
     if l_history_min_height is null then
-        raise exception 'there is no committee rewards history to restore balance updates';
+        if (select exists(select 1
+                          from balance_updates
+                          where block_height <= p_block_height
+                            and last_block_height is not null
+                            and last_block_height > p_block_height)) then
+            raise exception 'there is no committee rewards history to restore balance updates';
+        end if;
     end if;
 
     if p_block_height < l_history_min_height then
-        raise exception 'height to migrate is lower than committee rewards history min height';
+        if (select exists(select 1
+                          from balance_updates
+                          where block_height <= p_block_height
+                            and last_block_height is not null
+                            and last_block_height > p_block_height)) then
+            raise exception 'height to migrate is lower than committee rewards history min height';
+        end if;
     end if;
 
     RESET search_path;

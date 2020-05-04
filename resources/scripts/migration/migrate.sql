@@ -119,6 +119,11 @@ insert into rewarded_flips (select *
                             where flip_tx_id in
                                   (select id from OLD_SCHEMA_TAG.transactions where block_height <= $1));
 
+insert into flip_summaries (select *
+                            from OLD_SCHEMA_TAG.flip_summaries
+                            where flip_tx_id in
+                                  (select id from OLD_SCHEMA_TAG.transactions where block_height <= $1));
+
 -- address_states
 insert into address_states (select * from OLD_SCHEMA_TAG.address_states where block_height <= $1);
 -- restore actual states
@@ -167,7 +172,6 @@ insert into flips_to_solve
 -- coins
 insert into coins (select * from OLD_SCHEMA_TAG.coins where block_height <= $1);
 
--- epoch_summaries
 insert into epoch_summaries (select * from OLD_SCHEMA_TAG.epoch_summaries where block_height <= $1);
 
 -- penalties
@@ -229,3 +233,7 @@ insert into answers_hash_tx_timestamps (select *
                                         where epoch in (select epoch from epochs));
 
 call migrate_balance_updates($1, 'OLD_SCHEMA_TAG');
+
+call restore_coins_summary();
+
+call restore_epoch_summary($1);

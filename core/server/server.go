@@ -22,8 +22,9 @@ func NewServer(
 	return &Server{
 		port: port,
 		limiter: &reqLimiter{
-			queue:   make(chan struct{}, maxReqCount),
-			timeout: timeout,
+			queue:             make(chan struct{}, maxReqCount),
+			adjacentDataQueue: make(chan struct{}, 1),
+			timeout:           timeout,
 		},
 		log: logger,
 	}
@@ -34,12 +35,6 @@ type Server struct {
 	counter int
 	limiter *reqLimiter
 	log     log.Logger
-	mutex   sync.Mutex
-}
-
-type reqLimiter struct {
-	queue   chan struct{}
-	timeout time.Duration
 	mutex   sync.Mutex
 }
 
@@ -72,18 +67,19 @@ func (s *Server) requestFilter(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		reqId := s.generateReqId()
 		var urlToLog *url.URL
-		if !strings.Contains(strings.ToLower(r.URL.Path), "/search") {
+		lowerUrlPath := strings.ToLower(r.URL.Path)
+		if !strings.Contains(lowerUrlPath, "/search") {
 			urlToLog = r.URL
 		}
 		s.log.Debug("Got api request", "reqId", reqId, "url", urlToLog, "from", GetIP(r))
 		defer s.log.Debug("Completed api request", "reqId", reqId)
 
-		if err := s.limiter.takeResource(); err != nil {
+		if err := s.limiter.takeResource(lowerUrlPath); err != nil {
 			s.log.Error("Unable to handle API request", "err", err)
 			w.WriteHeader(http.StatusServiceUnavailable)
 			return
 		}
-		defer s.limiter.releaseResource()
+		defer s.limiter.releaseResource(lowerUrlPath)
 
 		err := r.ParseForm()
 		if err != nil {
@@ -99,10 +95,18 @@ func (s *Server) requestFilter(next http.Handler) http.Handler {
 	})
 }
 
-func (limiter *reqLimiter) takeResource() error {
+type reqLimiter struct {
+	queue             chan struct{}
+	adjacentDataQueue chan struct{}
+	timeout           time.Duration
+	mutex             sync.Mutex
+}
+
+func (limiter *reqLimiter) takeResource(lowerUrlPath string) error {
 	var ok bool
+	queue := limiter.getQueueByUrlPath(lowerUrlPath)
 	select {
-	case limiter.queue <- struct{}{}:
+	case queue <- struct{}{}:
 		ok = true
 	case <-time.After(limiter.timeout):
 	}
@@ -112,6 +116,14 @@ func (limiter *reqLimiter) takeResource() error {
 	return nil
 }
 
-func (limiter *reqLimiter) releaseResource() {
-	<-limiter.queue
+func (limiter *reqLimiter) releaseResource(lowerUrlPath string) {
+	queue := limiter.getQueueByUrlPath(lowerUrlPath)
+	<-queue
+}
+
+func (limiter *reqLimiter) getQueueByUrlPath(lowerUrlPath string) chan struct{} {
+	if strings.Contains(lowerUrlPath, "/adjacent") {
+		return limiter.adjacentDataQueue
+	}
+	return limiter.queue
 }
