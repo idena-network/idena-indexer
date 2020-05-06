@@ -1,6 +1,7 @@
 package explorer
 
 import (
+	"fmt"
 	"github.com/idena-network/idena-indexer/core/server"
 	"github.com/idena-network/idena-indexer/explorer/api"
 	"github.com/idena-network/idena-indexer/explorer/config"
@@ -38,12 +39,20 @@ func NewExplorer(c *config.Config) Explorer {
 		time.Second*time.Duration(c.DefaultCacheItemLifeTimeSec),
 		logger.New("component", "cachedDbAccessor"),
 	)
+	dynamicConfigHolder := config.NewDynamicConfigHolder(c.DynamicConfigFile, logger.New("component", "dConfHolder"))
 	e := &explorer{
 		server: api.NewServer(
 			c.Port,
 			c.LatestHours,
 			c.ActiveAddressHours,
 			c.FrozenBalanceAddrs,
+			func() string {
+				c := dynamicConfigHolder.GetConfig()
+				if c == nil || len(c.DumpCid) == 0 {
+					return ""
+				}
+				return fmt.Sprintf("https://ipfs.io/ipfs/%s", c.DumpCid)
+			},
 			accessor,
 			logger,
 			pm,

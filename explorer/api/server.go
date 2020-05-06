@@ -28,6 +28,7 @@ func NewServer(
 	latestHours int,
 	activeAddrHours int,
 	frozenBalanceAddrs []string,
+	getDumpLink func() string,
 	db db.Accessor,
 	logger log.Logger,
 	pm monitoring.PerformanceMonitor,
@@ -43,6 +44,7 @@ func NewServer(
 		latestHours:        latestHours,
 		activeAddrHours:    activeAddrHours,
 		frozenBalanceAddrs: lowerFrozenBalanceAddrs,
+		getDumpLink:        getDumpLink,
 		pm:                 pm,
 	}
 }
@@ -57,6 +59,7 @@ type httpServer struct {
 	pm                 monitoring.PerformanceMonitor
 	counter            int
 	mutex              sync.Mutex
+	getDumpLink        func() string
 }
 
 func (s *httpServer) generateReqId() int {
@@ -106,6 +109,8 @@ func (s *httpServer) Start() {
 //}
 
 func (s *httpServer) InitRouter(router *mux.Router) {
+	router.Path(strings.ToLower("/DumpLink")).HandlerFunc(s.dumpLink)
+
 	router.Path(strings.ToLower("/Search")).
 		Queries("value", "{value}").
 		HandlerFunc(s.search)
@@ -307,6 +312,12 @@ func (s *httpServer) InitRouter(router *mux.Router) {
 	router.Path(strings.ToLower("/TotalLatestBurntCoins")).
 		Queries("skip", "{skip}", "limit", "{limit}").
 		HandlerFunc(s.totalLatestBurntCoins)
+}
+
+func (s *httpServer) dumpLink(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("dumpLink", r.RequestURI)
+	defer s.pm.Complete(id)
+	server.WriteResponse(w, s.getDumpLink(), nil, s.log)
 }
 
 func (s *httpServer) search(w http.ResponseWriter, r *http.Request) {

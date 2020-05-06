@@ -22,6 +22,7 @@ type Config struct {
 	PerformanceMonitor          PerformanceMonitorConfig
 	FrozenBalanceAddrs          []string
 	ReqsPerMinuteLimit          int
+	DynamicConfigFile           string
 }
 
 type PerformanceMonitorConfig struct {
@@ -57,5 +58,6 @@ func newDefaultConfig() *Config {
 		DefaultCacheMaxItemCount:    100,
 		DefaultCacheItemLifeTimeSec: 60,
 		ReqsPerMinuteLimit:          0,
+		DynamicConfigFile:           filepath.Join("conf", "explorerDynamic.json"),
 	}
 }
