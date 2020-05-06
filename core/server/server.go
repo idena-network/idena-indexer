@@ -5,7 +5,7 @@ import (
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/idena-network/idena-indexer/log"
-	"github.com/pkg/errors"
+	"github.com/patrickmn/go-cache"
 	"net/http"
 	"net/url"
 	"strings"
@@ -18,13 +18,16 @@ func NewServer(
 	maxReqCount int,
 	timeout time.Duration,
 	logger log.Logger,
+	reqsPerMinuteLimit int,
 ) *Server {
 	return &Server{
 		port: port,
 		limiter: &reqLimiter{
-			queue:             make(chan struct{}, maxReqCount),
-			adjacentDataQueue: make(chan struct{}, 1),
-			timeout:           timeout,
+			queue:               make(chan struct{}, maxReqCount),
+			adjacentDataQueue:   make(chan struct{}, 1),
+			timeout:             timeout,
+			reqCountsByClientId: cache.New(time.Second*30, time.Minute*5),
+			reqLimit:            reqsPerMinuteLimit / 2,
 		},
 		log: logger,
 	}
@@ -71,12 +74,23 @@ func (s *Server) requestFilter(next http.Handler) http.Handler {
 		if !strings.Contains(lowerUrlPath, "/search") {
 			urlToLog = r.URL
 		}
-		s.log.Debug("Got api request", "reqId", reqId, "url", urlToLog, "from", GetIP(r))
+		ip := GetIP(r)
+		s.log.Debug("Got api request", "reqId", reqId, "url", urlToLog, "from", ip)
 		defer s.log.Debug("Completed api request", "reqId", reqId)
 
-		if err := s.limiter.takeResource(lowerUrlPath); err != nil {
+		if err := s.limiter.takeResource(ip, lowerUrlPath); err != nil {
 			s.log.Error("Unable to handle API request", "err", err)
-			w.WriteHeader(http.StatusServiceUnavailable)
+			switch err {
+			case errTimeout:
+				w.WriteHeader(http.StatusServiceUnavailable)
+				break
+			case errReqLimitExceed:
+				w.WriteHeader(http.StatusTooManyRequests)
+				break
+			default:
+				w.WriteHeader(http.StatusInternalServerError)
+			}
+			WriteErrorResponse(w, err, s.log)
 			return
 		}
 		defer s.limiter.releaseResource(lowerUrlPath)
@@ -93,37 +107,4 @@ func (s *Server) requestFilter(next http.Handler) http.Handler {
 		r.URL.Path = strings.ToLower(r.URL.Path)
 		next.ServeHTTP(w, r)
 	})
-}
-
-type reqLimiter struct {
-	queue             chan struct{}
-	adjacentDataQueue chan struct{}
-	timeout           time.Duration
-	mutex             sync.Mutex
-}
-
-func (limiter *reqLimiter) takeResource(lowerUrlPath string) error {
-	var ok bool
-	queue := limiter.getQueueByUrlPath(lowerUrlPath)
-	select {
-	case queue <- struct{}{}:
-		ok = true
-	case <-time.After(limiter.timeout):
-	}
-	if !ok {
-		return errors.New("timeout while waiting for resource")
-	}
-	return nil
-}
-
-func (limiter *reqLimiter) releaseResource(lowerUrlPath string) {
-	queue := limiter.getQueueByUrlPath(lowerUrlPath)
-	<-queue
-}
-
-func (limiter *reqLimiter) getQueueByUrlPath(lowerUrlPath string) chan struct{} {
-	if strings.Contains(lowerUrlPath, "/adjacent") {
-		return limiter.adjacentDataQueue
-	}
-	return limiter.queue
 }

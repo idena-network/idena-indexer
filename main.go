@@ -76,6 +76,7 @@ func main() {
 			explorerConf.MaxReqCount,
 			time.Second*time.Duration(explorerConf.ReqTimeoutSec),
 			e.Logger(),
+			explorerConf.ReqsPerMinuteLimit,
 		)
 		go apiServer.Start(explorerRi, ownRi)
 

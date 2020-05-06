@@ -21,6 +21,7 @@ type Config struct {
 	DefaultCacheItemLifeTimeSec int
 	PerformanceMonitor          PerformanceMonitorConfig
 	FrozenBalanceAddrs          []string
+	ReqsPerMinuteLimit          int
 }
 
 type PerformanceMonitorConfig struct {
@@ -55,5 +56,6 @@ func newDefaultConfig() *Config {
 		ReqTimeoutSec:               60,
 		DefaultCacheMaxItemCount:    100,
 		DefaultCacheItemLifeTimeSec: 60,
+		ReqsPerMinuteLimit:          0,
 	}
 }
