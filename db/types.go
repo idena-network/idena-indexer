@@ -24,6 +24,7 @@ const (
 	FailedValidationReason      BalanceUpdateReason = 0x5
 	PenaltyReason               BalanceUpdateReason = 0x6
 	EpochPenaltyResetReason     BalanceUpdateReason = 0x7
+	DustClearingReason          BalanceUpdateReason = 0x9
 )
 
 type RestoredData struct {
@@ -67,7 +68,6 @@ type Data struct {
 
 type EpochRewards struct {
 	BadAuthors          []*BadAuthor
-	GoodAuthors         []*ValidationResult
 	Total               *TotalRewards
 	ValidationRewards   []*Reward
 	FundRewards         []*Reward
@@ -117,13 +117,6 @@ type MiningReward struct {
 	Balance  decimal.Decimal
 	Stake    decimal.Decimal
 	Proposer bool
-}
-
-type ValidationResult struct {
-	Address           string
-	StrongFlips       int
-	WeakFlips         int
-	SuccessfulInvites int
 }
 
 type Block struct {

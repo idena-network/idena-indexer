@@ -542,7 +542,7 @@ func (a *postgresAccessor) saveEpochRewards(ctx *context, epochRewards *EpochRew
 	_, err := ctx.tx.Exec(a.getQuery(saveEpochRewardsQuery),
 		ctx.blockHeight,
 		pq.Array(epochRewards.BadAuthors),
-		pq.Array(epochRewards.GoodAuthors),
+		nil,
 		epochRewards.Total,
 		pq.Array(epochRewards.ValidationRewards),
 		getRewardAgesArray(epochRewards.AgesByAddress),

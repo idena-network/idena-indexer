@@ -42,7 +42,7 @@ type Stats struct {
 }
 
 type RewardsStats struct {
-	Authors                              *types.ValidationAuthors
+	ValidationResults                    *types.ValidationResults
 	Total                                *big.Int
 	Validation                           *big.Int
 	Flips                                *big.Int

@@ -80,15 +80,6 @@ func (v DeletedFlip) Value() (driver.Value, error) {
 	return fmt.Sprintf("(%v,%v)", v.TxHash, v.Cid), nil
 }
 
-func (v *ValidationResult) Value() (driver.Value, error) {
-	return fmt.Sprintf("(%v,%v,%v,%v)",
-		v.Address,
-		v.StrongFlips,
-		v.WeakFlips,
-		v.SuccessfulInvites,
-	), nil
-}
-
 func (v *BadAuthor) Value() (driver.Value, error) {
 	return fmt.Sprintf("(%v,%v)",
 		v.Address,

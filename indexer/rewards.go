@@ -20,8 +20,7 @@ func (indexer *Indexer) detectEpochRewards(block *types.Block) *db.EpochRewards 
 	}
 
 	epochRewards := &db.EpochRewards{}
-	epochRewards.BadAuthors = convertBadAuthors(rewardsStats.Authors.BadAuthors)
-	epochRewards.GoodAuthors = convertGoodAuthors(rewardsStats.Authors.GoodAuthors)
+	epochRewards.BadAuthors = convertBadAuthors(rewardsStats.ValidationResults.BadAuthors)
 	epochRewards.ValidationRewards, epochRewards.FundRewards = convertRewards(rewardsStats.Rewards)
 	epochRewards.Total = convertTotalRewards(rewardsStats)
 	epochRewards.AgesByAddress = rewardsStats.AgesByAddress
@@ -38,19 +37,6 @@ func convertBadAuthors(badAuthors map[common.Address]types.BadAuthorReason) []*d
 		res = append(res, &db.BadAuthor{
 			Address: conversion.ConvertAddress(address),
 			Reason:  reason,
-		})
-	}
-	return res
-}
-
-func convertGoodAuthors(goodAuthors map[common.Address]*types.ValidationResult) []*db.ValidationResult {
-	var res []*db.ValidationResult
-	for address, vr := range goodAuthors {
-		res = append(res, &db.ValidationResult{
-			Address:           conversion.ConvertAddress(address),
-			StrongFlips:       len(vr.StrongFlipCids),
-			WeakFlips:         len(vr.WeakFlipCids),
-			SuccessfulInvites: len(vr.SuccessfulInvites),
 		})
 	}
 	return res

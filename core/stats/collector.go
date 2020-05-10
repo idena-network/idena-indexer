@@ -57,9 +57,9 @@ func (c *statsCollector) SetMinScoreForInvite(score float32) {
 	c.stats.MinScoreForInvite = &score
 }
 
-func (c *statsCollector) SetAuthors(authors *types.ValidationAuthors) {
+func (c *statsCollector) SetValidationResults(validationResults *types.ValidationResults) {
 	c.initRewardStats()
-	c.stats.RewardsStats.Authors = authors
+	c.stats.RewardsStats.ValidationResults = validationResults
 }
 
 func (c *statsCollector) SetTotalReward(amount *big.Int) {
@@ -433,6 +433,10 @@ func (c *statsCollector) BeginPenaltyBalanceUpdate(addr common.Address, appState
 
 func (c *statsCollector) BeginEpochPenaltyResetBalanceUpdate(addr common.Address, appState *appstate.AppState) {
 	c.addPendingBalanceUpdate(addr, appState, db.EpochPenaltyResetReason, nil)
+}
+
+func (c *statsCollector) BeginDustClearingBalanceUpdate(addr common.Address, appState *appstate.AppState) {
+	c.addPendingBalanceUpdate(addr, appState, db.DustClearingReason, nil)
 }
 
 func (c *statsCollector) CompleteBalanceUpdate(appState *appstate.AppState) {
