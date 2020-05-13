@@ -76,10 +76,8 @@ func (s *Server) requestFilter(next http.Handler) http.Handler {
 		}
 		ip := GetIP(r)
 		s.log.Debug("Got api request", "reqId", reqId, "url", urlToLog, "from", ip)
-		defer s.log.Debug("Completed api request", "reqId", reqId)
-
 		if err := s.limiter.takeResource(ip, lowerUrlPath); err != nil {
-			s.log.Error("Unable to handle API request", "err", err)
+			s.log.Error("Unable to handle API request", "reqId", reqId, "err", err)
 			switch err {
 			case errTimeout:
 				w.WriteHeader(http.StatusServiceUnavailable)
@@ -97,10 +95,11 @@ func (s *Server) requestFilter(next http.Handler) http.Handler {
 
 		err := r.ParseForm()
 		if err != nil {
-			s.log.Error("Unable to parse API request", "err", err)
+			s.log.Error("Unable to parse API request", "reqId", reqId, "err", err)
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
+		defer s.log.Debug("Completed api request", "reqId", reqId)
 		for name, value := range r.Form {
 			r.Form[strings.ToLower(name)] = value
 		}

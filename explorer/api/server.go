@@ -2,7 +2,6 @@ package api
 
 import (
 	"encoding/hex"
-	"fmt"
 	"github.com/gorilla/mux"
 	"github.com/idena-network/idena-go/blockchain"
 	"github.com/idena-network/idena-go/crypto"
@@ -12,7 +11,6 @@ import (
 	"github.com/idena-network/idena-indexer/log"
 	"github.com/pkg/errors"
 	"net/http"
-	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -70,25 +68,25 @@ func (s *httpServer) generateReqId() int {
 	return id
 }
 
-func (s *httpServer) requestFilter(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		reqId := s.generateReqId()
-		var urlToLog *url.URL
-		if !strings.Contains(strings.ToLower(r.URL.Path), "/search") {
-			urlToLog = r.URL
-		}
-		s.log.Debug(fmt.Sprintf("Got api request, reqId=%v, url=%v, from=%v", reqId, urlToLog, server.GetIP(r)))
-		defer s.log.Debug("Completed api request", "reqId", reqId)
-		err := r.ParseForm()
-		if err != nil {
-			s.log.Error("Unable to parse API request", "err", err)
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-		r.URL.Path = strings.ToLower(r.URL.Path)
-		next.ServeHTTP(w, r)
-	})
-}
+//func (s *httpServer) requestFilter(next http.Handler) http.Handler {
+//	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+//		reqId := s.generateReqId()
+//		var urlToLog *url.URL
+//		if !strings.Contains(strings.ToLower(r.URL.Path), "/search") {
+//			urlToLog = r.URL
+//		}
+//		s.log.Debug(fmt.Sprintf("Got api request, reqId=%v, url=%v, from=%v", reqId, urlToLog, server.GetIP(r)))
+//		defer s.log.Debug("Completed api request", "reqId", reqId)
+//		err := r.ParseForm()
+//		if err != nil {
+//			s.log.Error("Unable to parse API request", "err", err)
+//			w.WriteHeader(http.StatusBadRequest)
+//			return
+//		}
+//		r.URL.Path = strings.ToLower(r.URL.Path)
+//		next.ServeHTTP(w, r)
+//	})
+//}
 
 func (s *httpServer) Start() {
 	// todo Currently indexer starts its own server for explorer
