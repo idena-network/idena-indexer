@@ -137,7 +137,7 @@ func (a *postgresAccessor) CirculatingSupply(addressesToExclude []string) (decim
 	if len(addressesToExclude) == 0 {
 		err = a.db.QueryRow(a.getQuery(coinsTotalQuery)).Scan(&totalBalance, &totalStake)
 	} else {
-		err = a.db.QueryRow(a.getQuery(circulatingSupplyQuery), pq.Array(addressesToExclude)).Scan(&totalBalance, &totalStake)
+		err = a.db.QueryRow(a.getQuery(circulatingSupplyQuery), pq.Array(addressesToExclude)).Scan(&totalBalance)
 	}
 	if err == sql.ErrNoRows {
 		err = NoDataFound
