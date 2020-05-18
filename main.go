@@ -23,6 +23,7 @@ import (
 	runtimeMigrationDb "github.com/idena-network/idena-indexer/migration/runtime/db"
 	"github.com/idena-network/idena-indexer/monitoring"
 	"gopkg.in/urfave/cli.v1"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -71,12 +72,19 @@ func main() {
 		explorerRi := e.RouterInitializer()
 		indexerApi := api.NewApi(currentOnlineIdentitiesHolder)
 		ownRi := server.NewRouterInitializer(indexerApi, e.Logger())
+
+		description, err := ioutil.ReadFile(filepath.Join(explorerConf.HtmlDir, "api.html"))
+		if err != nil {
+			panic(fmt.Sprintf("Unable to initialize api description: %v", err))
+		}
+
 		apiServer := server.NewServer(
 			explorerConf.Port,
 			explorerConf.MaxReqCount,
 			time.Second*time.Duration(explorerConf.ReqTimeoutSec),
 			e.Logger(),
 			explorerConf.ReqsPerMinuteLimit,
+			description,
 		)
 		go apiServer.Start(explorerRi, ownRi)
 

@@ -19,9 +19,11 @@ func NewServer(
 	timeout time.Duration,
 	logger log.Logger,
 	reqsPerMinuteLimit int,
+	description []byte,
 ) *Server {
 	return &Server{
-		port: port,
+		port:        port,
+		description: description,
 		limiter: &reqLimiter{
 			queue:               make(chan struct{}, maxReqCount),
 			adjacentDataQueue:   make(chan struct{}, 1),
@@ -34,16 +36,23 @@ func NewServer(
 }
 
 type Server struct {
-	port    int
-	counter int
-	limiter *reqLimiter
-	log     log.Logger
-	mutex   sync.Mutex
+	port        int
+	counter     int
+	limiter     *reqLimiter
+	log         log.Logger
+	mutex       sync.Mutex
+	description []byte
 }
 
 func (s *Server) Start(routerInitializers ...RouterInitializer) {
 	router := mux.NewRouter()
 	apiRouter := router.PathPrefix("/api").Subrouter()
+
+	apiRouter.Path("").
+		HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Write(s.description)
+		})
+
 	for _, ri := range routerInitializers {
 		ri.InitRouter(apiRouter)
 	}

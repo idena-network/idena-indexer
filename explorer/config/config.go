@@ -13,6 +13,7 @@ type Config struct {
 	Verbosity                   int
 	PostgresConnStr             string
 	ScriptsDir                  string
+	HtmlDir                     string
 	LatestHours                 int
 	ActiveAddressHours          int
 	MaxReqCount                 int
@@ -50,6 +51,7 @@ func LoadConfig(configPath string) *Config {
 func newDefaultConfig() *Config {
 	return &Config{
 		ScriptsDir:                  filepath.Join("resources", "scripts", "explorer"),
+		HtmlDir:                     filepath.Join("resources", "html"),
 		Verbosity:                   3,
 		LatestHours:                 24,
 		ActiveAddressHours:          24,
