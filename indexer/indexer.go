@@ -264,7 +264,7 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) (*result
 		return nil, err
 	}
 	indexer.pm.Complete("ConvertBlock")
-	identities, flipStats, birthdays, memPoolFlipKeys, notFailedValidation := indexer.detectEpochResult(incomingBlock, ctx)
+	epochResult := indexer.detectEpochResult(incomingBlock, ctx)
 
 	firstAddresses := indexer.detectFirstAddresses(incomingBlock, ctx)
 	for _, addr := range firstAddresses {
@@ -281,10 +281,6 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) (*result
 		ctx.newStateReadOnly)
 
 	coins, totalBalance, totalStake := indexer.getCoins(indexer.isFirstBlock(incomingBlock), diff)
-	var minScoreForInvite float32 = 0
-	if collectorStats.MinScoreForInvite != nil {
-		minScoreForInvite = *collectorStats.MinScoreForInvite
-	}
 
 	dbData := &db.Data{
 		Epoch:                  epoch,
@@ -297,27 +293,20 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) (*result
 		KillInviteeTxs:         collector.killInviteeTxs,
 		BecomeOnlineTxs:        collector.becomeOnlineTxs,
 		BecomeOfflineTxs:       collector.becomeOfflineTxs,
-		Identities:             identities,
 		SubmittedFlips:         collector.submittedFlips,
 		DeletedFlips:           collector.deletedFlips,
 		FlipKeys:               collector.flipKeys,
 		FlipsWords:             collector.flipsWords,
-		FlipStats:              flipStats,
 		Addresses:              collector.getAddresses(),
 		ChangedBalances:        balanceUpdates,
-		Birthdays:              birthdays,
-		MemPoolFlipKeys:        memPoolFlipKeys,
 		Coins:                  coins,
-		SaveEpochSummary:       incomingBlock.Header.Flags().HasFlag(types.ValidationFinished),
 		Penalty:                detectChargedPenalty(incomingBlock, ctx.newStateReadOnly),
 		BurntPenalties:         convertBurntPenalties(collectorStats.BurntPenaltiesByAddr),
-		EpochRewards:           indexer.detectEpochRewards(incomingBlock),
 		MiningRewards:          collectorStats.MiningRewards,
 		BurntCoinsPerAddr:      collectorStats.BurntCoinsByAddr,
-		FailedValidation:       !notFailedValidation,
-		MinScoreForInvite:      minScoreForInvite,
 		BalanceUpdates:         collectorStats.BalanceUpdates,
 		CommitteeRewardShare:   collectorStats.CommitteeRewardShare,
+		EpochResult:            epochResult,
 	}
 	resData := &resultData{
 		totalBalance: totalBalance,
@@ -640,10 +629,9 @@ func convertCid(cid cid.Cid) string {
 	return cid.String()
 }
 
-func (indexer *Indexer) detectEpochResult(block *types.Block, ctx *conversionContext) ([]db.EpochIdentity,
-	[]db.FlipStats, []db.Birthday, []*db.MemPoolFlipKey, bool) {
+func (indexer *Indexer) detectEpochResult(block *types.Block, ctx *conversionContext) *db.EpochResult {
 	if !block.Header.Flags().HasFlag(types.ValidationFinished) {
-		return nil, nil, nil, nil, true
+		return nil
 	}
 
 	var birthdays []db.Birthday
@@ -718,7 +706,21 @@ func (indexer *Indexer) detectEpochResult(block *types.Block, ctx *conversionCon
 		flipsStats = append(flipsStats, flipStats)
 	}
 
-	return identities, flipsStats, birthdays, memPoolFlipKeys, !validationStats.Failed
+	collectorStats := indexer.statsHolder().GetStats()
+	var minScoreForInvite float32 = 0
+	if collectorStats.MinScoreForInvite != nil {
+		minScoreForInvite = *collectorStats.MinScoreForInvite
+	}
+
+	return &db.EpochResult{
+		Identities:        identities,
+		FlipStats:         flipsStats,
+		Birthdays:         birthdays,
+		MemPoolFlipKeys:   memPoolFlipKeys,
+		FailedValidation:  validationStats.Failed,
+		EpochRewards:      indexer.detectEpochRewards(block),
+		MinScoreForInvite: minScoreForInvite,
+	}
 }
 
 func (indexer *Indexer) detectMemPoolFlipKey(addr common.Address, identity state.Identity) *db.MemPoolFlipKey {

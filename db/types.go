@@ -43,27 +43,20 @@ type Data struct {
 	KillInviteeTxs         []KillInviteeTx
 	BecomeOnlineTxs        []string
 	BecomeOfflineTxs       []string
-	Identities             []EpochIdentity
 	SubmittedFlips         []Flip
 	DeletedFlips           []DeletedFlip
 	FlipKeys               []FlipKey
 	FlipsWords             []FlipWords
-	FlipStats              []FlipStats
 	Addresses              []Address
 	ChangedBalances        []Balance
-	Birthdays              []Birthday
-	MemPoolFlipKeys        []*MemPoolFlipKey
 	Coins                  Coins
-	SaveEpochSummary       bool
 	Penalty                *Penalty
 	BurntPenalties         []Penalty
-	EpochRewards           *EpochRewards
 	MiningRewards          []*MiningReward
 	BurntCoinsPerAddr      map[common.Address][]*BurntCoins
-	FailedValidation       bool
-	MinScoreForInvite      float32
 	BalanceUpdates         []*BalanceUpdate
 	CommitteeRewardShare   *big.Int
+	EpochResult            *EpochResult
 }
 
 type EpochRewards struct {
@@ -332,4 +325,14 @@ type BalanceUpdate struct {
 	PenaltyNew *big.Int
 	TxHash     *common.Hash
 	Reason     BalanceUpdateReason
+}
+
+type EpochResult struct {
+	Identities        []EpochIdentity
+	FlipStats         []FlipStats
+	Birthdays         []Birthday
+	MemPoolFlipKeys   []*MemPoolFlipKey
+	FailedValidation  bool
+	EpochRewards      *EpochRewards
+	MinScoreForInvite float32
 }

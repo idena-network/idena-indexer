@@ -128,6 +128,10 @@ func (v *SavedInviteRewards) Value() (driver.Value, error) {
 	), nil
 }
 
+func (p Penalty) Value() (driver.Value, error) {
+	return fmt.Sprintf("(%v,%v)", p.Address, p.Penalty), nil
+}
+
 func (v *FailedFlipContent) Value() (driver.Value, error) {
 	var timestamp int64
 	if v.NextAttemptTimestamp != nil {

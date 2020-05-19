@@ -1,1 +1,0 @@
-call save_epoch_identities($1, $2, $3, $4)

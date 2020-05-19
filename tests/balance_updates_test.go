@@ -13,6 +13,7 @@ import (
 	"github.com/idena-network/idena-go/tests"
 	"github.com/idena-network/idena-indexer/db"
 	migrationDb "github.com/idena-network/idena-indexer/migration/db"
+	testCommon "github.com/idena-network/idena-indexer/tests/common"
 	"github.com/stretchr/testify/require"
 	"math/big"
 	"path/filepath"
@@ -21,7 +22,7 @@ import (
 )
 
 func Test_committeeRewardZeroBlocksCount(t *testing.T) {
-	dbConnector, _, listener, _, bus := InitIndexer(true, 0, PostgresSchema)
+	dbConnector, _, listener, _, bus := testCommon.InitIndexer(true, 0, testCommon.PostgresSchema, "..")
 
 	addr := tests.GetRandAddr()
 	appState := listener.NodeCtx().AppState
@@ -38,14 +39,14 @@ func Test_committeeRewardZeroBlocksCount(t *testing.T) {
 	statsCollector.CompleteCollecting()
 
 	// Then
-	updates, err := GetBalanceUpdates(dbConnector)
+	updates, err := testCommon.GetBalanceUpdates(dbConnector)
 	require.Nil(t, err)
 	require.Equal(t, 1, len(updates))
 	require.Equal(t, dna(10), blockchain.ConvertToInt(*updates[0].CommitteeRewardShare))
 	require.Equal(t, 1, *updates[0].BlocksCount)
 	require.Equal(t, dna(4), blockchain.ConvertToInt(updates[0].BalanceNew))
 	require.Equal(t, dna(1), blockchain.ConvertToInt(updates[0].StakeNew))
-	committeeUpdates, err := GetCommitteeRewardBalanceUpdates(dbConnector)
+	committeeUpdates, err := testCommon.GetCommitteeRewardBalanceUpdates(dbConnector)
 	require.Nil(t, err)
 	require.Equal(t, 0, len(committeeUpdates))
 
@@ -60,7 +61,7 @@ func Test_committeeRewardZeroBlocksCount(t *testing.T) {
 	statsCollector.CompleteCollecting()
 
 	// Then
-	updates, err = GetBalanceUpdates(dbConnector)
+	updates, err = testCommon.GetBalanceUpdates(dbConnector)
 	require.Nil(t, err)
 	require.Equal(t, 1, len(updates))
 	require.Equal(t, 2, *updates[0].BlocksCount)
@@ -77,7 +78,7 @@ func Test_committeeRewardZeroBlocksCount(t *testing.T) {
 	statsCollector.CompleteCollecting()
 
 	// Then
-	updates, err = GetBalanceUpdates(dbConnector)
+	updates, err = testCommon.GetBalanceUpdates(dbConnector)
 	require.Nil(t, err)
 	require.Equal(t, 2, len(updates))
 	require.Equal(t, 1, *updates[1].BlocksCount)
@@ -90,7 +91,7 @@ func Test_committeeRewardZeroBlocksCount(t *testing.T) {
 }
 
 func Test_changeCommitteeRewardBlocksCount(t *testing.T) {
-	dbConnector, indxr, listener, _, bus := InitIndexer(true, 3, PostgresSchema)
+	dbConnector, indxr, listener, _, bus := testCommon.InitIndexer(true, 3, testCommon.PostgresSchema, "..")
 	addr := tests.GetRandAddr()
 	appState := listener.NodeCtx().AppState
 	appState.State.SetState(addr, state.Verified)
@@ -109,27 +110,27 @@ func Test_changeCommitteeRewardBlocksCount(t *testing.T) {
 	}
 
 	// Then
-	updates, err := GetBalanceUpdates(dbConnector)
+	updates, err := testCommon.GetBalanceUpdates(dbConnector)
 	require.Nil(t, err)
 	require.Equal(t, 1, len(updates))
 	require.Equal(t, 2, updates[0].BlockHeight)
 	require.Equal(t, 6, *updates[0].LastBlockHeight)
 	require.Equal(t, 5, *updates[0].BlocksCount)
-	committeeUpdates, err := GetCommitteeRewardBalanceUpdates(dbConnector)
+	committeeUpdates, err := testCommon.GetCommitteeRewardBalanceUpdates(dbConnector)
 	require.Nil(t, err)
 	require.Equal(t, 3, len(committeeUpdates))
 
 	// When
 	dbConnector.Close()
 	indxr.Destroy()
-	dbConnector, indxr, listener, _, bus = InitIndexer(false, 0, PostgresSchema)
+	dbConnector, indxr, listener, _, bus = testCommon.InitIndexer(false, 0, testCommon.PostgresSchema, "..")
 	statsCollector = listener.StatsCollector()
 	statsCollector.EnableCollecting()
 	applyBlock(bus, 7)
 	statsCollector.CompleteCollecting()
 
 	// Then
-	updates, err = GetBalanceUpdates(dbConnector)
+	updates, err = testCommon.GetBalanceUpdates(dbConnector)
 	require.Nil(t, err)
 	require.Equal(t, 1, len(updates))
 	require.Equal(t, 5, *updates[0].BlocksCount)
@@ -137,13 +138,13 @@ func Test_changeCommitteeRewardBlocksCount(t *testing.T) {
 	require.Equal(t, 6, *updates[0].LastBlockHeight)
 	require.Equal(t, dna(5), blockchain.ConvertToInt(updates[0].BalanceNew))
 	require.Equal(t, dna(0), blockchain.ConvertToInt(updates[0].StakeNew))
-	committeeUpdates, err = GetCommitteeRewardBalanceUpdates(dbConnector)
+	committeeUpdates, err = testCommon.GetCommitteeRewardBalanceUpdates(dbConnector)
 	require.Nil(t, err)
 	require.Equal(t, 0, len(committeeUpdates))
 }
 
 func Test_complexCommitteeRewardBalanceUpdates3blocks(t *testing.T) {
-	dbConnector, _, listener, dbAccessor, bus := InitIndexer(true, 3, PostgresSchema)
+	dbConnector, _, listener, dbAccessor, bus := testCommon.InitIndexer(true, 3, testCommon.PostgresSchema, "..")
 
 	addr1 := tests.GetRandAddr()
 	addr2 := tests.GetRandAddr()
@@ -240,14 +241,14 @@ func Test_complexCommitteeRewardBalanceUpdates3blocks(t *testing.T) {
 	statsCollector.CompleteCollecting()
 
 	// Then
-	updates, err := GetBalanceUpdates(dbConnector)
+	updates, err := testCommon.GetBalanceUpdates(dbConnector)
 	require.Nil(t, err)
 	require.Equal(t, 12, len(updates))
 	require.Equal(t, 1, *updates[9].BlocksCount)
 	require.Equal(t, 12, updates[9].BlockHeight)
 	require.Equal(t, 2, *updates[11].BlocksCount)
 	require.Equal(t, 13, updates[11].BlockHeight)
-	committeeUpdates, err := GetCommitteeRewardBalanceUpdates(dbConnector)
+	committeeUpdates, err := testCommon.GetCommitteeRewardBalanceUpdates(dbConnector)
 	require.Nil(t, err)
 	require.Equal(t, 3, len(committeeUpdates))
 
@@ -256,11 +257,11 @@ func Test_complexCommitteeRewardBalanceUpdates3blocks(t *testing.T) {
 
 	// Then
 	require.Nil(t, err)
-	updates, err = GetBalanceUpdates(dbConnector)
+	updates, err = testCommon.GetBalanceUpdates(dbConnector)
 	require.Nil(t, err)
 	require.Equal(t, 10, len(updates))
 	require.Equal(t, 1, *updates[9].BlocksCount)
-	committeeUpdates, err = GetCommitteeRewardBalanceUpdates(dbConnector)
+	committeeUpdates, err = testCommon.GetCommitteeRewardBalanceUpdates(dbConnector)
 	require.Nil(t, err)
 	require.Equal(t, 1, len(committeeUpdates))
 
@@ -269,17 +270,17 @@ func Test_complexCommitteeRewardBalanceUpdates3blocks(t *testing.T) {
 
 	// Then
 	require.Nil(t, err)
-	updates, err = GetBalanceUpdates(checkDb)
+	updates, err = testCommon.GetBalanceUpdates(checkDb)
 	require.Nil(t, err)
 	require.Equal(t, 10, len(updates))
 	require.Equal(t, 1, *updates[9].BlocksCount)
-	committeeUpdates, err = GetCommitteeRewardBalanceUpdates(checkDb)
+	committeeUpdates, err = testCommon.GetCommitteeRewardBalanceUpdates(checkDb)
 	require.Nil(t, err)
 	require.Equal(t, 1, len(committeeUpdates))
 }
 
 func Test_complexCommitteeRewardBalanceUpdates6blocks(t *testing.T) {
-	dbConnector, _, listener, dbAccessor, bus := InitIndexer(true, 6, PostgresSchema)
+	dbConnector, _, listener, dbAccessor, bus := testCommon.InitIndexer(true, 6, testCommon.PostgresSchema, "..")
 
 	addr1 := tests.GetRandAddr()
 	addr2 := tests.GetRandAddr()
@@ -376,14 +377,14 @@ func Test_complexCommitteeRewardBalanceUpdates6blocks(t *testing.T) {
 	statsCollector.CompleteCollecting()
 
 	// Then
-	updates, err := GetBalanceUpdates(dbConnector)
+	updates, err := testCommon.GetBalanceUpdates(dbConnector)
 	require.Nil(t, err)
 	require.Equal(t, 12, len(updates))
 	require.Equal(t, 1, *updates[9].BlocksCount)
 	require.Equal(t, 12, updates[9].BlockHeight)
 	require.Equal(t, 2, *updates[11].BlocksCount)
 	require.Equal(t, 13, updates[11].BlockHeight)
-	committeeUpdates, err := GetCommitteeRewardBalanceUpdates(dbConnector)
+	committeeUpdates, err := testCommon.GetCommitteeRewardBalanceUpdates(dbConnector)
 	require.Nil(t, err)
 	require.Equal(t, 6, len(committeeUpdates))
 
@@ -392,7 +393,7 @@ func Test_complexCommitteeRewardBalanceUpdates6blocks(t *testing.T) {
 
 	// Then
 	require.Nil(t, err)
-	updates, err = GetBalanceUpdates(dbConnector)
+	updates, err = testCommon.GetBalanceUpdates(dbConnector)
 	require.Nil(t, err)
 	require.Equal(t, 8, len(updates))
 	require.Equal(t, 1, *updates[7].BlocksCount)
@@ -402,7 +403,7 @@ func Test_complexCommitteeRewardBalanceUpdates6blocks(t *testing.T) {
 	require.Equal(t, dna(67), blockchain.ConvertToInt(updates[7].StakeOld))
 	require.Equal(t, dna(136), blockchain.ConvertToInt(updates[7].BalanceNew))
 	require.Equal(t, dna(68), blockchain.ConvertToInt(updates[7].StakeNew))
-	committeeUpdates, err = GetCommitteeRewardBalanceUpdates(dbConnector)
+	committeeUpdates, err = testCommon.GetCommitteeRewardBalanceUpdates(dbConnector)
 	require.Nil(t, err)
 	require.Equal(t, 2, len(committeeUpdates))
 
@@ -411,7 +412,7 @@ func Test_complexCommitteeRewardBalanceUpdates6blocks(t *testing.T) {
 
 	// Then
 	require.Nil(t, err)
-	updates, err = GetBalanceUpdates(checkDb)
+	updates, err = testCommon.GetBalanceUpdates(checkDb)
 	require.Nil(t, err)
 	require.Equal(t, 8, len(updates))
 	require.Equal(t, 1, *updates[7].BlocksCount)
@@ -421,13 +422,13 @@ func Test_complexCommitteeRewardBalanceUpdates6blocks(t *testing.T) {
 	require.Equal(t, dna(67), blockchain.ConvertToInt(updates[7].StakeOld))
 	require.Equal(t, dna(136), blockchain.ConvertToInt(updates[7].BalanceNew))
 	require.Equal(t, dna(68), blockchain.ConvertToInt(updates[7].StakeNew))
-	committeeUpdates, err = GetCommitteeRewardBalanceUpdates(checkDb)
+	committeeUpdates, err = testCommon.GetCommitteeRewardBalanceUpdates(checkDb)
 	require.Nil(t, err)
 	require.Equal(t, 2, len(committeeUpdates))
 }
 
 func Test_reset(t *testing.T) {
-	dbConnector, _, listener, dbAccessor, bus := InitIndexer(true, 6, PostgresSchema)
+	dbConnector, _, listener, dbAccessor, bus := testCommon.InitIndexer(true, 6, testCommon.PostgresSchema, "..")
 
 	addr1 := tests.GetRandAddr()
 	addr2 := tests.GetRandAddr()
@@ -477,10 +478,10 @@ func Test_reset(t *testing.T) {
 	statsCollector.CompleteCollecting()
 
 	// Then
-	updates, err := GetBalanceUpdates(dbConnector)
+	updates, err := testCommon.GetBalanceUpdates(dbConnector)
 	require.Nil(t, err)
 	require.Equal(t, 4, len(updates))
-	committeeUpdates, err := GetCommitteeRewardBalanceUpdates(dbConnector)
+	committeeUpdates, err := testCommon.GetCommitteeRewardBalanceUpdates(dbConnector)
 	require.Nil(t, err)
 	require.Equal(t, 6, len(committeeUpdates))
 
@@ -489,7 +490,7 @@ func Test_reset(t *testing.T) {
 
 	// Then
 	require.Nil(t, err)
-	updates, err = GetBalanceUpdates(dbConnector)
+	updates, err = testCommon.GetBalanceUpdates(dbConnector)
 	require.Nil(t, err)
 	require.Equal(t, 2, len(updates))
 	require.Equal(t, 1, *updates[0].BlocksCount)
@@ -502,13 +503,13 @@ func Test_reset(t *testing.T) {
 	require.Equal(t, 1, *updates[1].BlocksCount)
 	require.Equal(t, 3, updates[1].BlockHeight)
 	require.Equal(t, 3, *updates[1].LastBlockHeight)
-	committeeUpdates, err = GetCommitteeRewardBalanceUpdates(dbConnector)
+	committeeUpdates, err = testCommon.GetCommitteeRewardBalanceUpdates(dbConnector)
 	require.Nil(t, err)
 	require.Equal(t, 2, len(committeeUpdates))
 }
 
 func Test_penalty(t *testing.T) {
-	dbConnector, _, listener, _, bus := InitIndexer(true, 3, PostgresSchema)
+	dbConnector, _, listener, _, bus := testCommon.InitIndexer(true, 3, testCommon.PostgresSchema, "..")
 
 	addr := tests.GetRandAddr()
 	appState := listener.NodeCtx().AppState
@@ -549,7 +550,7 @@ func Test_penalty(t *testing.T) {
 	statsCollector.CompleteCollecting()
 
 	// Then
-	updates, err := GetBalanceUpdates(dbConnector)
+	updates, err := testCommon.GetBalanceUpdates(dbConnector)
 	require.Nil(t, err)
 	require.Equal(t, 4, len(updates))
 	require.Equal(t, db.PenaltyReason, updates[1].Reason)
@@ -562,15 +563,15 @@ func Test_penalty(t *testing.T) {
 
 func migrate(height uint64) (*sql.DB, error) {
 	schema := "schema_to_migrate"
-	InitIndexer(true, 3, schema)
+	testCommon.InitIndexer(true, 3, schema, "..")
 
 	dbAccessor := migrationDb.NewPostgresAccessor(
-		PostgresConnStr+"&search_path="+schema,
-		PostgresSchema,
+		testCommon.PostgresConnStr+"&search_path="+schema,
+		testCommon.PostgresSchema,
 		filepath.Join("..", "resources", "scripts", "migration"),
 	)
 
-	dbConnector, err := sql.Open("postgres", PostgresConnStr+"&search_path="+schema)
+	dbConnector, err := sql.Open("postgres", testCommon.PostgresConnStr+"&search_path="+schema)
 	if err != nil {
 		panic(err)
 	}

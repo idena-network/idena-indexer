@@ -1,4 +1,4 @@
-package tests
+package common
 
 import (
 	"database/sql"
@@ -23,6 +23,8 @@ const (
 	PostgresSchema  = "auto_test_schema"
 )
 
+var defaultScriptsPath = filepath.Join("resources", "scripts", "indexer")
+
 func initLog() {
 	handler := log.LvlFilterHandler(log.LvlTrace, log.StreamHandler(os.Stdout, log.TerminalFormat(false)))
 	log.Root().SetHandler(handler)
@@ -32,34 +34,11 @@ func InitIndexer(
 	clearDb bool,
 	committeeRewardBlocksCount int,
 	schema string,
+	scriptsPathPrefix string,
 ) (*sql.DB, *indexer.Indexer, incoming.Listener, db.Accessor, eventbus.Bus) {
 	initLog()
-	dbConnector, err := sql.Open("postgres", PostgresConnStr)
-	if err != nil {
-		panic(err)
-	}
-	if clearDb {
-		_, err = dbConnector.Exec("DROP SCHEMA IF EXISTS " + schema + " CASCADE")
-		if err != nil {
-			panic(err)
-		}
-		_, err = dbConnector.Exec("CREATE SCHEMA " + schema)
-		if err != nil {
-			panic(err)
-		}
-	}
-	_, err = dbConnector.Exec("SET SEARCH_PATH TO " + schema)
-	if err != nil {
-		panic(err)
-	}
 	pm := monitoring.NewEmptyPerformanceMonitor()
-	dbAccessor := db.NewPostgresAccessor(
-		PostgresConnStr+"&search_path="+schema,
-		filepath.Join("..", "resources", "scripts", "indexer"),
-		&TestWordsLoader{},
-		pm,
-		committeeRewardBlocksCount,
-	)
+	dbConnector, dbAccessor := InitPostgres(clearDb, committeeRewardBlocksCount, schema, scriptsPathPrefix, pm)
 	memPoolIndexer := mempool.NewIndexer(dbAccessor, log.New("component", "mpi"))
 	appState := appstate.NewAppState(db2.NewMemDB(), eventbus.New())
 	bus := eventbus.New()
@@ -82,4 +61,43 @@ func InitIndexer(
 	)
 	testIndexer.Start()
 	return dbConnector, testIndexer, listener, dbAccessor, bus
+}
+
+func InitPostgres(
+	clearDb bool,
+	committeeRewardBlocksCount int,
+	schema string,
+	scriptsPathPrefix string,
+	pm monitoring.PerformanceMonitor) (*sql.DB, db.Accessor) {
+	dbConnector, err := sql.Open("postgres", PostgresConnStr)
+	if err != nil {
+		panic(err)
+	}
+	if clearDb {
+		_, err = dbConnector.Exec("DROP SCHEMA IF EXISTS " + schema + " CASCADE")
+		if err != nil {
+			panic(err)
+		}
+		_, err = dbConnector.Exec("CREATE SCHEMA " + schema)
+		if err != nil {
+			panic(err)
+		}
+	}
+	_, err = dbConnector.Exec("SET SEARCH_PATH TO " + schema)
+	if err != nil {
+		panic(err)
+	}
+	dbAccessor := db.NewPostgresAccessor(
+		PostgresConnStr+"&search_path="+schema,
+		filepath.Join(scriptsPathPrefix, defaultScriptsPath),
+		&TestWordsLoader{},
+		pm,
+		committeeRewardBlocksCount,
+	)
+	return dbConnector, dbAccessor
+}
+
+func InitDefaultPostgres(scriptsPathPrefix string) (*sql.DB, db.Accessor) {
+	return InitPostgres(true, 0, PostgresSchema, scriptsPathPrefix,
+		monitoring.NewEmptyPerformanceMonitor())
 }

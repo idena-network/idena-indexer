@@ -1,3 +1,10 @@
+CREATE TABLE IF NOT EXISTS performance_logs
+(
+    timestamp timestamptz not null,
+    message   character varying(100),
+    duration  real
+);
+
 CREATE TABLE IF NOT EXISTS words_dictionary
 (
     id          bigint                                              NOT NULL,
@@ -987,10 +994,6 @@ ALTER TABLE flip_pic_orders
 
 CREATE INDEX IF NOT EXISTS flip_pic_orders_fd_flip_tx_id_idx on flip_pic_orders (fd_flip_tx_id);
 
--- SEQUENCE: penalties_id_seq
-
--- DROP SEQUENCE penalties_id_seq;
-
 CREATE SEQUENCE IF NOT EXISTS penalties_id_seq
     INCREMENT 1
     START 1
@@ -1000,10 +1003,6 @@ CREATE SEQUENCE IF NOT EXISTS penalties_id_seq
 
 ALTER SEQUENCE penalties_id_seq
     OWNER TO postgres;
-
--- Table: penalties
-
--- DROP TABLE penalties;
 
 CREATE TABLE IF NOT EXISTS penalties
 (
@@ -1028,6 +1027,9 @@ CREATE TABLE IF NOT EXISTS penalties
 
 ALTER TABLE penalties
     OWNER to postgres;
+
+CREATE INDEX IF NOT EXISTS penalties_address_id_idx on penalties (address_id);
+CREATE INDEX IF NOT EXISTS penalties_id_address_id_idx on penalties (id desc, address_id);
 
 -- Table: paid_penalties
 
@@ -1994,6 +1996,19 @@ $$
     END
 $$;
 
+DO
+$$
+    BEGIN
+        CREATE TYPE tp_paid_penalty AS
+        (
+            address              text,
+            burnt_penalty_amount numeric
+        );
+    EXCEPTION
+        WHEN duplicate_object THEN null;
+    END
+$$;
+
 -- PROCEDURE: save_mining_rewards
 
 CREATE OR REPLACE PROCEDURE save_mining_rewards(height bigint, mr tp_mining_reward[])
@@ -2474,409 +2489,6 @@ BEGIN
 END
 $BODY$;
 
--- PROCEDURE: save_birthdays
-CREATE OR REPLACE PROCEDURE save_birthdays(p_birthdays tp_birthday[])
-    LANGUAGE 'plpgsql'
-AS
-$BODY$
-DECLARE
-    birthday tp_birthday;
-BEGIN
-    for i in 1..cardinality(p_birthdays)
-        loop
-            birthday := p_birthdays[i];
-            insert into birthdays (address_id, birth_epoch)
-            values ((select id from addresses where lower(address) = lower(birthday.address)), birthday.birth_epoch)
-            on conflict (address_id) do update set birth_epoch=birthday.birth_epoch;
-        end loop;
-END
-$BODY$;
-
--- PROCEDURE: save_flip_stats
-CREATE OR REPLACE PROCEDURE save_flip_stats(block_height bigint,
-                                            answers tp_answer[],
-                                            states tp_flip_state[])
-    LANGUAGE 'plpgsql'
-AS
-$BODY$
-DECLARE
-    answer       tp_answer;
-    state        tp_flip_state;
-    l_flip_tx_id bigint;
-BEGIN
-    if answers is not null then
-        for i in 1..cardinality(answers)
-            loop
-                answer := answers[i];
-                IF char_length(answer.flip_cid) > 0 THEN
-                    select tx_id into l_flip_tx_id from flips where lower(cid) = lower(answer.flip_cid);
-                end if;
-                INSERT INTO ANSWERS (FLIP_TX_ID, ei_address_state_id, IS_SHORT, ANSWER, WRONG_WORDS, POINT)
-                VALUES (l_flip_tx_id,
-                        (select address_state_id
-                         from cur_epoch_identities
-                         where lower(address) = lower(answer.address)),
-                        answer.is_short, answer.answer, answer.wrong_words, answer.point);
-            end loop;
-    end if;
-    for i in 1..cardinality(states)
-        loop
-            state := states[i];
-            UPDATE FLIPS
-            SET STATUS=state.status,
-                ANSWER=state.answer,
-                WRONG_WORDS=state.wrong_words,
-                STATUS_BLOCK_HEIGHT=block_height
-            WHERE lower(CID) = lower(state.flip_cid);
-        end loop;
-END
-$BODY$;
-
-CREATE OR REPLACE PROCEDURE save_epoch_identities(p_epoch bigint,
-                                                  p_height bigint,
-                                                  p_identities tp_epoch_identity[],
-                                                  p_flips_to_solve tp_flip_to_solve[])
-    LANGUAGE 'plpgsql'
-AS
-$BODY$
-DECLARE
-    identity        tp_epoch_identity;
-    l_address_id    bigint;
-    l_prev_state_id bigint;
-    l_state_id      bigint;
-BEGIN
-
-    CREATE TEMP TABLE cur_epoch_identities
-    (
-        address          character(42),
-        address_state_id bigint
-    ) ON COMMIT DROP;
-    CREATE UNIQUE INDEX ON cur_epoch_identities (lower(address));
-
-    for i in 1..cardinality(p_identities)
-        loop
-            identity := p_identities[i];
-
-            select id into l_address_id from addresses where lower(address) = lower(identity.address);
-
-            update address_states
-            set is_actual = false
-            where address_id = l_address_id
-              and is_actual
-            returning id into l_prev_state_id;
-
-            insert into address_states (address_id, state, is_actual, block_height, prev_id)
-            values (l_address_id, identity.state, true, p_height, l_prev_state_id)
-            returning id into l_state_id;
-
-            insert into epoch_identities (epoch, address_state_id, short_point, short_flips, total_short_point,
-                                          total_short_flips, long_point, long_flips, approved, missed,
-                                          required_flips, available_flips, made_flips, next_epoch_invites, birth_epoch,
-                                          total_validation_reward)
-            values (p_epoch, l_state_id, identity.short_point, identity.short_flips, identity.total_short_point,
-                    identity.total_short_flips, identity.long_point, identity.long_flips, identity.approved,
-                    identity.missed, identity.required_flips, identity.available_flips, identity.made_flips,
-                    identity.next_epoch_invites, identity.birth_epoch, 0);
-
-            insert into cur_epoch_identities values (identity.address, l_state_id);
-
-            if l_prev_state_id is not null then
-                insert into epoch_identity_interim_states (address_state_id, block_height)
-                values (l_prev_state_id, p_height);
-            end if;
-
-        end loop;
-
-    insert into epoch_identity_interim_states (
-        select s.id, p_height
-        from address_states s
-                 join blocks b on b.height = s.block_height and b.epoch = p_epoch
-                 left join temporary_identities ti on ti.address_id = s.address_id
-                 left join cur_epoch_identities ei on ei.address_state_id = s.id
-        where s.is_actual
-          and s.state in (0, 5)
-          and ti.address_id is null -- exclude temporary identities
-          and ei.address_state_id is null -- exclude epoch identities (at least god node if it was killed before validation)
-    );
-
-    if p_flips_to_solve is not null then
-        call save_flips_to_solve(p_flips_to_solve);
-    end if;
-END
-$BODY$;
-
--- PROCEDURE: save_flips_to_solve
-CREATE OR REPLACE PROCEDURE save_flips_to_solve(p_flips_to_solve tp_flip_to_solve[])
-    LANGUAGE 'plpgsql'
-AS
-$BODY$
-DECLARE
-    l_flip_to_solve    tp_flip_to_solve;
-    l_address_state_id bigint;
-BEGIN
-    for i in 1..cardinality(p_flips_to_solve)
-        loop
-            l_flip_to_solve := p_flips_to_solve[i];
-
-            if char_length(l_flip_to_solve.address) > 0 then
-                select address_state_id
-                into l_address_state_id
-                from cur_epoch_identities
-                where lower(address) = lower(l_flip_to_solve.address);
-            end if;
-
-            insert into flips_to_solve (ei_address_state_id, flip_tx_id, is_short)
-            values (l_address_state_id,
-                    (select tx_id from flips where lower(cid) = lower(l_flip_to_solve.cid)),
-                    l_flip_to_solve.is_short);
-        end loop;
-END
-$BODY$;
-
--- PROCEDURE: save_epoch_rewards
-CREATE OR REPLACE PROCEDURE save_epoch_rewards(p_block_height bigint,
-                                               p_bad_authors tp_bad_author[],
-                                               p_good_authors tp_good_author[],
-                                               p_total tp_total_epoch_reward,
-                                               p_validation_rewards tp_epoch_reward[],
-                                               p_ages tp_reward_age[],
-                                               p_fund_rewards tp_epoch_reward[],
-                                               p_rewarded_flip_cids text[],
-                                               p_rewarded_invitations tp_rewarded_invitation[],
-                                               p_saved_invite_rewards tp_saved_invite_rewards[])
-    LANGUAGE 'plpgsql'
-AS
-$BODY$
-DECLARE
-BEGIN
-    if p_bad_authors is not null then
-        call save_bad_authors(p_bad_authors);
-    end if;
-    if p_good_authors is not null then
-        call save_good_authors(p_good_authors);
-    end if;
-    if p_total is not null then
-        call save_total_reward(p_block_height, p_total);
-    end if;
-    if p_validation_rewards is not null then
-        call save_validation_rewards(p_validation_rewards);
-    end if;
-    if p_ages is not null then
-        call save_reward_ages(p_ages);
-    end if;
-    if p_fund_rewards is not null then
-        call save_fund_rewards(p_block_height, p_fund_rewards);
-    end if;
-    if p_rewarded_flip_cids is not null then
-        call save_rewarded_flips(p_rewarded_flip_cids);
-    end if;
-    if p_rewarded_invitations is not null then
-        call save_rewarded_invitations(p_block_height, p_rewarded_invitations);
-    end if;
-    if p_saved_invite_rewards is not null then
-        call save_saved_invite_rewards(p_saved_invite_rewards);
-    end if;
-END
-$BODY$;
-
-CREATE OR REPLACE PROCEDURE save_bad_authors(p_bad_authors tp_bad_author[])
-    LANGUAGE 'plpgsql'
-AS
-$BODY$
-DECLARE
-    l_bad_author tp_bad_author;
-BEGIN
-    for i in 1..cardinality(p_bad_authors)
-        loop
-            l_bad_author := p_bad_authors[i];
-            insert into bad_authors (ei_address_state_id, reason)
-            values ((select address_state_id
-                     from cur_epoch_identities
-                     where lower(address) = lower(l_bad_author.address)), l_bad_author.reason);
-        end loop;
-END
-$BODY$;
-
-CREATE OR REPLACE PROCEDURE save_good_authors(p_good_authors tp_good_author[])
-    LANGUAGE 'plpgsql'
-AS
-$BODY$
-DECLARE
-    l_good_author tp_good_author;
-BEGIN
-    for i in 1..cardinality(p_good_authors)
-        loop
-            l_good_author := p_good_authors[i];
-            insert into good_authors (ei_address_state_id, strong_flips, weak_flips, successful_invites)
-            values ((select address_state_id
-                     from cur_epoch_identities
-                     where lower(address) = lower(l_good_author.address)),
-                    l_good_author.strong_flips,
-                    l_good_author.weak_flips,
-                    l_good_author.successful_invites);
-        end loop;
-END
-$BODY$;
-
-CREATE OR REPLACE PROCEDURE save_total_reward(p_block_height bigint,
-                                              p_total tp_total_epoch_reward)
-    LANGUAGE 'plpgsql'
-AS
-$BODY$
-BEGIN
-    insert into total_rewards (block_height,
-                               total, validation,
-                               flips,
-                               invitations,
-                               foundation,
-                               zero_wallet,
-                               validation_share,
-                               flips_share,
-                               invitations_share)
-    values (p_block_height,
-            p_total.total,
-            p_total.validation,
-            p_total.flips,
-            p_total.invitations,
-            p_total.foundation,
-            p_total.zero_wallet,
-            p_total.validation_share,
-            p_total.flips_share,
-            p_total.invitations_share);
-END
-$BODY$;
-
-CREATE OR REPLACE PROCEDURE save_validation_rewards(p_validation_rewards tp_epoch_reward[])
-    LANGUAGE 'plpgsql'
-AS
-$BODY$
-DECLARE
-    l_validation_reward tp_epoch_reward;
-BEGIN
-    for i in 1..cardinality(p_validation_rewards)
-        loop
-            l_validation_reward := p_validation_rewards[i];
-            insert into validation_rewards (ei_address_state_id, balance, stake, type)
-            values ((select address_state_id
-                     from cur_epoch_identities
-                     where lower(address) = lower(l_validation_reward.address)),
-                    l_validation_reward.balance,
-                    l_validation_reward.stake,
-                    l_validation_reward.type);
-        end loop;
-END
-$BODY$;
-
-CREATE OR REPLACE PROCEDURE save_reward_ages(p_ages tp_reward_age[])
-    LANGUAGE 'plpgsql'
-AS
-$BODY$
-DECLARE
-    l_age tp_reward_age;
-BEGIN
-    for i in 1..cardinality(p_ages)
-        loop
-            l_age := p_ages[i];
-            insert into reward_ages (ei_address_state_id, age)
-            values ((select address_state_id
-                     from cur_epoch_identities
-                     where lower(address) = lower(l_age.address)),
-                    l_age.age);
-        end loop;
-END
-$BODY$;
-
-CREATE OR REPLACE PROCEDURE save_fund_rewards(p_block_height bigint,
-                                              p_fund_rewards tp_epoch_reward[])
-    LANGUAGE 'plpgsql'
-AS
-$BODY$
-DECLARE
-    l_fund_reward tp_epoch_reward;
-BEGIN
-    for i in 1..cardinality(p_fund_rewards)
-        loop
-            l_fund_reward := p_fund_rewards[i];
-            insert into fund_rewards (address_id, block_height, balance, type)
-            values ((select id from addresses where lower(address) = lower(l_fund_reward.address)),
-                    p_block_height,
-                    l_fund_reward.balance,
-                    l_fund_reward.type);
-        end loop;
-END
-$BODY$;
-
-CREATE OR REPLACE PROCEDURE save_rewarded_flips(p_rewarded_flip_cids text[])
-    LANGUAGE 'plpgsql'
-AS
-$BODY$
-BEGIN
-    for i in 1..cardinality(p_rewarded_flip_cids)
-        loop
-            insert into rewarded_flips (flip_tx_id)
-            values ((select tx_id from flips where lower(cid) = lower(p_rewarded_flip_cids[i])));
-        end loop;
-END
-$BODY$;
-
-CREATE OR REPLACE PROCEDURE save_rewarded_invitations(p_block_height bigint,
-                                                      p_rewarded_invitations tp_rewarded_invitation[])
-    LANGUAGE 'plpgsql'
-AS
-$BODY$
-DECLARE
-    l_rewarded_invitation tp_rewarded_invitation;
-BEGIN
-    for i in 1..cardinality(p_rewarded_invitations)
-        loop
-            l_rewarded_invitation = p_rewarded_invitations[i];
-            insert into rewarded_invitations (invite_tx_id, block_height, reward_type)
-            values ((select id from transactions where lower(hash) = lower(l_rewarded_invitation.tx_hash)),
-                    p_block_height,
-                    l_rewarded_invitation.reward_type);
-        end loop;
-END
-$BODY$;
-
-CREATE OR REPLACE PROCEDURE save_saved_invite_rewards(p_saved_invite_rewards tp_saved_invite_rewards[])
-    LANGUAGE 'plpgsql'
-AS
-$BODY$
-DECLARE
-    l_saved_invite_rewards tp_saved_invite_rewards;
-BEGIN
-    for i in 1..cardinality(p_saved_invite_rewards)
-        loop
-            l_saved_invite_rewards = p_saved_invite_rewards[i];
-            insert into saved_invite_rewards (ei_address_state_id, reward_type, count)
-            values ((select address_state_id
-                     from cur_epoch_identities
-                     where lower(address) = lower(l_saved_invite_rewards.address)),
-                    l_saved_invite_rewards.reward_type,
-                    l_saved_invite_rewards.count);
-        end loop;
-END
-$BODY$;
-
-CREATE OR REPLACE PROCEDURE save_mem_pool_flip_keys(p_keys tp_mem_pool_flip_key[])
-    LANGUAGE 'plpgsql'
-AS
-$BODY$
-DECLARE
-    l_key tp_mem_pool_flip_key;
-BEGIN
-    for i in 1..cardinality(p_keys)
-        loop
-            l_key := p_keys[i];
-            insert into mem_pool_flip_keys (ei_address_state_id, key)
-            values ((select address_state_id
-                     from cur_epoch_identities
-                     where lower(address) = lower(l_key.address)),
-                    l_key.key);
-        end loop;
-END
-$BODY$;
-
 CREATE OR REPLACE PROCEDURE update_flips_queue()
     LANGUAGE 'plpgsql'
 AS
@@ -2888,26 +2500,23 @@ BEGIN
     insert into flips_queue
         (
             select f.cid, coalesce(fk.key, mpfk.key) "key", 0, 0
-            from flips f,
-                 blocks b,
-                 transactions t
+            from flips f
+                     join transactions t on f.tx_id = t.id
+                     join blocks b on t.block_height = b.height and b.epoch = l_epoch
                      left join (
-                     select distinct on (t.from) fk.key, t.from
-                     from flip_keys fk
-                              join transactions t on t.id = fk.tx_id
-                              join blocks b on b.height = t.block_height and b.epoch = l_epoch
-                 ) fk on t.from = fk.from
+                select distinct on (t.from) fk.key, t.from
+                from flip_keys fk
+                         join transactions t on t.id = fk.tx_id
+                         join blocks b on b.height = t.block_height and b.epoch = l_epoch
+            ) fk on t.from = fk.from
                      left join (
-                     select mpfk.key, s.address_id
-                     from mem_pool_flip_keys mpfk
-                              join epoch_identities ei
-                                   on ei.address_state_id = mpfk.ei_address_state_id and ei.epoch = l_epoch
-                              join address_states s on s.id = ei.address_state_id
-                 ) mpfk on t.from = mpfk.address_id
-            where f.tx_id = t.id
-              and t.block_height = b.height
-              and b.epoch = l_epoch
-              and (fk.key is not null or mpfk.key is not null)
+                select mpfk.key, s.address_id
+                from mem_pool_flip_keys mpfk
+                         join epoch_identities ei
+                              on ei.address_state_id = mpfk.ei_address_state_id and ei.epoch = l_epoch
+                         join address_states s on s.id = ei.address_state_id
+            ) mpfk on t.from = mpfk.address_id
+            where (fk.key is not null or mpfk.key is not null)
         );
 END
 $BODY$;
@@ -3338,5 +2947,17 @@ BEGIN
 
 
     call reset_balance_updates_to(p_block_height);
+END
+$$;
+
+CREATE OR REPLACE PROCEDURE log_performance(p_message text,
+                                            p_start timestamp,
+                                            p_end timestamp)
+    LANGUAGE 'plpgsql'
+AS
+$$
+BEGIN
+    insert into performance_logs (timestamp, message, duration)
+    values ((select current_timestamp), p_message, (SELECT EXTRACT(EPOCH FROM (age(p_end, p_start)))));
 END
 $$;

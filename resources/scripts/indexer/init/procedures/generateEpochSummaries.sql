@@ -6,7 +6,10 @@ AS
 $$
 DECLARE
     l_validated_count integer;
+    l_start           timestamp;
+    l_end             timestamp;
 BEGIN
+    select clock_timestamp() into l_start;
     select count(*)
     into l_validated_count
     from cur_epoch_identities ei
@@ -16,9 +19,18 @@ BEGIN
     call update_epoch_summary(p_block_height => p_block_height,
                               p_validated_count => l_validated_count,
                               p_min_score_for_invite => p_min_score_for_invite);
+    select clock_timestamp() into l_end;
+    call log_performance('update_epoch_summary', l_start, l_end);
 
+    select clock_timestamp() into l_start;
     call generate_epoch_flips_summary(p_epoch);
+    select clock_timestamp() into l_end;
+    call log_performance('generate_epoch_flips_summary', l_start, l_end);
+
+    select clock_timestamp() into l_start;
     call update_epoch_identities_rewards(p_epoch);
+    select clock_timestamp() into l_end;
+    call log_performance('update_epoch_identities_rewards', l_start, l_end);
 END
 $$;
 

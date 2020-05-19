@@ -10,6 +10,6 @@ from penalties p
          join addresses a on a.id = p.address_id
          left join paid_penalties pp on pp.penalty_id = p.id
 where lower(a.address) = lower($1)
-order by p.block_height desc
+order by p.id desc
 limit $3
     offset $2

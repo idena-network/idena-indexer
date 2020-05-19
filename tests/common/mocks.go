@@ -1,4 +1,4 @@
-package tests
+package common
 
 import (
 	"github.com/idena-network/idena-go/blockchain"

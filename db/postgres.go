@@ -2,6 +2,7 @@ package db
 
 import (
 	"database/sql"
+	"database/sql/driver"
 	"fmt"
 	"github.com/idena-network/idena-go/blockchain"
 	"github.com/idena-network/idena-go/common"
@@ -10,7 +11,6 @@ import (
 	"github.com/lib/pq"
 	_ "github.com/lib/pq"
 	"github.com/pkg/errors"
-	"github.com/shopspring/decimal"
 	"math/big"
 	"sync"
 )
@@ -43,18 +43,11 @@ const (
 	saveBirthdaysQuery                  = "saveBirthdays.sql"
 	insertCoinsQuery                    = "insertCoins.sql"
 	insertBlockFlagQuery                = "insertBlockFlag.sql"
-	insertEpochSummaryQuery             = "insertEpochSummary.sql"
 	insertPenaltyQuery                  = "insertPenalty.sql"
-	selectLastPenaltyQuery              = "selectLastPenalty.sql"
-	insertPaidPenaltyQuery              = "insertPaidPenalty.sql"
-	insertFailedValidationQuery         = "insertFailedValidation.sql"
 	insertMiningRewardsQuery            = "insertMiningRewards.sql"
 	insertBurntCoinsQuery               = "insertBurntCoins.sql"
-	insertFlipStatsQuery                = "insertFlipStats.sql"
-	saveEpochIdentitiesQuery            = "saveEpochIdentities.sql"
-	saveEpochRewardsQuery               = "saveEpochRewards.sql"
-	saveMemPoolFlipKeysQuery            = "saveMemPoolFlipKeys.sql"
-	updateFlipsQueueQuery               = "updateFlipsQueue.sql"
+	saveEpochResultQuery                = "saveEpochResult.sql"
+	savePaidPenaltiesQuery              = "savePaidPenalties.sql"
 )
 
 func (a *postgresAccessor) getQuery(name string) string {
@@ -129,18 +122,25 @@ func (a *postgresAccessor) Save(data *Data) error {
 	a.pm.Start("RunTx")
 	ctx := newContext(a, tx, data.Epoch, data.Block.Height)
 
+	a.pm.Start("saveEpoch")
 	if err = a.saveEpoch(ctx, data.Epoch, data.ValidationTime); err != nil {
 		return err
 	}
+	a.pm.Complete("saveEpoch")
 
+	a.pm.Start("saveBlock")
 	if err = a.saveBlock(ctx, data.Block); err != nil {
 		return err
 	}
+	a.pm.Complete("saveBlock")
 
+	a.pm.Start("saveBlockFlags")
 	if err = a.saveBlockFlags(ctx, data.Block.Flags); err != nil {
 		return err
 	}
+	a.pm.Complete("saveBlockFlags")
 
+	a.pm.Start("saveAddressesAndTransactions")
 	if ctx.txIdsPerHash, err = a.saveAddressesAndTransactions(
 		ctx,
 		data.Addresses,
@@ -156,18 +156,25 @@ func (a *postgresAccessor) Save(data *Data) error {
 	); err != nil {
 		return err
 	}
+	a.pm.Complete("saveAddressesAndTransactions")
 
+	a.pm.Start("saveProposer")
 	if err = a.saveProposer(ctx, data.Block.Proposer); err != nil {
 		return err
 	}
+	a.pm.Complete("saveProposer")
 
+	a.pm.Start("saveProposerVrfScore")
 	if err = a.saveProposerVrfScore(ctx, data.Block.ProposerVrfScore); err != nil {
 		return err
 	}
+	a.pm.Complete("saveProposerVrfScore")
 
+	a.pm.Start("saveCoins")
 	if err := a.saveCoins(ctx, data.Coins); err != nil {
 		return err
 	}
+	a.pm.Complete("saveCoins")
 
 	a.pm.Start("saveBalances")
 	if err := a.saveBalances(ctx.tx, ctx.blockHeight, data.ChangedBalances, data.BalanceUpdates, data.CommitteeRewardShare); err != nil {
@@ -175,45 +182,35 @@ func (a *postgresAccessor) Save(data *Data) error {
 	}
 	a.pm.Complete("saveBalances")
 
-	if err := a.saveBirthdays(ctx.tx, data.Birthdays); err != nil {
-		return err
-	}
-
+	a.pm.Start("saveSubmittedFlips")
 	if err := a.saveSubmittedFlips(ctx, data.SubmittedFlips); err != nil {
 		return err
 	}
+	a.pm.Complete("saveSubmittedFlips")
 
+	a.pm.Start("saveFlipKeys")
 	if err := a.saveFlipKeys(ctx, data.FlipKeys); err != nil {
 		return err
 	}
+	a.pm.Complete("saveFlipKeys")
 
+	a.pm.Start("saveFlipsWords")
 	if err := a.saveFlipsWords(ctx, data.FlipsWords); err != nil {
 		return err
 	}
+	a.pm.Complete("saveFlipsWords")
 
-	if err = a.saveIdentities(ctx, data.Identities); err != nil {
-		return err
-	}
-
-	if err := a.saveMemPoolFlipKeys(ctx.tx, data.MemPoolFlipKeys); err != nil {
-		return err
-	}
-
-	if err = a.saveFlipsStats(ctx, data.FlipStats); err != nil {
-		return err
-	}
-
-	if err = a.savePenalty(ctx, data.Penalty); err != nil {
-		return err
-	}
-
+	a.pm.Start("savePaidPenalties")
 	if err = a.savePaidPenalties(ctx, data.BurntPenalties); err != nil {
 		return err
 	}
+	a.pm.Complete("savePaidPenalties")
 
-	if err = a.saveEpochRewards(ctx, data.EpochRewards); err != nil {
+	a.pm.Start("savePenalty")
+	if err = a.savePenalty(ctx, data.Penalty); err != nil {
 		return err
 	}
+	a.pm.Complete("savePenalty")
 
 	a.pm.Start("saveMiningRewards")
 	if err = a.saveMiningRewards(ctx, data.MiningRewards); err != nil {
@@ -221,26 +218,17 @@ func (a *postgresAccessor) Save(data *Data) error {
 	}
 	a.pm.Complete("saveMiningRewards")
 
+	a.pm.Start("saveBurntCoins")
 	if err = a.saveBurntCoins(ctx, data.BurntCoinsPerAddr); err != nil {
 		return err
 	}
+	a.pm.Complete("saveBurntCoins")
 
-	if err = a.saveFailedValidation(ctx, data.FailedValidation); err != nil {
+	a.pm.Start("saveEpochResult")
+	if err = a.saveEpochResult(ctx.tx, ctx.epoch, ctx.blockHeight, data.EpochResult); err != nil {
 		return err
 	}
-
-	if data.SaveEpochSummary {
-		a.pm.Start("saveEpochSummary")
-		if err = a.saveEpochSummary(ctx, data.MinScoreForInvite); err != nil {
-			return err
-		}
-		a.pm.Complete("saveEpochSummary")
-		a.pm.Start("updateFlipsQueue")
-		if err = a.updateFlipsQueue(ctx); err != nil {
-			return err
-		}
-		a.pm.Complete("updateFlipsQueue")
-	}
+	a.pm.Complete("saveEpochResult")
 
 	a.pm.Complete("RunTx")
 	a.pm.Start("CommitTx")
@@ -248,16 +236,60 @@ func (a *postgresAccessor) Save(data *Data) error {
 	return tx.Commit()
 }
 
-func (a *postgresAccessor) saveFlipsStats(ctx *context, flipsStats []FlipStats) error {
-	if len(flipsStats) == 0 {
+func (a *postgresAccessor) saveEpochResult(
+	tx *sql.Tx,
+	epoch uint64,
+	height uint64,
+	epochResult *EpochResult,
+) error {
+	if epochResult == nil {
 		return nil
 	}
-	answersArray, statesArray := getFlipStatsArrays(flipsStats)
-	_, err := ctx.tx.Exec(a.getQuery(insertFlipStatsQuery),
-		ctx.blockHeight,
+	var identitiesArray, flipsToSolveArray, answersArray, statesArray, badAuthors, totalRewards, validationRewards,
+		rewardAges, fundRewards, rewardedFlipCids, rewardedInvitations, savedInviteRewards interface {
+		driver.Valuer
+	}
+	if len(epochResult.Identities) > 0 {
+		identitiesArray, flipsToSolveArray = getEpochIdentitiesArrays(epochResult.Identities)
+	}
+	if len(epochResult.FlipStats) > 0 {
+		answersArray, statesArray = getFlipStatsArrays(epochResult.FlipStats)
+	}
+	epochRewards := epochResult.EpochRewards
+	if epochRewards != nil {
+		badAuthors = pq.Array(epochRewards.BadAuthors)
+		totalRewards = epochRewards.Total
+		validationRewards = pq.Array(epochRewards.ValidationRewards)
+		rewardAges = getRewardAgesArray(epochRewards.AgesByAddress)
+		fundRewards = pq.Array(epochRewards.FundRewards)
+		rewardedFlipCids = pq.Array(epochRewards.RewardedFlipCids)
+		rewardedInvitations = pq.Array(epochRewards.RewardedInvitations)
+		savedInviteRewards = pq.Array(epochRewards.SavedInviteRewards)
+	}
+	if _, err := tx.Exec(
+		a.getQuery(saveEpochResultQuery),
+		epoch,
+		height,
+		pq.Array(epochResult.Birthdays),
+		identitiesArray,
+		flipsToSolveArray,
+		pq.Array(epochResult.MemPoolFlipKeys),
 		answersArray,
-		statesArray)
-	return errors.Wrap(err, "unable to save flip stats")
+		statesArray,
+		badAuthors,
+		totalRewards,
+		validationRewards,
+		rewardAges,
+		fundRewards,
+		rewardedFlipCids,
+		rewardedInvitations,
+		savedInviteRewards,
+		epochResult.FailedValidation,
+		epochResult.MinScoreForInvite,
+	); err != nil {
+		return errors.Wrap(err, "unable to save epoch result")
+	}
+	return nil
 }
 
 func (a *postgresAccessor) saveEpoch(ctx *context, epoch uint64, validationTime big.Int) error {
@@ -347,27 +379,6 @@ func (a *postgresAccessor) saveBirthdays(tx *sql.Tx, birthdays []Birthday) error
 		return err
 	}
 	return nil
-}
-
-func (a *postgresAccessor) saveMemPoolFlipKeys(tx *sql.Tx, keys []*MemPoolFlipKey) error {
-	if len(keys) == 0 {
-		return nil
-	}
-	_, err := tx.Exec(a.getQuery(saveMemPoolFlipKeysQuery), pq.Array(keys))
-	return errors.Wrap(err, "unable to save mem pool flip keys")
-}
-
-func (a *postgresAccessor) saveIdentities(ctx *context, identities []EpochIdentity) error {
-	if len(identities) == 0 {
-		return nil
-	}
-	identitiesArray, flipsToSolveArray := getEpochIdentitiesArrays(identities)
-	_, err := ctx.tx.Exec(a.getQuery(saveEpochIdentitiesQuery),
-		ctx.epoch,
-		ctx.blockHeight,
-		identitiesArray,
-		flipsToSolveArray)
-	return errors.Wrap(err, "unable to save identities")
 }
 
 func (a *postgresAccessor) saveAddressesAndTransactions(
@@ -489,20 +500,6 @@ func (a *postgresAccessor) getFlipWordsCount(ctx *context, flipTxId uint64) (int
 	return count, errors.Wrapf(err, "unable to get flip words count for flip tx id %v", flipTxId)
 }
 
-func (a *postgresAccessor) saveEpochSummary(ctx *context, minScoreForInvite float32) error {
-	_, err := ctx.tx.Exec(a.getQuery(insertEpochSummaryQuery),
-		ctx.epoch,
-		ctx.blockHeight,
-		minScoreForInvite,
-	)
-	return errors.Wrapf(err, "unable to save epoch summary for %v", ctx.epoch)
-}
-
-func (a *postgresAccessor) updateFlipsQueue(ctx *context) error {
-	_, err := ctx.tx.Exec(a.getQuery(updateFlipsQueueQuery))
-	return errors.Wrap(err, "unable to update flips queue")
-}
-
 func (a *postgresAccessor) savePenalty(ctx *context, penalty *Penalty) error {
 	if penalty == nil {
 		return nil
@@ -515,43 +512,8 @@ func (a *postgresAccessor) savePaidPenalties(ctx *context, burntPenalties []Pena
 	if len(burntPenalties) == 0 {
 		return nil
 	}
-	for _, burntPenalty := range burntPenalties {
-		if err := a.savePaidPenalty(ctx, burntPenalty); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (a *postgresAccessor) savePaidPenalty(ctx *context, burntPenalty Penalty) error {
-	var id int64
-	var penalty decimal.Decimal
-	err := ctx.tx.QueryRow(a.getQuery(selectLastPenaltyQuery), burntPenalty.Address).Scan(&id, &penalty)
-	if err != nil {
-		return errors.Wrapf(err, "unable to get last penalty")
-	}
-	paidPenalty := penalty.Sub(burntPenalty.Penalty)
-	_, err = ctx.tx.Exec(a.getQuery(insertPaidPenaltyQuery), id, paidPenalty, ctx.blockHeight)
-	return errors.Wrapf(err, "unable to save paid penalty")
-}
-
-func (a *postgresAccessor) saveEpochRewards(ctx *context, epochRewards *EpochRewards) error {
-	if epochRewards == nil {
-		return nil
-	}
-	_, err := ctx.tx.Exec(a.getQuery(saveEpochRewardsQuery),
-		ctx.blockHeight,
-		pq.Array(epochRewards.BadAuthors),
-		nil,
-		epochRewards.Total,
-		pq.Array(epochRewards.ValidationRewards),
-		getRewardAgesArray(epochRewards.AgesByAddress),
-		pq.Array(epochRewards.FundRewards),
-		pq.Array(epochRewards.RewardedFlipCids),
-		pq.Array(epochRewards.RewardedInvitations),
-		pq.Array(epochRewards.SavedInviteRewards),
-	)
-	return errors.Wrap(err, "unable to save epoch rewards")
+	_, err := ctx.tx.Exec(a.getQuery(savePaidPenaltiesQuery), ctx.blockHeight, pq.Array(burntPenalties))
+	return errors.Wrap(err, "unable to save paid penalties")
 }
 
 func (a *postgresAccessor) saveMiningRewards(ctx *context, rewards []*MiningReward) error {
@@ -573,14 +535,6 @@ func (a *postgresAccessor) saveBurntCoins(ctx *context, burntCoinsByAddr map[com
 		return errors.Wrap(err, "unable to save burnt coins")
 	}
 	return nil
-}
-
-func (a *postgresAccessor) saveFailedValidation(ctx *context, failed bool) error {
-	if !failed {
-		return nil
-	}
-	_, err := ctx.tx.Exec(a.getQuery(insertFailedValidationQuery), ctx.blockHeight)
-	return errors.Wrapf(err, "unable to save failed validation")
 }
 
 func (a *postgresAccessor) Destroy() {

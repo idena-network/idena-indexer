@@ -1,1 +1,0 @@
-call generate_epoch_summaries($1, $2, $3);
