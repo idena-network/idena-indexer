@@ -35,7 +35,7 @@ func Test_committeeRewardZeroBlocksCount(t *testing.T) {
 	statsCollector.EnableCollecting()
 	statsCollector.SetCommitteeRewardShare(dna(10))
 	addCommitteeReward(statsCollector, addr, dna(4), dna(1), appState)
-	applyBlock(bus, 2)
+	applyBlockWithHeight(bus, 2)
 	statsCollector.CompleteCollecting()
 
 	// Then
@@ -52,12 +52,12 @@ func Test_committeeRewardZeroBlocksCount(t *testing.T) {
 
 	// When
 	statsCollector.EnableCollecting()
-	applyBlock(bus, 3)
+	applyBlockWithHeight(bus, 3)
 	statsCollector.CompleteCollecting()
 	statsCollector.EnableCollecting()
 	statsCollector.SetCommitteeRewardShare(dna(10))
 	addCommitteeReward(statsCollector, addr, dna(4), dna(1), appState)
-	applyBlock(bus, 4)
+	applyBlockWithHeight(bus, 4)
 	statsCollector.CompleteCollecting()
 
 	// Then
@@ -74,7 +74,7 @@ func Test_committeeRewardZeroBlocksCount(t *testing.T) {
 	statsCollector.EnableCollecting()
 	statsCollector.SetCommitteeRewardShare(dna(11))
 	addCommitteeReward(statsCollector, addr, dna(5), dna(2), appState)
-	applyBlock(bus, 5)
+	applyBlockWithHeight(bus, 5)
 	statsCollector.CompleteCollecting()
 
 	// Then
@@ -105,7 +105,7 @@ func Test_changeCommitteeRewardBlocksCount(t *testing.T) {
 		statsCollector.SetCommitteeRewardShare(dna(1))
 		addCommitteeReward(statsCollector, addr, dna(1), nil, appState)
 		height := uint64(2 + i)
-		applyBlock(bus, height)
+		applyBlockWithHeight(bus, height)
 		statsCollector.CompleteCollecting()
 	}
 
@@ -126,7 +126,7 @@ func Test_changeCommitteeRewardBlocksCount(t *testing.T) {
 	dbConnector, indxr, listener, _, bus = testCommon.InitIndexer(false, 0, testCommon.PostgresSchema, "..")
 	statsCollector = listener.StatsCollector()
 	statsCollector.EnableCollecting()
-	applyBlock(bus, 7)
+	applyBlockWithHeight(bus, 7)
 	statsCollector.CompleteCollecting()
 
 	// Then
@@ -160,50 +160,50 @@ func Test_complexCommitteeRewardBalanceUpdates3blocks(t *testing.T) {
 	statsCollector.SetCommitteeRewardShare(dna(5))
 	addProposerReward(statsCollector, addr1, dna(10), dna(5), appState)
 	addCommitteeReward(statsCollector, addr1, dna(2), dna(1), appState)
-	applyBlock(bus, 2)
+	applyBlockWithHeight(bus, 2)
 	statsCollector.CompleteCollecting()
 
 	statsCollector.EnableCollecting()
-	applyBlock(bus, 3)
+	applyBlockWithHeight(bus, 3)
 	statsCollector.CompleteCollecting()
 
 	statsCollector.EnableCollecting()
 	statsCollector.SetCommitteeRewardShare(dna(5))
 	addCommitteeReward(statsCollector, addr1, dna(2), dna(1), appState)
 	addCommitteeReward(statsCollector, addr2, dna(2), dna(1), appState)
-	applyBlock(bus, 4)
+	applyBlockWithHeight(bus, 4)
 	statsCollector.CompleteCollecting()
 
 	statsCollector.EnableCollecting()
 	statsCollector.SetCommitteeRewardShare(dna(5))
 	addEpochReward(statsCollector, addr2, dna(100), dna(50), appState)
 	addCommitteeReward(statsCollector, addr1, dna(2), dna(1), appState)
-	applyBlock(bus, 5)
+	applyBlockWithHeight(bus, 5)
 	statsCollector.CompleteCollecting()
 
 	statsCollector.EnableCollecting()
 	statsCollector.SetCommitteeRewardShare(dna(5))
 	addCommitteeReward(statsCollector, addr1, dna(2), dna(1), appState)
-	applyBlock(bus, 6)
+	applyBlockWithHeight(bus, 6)
 	statsCollector.CompleteCollecting()
 
 	// New committee reward share
 	statsCollector.EnableCollecting()
 	statsCollector.SetCommitteeRewardShare(dna(6))
 	addCommitteeReward(statsCollector, addr1, dna(2), dna(1), appState)
-	applyBlock(bus, 7)
+	applyBlockWithHeight(bus, 7)
 	statsCollector.CompleteCollecting()
 
 	statsCollector.EnableCollecting()
 	statsCollector.SetCommitteeRewardShare(dna(6))
 	addCommitteeReward(statsCollector, addr1, dna(2), dna(1), appState)
-	applyBlock(bus, 8)
+	applyBlockWithHeight(bus, 8)
 	statsCollector.CompleteCollecting()
 
 	statsCollector.EnableCollecting()
 	statsCollector.SetCommitteeRewardShare(dna(6))
 	addCommitteeReward(statsCollector, addr1, dna(2), dna(1), appState)
-	applyBlock(bus, 9)
+	applyBlockWithHeight(bus, 9)
 	statsCollector.CompleteCollecting()
 
 	statsCollector.EnableCollecting()
@@ -211,33 +211,33 @@ func Test_complexCommitteeRewardBalanceUpdates3blocks(t *testing.T) {
 	addEpochReward(statsCollector, addr1, dna(100), dna(50), appState)
 	addProposerReward(statsCollector, addr1, dna(10), dna(5), appState)
 	addCommitteeReward(statsCollector, addr1, dna(2), dna(1), appState)
-	applyBlock(bus, 10)
+	applyBlockWithHeight(bus, 10)
 	statsCollector.CompleteCollecting()
 
 	statsCollector.EnableCollecting()
 	statsCollector.SetCommitteeRewardShare(dna(6))
 	addCommitteeReward(statsCollector, addr1, dna(2), dna(1), appState)
-	applyBlock(bus, 11)
-	statsCollector.CompleteCollecting()
-
-	statsCollector.EnableCollecting()
-	statsCollector.SetCommitteeRewardShare(dna(6))
-	addProposerReward(statsCollector, addr1, dna(10), dna(5), appState)
-	addCommitteeReward(statsCollector, addr1, dna(2), dna(1), appState)
-	applyBlock(bus, 12)
+	applyBlockWithHeight(bus, 11)
 	statsCollector.CompleteCollecting()
 
 	statsCollector.EnableCollecting()
 	statsCollector.SetCommitteeRewardShare(dna(6))
 	addProposerReward(statsCollector, addr1, dna(10), dna(5), appState)
 	addCommitteeReward(statsCollector, addr1, dna(2), dna(1), appState)
-	applyBlock(bus, 13)
+	applyBlockWithHeight(bus, 12)
+	statsCollector.CompleteCollecting()
+
+	statsCollector.EnableCollecting()
+	statsCollector.SetCommitteeRewardShare(dna(6))
+	addProposerReward(statsCollector, addr1, dna(10), dna(5), appState)
+	addCommitteeReward(statsCollector, addr1, dna(2), dna(1), appState)
+	applyBlockWithHeight(bus, 13)
 	statsCollector.CompleteCollecting()
 
 	statsCollector.EnableCollecting()
 	statsCollector.SetCommitteeRewardShare(dna(6))
 	addCommitteeReward(statsCollector, addr1, dna(2), dna(1), appState)
-	applyBlock(bus, 14)
+	applyBlockWithHeight(bus, 14)
 	statsCollector.CompleteCollecting()
 
 	// Then
@@ -296,50 +296,50 @@ func Test_complexCommitteeRewardBalanceUpdates6blocks(t *testing.T) {
 	statsCollector.SetCommitteeRewardShare(dna(5))
 	addProposerReward(statsCollector, addr1, dna(10), dna(5), appState)
 	addCommitteeReward(statsCollector, addr1, dna(2), dna(1), appState)
-	applyBlock(bus, 2)
+	applyBlockWithHeight(bus, 2)
 	statsCollector.CompleteCollecting()
 
 	statsCollector.EnableCollecting()
-	applyBlock(bus, 3)
+	applyBlockWithHeight(bus, 3)
 	statsCollector.CompleteCollecting()
 
 	statsCollector.EnableCollecting()
 	statsCollector.SetCommitteeRewardShare(dna(5))
 	addCommitteeReward(statsCollector, addr1, dna(2), dna(1), appState)
 	addCommitteeReward(statsCollector, addr2, dna(2), dna(1), appState)
-	applyBlock(bus, 4)
+	applyBlockWithHeight(bus, 4)
 	statsCollector.CompleteCollecting()
 
 	statsCollector.EnableCollecting()
 	statsCollector.SetCommitteeRewardShare(dna(5))
 	addEpochReward(statsCollector, addr2, dna(100), dna(50), appState)
 	addCommitteeReward(statsCollector, addr1, dna(2), dna(1), appState)
-	applyBlock(bus, 5)
+	applyBlockWithHeight(bus, 5)
 	statsCollector.CompleteCollecting()
 
 	statsCollector.EnableCollecting()
 	statsCollector.SetCommitteeRewardShare(dna(5))
 	addCommitteeReward(statsCollector, addr1, dna(2), dna(1), appState)
-	applyBlock(bus, 6)
+	applyBlockWithHeight(bus, 6)
 	statsCollector.CompleteCollecting()
 
 	// New committee reward share
 	statsCollector.EnableCollecting()
 	statsCollector.SetCommitteeRewardShare(dna(6))
 	addCommitteeReward(statsCollector, addr1, dna(2), dna(1), appState)
-	applyBlock(bus, 7)
+	applyBlockWithHeight(bus, 7)
 	statsCollector.CompleteCollecting()
 
 	statsCollector.EnableCollecting()
 	statsCollector.SetCommitteeRewardShare(dna(6))
 	addCommitteeReward(statsCollector, addr1, dna(2), dna(1), appState)
-	applyBlock(bus, 8)
+	applyBlockWithHeight(bus, 8)
 	statsCollector.CompleteCollecting()
 
 	statsCollector.EnableCollecting()
 	statsCollector.SetCommitteeRewardShare(dna(6))
 	addCommitteeReward(statsCollector, addr1, dna(2), dna(1), appState)
-	applyBlock(bus, 9)
+	applyBlockWithHeight(bus, 9)
 	statsCollector.CompleteCollecting()
 
 	statsCollector.EnableCollecting()
@@ -347,33 +347,33 @@ func Test_complexCommitteeRewardBalanceUpdates6blocks(t *testing.T) {
 	addEpochReward(statsCollector, addr1, dna(100), dna(50), appState)
 	addProposerReward(statsCollector, addr1, dna(10), dna(5), appState)
 	addCommitteeReward(statsCollector, addr1, dna(2), dna(1), appState)
-	applyBlock(bus, 10)
+	applyBlockWithHeight(bus, 10)
 	statsCollector.CompleteCollecting()
 
 	statsCollector.EnableCollecting()
 	statsCollector.SetCommitteeRewardShare(dna(6))
 	addCommitteeReward(statsCollector, addr1, dna(2), dna(1), appState)
-	applyBlock(bus, 11)
-	statsCollector.CompleteCollecting()
-
-	statsCollector.EnableCollecting()
-	statsCollector.SetCommitteeRewardShare(dna(6))
-	addProposerReward(statsCollector, addr1, dna(10), dna(5), appState)
-	addCommitteeReward(statsCollector, addr1, dna(2), dna(1), appState)
-	applyBlock(bus, 12)
+	applyBlockWithHeight(bus, 11)
 	statsCollector.CompleteCollecting()
 
 	statsCollector.EnableCollecting()
 	statsCollector.SetCommitteeRewardShare(dna(6))
 	addProposerReward(statsCollector, addr1, dna(10), dna(5), appState)
 	addCommitteeReward(statsCollector, addr1, dna(2), dna(1), appState)
-	applyBlock(bus, 13)
+	applyBlockWithHeight(bus, 12)
+	statsCollector.CompleteCollecting()
+
+	statsCollector.EnableCollecting()
+	statsCollector.SetCommitteeRewardShare(dna(6))
+	addProposerReward(statsCollector, addr1, dna(10), dna(5), appState)
+	addCommitteeReward(statsCollector, addr1, dna(2), dna(1), appState)
+	applyBlockWithHeight(bus, 13)
 	statsCollector.CompleteCollecting()
 
 	statsCollector.EnableCollecting()
 	statsCollector.SetCommitteeRewardShare(dna(6))
 	addCommitteeReward(statsCollector, addr1, dna(2), dna(1), appState)
-	applyBlock(bus, 14)
+	applyBlockWithHeight(bus, 14)
 	statsCollector.CompleteCollecting()
 
 	// Then
@@ -443,38 +443,38 @@ func Test_reset(t *testing.T) {
 	statsCollector.EnableCollecting()
 	statsCollector.SetCommitteeRewardShare(dna(5))
 	addCommitteeReward(statsCollector, addr1, dna(2), dna(1), appState)
-	applyBlock(bus, 2)
+	applyBlockWithHeight(bus, 2)
 	statsCollector.CompleteCollecting()
 
 	statsCollector.EnableCollecting()
 	statsCollector.SetCommitteeRewardShare(dna(5))
 	addCommitteeReward(statsCollector, addr2, dna(2000), dna(1000), appState)
-	applyBlock(bus, 3)
+	applyBlockWithHeight(bus, 3)
 	statsCollector.CompleteCollecting()
 
 	statsCollector.EnableCollecting()
 	statsCollector.SetCommitteeRewardShare(dna(5))
 	addCommitteeReward(statsCollector, addr1, dna(2), dna(1), appState)
-	applyBlock(bus, 4)
+	applyBlockWithHeight(bus, 4)
 	statsCollector.CompleteCollecting()
 
 	statsCollector.EnableCollecting()
 	statsCollector.SetCommitteeRewardShare(dna(5))
 	addCommitteeReward(statsCollector, addr1, dna(2), dna(1), appState)
-	applyBlock(bus, 5)
+	applyBlockWithHeight(bus, 5)
 	statsCollector.CompleteCollecting()
 
 	statsCollector.EnableCollecting()
 	statsCollector.SetCommitteeRewardShare(dna(5))
 	addCommitteeReward(statsCollector, addr1, dna(2), dna(1), appState)
 	addProposerReward(statsCollector, addr1, dna(200), dna(100), appState)
-	applyBlock(bus, 6)
+	applyBlockWithHeight(bus, 6)
 	statsCollector.CompleteCollecting()
 
 	statsCollector.EnableCollecting()
 	statsCollector.SetCommitteeRewardShare(dna(5))
 	addCommitteeReward(statsCollector, addr1, dna(2), dna(1), appState)
-	applyBlock(bus, 7)
+	applyBlockWithHeight(bus, 7)
 	statsCollector.CompleteCollecting()
 
 	// Then
@@ -522,31 +522,31 @@ func Test_penalty(t *testing.T) {
 	statsCollector.EnableCollecting()
 	statsCollector.SetCommitteeRewardShare(dna(10))
 	addCommitteeReward(statsCollector, addr, dna(4), dna(1), appState)
-	applyBlock(bus, 2)
+	applyBlockWithHeight(bus, 2)
 	statsCollector.CompleteCollecting()
 
 	statsCollector.EnableCollecting()
 	statsCollector.SetCommitteeRewardShare(dna(10))
 	addCommitteeReward(statsCollector, addr, dna(4), dna(1), appState)
 	setPenalty(statsCollector, addr, dna(777), appState)
-	applyBlock(bus, 3)
+	applyBlockWithHeight(bus, 3)
 	statsCollector.CompleteCollecting()
 
 	statsCollector.EnableCollecting()
 	statsCollector.SetCommitteeRewardShare(dna(10))
 	addCommitteeReward(statsCollector, addr, dna(4), dna(1), appState)
-	applyBlock(bus, 4)
+	applyBlockWithHeight(bus, 4)
 	statsCollector.CompleteCollecting()
 
 	statsCollector.EnableCollecting()
 	statsCollector.SetCommitteeRewardShare(dna(10))
 	addCommitteeReward(statsCollector, addr, dna(4), dna(1), appState)
-	applyBlock(bus, 5)
+	applyBlockWithHeight(bus, 5)
 	statsCollector.CompleteCollecting()
 
 	statsCollector.EnableCollecting()
 	setEpochPenaltyReset(statsCollector, addr, appState)
-	applyBlock(bus, 6)
+	applyBlockWithHeight(bus, 6)
 	statsCollector.CompleteCollecting()
 
 	// Then
@@ -653,18 +653,28 @@ func updateBalanceAndComplete(
 	collector.CompleteBalanceUpdate(appState)
 }
 
-func applyBlock(bus eventbus.Bus, height uint64) {
+func applyBlockWithHeight(bus eventbus.Bus, height uint64) {
 	bus.Publish(&events.NewBlockEvent{
-		Block: &types2.Block{
-			Header: &types2.Header{
-				ProposedHeader: &types2.ProposedHeader{
-					Height: height,
-					Time:   new(big.Int).SetInt64(time.Now().UTC().Unix()),
-				},
-			},
-			Body: &types2.Body{
-				Transactions: []*types2.Transaction{},
+		Block: buildBlock(height),
+	})
+}
+
+func applyBlock(bus eventbus.Bus, block *types2.Block) {
+	bus.Publish(&events.NewBlockEvent{
+		Block: block,
+	})
+}
+
+func buildBlock(height uint64) *types2.Block {
+	return &types2.Block{
+		Header: &types2.Header{
+			ProposedHeader: &types2.ProposedHeader{
+				Height: height,
+				Time:   new(big.Int).SetInt64(time.Now().UTC().Unix()),
 			},
 		},
-	})
+		Body: &types2.Body{
+			Transactions: []*types2.Transaction{},
+		},
+	}
 }

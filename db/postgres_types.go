@@ -305,7 +305,8 @@ func (v postgresFlipsState) Value() (driver.Value, error) {
 func getFlipStatsArrays(stats []FlipStats) (answersArray, statesArray interface {
 	driver.Valuer
 	sql.Scanner
-}) {
+}, shortAnswerCountsByAddr, longAnswerCountsByAdds map[string]int) {
+	shortAnswerCountsByAddr, longAnswerCountsByAdds = make(map[string]int), make(map[string]int)
 	var convertedAnswers []postgresAnswer
 	var convertedStates []postgresFlipsState
 	var isFirst bool
@@ -327,9 +328,11 @@ func getFlipStatsArrays(stats []FlipStats) (answersArray, statesArray interface 
 		isFirst = true
 		for _, answer := range s.ShortAnswers {
 			convertAndAddAnswer(true, s.Cid, answer)
+			shortAnswerCountsByAddr[answer.Address]++
 		}
 		for _, answer := range s.LongAnswers {
 			convertAndAddAnswer(false, s.Cid, answer)
+			longAnswerCountsByAdds[answer.Address]++
 		}
 		convertedStates = append(convertedStates, postgresFlipsState{
 			flipCid:    s.Cid,
@@ -338,7 +341,7 @@ func getFlipStatsArrays(stats []FlipStats) (answersArray, statesArray interface 
 			status:     s.Status,
 		})
 	}
-	return pq.Array(convertedAnswers), pq.Array(convertedStates)
+	return pq.Array(convertedAnswers), pq.Array(convertedStates), shortAnswerCountsByAddr, longAnswerCountsByAdds
 }
 
 type postgresEpochIdentity struct {
@@ -357,10 +360,12 @@ type postgresEpochIdentity struct {
 	madeFlips        uint8
 	nextEpochInvites uint8
 	birthEpoch       uint64
+	shortAnswers     uint32
+	longAnswers      uint32
 }
 
 func (v postgresEpochIdentity) Value() (driver.Value, error) {
-	return fmt.Sprintf("(%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v)",
+	return fmt.Sprintf("(%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v)",
 		v.address,
 		v.state,
 		v.shortPoint,
@@ -376,6 +381,8 @@ func (v postgresEpochIdentity) Value() (driver.Value, error) {
 		v.madeFlips,
 		v.nextEpochInvites,
 		v.birthEpoch,
+		v.shortAnswers,
+		v.longAnswers,
 	), nil
 }
 
@@ -393,7 +400,11 @@ func (v postgresFlipToSolve) Value() (driver.Value, error) {
 	), nil
 }
 
-func getEpochIdentitiesArrays(identities []EpochIdentity) (identitiesArray, flipsToSolveArray interface {
+func getEpochIdentitiesArrays(
+	identities []EpochIdentity,
+	shortAnswerCountsByAddr,
+	longAnswerCountsByAdds map[string]int,
+) (identitiesArray, flipsToSolveArray interface {
 	driver.Valuer
 	sql.Scanner
 }) {
@@ -419,6 +430,13 @@ func getEpochIdentitiesArrays(identities []EpochIdentity) (identitiesArray, flip
 		for _, flipCid := range identity.LongFlipCidsToSolve {
 			convertAndAddFlipToSolve(identity.Address, flipCid, false)
 		}
+		var shortAnswers, longAnswers uint32
+		if shortAnswerCountsByAddr != nil {
+			shortAnswers = uint32(shortAnswerCountsByAddr[identity.Address])
+		}
+		if longAnswerCountsByAdds != nil {
+			longAnswers = uint32(longAnswerCountsByAdds[identity.Address])
+		}
 		convertedIdentities = append(convertedIdentities, postgresEpochIdentity{
 			address:          identity.Address,
 			state:            identity.State,
@@ -435,6 +453,8 @@ func getEpochIdentitiesArrays(identities []EpochIdentity) (identitiesArray, flip
 			madeFlips:        identity.MadeFlips,
 			nextEpochInvites: identity.NextEpochInvites,
 			birthEpoch:       identity.BirthEpoch,
+			shortAnswers:     shortAnswers,
+			longAnswers:      longAnswers,
 		})
 	}
 	return pq.Array(convertedIdentities), pq.Array(convertedFlipsToSolve)

@@ -14,7 +14,9 @@ select a.address,
        ei.made_flips,
        ei.available_flips,
        ei.total_validation_reward,
-       ei.birth_epoch
+       ei.birth_epoch,
+       ei.short_answers,
+       ei.long_answers
 from epoch_identities ei
          join address_states s on s.id = ei.address_state_id
          join addresses a on a.id = s.address_id and lower(a.address) = lower($1)

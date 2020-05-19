@@ -57,7 +57,7 @@ func InitIndexer(
 		1,
 		false,
 		pm,
-		nil,
+		&TestFlipLoader{},
 	)
 	testIndexer.Start()
 	return dbConnector, testIndexer, listener, dbAccessor, bus

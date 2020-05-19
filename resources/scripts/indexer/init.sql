@@ -608,6 +608,8 @@ CREATE TABLE IF NOT EXISTS epoch_identities
     next_epoch_invites      smallint        NOT NULL,
     birth_epoch             bigint          NOT NULL,
     total_validation_reward numeric(30, 18) NOT NULL,
+    short_answers           integer         NOT NULL,
+    long_answers            integer         NOT NULL,
     CONSTRAINT epoch_identities_pkey PRIMARY KEY (address_state_id),
     CONSTRAINT epoch_identities_address_state_id_fkey FOREIGN KEY (address_state_id)
         REFERENCES address_states (id) MATCH SIMPLE
@@ -1729,7 +1731,6 @@ $$;
 DO
 $$
     BEGIN
-        -- Type: tp_epoch_identity
         CREATE TYPE tp_epoch_identity AS
         (
             address            character(42),
@@ -1746,7 +1747,9 @@ $$
             available_flips    smallint,
             made_flips         smallint,
             next_epoch_invites smallint,
-            birth_epoch        bigint
+            birth_epoch        bigint,
+            short_answers      integer,
+            long_answers       integer
         );
 
         ALTER TYPE tp_epoch_identity

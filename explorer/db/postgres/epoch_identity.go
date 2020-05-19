@@ -37,6 +37,8 @@ func (a *postgresAccessor) EpochIdentity(epoch uint64, address string) (types.Ep
 		&res.AvailableFlips,
 		&res.TotalValidationReward,
 		&res.BirthEpoch,
+		&res.ShortAnswersCount,
+		&res.LongAnswersCount,
 	)
 	if err == sql.ErrNoRows {
 		err = NoDataFound

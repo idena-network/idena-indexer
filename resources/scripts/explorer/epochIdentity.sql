@@ -15,7 +15,9 @@ select dis.name                                  state,
                  from validation_rewards vr
                  where vr.ei_address_state_id = eis.address_state_id
                    and ei.epoch = eis.epoch), 0) total_validation_reward,
-       coalesce(ei.birth_epoch, 0)               birth_epoch
+       coalesce(ei.birth_epoch, 0)               birth_epoch,
+       coalesce(ei.short_answers, 0)       short_answers,
+       coalesce(ei.long_answers, 0)        long_answers
 from epoch_identity_states eis
          left join epoch_identities ei on ei.epoch = eis.epoch and ei.address_state_id = eis.address_state_id
          left join address_states prevs on prevs.id = eis.prev_id

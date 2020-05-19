@@ -282,6 +282,8 @@ func readEpochIdentity(rows *sql.Rows) (types.EpochIdentity, error) {
 		&res.AvailableFlips,
 		&res.TotalValidationReward,
 		&res.BirthEpoch,
+		&res.ShortAnswersCount,
+		&res.LongAnswersCount,
 	)
 	return res, err
 }

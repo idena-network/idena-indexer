@@ -150,6 +150,8 @@ type EpochIdentity struct {
 	ShortAnswers          IdentityAnswersSummary `json:"shortAnswers"`
 	TotalShortAnswers     IdentityAnswersSummary `json:"totalShortAnswers"`
 	LongAnswers           IdentityAnswersSummary `json:"longAnswers"`
+	ShortAnswersCount     uint32                 `json:"shortAnswersCount"`
+	LongAnswersCount      uint32                 `json:"longAnswersCount"`
 	Approved              bool                   `json:"approved"`
 	Missed                bool                   `json:"missed"`
 	RequiredFlips         uint8                  `json:"requiredFlips"`

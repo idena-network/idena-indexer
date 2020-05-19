@@ -249,11 +249,12 @@ func (a *postgresAccessor) saveEpochResult(
 		rewardAges, fundRewards, rewardedFlipCids, rewardedInvitations, savedInviteRewards interface {
 		driver.Valuer
 	}
-	if len(epochResult.Identities) > 0 {
-		identitiesArray, flipsToSolveArray = getEpochIdentitiesArrays(epochResult.Identities)
-	}
+	var shortAnswerCountsByAddr, longAnswerCountsByAdds map[string]int
 	if len(epochResult.FlipStats) > 0 {
-		answersArray, statesArray = getFlipStatsArrays(epochResult.FlipStats)
+		answersArray, statesArray, shortAnswerCountsByAddr, longAnswerCountsByAdds = getFlipStatsArrays(epochResult.FlipStats)
+	}
+	if len(epochResult.Identities) > 0 {
+		identitiesArray, flipsToSolveArray = getEpochIdentitiesArrays(epochResult.Identities, shortAnswerCountsByAddr, longAnswerCountsByAdds)
 	}
 	epochRewards := epochResult.EpochRewards
 	if epochRewards != nil {

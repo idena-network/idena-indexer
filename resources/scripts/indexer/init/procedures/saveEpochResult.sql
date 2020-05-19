@@ -139,11 +139,11 @@ BEGIN
             insert into epoch_identities (epoch, address_state_id, short_point, short_flips, total_short_point,
                                           total_short_flips, long_point, long_flips, approved, missed,
                                           required_flips, available_flips, made_flips, next_epoch_invites, birth_epoch,
-                                          total_validation_reward)
+                                          total_validation_reward, short_answers, long_answers)
             values (p_epoch, l_state_id, identity.short_point, identity.short_flips, identity.total_short_point,
                     identity.total_short_flips, identity.long_point, identity.long_flips, identity.approved,
                     identity.missed, identity.required_flips, identity.available_flips, identity.made_flips,
-                    identity.next_epoch_invites, identity.birth_epoch, 0);
+                    identity.next_epoch_invites, identity.birth_epoch, 0, identity.short_answers, identity.long_answers);
 
             insert into cur_epoch_identities values (identity.address, l_state_id);
 

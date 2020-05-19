@@ -17,7 +17,9 @@ select a.address,
                  from validation_rewards vr
                  where vr.ei_address_state_id = eis.address_state_id
                    and ei.epoch = eis.epoch), 0) total_validation_reward,
-       coalesce(ei.birth_epoch, 0)               birth_epoch
+       coalesce(ei.birth_epoch, 0)               birth_epoch,
+       coalesce(ei.short_answers, 0)       short_answers,
+       coalesce(ei.long_answers, 0)        long_answers
 from epoch_identity_states eis
          join addresses a on a.id = eis.address_id
          left join address_states prevs on prevs.id = eis.prev_id
@@ -28,6 +30,4 @@ where eis.epoch = $1
   and ($2::smallint[] is null or prevs.state = any ($2::smallint[]))
   and ($3::smallint[] is null or eis.state = any ($3::smallint[]))
 order by eis.address_id
-limit $5
-offset
-$4
+limit $5 offset $4

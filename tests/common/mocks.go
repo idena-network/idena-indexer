@@ -3,6 +3,7 @@ package common
 import (
 	"github.com/idena-network/idena-go/blockchain"
 	"github.com/idena-network/idena-go/blockchain/types"
+	"github.com/idena-network/idena-go/common"
 	"github.com/idena-network/idena-go/common/eventbus"
 	"github.com/idena-network/idena-go/config"
 	"github.com/idena-network/idena-go/core/appstate"
@@ -99,4 +100,10 @@ func (l *TestListener) Destroy() {
 
 func (l *TestListener) WaitForStop() {
 
+}
+
+type TestFlipLoader struct {
+}
+
+func (l *TestFlipLoader) SubmitToLoad(cidBytes []byte, txHash common.Hash) {
 }

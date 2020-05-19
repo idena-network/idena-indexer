@@ -174,3 +174,31 @@ func GetPaidPenalties(db *sql.DB) ([]PaidPenalty, error) {
 	}
 	return res, nil
 }
+
+type EpochIdentity struct {
+	Id           int
+	ShortAnswers int
+	LongAnswers  int
+}
+
+func GetEpochIdentities(db *sql.DB) ([]EpochIdentity, error) {
+	rows, err := db.Query(`select address_state_id, short_answers, long_answers from epoch_identities`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var res []EpochIdentity
+	for rows.Next() {
+		item := EpochIdentity{}
+		err := rows.Scan(
+			&item.Id,
+			&item.ShortAnswers,
+			&item.LongAnswers,
+		)
+		if err != nil {
+			return nil, err
+		}
+		res = append(res, item)
+	}
+	return res, nil
+}
