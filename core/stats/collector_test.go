@@ -8,6 +8,7 @@ import (
 	"github.com/idena-network/idena-go/crypto"
 	"github.com/idena-network/idena-go/tests"
 	db2 "github.com/idena-network/idena-indexer/db"
+	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 	db "github.com/tendermint/tm-db"
 	"math/big"
@@ -247,4 +248,31 @@ func TestStatsCollector_EpochRewardBalanceUpdate(t *testing.T) {
 	require.Equal(t, big.NewInt(0), c.stats.BalanceUpdates[1].StakeOld)
 	require.Equal(t, big.NewInt(3), c.stats.BalanceUpdates[1].BalanceNew)
 	require.Equal(t, big.NewInt(0), c.stats.BalanceUpdates[1].StakeNew)
+}
+
+func TestStatsCollector_DustClearingBalanceUpdate(t *testing.T) {
+	c := &statsCollector{}
+	c.EnableCollecting()
+	addr := tests.GetRandAddr()
+	appState := appstate.NewAppState(db.NewMemDB(), eventbus.New())
+	appState.State.SetBalance(addr, big.NewInt(100))
+
+	// When
+	c.EnableCollecting()
+	c.BeginDustClearingBalanceUpdate(addr, appState)
+	appState.State.SetBalance(addr, big.NewInt(0))
+	c.CompleteBalanceUpdate(appState)
+	// Then
+	require.Equal(t, 1, len(c.stats.BalanceUpdates))
+	require.Equal(t, addr, c.stats.BalanceUpdates[0].Address)
+	require.Equal(t, db2.DustClearingReason, c.stats.BalanceUpdates[0].Reason)
+	require.Nil(t, c.stats.BalanceUpdates[0].TxHash)
+	require.Equal(t, big.NewInt(100), c.stats.BalanceUpdates[0].BalanceOld)
+	require.Equal(t, big.NewInt(0), c.stats.BalanceUpdates[0].BalanceNew)
+	require.Equal(t, big.NewInt(100), c.stats.BurntCoins)
+	require.Equal(t, 1, len(c.stats.BurntCoinsByAddr))
+	require.Equal(t, 1, len(c.stats.BurntCoinsByAddr[addr]))
+	require.Equal(t, db2.DustClearingBurntCoins, c.stats.BurntCoinsByAddr[addr][0].Reason)
+	require.Zero(t, decimal.New(1, -16).Cmp(c.stats.BurntCoinsByAddr[addr][0].Amount))
+	require.Equal(t, "", c.stats.BurntCoinsByAddr[addr][0].TxHash)
 }

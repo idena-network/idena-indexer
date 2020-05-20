@@ -295,10 +295,10 @@ func (c *statsCollector) addBurntCoins(addr common.Address, amount *big.Int, rea
 	if c.stats.BurntCoins == nil {
 		c.stats.BurntCoins = big.NewInt(0)
 	}
+	c.stats.BurntCoins.Add(c.stats.BurntCoins, amount)
 	if c.stats.BurntCoinsByAddr == nil {
 		c.stats.BurntCoinsByAddr = make(map[common.Address][]*db.BurntCoins)
 	}
-	c.stats.BurntCoins.Add(c.stats.BurntCoins, amount)
 	var txHash string
 	if tx != nil {
 		txHash = tx.Hash().Hex()
@@ -444,6 +444,9 @@ func (c *statsCollector) CompleteBalanceUpdate(appState *appstate.AppState) {
 	for _, balanceUpdate := range balanceUpdates {
 		if !isBalanceChanged(balanceUpdate) {
 			continue
+		}
+		if balanceUpdate.Reason == db.DustClearingReason {
+			c.addBurntCoins(balanceUpdate.Address, balanceUpdate.BalanceOld, db.DustClearingBurntCoins, nil)
 		}
 		if balanceUpdate.Reason == db.EpochRewardReason {
 			if c.epochRewardBalanceUpdatesByAddr == nil {

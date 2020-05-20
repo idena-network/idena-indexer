@@ -10,11 +10,12 @@ type BurntCoinsReason = uint8
 type BalanceUpdateReason = uint8
 
 const (
-	PenaltyBurntCoins BurntCoinsReason = 0x0
-	InviteBurntCoins  BurntCoinsReason = 0x1
-	FeeBurntCoins     BurntCoinsReason = 0x2
-	KilledBurntCoins  BurntCoinsReason = 0x4
-	BurnTxBurntCoins  BurntCoinsReason = 0x5
+	PenaltyBurntCoins      BurntCoinsReason = 0x0
+	InviteBurntCoins       BurntCoinsReason = 0x1
+	FeeBurntCoins          BurntCoinsReason = 0x2
+	KilledBurntCoins       BurntCoinsReason = 0x4
+	BurnTxBurntCoins       BurntCoinsReason = 0x5
+	DustClearingBurntCoins BurntCoinsReason = 0x6
 
 	TxReason                    BalanceUpdateReason = 0x0
 	VerifiedStakeTransferReason BalanceUpdateReason = 0x1

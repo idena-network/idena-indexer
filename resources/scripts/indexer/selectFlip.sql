@@ -1,3 +1,0 @@
-SELECT ID
-FROM FLIPS
-WHERE lower(CID) = lower($1)

@@ -30,8 +30,6 @@ const (
 	insertBlockQuery                    = "insertBlock.sql"
 	insertBlockProposerQuery            = "insertBlockProposer.sql"
 	insertBlockProposerVrfScoreQuery    = "insertBlockProposerVrfScore.sql"
-	selectIdentityQuery                 = "selectIdentity.sql"
-	selectFlipQuery                     = "selectFlip.sql"
 	insertAddressesAndTransactionsQuery = "insertAddressesAndTransactions.sql"
 	insertSubmittedFlipQuery            = "insertSubmittedFlip.sql"
 	insertFlipKeyQuery                  = "insertFlipKey.sql"
@@ -55,24 +53,6 @@ func (a *postgresAccessor) getQuery(name string) string {
 		return query
 	}
 	panic(fmt.Sprintf("There is no query '%s'", name))
-}
-
-func (a *postgresAccessor) getIdentityId(tx *sql.Tx, address string) (int64, error) {
-	var id int64
-	err := tx.QueryRow(a.getQuery(selectIdentityQuery), address).Scan(&id)
-	if err != nil {
-		return 0, err
-	}
-	return id, nil
-}
-
-func (a *postgresAccessor) getFlipId(tx *sql.Tx, cid string) (int64, error) {
-	var id int64
-	err := tx.QueryRow(a.getQuery(selectFlipQuery), cid).Scan(&id)
-	if err != nil {
-		return 0, err
-	}
-	return id, nil
 }
 
 func (a *postgresAccessor) GetLastHeight() (uint64, error) {
