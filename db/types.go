@@ -201,6 +201,7 @@ type DeletedFlip struct {
 }
 
 type FlipStats struct {
+	Author       string
 	Cid          string
 	ShortAnswers []Answer
 	LongAnswers  []Answer

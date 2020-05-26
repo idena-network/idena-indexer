@@ -30,7 +30,14 @@ const (
 
 func (a *postgresAccessor) Address(address string) (types.Address, error) {
 	res := types.Address{}
-	err := a.db.QueryRow(a.getQuery(addressQuery), address).Scan(&res.Address, &res.Balance, &res.Stake, &res.TxCount)
+	err := a.db.QueryRow(a.getQuery(addressQuery), address).Scan(
+		&res.Address,
+		&res.Balance,
+		&res.Stake,
+		&res.TxCount,
+		&res.FlipsCount,
+		&res.ReportedFlipsCount,
+	)
 	if err == sql.ErrNoRows {
 		err = NoDataFound
 	}

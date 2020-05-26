@@ -237,3 +237,5 @@ call migrate_balance_updates($1, 'OLD_SCHEMA_TAG');
 call restore_coins_summary();
 
 call restore_epoch_summary($1);
+
+call restore_address_summaries();

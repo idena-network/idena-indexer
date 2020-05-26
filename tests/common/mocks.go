@@ -29,6 +29,7 @@ type TestListener struct {
 	handleBlock func(block *types.Block)
 	appState    *appstate.AppState
 	nodeCtx     *node.NodeCtx
+	keysPool    *mempool.KeysPool
 }
 
 func NewTestListener(
@@ -42,6 +43,7 @@ func NewTestListener(
 		collector: collector,
 		appState:  appState,
 		nodeCtx:   nodeCtx,
+		keysPool:  &mempool.KeysPool{},
 	}
 }
 
@@ -83,7 +85,7 @@ func (l *TestListener) Config() *config.Config {
 }
 
 func (l *TestListener) KeysPool() *mempool.KeysPool {
-	return nil
+	return l.keysPool
 }
 
 func (l *TestListener) OfflineDetector() *blockchain.OfflineDetector {

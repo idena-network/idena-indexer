@@ -245,10 +245,12 @@ type InvitesSummary struct {
 }
 
 type Address struct {
-	Address string          `json:"address"`
-	Balance decimal.Decimal `json:"balance"`
-	Stake   decimal.Decimal `json:"stake"`
-	TxCount uint32          `json:"txCount"`
+	Address            string          `json:"address"`
+	Balance            decimal.Decimal `json:"balance"`
+	Stake              decimal.Decimal `json:"stake"`
+	TxCount            uint32          `json:"txCount"`
+	FlipsCount         uint32          `json:"flipsCount"`
+	ReportedFlipsCount uint32          `json:"reportedFlipsCount"`
 }
 
 type AllCoins struct {

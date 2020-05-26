@@ -640,9 +640,12 @@ func (indexer *Indexer) detectEpochResult(block *types.Block, ctx *conversionCon
 	memPoolFlipKeys := memPoolFlipKeysToMigrate
 	validationStats := indexer.statsHolder().GetStats().ValidationStats
 
+	authorAddressesByFlipCid := make(map[string]string)
+
 	ctx.prevStateReadOnly.State.IterateOverIdentities(func(addr common.Address, identity state.Identity) {
+		convertedAddress := conversion.ConvertAddress(addr)
 		convertedIdentity := db.EpochIdentity{}
-		convertedIdentity.Address = conversion.ConvertAddress(addr)
+		convertedIdentity.Address = convertedAddress
 		convertedIdentity.State = convertIdentityState(ctx.newStateReadOnly.State.GetIdentityState(addr))
 		convertedIdentity.TotalShortPoint = ctx.prevStateReadOnly.State.GetShortFlipPoints(addr)
 		convertedIdentity.TotalShortFlips = ctx.prevStateReadOnly.State.GetQualifiedFlipsCount(addr)
@@ -686,6 +689,15 @@ func (indexer *Indexer) detectEpochResult(block *types.Block, ctx *conversionCon
 				memPoolFlipKeys = append(memPoolFlipKeys, memPoolFlipKey)
 			}
 		}
+
+		for _, identityFlip := range identity.Flips {
+			flipCid, err := cid.Parse(identityFlip.Cid)
+			if err != nil {
+				log.Error(fmt.Sprintf("Unable to parse flip cid %v", identityFlip.Cid))
+				continue
+			}
+			authorAddressesByFlipCid[convertCid(flipCid)] = convertedAddress
+		}
 	})
 
 	var flipsStats []db.FlipStats
@@ -695,8 +707,10 @@ func (indexer *Indexer) detectEpochResult(block *types.Block, ctx *conversionCon
 			log.Error("Unable to parse flip cid. Skipped.", "b", block.Height(), "idx", flipIdx, "err", err)
 			continue
 		}
+		flipCidStr := convertCid(flipCid)
 		flipStats := db.FlipStats{
-			Cid:          convertCid(flipCid),
+			Author:       authorAddressesByFlipCid[flipCidStr],
+			Cid:          flipCidStr,
 			ShortAnswers: convertStatsAnswers(flipStats.ShortAnswers),
 			LongAnswers:  convertStatsAnswers(flipStats.LongAnswers),
 			Status:       convertFlipStatus(ceremony.FlipStatus(flipStats.Status)),

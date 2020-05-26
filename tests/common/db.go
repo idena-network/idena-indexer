@@ -202,3 +202,31 @@ func GetEpochIdentities(db *sql.DB) ([]EpochIdentity, error) {
 	}
 	return res, nil
 }
+
+type AddressSummary struct {
+	AddressId       int
+	Flips           int
+	WrongWordsFlips int
+}
+
+func GetAddressSummaries(db *sql.DB) ([]AddressSummary, error) {
+	rows, err := db.Query(`select address_id, flips, wrong_words_flips from address_summaries`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var res []AddressSummary
+	for rows.Next() {
+		item := AddressSummary{}
+		err := rows.Scan(
+			&item.AddressId,
+			&item.Flips,
+			&item.WrongWordsFlips,
+		)
+		if err != nil {
+			return nil, err
+		}
+		res = append(res, item)
+	}
+	return res, nil
+}

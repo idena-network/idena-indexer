@@ -43,3 +43,15 @@ CREATE TABLE IF NOT EXISTS coins_summary
     total_burnt  numeric(30, 18),
     total_minted numeric(30, 18)
 );
+
+CREATE TABLE IF NOT EXISTS address_summaries
+(
+    address_id        bigint  NOT NULL,
+    flips             integer NOT NULL,
+    wrong_words_flips integer NOT NULL,
+    CONSTRAINT address_summaries_pkey PRIMARY KEY (address_id),
+    CONSTRAINT address_summaries_address_id_fkey FOREIGN KEY (address_id)
+        REFERENCES addresses (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+);

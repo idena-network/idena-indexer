@@ -59,7 +59,8 @@ BEGIN
     call log_performance('save_flip_stats', l_start, l_end);
 
     select clock_timestamp() into l_start;
-    call save_epoch_rewards(p_height, p_bad_authors, p_total, p_validation_rewards, p_ages, p_fund_rewards, p_rewarded_flip_cids,
+    call save_epoch_rewards(p_height, p_bad_authors, p_total, p_validation_rewards, p_ages, p_fund_rewards,
+                            p_rewarded_flip_cids,
                             p_rewarded_invitations, p_saved_invite_rewards);
     select clock_timestamp() into l_end;
     call log_performance('save_epoch_rewards', l_start, l_end);
@@ -139,11 +140,17 @@ BEGIN
             insert into epoch_identities (epoch, address_state_id, short_point, short_flips, total_short_point,
                                           total_short_flips, long_point, long_flips, approved, missed,
                                           required_flips, available_flips, made_flips, next_epoch_invites, birth_epoch,
-                                          total_validation_reward, short_answers, long_answers)
+                                          total_validation_reward, short_answers, long_answers, wrong_words_flips)
             values (p_epoch, l_state_id, identity.short_point, identity.short_flips, identity.total_short_point,
                     identity.total_short_flips, identity.long_point, identity.long_flips, identity.approved,
                     identity.missed, identity.required_flips, identity.available_flips, identity.made_flips,
-                    identity.next_epoch_invites, identity.birth_epoch, 0, identity.short_answers, identity.long_answers);
+                    identity.next_epoch_invites, identity.birth_epoch, 0, identity.short_answers, identity.long_answers,
+                    identity.wrong_words_flips);
+
+            if identity.wrong_words_flips > 0 then
+                CALL update_address_summary(p_address_id => l_address_id,
+                                            p_wrong_words_flips_diff => identity.wrong_words_flips);
+            end if;
 
             insert into cur_epoch_identities values (identity.address, l_state_id);
 

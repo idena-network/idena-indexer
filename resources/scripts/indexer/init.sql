@@ -610,6 +610,7 @@ CREATE TABLE IF NOT EXISTS epoch_identities
     total_validation_reward numeric(30, 18) NOT NULL,
     short_answers           integer         NOT NULL,
     long_answers            integer         NOT NULL,
+    wrong_words_flips       smallint        NOT NULL,
     CONSTRAINT epoch_identities_pkey PRIMARY KEY (address_state_id),
     CONSTRAINT epoch_identities_address_state_id_fkey FOREIGN KEY (address_state_id)
         REFERENCES address_states (id) MATCH SIMPLE
@@ -1749,7 +1750,8 @@ $$
             next_epoch_invites smallint,
             birth_epoch        bigint,
             short_answers      integer,
-            long_answers       integer
+            long_answers       integer,
+            wrong_words_flips  smallint
         );
 
         ALTER TYPE tp_epoch_identity
@@ -2278,10 +2280,9 @@ BEGIN
                 IF char_length(tx."to") > 0 THEN
                     select id into l_to from addresses where lower(address) = lower(tx."to");
                 end if;
+                SELECT id INTO l_address_id FROM addresses WHERE lower(address) = lower(tx."from");
                 INSERT INTO TRANSACTIONS (HASH, BLOCK_HEIGHT, type, "from", "to", AMOUNT, TIPS, MAX_FEE, FEE, SIZE)
-                VALUES (tx.hash, height, tx.type,
-                        (select id from addresses where lower(address) = lower(tx."from")),
-                        l_to, tx.amount, tx.tips, tx.max_fee, tx.fee, tx.size)
+                VALUES (tx.hash, height, tx.type, l_address_id, l_to, tx.amount, tx.tips, tx.max_fee, tx.fee, tx.size)
                 RETURNING id into l_tx_id;
                 res = array_append(res, (tx.hash, l_tx_id)::tp_tx_hash_id);
 
@@ -2292,10 +2293,12 @@ BEGIN
                 if tx.type = 4 then
                     -- SubmitFlipTx
                     l_flips_count_diff = l_flips_count_diff + 1;
+                    CALL update_address_summary(p_address_id => l_address_id, p_flips_diff => 1);
                 end if;
                 if tx.type = 14 then
                     -- DeleteFlipTx
                     l_flips_count_diff = l_flips_count_diff - 1;
+                    CALL update_address_summary(p_address_id => l_address_id, p_flips_diff => -1);
                 end if;
             end loop;
 
@@ -2632,6 +2635,8 @@ BEGIN
     from epoch_summaries
     where block_height > p_block_height;
 
+    delete from address_summaries;
+
     delete
     from balances;
 
@@ -2838,6 +2843,7 @@ BEGIN
 
     call restore_coins_summary();
     call restore_epoch_summary(p_block_height);
+    call restore_address_summaries();
 END
 $BODY$;
 

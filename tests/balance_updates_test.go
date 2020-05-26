@@ -659,10 +659,11 @@ func applyBlockWithHeight(bus eventbus.Bus, height uint64) {
 	})
 }
 
-func applyBlock(bus eventbus.Bus, block *types2.Block) {
+func applyBlock(bus eventbus.Bus, block *types2.Block, appState *appstate.AppState) error {
 	bus.Publish(&events.NewBlockEvent{
 		Block: block,
 	})
+	return appState.Commit(block)
 }
 
 func buildBlock(height uint64) *types2.Block {
