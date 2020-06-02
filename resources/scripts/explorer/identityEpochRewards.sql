@@ -15,7 +15,7 @@ from (
      ) fvr
          join validation_rewards vr on vr.ei_address_state_id = fvr.ei_address_state_id
          join dic_epoch_reward_types dert on dert.id = vr.type
-         join reward_ages ra on ra.ei_address_state_id = vr.ei_address_state_id
+         left join reward_ages ra on ra.ei_address_state_id = vr.ei_address_state_id
          join epoch_identities ei on ei.address_state_id = vr.ei_address_state_id
          join address_states s on s.id = ei.address_state_id
          join dic_identity_states dis on dis.id = s.state
