@@ -121,21 +121,37 @@ func (indexer *Indexer) statsHolder() stats.StatsHolder {
 }
 
 func (indexer *Indexer) indexBlock(block *types.Block) {
+	var genesisBlock *types.Block
 	for {
 		heightToIndex := indexer.getHeightToIndex()
+		if genesisBlock != nil {
+			heightToIndex++
+		}
 
 		if !indexer.isFirstBlock(block) && block.Height() > heightToIndex {
 			panic(fmt.Sprintf("Incoming block height=%d is greater than expected %d", block.Height(), heightToIndex))
 		}
-
 		if block.Height() < heightToIndex {
-			height := block.Height() - 1
 			log.Info(fmt.Sprintf("Incoming block height=%d is less than expected %d, start resetting indexer db...", block.Height(), heightToIndex))
-			if err := indexer.resetTo(height); err != nil {
-				log.Error(fmt.Sprintf("Unable to reset to height=%d", height), "err", err)
+			heightToReset := block.Height() - 1
+
+			if indexer.isGenesis(block.Header.ParentHash()) {
+				log.Info(fmt.Sprintf("Block %d is first after genesis", block.Height()))
+				heightToReset--
+				genesisBlock = indexer.listener.NodeCtx().Blockchain.GetBlock(
+					indexer.listener.NodeCtx().Blockchain.Genesis(),
+				)
+				if genesisBlock == nil {
+					log.Error("Unable to get genesis block")
+					indexer.waitForRetry()
+					continue
+				}
+			}
+			if err := indexer.resetTo(heightToReset); err != nil {
+				log.Error(fmt.Sprintf("Unable to reset to height=%d", heightToReset), "err", err)
 				indexer.waitForRetry()
 			} else {
-				log.Info(fmt.Sprintf("Indexer db has been reset to height=%d", height))
+				log.Info(fmt.Sprintf("Indexer db has been reset to height=%d", heightToReset))
 				indexer.restore = indexer.restore || !indexer.isFirstBlockHeight(block.Height())
 			}
 			// retry in any case to ensure incoming height equals to expected height to index after reset
@@ -154,6 +170,17 @@ func (indexer *Indexer) indexBlock(block *types.Block) {
 		if err != nil {
 			panic(err)
 		}
+
+		if genesisBlock != nil {
+			res, err := indexer.convertIncomingData(genesisBlock)
+			if err != nil {
+				panic(err)
+			}
+			indexer.saveData(res.dbData)
+			log.Info(fmt.Sprintf("Processed genesis block %d", genesisBlock.Height()))
+			genesisBlock = nil
+		}
+
 		res, err := indexer.convertIncomingData(block)
 		if err != nil {
 			panic(err)
@@ -180,6 +207,10 @@ func (indexer *Indexer) indexBlock(block *types.Block) {
 
 		return
 	}
+}
+
+func (indexer *Indexer) isGenesis(hash common.Hash) bool {
+	return hash == indexer.listener.NodeCtx().Blockchain.Genesis()
 }
 
 func (indexer *Indexer) resetTo(height uint64) error {
@@ -238,7 +269,14 @@ func (indexer *Indexer) initializeStateIfNeeded(block *types.Block) error {
 
 func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) (*result, error) {
 	indexer.pm.Start("InitCtx")
-	prevState, err := indexer.listener.AppStateReadonly(incomingBlock.Height() - 1)
+	isGenesisBlock := incomingBlock.Hash() == indexer.listener.NodeCtx().Blockchain.Genesis()
+	var prevState *appstate.AppState
+	var err error
+	if isGenesisBlock {
+		prevState, err = indexer.listener.AppStateReadonly(incomingBlock.Height())
+	} else {
+		prevState, err = indexer.listener.AppStateReadonly(incomingBlock.Height() - 1)
+	}
 	if err != nil {
 		return nil, err
 	}
