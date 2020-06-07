@@ -671,7 +671,7 @@ func buildBlock(height uint64) *types2.Block {
 		Header: &types2.Header{
 			ProposedHeader: &types2.ProposedHeader{
 				Height: height,
-				Time:   new(big.Int).SetInt64(time.Now().UTC().Unix()),
+				Time:   time.Now().UTC().Unix(),
 			},
 		},
 		Body: &types2.Body{

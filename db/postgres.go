@@ -283,7 +283,7 @@ func (a *postgresAccessor) saveBlock(ctx *context, block Block) error {
 		block.Height,
 		block.Hash,
 		ctx.epoch,
-		block.Time.Int64(),
+		block.Time,
 		block.IsEmpty,
 		block.ValidatorsCount,
 		block.BodySize,

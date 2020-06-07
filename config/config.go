@@ -16,7 +16,6 @@ type Config struct {
 	WordsFile                  string
 	Verbosity                  int
 	NodeVerbosity              int
-	GenesisBlockHeight         int
 	RestoreInitially           bool
 	PerformanceMonitor         PerformanceMonitorConfig
 	FlipContentLoader          FlipContentLoaderConfig
@@ -74,9 +73,8 @@ func newDefaultConfig() *Config {
 		Postgres: PostgresConfig{
 			ScriptsDir: filepath.Join("resources", "scripts", "indexer"),
 		},
-		Verbosity:          3,
-		NodeVerbosity:      0,
-		GenesisBlockHeight: 1,
+		Verbosity:     3,
+		NodeVerbosity: 0,
 		FlipContentLoader: FlipContentLoaderConfig{
 			BatchSize:        50,
 			AttemptsLimit:    5,

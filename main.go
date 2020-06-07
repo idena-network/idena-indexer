@@ -166,7 +166,6 @@ func initIndexer(config *config.Config) (*indexer.Indexer, incoming.Listener) {
 			dbAccessor,
 			restorer,
 			secondaryStorage,
-			uint64(config.GenesisBlockHeight),
 			restoreInitially,
 			performanceMonitor,
 			flipLoader,

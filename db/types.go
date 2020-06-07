@@ -118,7 +118,7 @@ type Block struct {
 	Height               uint64
 	Hash                 string
 	Transactions         []Transaction
-	Time                 big.Int
+	Time                 int64
 	Proposer             string
 	Flags                []string
 	IsEmpty              bool

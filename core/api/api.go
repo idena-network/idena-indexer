@@ -3,7 +3,6 @@ package api
 import (
 	"github.com/idena-network/idena-go/common/hexutil"
 	"github.com/idena-network/idena-go/crypto"
-	"github.com/idena-network/idena-go/rlp"
 	"github.com/idena-network/idena-indexer/core/holder/online"
 )
 
@@ -57,7 +56,7 @@ func convertOnlineIdentity(oi *online.Identity) *OnlineIdentity {
 }
 
 func (a *Api) SignatureAddress(value, signature string) (string, error) {
-	hash := rlp.Hash(value)
+	hash := crypto.Hash([]byte(value))
 	signatureBytes, err := hexutil.Decode(signature)
 	if err != nil {
 		return "", err

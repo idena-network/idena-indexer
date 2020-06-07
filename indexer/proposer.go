@@ -5,6 +5,7 @@ import (
 	"github.com/idena-network/idena-go/blockchain/types"
 	"github.com/idena-network/idena-go/common"
 	"github.com/idena-network/idena-go/crypto"
+	"github.com/idena-network/idena-go/crypto/vrf"
 	"github.com/idena-network/idena-go/pengings"
 	"github.com/idena-network/idena-indexer/core/conversion"
 	"github.com/idena-network/idena-indexer/log"
@@ -22,7 +23,7 @@ func getProposer(block *types.Block) string {
 
 func getProposerVrfScore(
 	block *types.Block,
-	proofsByRound,
+	proposerByRound pengings.ProposerByRound,
 	pendingProofs *sync.Map,
 	secondaryStorage *runtime.SecondaryStorage,
 ) (float64, bool) {
@@ -40,8 +41,8 @@ func getProposerVrfScore(
 	}
 	var hash common.Hash
 	var ok bool
-	if hash, ok = searchVrfScore(block.Height(), block.Header.Coinbase(), proofsByRound); !ok {
-		if hash, ok = searchVrfScore(block.Height(), block.Header.Coinbase(), pendingProofs); !ok {
+	if hash, ok = getProposerScoreByRound(block.Height(), block.Header.Coinbase(), proposerByRound); !ok {
+		if hash, ok = searchProofsByHashVrfScore(block.Height(), block.Header.Coinbase(), pendingProofs); !ok {
 			return 0, false
 		}
 	}
@@ -51,21 +52,43 @@ func getProposerVrfScore(
 	return f, true
 }
 
-func searchVrfScore(round uint64, address common.Address, proofsByRound *sync.Map) (common.Hash, bool) {
-	m, ok := proofsByRound.Load(round)
+func getProposerScoreByRound(round uint64, address common.Address, proposerByRound pengings.ProposerByRound) (common.Hash, bool) {
+	hash, proposerPubKey, ok := proposerByRound(round)
 	if !ok {
 		return common.Hash{}, false
 	}
-	proofsByHash := m.(*sync.Map)
-	ok = false
+	if proposerAddress, _ := crypto.PubKeyBytesToAddress(proposerPubKey); proposerAddress != address {
+		return common.Hash{}, false
+	}
+	return hash, true
+}
+
+func searchProofsByHashVrfScore(round uint64, address common.Address, proofsByHash *sync.Map) (common.Hash, bool) {
+	found := false
 	var hash common.Hash
 	proofsByHash.Range(func(key, value interface{}) bool {
-		if proofAddress, _ := crypto.PubKeyBytesToAddress(value.(*pengings.Proof).PubKey); proofAddress == address {
-			hash = value.(*pengings.Proof).Hash
-			ok = true
+		proofProposal, ok := value.(*types.ProofProposal)
+		if !ok {
+			log.Error("proofsByHash value is not *types.ProofProposal")
+			return true
+		}
+		if proofProposal.Round != round {
+			return true
+		}
+		pubKey, err := types.ProofProposalPubKey(proofProposal)
+		if err != nil {
+			return true
+		}
+		if proofAddress, _ := crypto.PubKeyBytesToAddress(pubKey); proofAddress == address {
+			h, err := vrf.HashFromProof(proofProposal.Proof)
+			if err != nil {
+				return true
+			}
+			hash = h
+			found = true
 			return false
 		}
 		return true
 	})
-	return hash, ok
+	return hash, found
 }

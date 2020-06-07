@@ -2,6 +2,7 @@ package common
 
 import (
 	"database/sql"
+	"github.com/idena-network/idena-go/blockchain"
 	"github.com/idena-network/idena-go/common/eventbus"
 	"github.com/idena-network/idena-go/core/appstate"
 	"github.com/idena-network/idena-go/node"
@@ -40,12 +41,20 @@ func InitIndexer(
 	pm := monitoring.NewEmptyPerformanceMonitor()
 	dbConnector, dbAccessor := InitPostgres(clearDb, committeeRewardBlocksCount, schema, scriptsPathPrefix, pm)
 	memPoolIndexer := mempool.NewIndexer(dbAccessor, log.New("component", "mpi"))
-	appState := appstate.NewAppState(db2.NewMemDB(), eventbus.New())
+	memDb := db2.NewMemDB()
+	appState := appstate.NewAppState(memDb, eventbus.New())
 	bus := eventbus.New()
+	//chain := blockchain.NewBlockchain(&config.Config{
+	//	GenesisConf: &config.GenesisConf{},
+	//}, memDb, nil, appState, nil, nil, bus, nil, nil)
+	//chain.GenerateGenesis(111)
+
+	chain, _, _, _ := blockchain.NewTestBlockchain(true, nil)
 	nodeCtx := &node.NodeCtx{
 		ProofsByRound: &sync.Map{},
 		PendingProofs: &sync.Map{},
 		AppState:      appState,
+		Blockchain:    chain.Blockchain,
 	}
 	listener := NewTestListener(bus, stats.NewStatsCollector(), appState, nodeCtx)
 	testIndexer := indexer.NewIndexer(
@@ -54,7 +63,6 @@ func InitIndexer(
 		dbAccessor,
 		nil,
 		nil,
-		1,
 		false,
 		pm,
 		&TestFlipLoader{},

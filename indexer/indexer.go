@@ -1,6 +1,7 @@
 package indexer
 
 import (
+	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"github.com/idena-network/idena-go/blockchain"
@@ -11,7 +12,7 @@ import (
 	"github.com/idena-network/idena-go/core/ceremony"
 	"github.com/idena-network/idena-go/core/state"
 	"github.com/idena-network/idena-go/crypto"
-	"github.com/idena-network/idena-go/rlp"
+	"github.com/idena-network/idena-go/crypto/vrf"
 	statsTypes "github.com/idena-network/idena-go/stats/types"
 	"github.com/idena-network/idena-indexer/core/conversion"
 	"github.com/idena-network/idena-indexer/core/flip"
@@ -49,16 +50,15 @@ var (
 )
 
 type Indexer struct {
-	listener           incoming.Listener
-	memPoolIndexer     *mempool.Indexer
-	db                 db.Accessor
-	restorer           *restore.Restorer
-	state              *indexerState
-	secondaryStorage   *runtime.SecondaryStorage
-	genesisBlockHeight uint64
-	restore            bool
-	pm                 monitoring.PerformanceMonitor
-	flipLoader         flip.Loader
+	listener         incoming.Listener
+	memPoolIndexer   *mempool.Indexer
+	db               db.Accessor
+	restorer         *restore.Restorer
+	state            *indexerState
+	secondaryStorage *runtime.SecondaryStorage
+	restore          bool
+	pm               monitoring.PerformanceMonitor
+	flipLoader       flip.Loader
 }
 
 type result struct {
@@ -83,21 +83,19 @@ func NewIndexer(
 	db db.Accessor,
 	restorer *restore.Restorer,
 	secondaryStorage *runtime.SecondaryStorage,
-	genesisBlockHeight uint64,
 	restoreInitially bool,
 	pm monitoring.PerformanceMonitor,
 	flipLoader flip.Loader,
 ) *Indexer {
 	return &Indexer{
-		listener:           listener,
-		memPoolIndexer:     mempoolIndexer,
-		db:                 db,
-		restorer:           restorer,
-		secondaryStorage:   secondaryStorage,
-		genesisBlockHeight: genesisBlockHeight,
-		restore:            restoreInitially,
-		pm:                 pm,
-		flipLoader:         flipLoader,
+		listener:         listener,
+		memPoolIndexer:   mempoolIndexer,
+		db:               db,
+		restorer:         restorer,
+		secondaryStorage: secondaryStorage,
+		restore:          restoreInitially,
+		pm:               pm,
+		flipLoader:       flipLoader,
 	}
 }
 
@@ -135,8 +133,8 @@ func (indexer *Indexer) indexBlock(block *types.Block) {
 			log.Info(fmt.Sprintf("Incoming block height=%d is less than expected %d, start resetting indexer db...", block.Height(), heightToIndex))
 			heightToReset := block.Height() - 1
 
-			if indexer.isGenesis(block.Header.ParentHash()) {
-				log.Info(fmt.Sprintf("Block %d is first after genesis", block.Height()))
+			if !indexer.isFirstBlock(block) && block.Header.ParentHash() == indexer.listener.NodeCtx().Blockchain.Genesis() {
+				log.Info(fmt.Sprintf("Block %d is first after new genesis", block.Height()))
 				heightToReset--
 				genesisBlock = indexer.listener.NodeCtx().Blockchain.GetBlock(
 					indexer.listener.NodeCtx().Blockchain.Genesis(),
@@ -207,10 +205,6 @@ func (indexer *Indexer) indexBlock(block *types.Block) {
 
 		return
 	}
-}
-
-func (indexer *Indexer) isGenesis(hash common.Hash) bool {
-	return hash == indexer.listener.NodeCtx().Blockchain.Genesis()
 }
 
 func (indexer *Indexer) resetTo(height uint64) error {
@@ -387,7 +381,7 @@ func (indexer *Indexer) isFirstBlock(incomingBlock *types.Block) bool {
 }
 
 func (indexer *Indexer) isFirstBlockHeight(height uint64) bool {
-	return height == indexer.genesisBlockHeight+1
+	return height == 2
 }
 
 func (indexer *Indexer) detectFirstAddresses(incomingBlock *types.Block, ctx *conversionContext) []*db.Address {
@@ -441,20 +435,20 @@ func (indexer *Indexer) convertBlock(
 	incomingBlock.Header.Flags()
 	proposerVrfScore, _ := getProposerVrfScore(
 		incomingBlock,
-		indexer.listener.NodeCtx().ProofsByRound,
+		indexer.listener.NodeCtx().ProposerByRound,
 		indexer.listener.NodeCtx().PendingProofs,
 		indexer.secondaryStorage,
 	)
-	encodedBlock, _ := rlp.EncodeToBytes(incomingBlock)
+	encodedBlock, _ := incomingBlock.ToBytes()
 	return db.Block{
 		Height:               incomingBlock.Height(),
 		Hash:                 conversion.ConvertHash(incomingBlock.Hash()),
-		Time:                 *incomingBlock.Header.Time(),
+		Time:                 incomingBlock.Header.Time(),
 		Transactions:         txs,
 		Proposer:             getProposer(incomingBlock),
 		Flags:                convertFlags(incomingBlock.Header.Flags()),
 		IsEmpty:              incomingBlock.IsEmpty(),
-		BodySize:             len(incomingBlock.Body.Bytes()),
+		BodySize:             len(incomingBlock.Body.ToBytes()),
 		FullSize:             len(encodedBlock),
 		ValidatorsCount:      len(indexer.statsHolder().GetStats().FinalCommittee),
 		VrfProposerThreshold: ctx.prevStateReadOnly.State.VrfProposerThreshold(),
@@ -518,7 +512,7 @@ func (indexer *Indexer) convertTransaction(
 		collector.becomeOfflineTxs = append(collector.becomeOfflineTxs, *becomeOfflineTxHash)
 	}
 
-	indexer.convertShortAnswers(incomingTx, ctx, collector)
+	indexer.handleLongAnswers(incomingTx, ctx, collector)
 	txHash := conversion.ConvertHash(incomingTx.Hash())
 
 	sender, _ := types.Sender(incomingTx)
@@ -859,22 +853,23 @@ func detectDeletedFlip(tx *types.Transaction) *db.DeletedFlip {
 	}
 }
 
-func (indexer *Indexer) convertShortAnswers(
+func (indexer *Indexer) handleLongAnswers(
 	tx *types.Transaction,
 	ctx *conversionContext,
 	collector *conversionCollector,
 ) {
-	if tx.Type != types.SubmitShortAnswersTx {
+	if tx.Type != types.SubmitLongAnswersTx {
 		return
 	}
-	attachment := attachments.ParseShortAnswerAttachment(tx)
+	attachment := attachments.ParseLongAnswerAttachment(tx)
 	if attachment == nil {
-		log.Error("Unable to parse short answers payload. Skipped.", "tx", tx.Hash())
+		log.Error("Unable to parse long answers payload. Skipped.", "tx", tx.Hash())
 		return
 	}
 
 	sender, _ := types.Sender(tx)
 	from := conversion.ConvertAddress(sender)
+	// TODO extract flip cids during saving block data
 	senderFlips, err := indexer.db.GetCurrentFlips(from)
 	if err != nil {
 		log.Error("Unable to get current flips. Skipped.", "err", err, "tx", tx.Hash())
@@ -907,11 +902,11 @@ func (indexer *Indexer) convertShortAnswers(
 	}
 }
 
-func getFlipWords(addr common.Address, attachment *attachments.ShortAnswerAttachment, pairId int, appState *appstate.AppState) (word1, word2 int, err error) {
-	seed := appState.State.FlipWordsSeed().Bytes()
-	proof := attachment.Proof
+func getFlipWords(addr common.Address, attachment *attachments.LongAnswerAttachment, pairId int, appState *appstate.AppState) (word1, word2 int, err error) {
 	identity := appState.State.GetIdentity(addr)
-	return ceremony.GetWords(seed, proof, identity.PubKey, common.WordDictionarySize, identity.GetTotalWordPairsCount(), pairId, appState.State.Epoch())
+	hash, _ := vrf.HashFromProof(attachment.Proof)
+	rnd := binary.LittleEndian.Uint64(hash[:])
+	return ceremony.GetWords(rnd, common.WordDictionarySize, identity.GetTotalWordPairsCount(), pairId)
 }
 
 func convertCids(idxs []int, cids [][]byte, block *types.Block) []string {
