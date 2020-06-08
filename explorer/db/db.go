@@ -1,6 +1,7 @@
 package db
 
 import (
+	"github.com/idena-network/idena-go/common/hexutil"
 	"github.com/idena-network/idena-indexer/explorer/types"
 	"github.com/shopspring/decimal"
 	"time"
@@ -114,6 +115,7 @@ type Accessor interface {
 	AddressBalanceUpdates(address string, startIndex uint64, count uint64) ([]types.BalanceUpdate, error)
 
 	Transaction(hash string) (types.TransactionDetail, error)
+	TransactionRaw(hash string) (hexutil.Bytes, error)
 
 	BalancesCount() (uint64, error)
 	Balances(startIndex uint64, count uint64) ([]types.Balance, error)

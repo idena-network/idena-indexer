@@ -567,6 +567,11 @@ func (indexer *Indexer) convertTransaction(
 		}
 	}
 
+	txRaw, err := incomingTx.ToBytes()
+	if err != nil {
+		log.Error("Unable to convert tx to bytes", "tx", txHash, "err", err)
+	}
+
 	tx := db.Transaction{
 		Type:    convertTxType(incomingTx.Type),
 		Payload: incomingTx.Payload,
@@ -578,6 +583,7 @@ func (indexer *Indexer) convertTransaction(
 		MaxFee:  blockchain.ConvertToFloat(incomingTx.MaxFee),
 		Fee:     blockchain.ConvertToFloat(fee),
 		Size:    incomingTx.Size(),
+		Raw:     hex.EncodeToString(txRaw),
 	}
 
 	return tx

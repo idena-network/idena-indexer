@@ -2,6 +2,7 @@ package common
 
 import (
 	"database/sql"
+	"github.com/idena-network/idena-go/common/hexutil"
 	"github.com/idena-network/idena-indexer/db"
 	"github.com/idena-network/idena-indexer/explorer/db/postgres"
 	"github.com/shopspring/decimal"
@@ -222,6 +223,32 @@ func GetAddressSummaries(db *sql.DB) ([]AddressSummary, error) {
 			&item.AddressId,
 			&item.Flips,
 			&item.WrongWordsFlips,
+		)
+		if err != nil {
+			return nil, err
+		}
+		res = append(res, item)
+	}
+	return res, nil
+}
+
+type TransactionRaw struct {
+	TxId int
+	Raw  hexutil.Bytes
+}
+
+func GetTransactionRaws(db *sql.DB) ([]TransactionRaw, error) {
+	rows, err := db.Query(`select tx_id, raw from transaction_raws`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var res []TransactionRaw
+	for rows.Next() {
+		item := TransactionRaw{}
+		err := rows.Scan(
+			&item.TxId,
+			&item.Raw,
 		)
 		if err != nil {
 			return nil, err

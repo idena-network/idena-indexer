@@ -2,6 +2,7 @@ package cached
 
 import (
 	"fmt"
+	"github.com/idena-network/idena-go/common/hexutil"
 	"github.com/idena-network/idena-indexer/explorer/db"
 	"github.com/idena-network/idena-indexer/explorer/types"
 	"github.com/idena-network/idena-indexer/log"
@@ -919,6 +920,13 @@ func (a *cachedAccessor) Transaction(hash string) (types.TransactionDetail, erro
 		return a.Accessor.Transaction(hash)
 	}, hash)
 	return res.(types.TransactionDetail), err
+}
+
+func (a *cachedAccessor) TransactionRaw(hash string) (hexutil.Bytes, error) {
+	res, err := a.getOrLoad("TransactionRaw", func() (interface{}, error) {
+		return a.Accessor.TransactionRaw(hash)
+	}, hash)
+	return res.(hexutil.Bytes), err
 }
 
 func (a *cachedAccessor) BalancesCount() (uint64, error) {

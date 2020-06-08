@@ -141,6 +141,7 @@ type Transaction struct {
 	Fee     decimal.Decimal
 	Payload []byte
 	Size    int
+	Raw     string
 }
 
 type ActivationTxTransfer struct {

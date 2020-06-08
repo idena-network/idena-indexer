@@ -489,6 +489,17 @@ CREATE INDEX IF NOT EXISTS transactions_to_idx on transactions ("to") WHERE "to"
 CREATE INDEX IF NOT EXISTS transactions_block_height_idx on transactions (block_height);
 CREATE INDEX IF NOT EXISTS transactions_invite_id_idx on transactions (id) WHERE type = 2;
 
+CREATE TABLE IF NOT EXISTS transaction_raws
+(
+    tx_id bigint NOT NULL,
+    raw   bytea  NOT NULL,
+    CONSTRAINT transaction_raws_pkey PRIMARY KEY (tx_id),
+    CONSTRAINT transaction_raws_tx_id_fkey FOREIGN KEY (tx_id)
+        REFERENCES transactions (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+);
+
 -- Table: activation_tx_transfers
 
 CREATE TABLE IF NOT EXISTS activation_tx_transfers
@@ -1557,7 +1568,6 @@ $$;
 DO
 $$
     BEGIN
-        -- Type: tp_tx
         CREATE TYPE tp_tx AS
         (
             hash    character(66),
@@ -1568,7 +1578,8 @@ $$
             tips    numeric(30, 18),
             max_fee numeric(30, 18),
             fee     numeric(30, 18),
-            size    integer
+            size    integer,
+            raw     text
         );
 
         ALTER TYPE tp_tx
@@ -2284,6 +2295,9 @@ BEGIN
                 INSERT INTO TRANSACTIONS (HASH, BLOCK_HEIGHT, type, "from", "to", AMOUNT, TIPS, MAX_FEE, FEE, SIZE)
                 VALUES (tx.hash, height, tx.type, l_address_id, l_to, tx.amount, tx.tips, tx.max_fee, tx.fee, tx.size)
                 RETURNING id into l_tx_id;
+
+                INSERT INTO transaction_raws (tx_id, raw) VALUES (l_tx_id, decode(tx.raw, 'hex'));
+
                 res = array_append(res, (tx.hash, l_tx_id)::tp_tx_hash_id);
 
                 if tx.type = 2 then
@@ -2751,6 +2765,13 @@ BEGIN
 
     delete
     from flip_keys
+    where tx_id in
+          (select t.id
+           from transactions t
+           where t.block_height > p_block_height);
+
+    delete
+    from transaction_raws
     where tx_id in
           (select t.id
            from transactions t

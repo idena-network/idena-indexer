@@ -255,6 +255,7 @@ func (s *httpServer) InitRouter(router *mux.Router) {
 	router.Path(strings.ToLower("/Flip/{hash}/EpochIdentity/AdjacentFlips")).HandlerFunc(s.flipEpochIdentityAdjacentFlips)
 
 	router.Path(strings.ToLower("/Transaction/{hash}")).HandlerFunc(s.transaction)
+	router.Path(strings.ToLower("/Transaction/{hash}/Raw")).HandlerFunc(s.transactionRaw)
 
 	router.Path(strings.ToLower("/Address/{address}")).HandlerFunc(s.address)
 	router.Path(strings.ToLower("/Address/{address}/Txs/Count")).HandlerFunc(s.identityTxsCount)
@@ -1530,7 +1531,14 @@ func (s *httpServer) transaction(w http.ResponseWriter, r *http.Request) {
 
 	resp, err := s.db.Transaction(mux.Vars(r)["hash"])
 	server.WriteResponse(w, resp, err, s.log)
+}
 
+func (s *httpServer) transactionRaw(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("transactionRaw", r.RequestURI)
+	defer s.pm.Complete(id)
+
+	resp, err := s.db.TransactionRaw(mux.Vars(r)["hash"])
+	server.WriteResponse(w, resp, err, s.log)
 }
 
 func (s *httpServer) balancesCount(w http.ResponseWriter, r *http.Request) {

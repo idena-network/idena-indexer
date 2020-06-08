@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/idena-network/idena-go/common/hexutil"
 	"github.com/idena-network/idena-indexer/explorer/types"
 	"github.com/idena-network/idena-indexer/log"
 	"github.com/lib/pq"
@@ -20,6 +21,7 @@ type postgresAccessor struct {
 
 const (
 	transactionQuery          = "transaction.sql"
+	transactionRawQuery       = "transactionRaw.sql"
 	isAddressQuery            = "isAddress.sql"
 	isBlockHashQuery          = "isBlockHash.sql"
 	isBlockHeightQuery        = "isBlockHeight.sql"
@@ -187,6 +189,18 @@ func (a *postgresAccessor) Transaction(hash string) (types.TransactionDetail, er
 		res.Transfer = &transfer.Decimal
 	}
 	res.Data = readTxSpecificData(res.Type, transfer, becomeOnline)
+	return res, nil
+}
+
+func (a *postgresAccessor) TransactionRaw(hash string) (hexutil.Bytes, error) {
+	var res hexutil.Bytes
+	err := a.db.QueryRow(a.getQuery(transactionRawQuery), hash).Scan(&res)
+	if err == sql.ErrNoRows {
+		err = NoDataFound
+	}
+	if err != nil {
+		return hexutil.Bytes{}, err
+	}
 	return res, nil
 }
 
