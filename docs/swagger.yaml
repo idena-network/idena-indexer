@@ -1,0 +1,3399 @@
+definitions:
+  Address:
+    properties:
+      address:
+        type: string
+      balance:
+        type: string
+      flipsCount:
+        type: integer
+      reportedFlipsCount:
+        type: integer
+      stake:
+        type: string
+      txCount:
+        type: integer
+    type: object
+  Answer:
+    properties:
+      address:
+        type: string
+      cid:
+        type: string
+      flipAnswer:
+        enum:
+        - None
+        - Left
+        - Right
+        type: string
+      flipStatus:
+        enum:
+        - NotQualified
+        - Qualified
+        - WeaklyQualified
+        - QualifiedByNone
+        type: string
+      flipWrongWords:
+        type: boolean
+      point:
+        type: number
+      respAnswer:
+        enum:
+        - None
+        - Left
+        - Right
+        type: string
+      respWrongWords:
+        type: boolean
+    type: object
+  BadAuthor:
+    properties:
+      address:
+        type: string
+      epoch:
+        type: integer
+      prevState:
+        enum:
+        - Undefined
+        - Invite
+        - Candidate
+        - Verified
+        - Suspended
+        - Killed
+        - Zombie
+        - Newbie
+        - Human
+        type: string
+      reason:
+        enum:
+        - NoQualifiedFlips
+        - QualifiedByNone
+        - WrongWords
+        type: string
+      state:
+        enum:
+        - Undefined
+        - Invite
+        - Candidate
+        - Verified
+        - Suspended
+        - Killed
+        - Zombie
+        - Newbie
+        - Human
+        type: string
+      wrongWords:
+        type: boolean
+    type: object
+  Balance:
+    properties:
+      address:
+        type: string
+      balance:
+        type: string
+      stake:
+        type: string
+    type: object
+  Block:
+    properties:
+      bodySize:
+        type: integer
+      epoch:
+        type: integer
+      feeRate:
+        type: string
+      flags:
+        items:
+          enum:
+          - IdentityUpdate
+          - FlipLotteryStarted
+          - ShortSessionStarted
+          - LongSessionStarted
+          - AfterLongSessionStarted
+          - ValidationFinished
+          - Snapshot
+          - OfflinePropose
+          - OfflineCommit
+          type: string
+        type: array
+      fullSize:
+        type: integer
+      hash:
+        type: string
+      height:
+        type: integer
+      isEmpty:
+        type: boolean
+      proposer:
+        type: string
+      proposerVrfScore:
+        type: number
+      timestamp:
+        example: "2020-01-01T00:00:00Z"
+        type: string
+      txCount:
+        type: integer
+      validatorsCount:
+        type: integer
+      vrfProposerThreshold:
+        type: number
+    type: object
+  BlockSummary:
+    properties:
+      bodySize:
+        type: integer
+      coins:
+        $ref: '#/definitions/Coins'
+        type: object
+      feeRate:
+        type: string
+      flags:
+        items:
+          enum:
+          - IdentityUpdate
+          - FlipLotteryStarted
+          - ShortSessionStarted
+          - LongSessionStarted
+          - AfterLongSessionStarted
+          - ValidationFinished
+          - Snapshot
+          - OfflinePropose
+          - OfflineCommit
+          type: string
+        type: array
+      fullSize:
+        type: integer
+      hash:
+        type: string
+      height:
+        type: integer
+      isEmpty:
+        type: boolean
+      proposer:
+        type: string
+      proposerVrfScore:
+        type: number
+      timestamp:
+        example: "2020-01-01T00:00:00Z"
+        type: string
+      txCount:
+        type: integer
+      vrfProposerThreshold:
+        type: number
+    type: object
+  Coins:
+    properties:
+      burnt:
+        type: string
+      minted:
+        type: string
+      totalBalance:
+        type: string
+      totalStake:
+        type: string
+    type: object
+  Entity:
+    properties:
+      name:
+        enum:
+        - Address
+        - Identity
+        - Epoch
+        - Block
+        - Transaction
+        - Flip
+        type: string
+      ref:
+        type: string
+      value:
+        type: string
+    type: object
+  Epoch:
+    properties:
+      epoch:
+        type: integer
+      minScoreForInvite:
+        type: number
+      validationFirstBlockHeight:
+        type: integer
+      validationTime:
+        example: "2020-01-01T00:00:00Z"
+        type: string
+    type: object
+  EpochIdentity:
+    properties:
+      address:
+        type: string
+      approved:
+        type: boolean
+      availableFlips:
+        type: integer
+      birthEpoch:
+        type: integer
+      epoch:
+        type: integer
+      longAnswers:
+        $ref: '#/definitions/IdentityAnswersSummary'
+        type: object
+      longAnswersCount:
+        type: integer
+      madeFlips:
+        type: integer
+      missed:
+        type: boolean
+      prevState:
+        enum:
+        - Undefined
+        - Invite
+        - Candidate
+        - Verified
+        - Suspended
+        - Killed
+        - Zombie
+        - Newbie
+        - Human
+        type: string
+      requiredFlips:
+        type: integer
+      shortAnswers:
+        $ref: '#/definitions/IdentityAnswersSummary'
+        type: object
+      shortAnswersCount:
+        type: integer
+      state:
+        enum:
+        - Undefined
+        - Invite
+        - Candidate
+        - Verified
+        - Suspended
+        - Killed
+        - Zombie
+        - Newbie
+        - Human
+        type: string
+      totalShortAnswers:
+        $ref: '#/definitions/IdentityAnswersSummary'
+        type: object
+      totalValidationReward:
+        type: string
+    type: object
+  EpochInvites:
+    properties:
+      epoch:
+        type: integer
+      invites:
+        type: integer
+    type: object
+  EpochSummary:
+    properties:
+      blockCount:
+        type: integer
+      coins:
+        $ref: '#/definitions/Coins'
+        type: object
+      emptyBlockCount:
+        type: integer
+      epoch:
+        type: integer
+      flipCount:
+        type: integer
+      inviteCount:
+        type: integer
+      minScoreForInvite:
+        type: number
+      rewards:
+        $ref: '#/definitions/RewardsSummary'
+        type: object
+      txCount:
+        type: integer
+      validatedCount:
+        type: integer
+      validationTime:
+        example: "2020-01-01T00:00:00Z"
+        type: string
+    type: object
+  Error:
+    properties:
+      message:
+        type: string
+    type: object
+  Flip:
+    properties:
+      answer:
+        enum:
+        - ""
+        - None
+        - Left
+        - Right
+        type: string
+      author:
+        type: string
+      blockHash:
+        type: string
+      blockHeight:
+        type: integer
+      epoch:
+        type: integer
+      size:
+        type: integer
+      status:
+        enum:
+        - ""
+        - NotQualified
+        - Qualified
+        - WeaklyQualified
+        - QualifiedByNone
+        type: string
+      timestamp:
+        example: "2020-01-01T00:00:00Z"
+        type: string
+      txHash:
+        type: string
+      withPrivatePart:
+        type: boolean
+      words:
+        $ref: '#/definitions/FlipWords'
+        type: object
+      wrongWords:
+        type: boolean
+      wrongWordsVotes:
+        type: integer
+    type: object
+  FlipAnswerCount:
+    properties:
+      count:
+        type: integer
+      value:
+        enum:
+        - ""
+        - None
+        - Left
+        - Right
+        type: string
+    type: object
+  FlipContent:
+    properties:
+      leftOrder:
+        items:
+          type: integer
+        type: array
+      pics:
+        items:
+          type: string
+        type: array
+      rightOrder:
+        items:
+          type: integer
+        type: array
+    type: object
+  FlipStateCount:
+    properties:
+      count:
+        type: integer
+      value:
+        enum:
+        - ""
+        - NotQualified
+        - Qualified
+        - WeaklyQualified
+        - QualifiedByNone
+        type: string
+    type: object
+  FlipSummary:
+    properties:
+      answer:
+        enum:
+        - ""
+        - None
+        - Left
+        - Right
+        type: string
+      author:
+        type: string
+      cid:
+        type: string
+      epoch:
+        type: integer
+      icon:
+        type: string
+      longRespCount:
+        type: integer
+      shortRespCount:
+        type: integer
+      size:
+        type: integer
+      status:
+        enum:
+        - ""
+        - NotQualified
+        - Qualified
+        - WeaklyQualified
+        - QualifiedByNone
+        type: string
+      timestamp:
+        example: "2020-01-01T00:00:00Z"
+        type: string
+      withPrivatePart:
+        type: boolean
+      words:
+        $ref: '#/definitions/FlipWords'
+        type: object
+      wrongWords:
+        type: boolean
+      wrongWordsVotes:
+        type: integer
+    type: object
+  FlipWord:
+    properties:
+      desc:
+        type: string
+      index:
+        type: integer
+      name:
+        type: string
+    type: object
+  FlipWords:
+    properties:
+      word1:
+        $ref: '#/definitions/FlipWord'
+        type: object
+      word2:
+        $ref: '#/definitions/FlipWord'
+        type: object
+    type: object
+  FundPayment:
+    properties:
+      address:
+        type: string
+      balance:
+        type: string
+      type:
+        enum:
+        - FoundationPayouts
+        - ZeroWalletFund
+        type: string
+    type: object
+  Identity:
+    properties:
+      address:
+        type: string
+      state:
+        type: string
+      totalShortAnswers:
+        $ref: '#/definitions/IdentityAnswersSummary'
+        type: object
+    type: object
+  IdentityAnswersSummary:
+    properties:
+      flipsCount:
+        type: integer
+      point:
+        type: number
+    type: object
+  IdentityStateCount:
+    properties:
+      count:
+        type: integer
+      value:
+        enum:
+        - Undefined
+        - Invite
+        - Candidate
+        - Verified
+        - Suspended
+        - Killed
+        - Zombie
+        - Newbie
+        - Human
+        type: string
+    type: object
+  Invite:
+    properties:
+      activationAuthor:
+        type: string
+      activationHash:
+        type: string
+      activationTimestamp:
+        example: "2020-01-01T00:00:00Z"
+        type: string
+      author:
+        type: string
+      epoch:
+        type: integer
+      hash:
+        type: string
+      killInviteeEpoch:
+        type: integer
+      killInviteeHash:
+        type: string
+      killInviteeTimestamp:
+        example: "2020-01-01T00:00:00Z"
+        type: string
+      state:
+        enum:
+        - Undefined
+        - Invite
+        - Candidate
+        - Verified
+        - Suspended
+        - Killed
+        - Zombie
+        - Newbie
+        - Human
+        type: string
+      timestamp:
+        example: "2020-01-01T00:00:00Z"
+        type: string
+    type: object
+  InvitesSummary:
+    properties:
+      allCount:
+        type: integer
+      usedCount:
+        type: integer
+    type: object
+  NullableBoolValueCount:
+    properties:
+      count:
+        type: integer
+      value:
+        type: boolean
+    type: object
+  Penalty:
+    properties:
+      address:
+        type: string
+      blockHash:
+        type: string
+      blockHeight:
+        type: integer
+      epoch:
+        type: integer
+      paid:
+        type: string
+      penalty:
+        type: string
+      timestamp:
+        example: "2020-01-01T00:00:00Z"
+        type: string
+    type: object
+  Response:
+    properties:
+      error:
+        $ref: '#/definitions/Error'
+        type: object
+      result:
+        type: object
+    type: object
+  ResponsePage:
+    properties:
+      continuationToken:
+        type: string
+      error:
+        $ref: '#/definitions/Error'
+        type: object
+      result:
+        type: object
+    type: object
+  Reward:
+    properties:
+      address:
+        type: string
+      balance:
+        type: string
+      blockHeight:
+        type: integer
+      epoch:
+        type: integer
+      stake:
+        type: string
+      type:
+        enum:
+        - Validation
+        - Flips
+        - Invitations
+        - Invitations2
+        - Invitations3
+        - SavedInvite
+        - SavedInviteWin
+        type: string
+    type: object
+  RewardedFlip:
+    properties:
+      answer:
+        enum:
+        - ""
+        - None
+        - Left
+        - Right
+        type: string
+      author:
+        type: string
+      cid:
+        type: string
+      epoch:
+        type: integer
+      icon:
+        type: string
+      longRespCount:
+        type: integer
+      rewarded:
+        type: boolean
+      shortRespCount:
+        type: integer
+      size:
+        type: integer
+      status:
+        enum:
+        - ""
+        - NotQualified
+        - Qualified
+        - WeaklyQualified
+        - QualifiedByNone
+        type: string
+      timestamp:
+        example: "2020-01-01T00:00:00Z"
+        type: string
+      withPrivatePart:
+        type: boolean
+      words:
+        $ref: '#/definitions/FlipWords'
+        type: object
+      wrongWords:
+        type: boolean
+      wrongWordsVotes:
+        type: integer
+    type: object
+  RewardedInvite:
+    properties:
+      activationAuthor:
+        type: string
+      activationHash:
+        type: string
+      activationTimestamp:
+        example: "2020-01-01T00:00:00Z"
+        type: string
+      author:
+        type: string
+      epoch:
+        type: integer
+      hash:
+        type: string
+      killInviteeEpoch:
+        type: integer
+      killInviteeHash:
+        type: string
+      killInviteeTimestamp:
+        example: "2020-01-01T00:00:00Z"
+        type: string
+      rewardType:
+        enum:
+        - ""
+        - Invitations
+        - Invitations2
+        - Invitations3
+        type: string
+      state:
+        enum:
+        - Undefined
+        - Invite
+        - Candidate
+        - Verified
+        - Suspended
+        - Killed
+        - Zombie
+        - Newbie
+        - Human
+        type: string
+      timestamp:
+        example: "2020-01-01T00:00:00Z"
+        type: string
+    type: object
+  Rewards:
+    properties:
+      address:
+        type: string
+      age:
+        type: integer
+      epoch:
+        type: integer
+      prevState:
+        enum:
+        - Undefined
+        - Invite
+        - Candidate
+        - Verified
+        - Suspended
+        - Killed
+        - Zombie
+        - Newbie
+        - Human
+        type: string
+      rewards:
+        items:
+          $ref: '#/definitions/Reward'
+        type: array
+      state:
+        enum:
+        - Undefined
+        - Invite
+        - Candidate
+        - Verified
+        - Suspended
+        - Killed
+        - Zombie
+        - Newbie
+        - Human
+        type: string
+    type: object
+  RewardsSummary:
+    properties:
+      epoch:
+        type: integer
+      flips:
+        type: string
+      flipsShare:
+        type: string
+      foundationPayouts:
+        type: string
+      invitations:
+        type: string
+      invitationsShare:
+        type: string
+      total:
+        type: string
+      validation:
+        type: string
+      validationShare:
+        type: string
+      zeroWalletFund:
+        type: string
+    type: object
+  SavedInviteRewardCount:
+    properties:
+      count:
+        type: integer
+      value:
+        enum:
+        - SavedInvite
+        - SavedInviteWin
+        type: string
+    type: object
+  Transaction:
+    properties:
+      amount:
+        type: string
+      blockHash:
+        type: string
+      blockHeight:
+        type: integer
+      data:
+        type: object
+      epoch:
+        type: integer
+      fee:
+        type: string
+      from:
+        type: string
+      hash:
+        type: string
+      maxFee:
+        type: string
+      size:
+        type: integer
+      timestamp:
+        example: "2020-01-01T00:00:00Z"
+        type: string
+      tips:
+        type: string
+      to:
+        type: string
+      transfer:
+        description: todo deprecated
+        type: string
+      type:
+        enum:
+        - SendTx
+        - ActivationTx
+        - InviteTx
+        - KillTx
+        - SubmitFlipTx
+        - SubmitAnswersHashTx
+        - SubmitShortAnswersTx
+        - SubmitLongAnswersTx
+        - EvidenceTx
+        - OnlineStatusTx
+        - KillInviteeTx
+        - ChangeGodAddressTx
+        - BurnTx
+        - ChangeProfileTx
+        - DeleteFlipTx
+        type: string
+    type: object
+  TransactionSpecificData:
+    properties:
+      becomeOnline:
+        type: boolean
+      transfer:
+        type: string
+    type: object
+  TransactionSummary:
+    properties:
+      amount:
+        type: string
+      data:
+        type: object
+      fee:
+        type: string
+      from:
+        type: string
+      hash:
+        type: string
+      maxFee:
+        type: string
+      size:
+        type: integer
+      timestamp:
+        example: "2020-01-01T00:00:00Z"
+        type: string
+      tips:
+        type: string
+      to:
+        type: string
+      type:
+        enum:
+        - SendTx
+        - ActivationTx
+        - InviteTx
+        - KillTx
+        - SubmitFlipTx
+        - SubmitAnswersHashTx
+        - SubmitShortAnswersTx
+        - SubmitLongAnswersTx
+        - EvidenceTx
+        - OnlineStatusTx
+        - KillInviteeTx
+        - ChangeGodAddressTx
+        - BurnTx
+        - ChangeProfileTx
+        - DeleteFlipTx
+        type: string
+    type: object
+info:
+  contact: {}
+  license:
+    name: Apache 2.0
+paths:
+  /ActiveAddresses/Count:
+    get:
+      operationId: ActiveAddressesCount
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/Response'
+            - properties:
+                result:
+                  type: integer
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Coins
+  /Address/{address}:
+    get:
+      operationId: Address
+      parameters:
+      - description: address
+        in: path
+        name: address
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/Response'
+            - properties:
+                result:
+                  $ref: '#/definitions/Address'
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Address
+  /Address/{address}/Penalties:
+    get:
+      operationId: AddressPenalties
+      parameters:
+      - description: address
+        in: path
+        name: address
+        required: true
+        type: string
+      - description: items to take
+        in: query
+        name: limit
+        required: true
+        type: integer
+      - description: continuation token to get next page items
+        in: query
+        name: continuationToken
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/ResponsePage'
+            - properties:
+                result:
+                  items:
+                    $ref: '#/definitions/Penalty'
+                  type: array
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Address
+  /Address/{address}/Penalties/Count:
+    get:
+      operationId: AddressPenaltiesCount
+      parameters:
+      - description: address
+        in: path
+        name: address
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/Response'
+            - properties:
+                result:
+                  type: integer
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Address
+  /Address/{address}/Txs:
+    get:
+      operationId: AddressTxs
+      parameters:
+      - description: address
+        in: path
+        name: address
+        required: true
+        type: string
+      - description: items to take
+        in: query
+        name: limit
+        required: true
+        type: integer
+      - description: continuation token to get next page items
+        in: query
+        name: continuationToken
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/ResponsePage'
+            - properties:
+                result:
+                  items:
+                    $ref: '#/definitions/TransactionSummary'
+                  type: array
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Address
+  /Address/{address}/Txs/Count:
+    get:
+      operationId: AddressTxsCount
+      parameters:
+      - description: address
+        in: path
+        name: address
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/Response'
+            - properties:
+                result:
+                  type: integer
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Address
+  /Balances:
+    get:
+      operationId: Balances
+      parameters:
+      - description: items to take
+        in: query
+        name: limit
+        required: true
+        type: integer
+      - description: continuation token to get next page items
+        in: query
+        name: continuationToken
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/ResponsePage'
+            - properties:
+                result:
+                  items:
+                    $ref: '#/definitions/Balance'
+                  type: array
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Coins
+  /Block/{id}:
+    get:
+      operationId: Block
+      parameters:
+      - description: block hash or height
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/Response'
+            - properties:
+                result:
+                  $ref: '#/definitions/Block'
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Block
+  /Block/{id}/Coins:
+    get:
+      operationId: BlockCoins
+      parameters:
+      - description: block hash or height
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/Response'
+            - properties:
+                result:
+                  $ref: '#/definitions/Coins'
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Block
+  /Block/{id}/Txs:
+    get:
+      operationId: BlockTxs
+      parameters:
+      - description: block hash or height
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: items to take
+        in: query
+        name: limit
+        required: true
+        type: integer
+      - description: continuation token to get next page items
+        in: query
+        name: continuationToken
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/ResponsePage'
+            - properties:
+                result:
+                  items:
+                    allOf:
+                    - $ref: '#/definitions/TransactionSummary'
+                    - properties:
+                        data:
+                          $ref: '#/definitions/TransactionSpecificData'
+                      type: object
+                  type: array
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Block
+  /Block/{id}/Txs/Count:
+    get:
+      operationId: BlockTxsCount
+      parameters:
+      - description: block hash or height
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/Response'
+            - properties:
+                result:
+                  type: integer
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Block
+  /CirculatingSupply:
+    get:
+      operationId: CirculatingSupply
+      parameters:
+      - description: result value format
+        enum:
+        - full
+        - short
+        in: query
+        name: format
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/Response'
+            - properties:
+                result:
+                  type: string
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Coins
+  /Coins:
+    get:
+      operationId: Coins
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/Response'
+            - properties:
+                result:
+                  $ref: '#/definitions/Coins'
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Coins
+  /Epoch/{epoch}:
+    get:
+      operationId: Epoch
+      parameters:
+      - description: epoch
+        in: path
+        name: epoch
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/Response'
+            - properties:
+                result:
+                  $ref: '#/definitions/Epoch'
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Epochs
+  /Epoch/{epoch}/Authors/Bad:
+    get:
+      operationId: EpochBadAuthors
+      parameters:
+      - description: epoch
+        in: path
+        name: epoch
+        required: true
+        type: integer
+      - description: items to take
+        in: query
+        name: limit
+        required: true
+        type: integer
+      - description: continuation token to get next page items
+        in: query
+        name: continuationToken
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/ResponsePage'
+            - properties:
+                result:
+                  items:
+                    $ref: '#/definitions/BadAuthor'
+                  type: array
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Epochs
+  /Epoch/{epoch}/Authors/Bad/Count:
+    get:
+      operationId: EpochBadAuthorsCount
+      parameters:
+      - description: epoch
+        in: path
+        name: epoch
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/Response'
+            - properties:
+                result:
+                  type: integer
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Epochs
+  /Epoch/{epoch}/Blocks:
+    get:
+      operationId: EpochBlocks
+      parameters:
+      - description: epoch
+        in: path
+        name: epoch
+        required: true
+        type: integer
+      - description: items to take
+        in: query
+        name: limit
+        required: true
+        type: integer
+      - description: continuation token to get next page items
+        in: query
+        name: continuationToken
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/ResponsePage'
+            - properties:
+                result:
+                  items:
+                    $ref: '#/definitions/BlockSummary'
+                  type: array
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Epochs
+  /Epoch/{epoch}/Blocks/Count:
+    get:
+      operationId: EpochBlocksCount
+      parameters:
+      - description: epoch
+        in: path
+        name: epoch
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/Response'
+            - properties:
+                result:
+                  type: integer
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Epochs
+  /Epoch/{epoch}/Coins:
+    get:
+      operationId: EpochCoins
+      parameters:
+      - description: epoch
+        in: path
+        name: epoch
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/Response'
+            - properties:
+                result:
+                  $ref: '#/definitions/Coins'
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Epochs
+  /Epoch/{epoch}/FlipAnswersSummary:
+    get:
+      operationId: EpochFlipAnswersSummary
+      parameters:
+      - description: epoch
+        in: path
+        name: epoch
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/Response'
+            - properties:
+                result:
+                  items:
+                    $ref: '#/definitions/FlipAnswerCount'
+                  type: array
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Epochs
+  /Epoch/{epoch}/FlipStatesSummary:
+    get:
+      operationId: EpochFlipStatesSummary
+      parameters:
+      - description: epoch
+        in: path
+        name: epoch
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/Response'
+            - properties:
+                result:
+                  items:
+                    $ref: '#/definitions/FlipStateCount'
+                  type: array
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Epochs
+  /Epoch/{epoch}/FlipWrongWordsSummary:
+    get:
+      operationId: EpochFlipWrongWordsSummary
+      parameters:
+      - description: epoch
+        in: path
+        name: epoch
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/Response'
+            - properties:
+                result:
+                  items:
+                    $ref: '#/definitions/NullableBoolValueCount'
+                  type: array
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Epochs
+  /Epoch/{epoch}/Flips:
+    get:
+      operationId: EpochFlips
+      parameters:
+      - description: epoch
+        in: path
+        name: epoch
+        required: true
+        type: integer
+      - description: items to take
+        in: query
+        name: limit
+        required: true
+        type: integer
+      - description: continuation token to get next page items
+        in: query
+        name: continuationToken
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/ResponsePage'
+            - properties:
+                result:
+                  items:
+                    $ref: '#/definitions/FlipSummary'
+                  type: array
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Epochs
+  /Epoch/{epoch}/Flips/Count:
+    get:
+      operationId: EpochFlipsCount
+      parameters:
+      - description: epoch
+        in: path
+        name: epoch
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/Response'
+            - properties:
+                result:
+                  type: integer
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Epochs
+  /Epoch/{epoch}/FundPayments:
+    get:
+      operationId: EpochFundPayments
+      parameters:
+      - description: epoch
+        in: path
+        name: epoch
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/Response'
+            - properties:
+                result:
+                  items:
+                    $ref: '#/definitions/FundPayment'
+                  type: array
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Epochs
+  /Epoch/{epoch}/Identities:
+    get:
+      operationId: EpochIdentities
+      parameters:
+      - description: epoch
+        in: path
+        name: epoch
+        required: true
+        type: integer
+      - description: items to take
+        in: query
+        name: limit
+        required: true
+        type: integer
+      - description: continuation token to get next page items
+        in: query
+        name: continuationToken
+        type: string
+      - description: identity state filter
+        in: query
+        items:
+          type: string
+        name: states[]
+        type: array
+      - description: identity previous state filter
+        in: query
+        items:
+          type: string
+        name: prevStates[]
+        type: array
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/ResponsePage'
+            - properties:
+                result:
+                  items:
+                    $ref: '#/definitions/EpochIdentity'
+                  type: array
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Epochs
+  /Epoch/{epoch}/Identities/Count:
+    get:
+      operationId: EpochIdentitiesCount
+      parameters:
+      - description: epoch
+        in: path
+        name: epoch
+        required: true
+        type: integer
+      - description: identity state filter
+        in: query
+        items:
+          type: string
+        name: states[]
+        type: array
+      - description: identity previous state filter
+        in: query
+        items:
+          type: string
+        name: prevStates[]
+        type: array
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/Response'
+            - properties:
+                result:
+                  type: integer
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Epochs
+  /Epoch/{epoch}/Identity/{address}:
+    get:
+      operationId: EpochIdentity
+      parameters:
+      - description: epoch
+        in: path
+        name: epoch
+        required: true
+        type: integer
+      - description: address
+        in: path
+        name: address
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/Response'
+            - properties:
+                result:
+                  $ref: '#/definitions/EpochIdentity'
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Identity
+  /Epoch/{epoch}/Identity/{address}/Answers/Long:
+    get:
+      operationId: EpochIdentityLongAnswers
+      parameters:
+      - description: epoch
+        in: path
+        name: epoch
+        required: true
+        type: integer
+      - description: address
+        in: path
+        name: address
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/Response'
+            - properties:
+                result:
+                  items:
+                    $ref: '#/definitions/Answer'
+                  type: array
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Identity
+  /Epoch/{epoch}/Identity/{address}/Answers/Short:
+    get:
+      operationId: EpochIdentityShortAnswers
+      parameters:
+      - description: epoch
+        in: path
+        name: epoch
+        required: true
+        type: integer
+      - description: address
+        in: path
+        name: address
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/Response'
+            - properties:
+                result:
+                  items:
+                    $ref: '#/definitions/Answer'
+                  type: array
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Identity
+  /Epoch/{epoch}/Identity/{address}/Authors/Bad:
+    get:
+      operationId: EpochIdentityBadAuthor
+      parameters:
+      - description: epoch
+        in: path
+        name: epoch
+        required: true
+        type: integer
+      - description: address
+        in: path
+        name: address
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/Response'
+            - properties:
+                result:
+                  $ref: '#/definitions/BadAuthor'
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Identity
+  /Epoch/{epoch}/Identity/{address}/AvailableInvites:
+    get:
+      operationId: EpochIdentityAvailableInvites
+      parameters:
+      - description: epoch
+        in: path
+        name: epoch
+        required: true
+        type: integer
+      - description: address
+        in: path
+        name: address
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/Response'
+            - properties:
+                result:
+                  items:
+                    $ref: '#/definitions/EpochInvites'
+                  type: array
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Identity
+  /Epoch/{epoch}/Identity/{address}/Flips:
+    get:
+      operationId: EpochIdentityFlips
+      parameters:
+      - description: epoch
+        in: path
+        name: epoch
+        required: true
+        type: integer
+      - description: address
+        in: path
+        name: address
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/Response'
+            - properties:
+                result:
+                  items:
+                    $ref: '#/definitions/FlipSummary'
+                  type: array
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Identity
+  /Epoch/{epoch}/Identity/{address}/FlipsToSolve/Long:
+    get:
+      operationId: EpochIdentityLongFlipsToSolve
+      parameters:
+      - description: epoch
+        in: path
+        name: epoch
+        required: true
+        type: integer
+      - description: address
+        in: path
+        name: address
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/Response'
+            - properties:
+                result:
+                  items:
+                    type: string
+                  type: array
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Identity
+  /Epoch/{epoch}/Identity/{address}/FlipsToSolve/Short:
+    get:
+      operationId: EpochIdentityShortFlipsToSolve
+      parameters:
+      - description: epoch
+        in: path
+        name: epoch
+        required: true
+        type: integer
+      - description: address
+        in: path
+        name: address
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/Response'
+            - properties:
+                result:
+                  items:
+                    type: string
+                  type: array
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Identity
+  /Epoch/{epoch}/Identity/{address}/RewardedFlips:
+    get:
+      operationId: EpochIdentityRewardedFlips
+      parameters:
+      - description: epoch
+        in: path
+        name: epoch
+        required: true
+        type: integer
+      - description: address
+        in: path
+        name: address
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/Response'
+            - properties:
+                result:
+                  items:
+                    $ref: '#/definitions/RewardedFlip'
+                  type: array
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Identity
+  /Epoch/{epoch}/Identity/{address}/RewardedInvites:
+    get:
+      operationId: EpochIdentityRewardedInvites
+      parameters:
+      - description: epoch
+        in: path
+        name: epoch
+        required: true
+        type: integer
+      - description: address
+        in: path
+        name: address
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/Response'
+            - properties:
+                result:
+                  items:
+                    $ref: '#/definitions/RewardedInvite'
+                  type: array
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Identity
+  /Epoch/{epoch}/Identity/{address}/Rewards:
+    get:
+      operationId: EpochIdentityRewards
+      parameters:
+      - description: epoch
+        in: path
+        name: epoch
+        required: true
+        type: integer
+      - description: address
+        in: path
+        name: address
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/Response'
+            - properties:
+                result:
+                  items:
+                    $ref: '#/definitions/Reward'
+                  type: array
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Identity
+  /Epoch/{epoch}/Identity/{address}/SavedInviteRewards:
+    get:
+      operationId: EpochIdentitySavedInviteRewards
+      parameters:
+      - description: epoch
+        in: path
+        name: epoch
+        required: true
+        type: integer
+      - description: address
+        in: path
+        name: address
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/Response'
+            - properties:
+                result:
+                  items:
+                    $ref: '#/definitions/SavedInviteRewardCount'
+                  type: array
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Identity
+  /Epoch/{epoch}/Identity/{address}/ValidationTxs:
+    get:
+      operationId: EpochIdentityValidationTxs
+      parameters:
+      - description: epoch
+        in: path
+        name: epoch
+        required: true
+        type: integer
+      - description: address
+        in: path
+        name: address
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/Response'
+            - properties:
+                result:
+                  items:
+                    $ref: '#/definitions/TransactionSummary'
+                  type: array
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Identity
+  /Epoch/{epoch}/IdentityRewards:
+    get:
+      operationId: EpochIdentitiesRewards
+      parameters:
+      - description: epoch
+        in: path
+        name: epoch
+        required: true
+        type: integer
+      - description: items to take
+        in: query
+        name: limit
+        required: true
+        type: integer
+      - description: continuation token to get next page items
+        in: query
+        name: continuationToken
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/ResponsePage'
+            - properties:
+                result:
+                  items:
+                    $ref: '#/definitions/Rewards'
+                  type: array
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Epochs
+  /Epoch/{epoch}/IdentityRewards/Count:
+    get:
+      operationId: EpochIdentitiesRewardsCount
+      parameters:
+      - description: epoch
+        in: path
+        name: epoch
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/Response'
+            - properties:
+                result:
+                  type: integer
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Epochs
+  /Epoch/{epoch}/IdentityStatesInterimSummary:
+    get:
+      operationId: EpochIdentityStatesInterimSummary
+      parameters:
+      - description: epoch
+        in: path
+        name: epoch
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/Response'
+            - properties:
+                result:
+                  items:
+                    $ref: '#/definitions/IdentityStateCount'
+                  type: array
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Epochs
+  /Epoch/{epoch}/IdentityStatesSummary:
+    get:
+      operationId: EpochIdentityStatesSummary
+      parameters:
+      - description: epoch
+        in: path
+        name: epoch
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/Response'
+            - properties:
+                result:
+                  items:
+                    $ref: '#/definitions/IdentityStateCount'
+                  type: array
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Epochs
+  /Epoch/{epoch}/InviteStatesSummary:
+    get:
+      operationId: EpochInviteStatesSummary
+      parameters:
+      - description: epoch
+        in: path
+        name: epoch
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/Response'
+            - properties:
+                result:
+                  items:
+                    $ref: '#/definitions/IdentityStateCount'
+                  type: array
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Epochs
+  /Epoch/{epoch}/Invites:
+    get:
+      operationId: EpochInvites
+      parameters:
+      - description: epoch
+        in: path
+        name: epoch
+        required: true
+        type: integer
+      - description: items to take
+        in: query
+        name: limit
+        required: true
+        type: integer
+      - description: continuation token to get next page items
+        in: query
+        name: continuationToken
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/ResponsePage'
+            - properties:
+                result:
+                  items:
+                    $ref: '#/definitions/Invite'
+                  type: array
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Epochs
+  /Epoch/{epoch}/Invites/Count:
+    get:
+      operationId: EpochInvitesCount
+      parameters:
+      - description: epoch
+        in: path
+        name: epoch
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/Response'
+            - properties:
+                result:
+                  type: integer
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Epochs
+  /Epoch/{epoch}/InvitesSummary:
+    get:
+      operationId: EpochInvitesSummary
+      parameters:
+      - description: epoch
+        in: path
+        name: epoch
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/Response'
+            - properties:
+                result:
+                  $ref: '#/definitions/InvitesSummary'
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Epochs
+  /Epoch/{epoch}/RewardsSummary:
+    get:
+      operationId: EpochRewardsSummary
+      parameters:
+      - description: epoch
+        in: path
+        name: epoch
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/Response'
+            - properties:
+                result:
+                  $ref: '#/definitions/RewardsSummary'
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Epochs
+  /Epoch/{epoch}/Txs:
+    get:
+      operationId: EpochTxs
+      parameters:
+      - description: epoch
+        in: path
+        name: epoch
+        required: true
+        type: integer
+      - description: items to take
+        in: query
+        name: limit
+        required: true
+        type: integer
+      - description: continuation token to get next page items
+        in: query
+        name: continuationToken
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/ResponsePage'
+            - properties:
+                result:
+                  items:
+                    allOf:
+                    - $ref: '#/definitions/TransactionSummary'
+                    - properties:
+                        data:
+                          $ref: '#/definitions/TransactionSpecificData'
+                      type: object
+                  type: array
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Epochs
+  /Epoch/{epoch}/Txs/Count:
+    get:
+      operationId: EpochTxsCount
+      parameters:
+      - description: epoch
+        in: path
+        name: epoch
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/Response'
+            - properties:
+                result:
+                  type: integer
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Epochs
+  /Epoch/Last:
+    get:
+      operationId: LastEpoch
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/Response'
+            - properties:
+                result:
+                  $ref: '#/definitions/Epoch'
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Epochs
+  /Epochs:
+    get:
+      operationId: Epochs
+      parameters:
+      - description: items to take
+        in: query
+        name: limit
+        required: true
+        type: integer
+      - description: continuation token to get next page items
+        in: query
+        name: continuationToken
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/ResponsePage'
+            - properties:
+                result:
+                  items:
+                    $ref: '#/definitions/EpochSummary'
+                  type: array
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Epochs
+  /Epochs/Count:
+    get:
+      operationId: EpochsCount
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/Response'
+            - properties:
+                result:
+                  type: integer
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Epochs
+  /Flip/{hash}:
+    get:
+      operationId: Flip
+      parameters:
+      - description: flip hash
+        in: path
+        name: hash
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/Response'
+            - properties:
+                result:
+                  $ref: '#/definitions/Flip'
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Flip
+  /Flip/{hash}/Answers/Long:
+    get:
+      operationId: FlipLongAnswers
+      parameters:
+      - description: flip hash
+        in: path
+        name: hash
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/Response'
+            - properties:
+                result:
+                  items:
+                    $ref: '#/definitions/Answer'
+                  type: array
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Flip
+  /Flip/{hash}/Answers/Short:
+    get:
+      operationId: FlipShortAnswers
+      parameters:
+      - description: flip hash
+        in: path
+        name: hash
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/Response'
+            - properties:
+                result:
+                  items:
+                    $ref: '#/definitions/Answer'
+                  type: array
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Flip
+  /Flip/{hash}/Content:
+    get:
+      operationId: FlipContent
+      parameters:
+      - description: flip hash
+        in: path
+        name: hash
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/Response'
+            - properties:
+                result:
+                  $ref: '#/definitions/FlipContent'
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Flip
+  /Identity/{address}:
+    get:
+      operationId: Identity
+      parameters:
+      - description: address
+        in: path
+        name: address
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/Response'
+            - properties:
+                result:
+                  $ref: '#/definitions/Identity'
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Identity
+  /Identity/{address}/Age:
+    get:
+      operationId: IdentityAge
+      parameters:
+      - description: address
+        in: path
+        name: address
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/Response'
+            - properties:
+                result:
+                  type: integer
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Identity
+  /Identity/{address}/CurrentFlipCids:
+    get:
+      operationId: IdentityCurrentFlipCids
+      parameters:
+      - description: address
+        in: path
+        name: address
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/Response'
+            - properties:
+                result:
+                  items:
+                    type: string
+                  type: array
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Identity
+  /Identity/{address}/EpochRewards:
+    get:
+      operationId: IdentityEpochRewards
+      parameters:
+      - description: address
+        in: path
+        name: address
+        required: true
+        type: string
+      - description: items to take
+        in: query
+        name: limit
+        required: true
+        type: integer
+      - description: continuation token to get next page items
+        in: query
+        name: continuationToken
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/ResponsePage'
+            - properties:
+                result:
+                  items:
+                    $ref: '#/definitions/Rewards'
+                  type: array
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Identity
+  /Identity/{address}/EpochRewards/Count:
+    get:
+      operationId: IdentityEpochRewardsCount
+      parameters:
+      - description: address
+        in: path
+        name: address
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/Response'
+            - properties:
+                result:
+                  type: integer
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Identity
+  /Identity/{address}/Epochs:
+    get:
+      operationId: IdentityEpochs
+      parameters:
+      - description: address
+        in: path
+        name: address
+        required: true
+        type: string
+      - description: items to take
+        in: query
+        name: limit
+        required: true
+        type: integer
+      - description: continuation token to get next page items
+        in: query
+        name: continuationToken
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/ResponsePage'
+            - properties:
+                result:
+                  items:
+                    $ref: '#/definitions/EpochIdentity'
+                  type: array
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Identity
+  /Identity/{address}/Epochs/Count:
+    get:
+      operationId: IdentityEpochsCount
+      parameters:
+      - description: address
+        in: path
+        name: address
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/Response'
+            - properties:
+                result:
+                  type: integer
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Identity
+  /Identity/{address}/FlipQualifiedAnswers:
+    get:
+      operationId: IdentityFlipQualifiedAnswers
+      parameters:
+      - description: address
+        in: path
+        name: address
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/Response'
+            - properties:
+                result:
+                  items:
+                    $ref: '#/definitions/FlipAnswerCount'
+                  type: array
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Identity
+  /Identity/{address}/FlipStates:
+    get:
+      operationId: IdentityFlipStates
+      parameters:
+      - description: address
+        in: path
+        name: address
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/Response'
+            - properties:
+                result:
+                  items:
+                    $ref: '#/definitions/FlipStateCount'
+                  type: array
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Identity
+  /Identity/{address}/Flips:
+    get:
+      operationId: IdentityFlips
+      parameters:
+      - description: address
+        in: path
+        name: address
+        required: true
+        type: string
+      - description: items to take
+        in: query
+        name: limit
+        required: true
+        type: integer
+      - description: continuation token to get next page items
+        in: query
+        name: continuationToken
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/ResponsePage'
+            - properties:
+                result:
+                  items:
+                    $ref: '#/definitions/FlipSummary'
+                  type: array
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Identity
+  /Identity/{address}/Flips/Count:
+    get:
+      operationId: IdentityFlipsCount
+      parameters:
+      - description: address
+        in: path
+        name: address
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/Response'
+            - properties:
+                result:
+                  type: integer
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Identity
+  /Identity/{address}/Invites:
+    get:
+      operationId: IdentityInvites
+      parameters:
+      - description: address
+        in: path
+        name: address
+        required: true
+        type: string
+      - description: items to take
+        in: query
+        name: limit
+        required: true
+        type: integer
+      - description: continuation token to get next page items
+        in: query
+        name: continuationToken
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/ResponsePage'
+            - properties:
+                result:
+                  items:
+                    $ref: '#/definitions/Invite'
+                  type: array
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Identity
+  /Identity/{address}/Invites/Count:
+    get:
+      operationId: IdentityInvitesCount
+      parameters:
+      - description: address
+        in: path
+        name: address
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/Response'
+            - properties:
+                result:
+                  type: integer
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Identity
+  /Identity/{address}/Rewards:
+    get:
+      operationId: IdentityRewards
+      parameters:
+      - description: address
+        in: path
+        name: address
+        required: true
+        type: string
+      - description: items to take
+        in: query
+        name: limit
+        required: true
+        type: integer
+      - description: continuation token to get next page items
+        in: query
+        name: continuationToken
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/ResponsePage'
+            - properties:
+                result:
+                  items:
+                    $ref: '#/definitions/Reward'
+                  type: array
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Identity
+  /Identity/{address}/Rewards/Count:
+    get:
+      operationId: IdentityRewardsCount
+      parameters:
+      - description: address
+        in: path
+        name: address
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/Response'
+            - properties:
+                result:
+                  type: integer
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Identity
+  /Search:
+    get:
+      operationId: Search
+      parameters:
+      - description: value to search
+        in: query
+        name: value
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/Response'
+            - properties:
+                result:
+                  items:
+                    $ref: '#/definitions/Entity'
+                  type: array
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Search
+  /Transaction/{hash}:
+    get:
+      operationId: Transaction
+      parameters:
+      - description: transaction hash
+        in: path
+        name: hash
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/Response'
+            - properties:
+                result:
+                  allOf:
+                  - $ref: '#/definitions/Transaction'
+                  - properties:
+                      data:
+                        $ref: '#/definitions/TransactionSpecificData'
+                    type: object
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Transaction
+  /Transaction/{hash}/Raw:
+    get:
+      operationId: TransactionRaw
+      parameters:
+      - description: transaction hash
+        in: path
+        name: hash
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/Response'
+            - properties:
+                result:
+                  type: string
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Transaction
+swagger: "2.0"

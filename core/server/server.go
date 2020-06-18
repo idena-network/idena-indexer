@@ -4,8 +4,11 @@ import (
 	"fmt"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	"github.com/idena-network/idena-indexer/docs"
+	"github.com/idena-network/idena-indexer/explorer/config"
 	"github.com/idena-network/idena-indexer/log"
 	"github.com/patrickmn/go-cache"
+	httpSwagger "github.com/swaggo/http-swagger"
 	"net/http"
 	"net/url"
 	"strings"
@@ -44,7 +47,7 @@ type Server struct {
 	description []byte
 }
 
-func (s *Server) Start(routerInitializers ...RouterInitializer) {
+func (s *Server) Start(swaggerConfig config.SwaggerConfig, routerInitializers ...RouterInitializer) {
 	router := mux.NewRouter()
 	apiRouter := router.PathPrefix("/api").Subrouter()
 
@@ -55,6 +58,15 @@ func (s *Server) Start(routerInitializers ...RouterInitializer) {
 
 	for _, ri := range routerInitializers {
 		ri.InitRouter(apiRouter)
+	}
+	if swaggerConfig.Enabled {
+		docs.SwaggerInfo.Title = "Idena indexer API"
+		docs.SwaggerInfo.Version = "0.1.0"
+		docs.SwaggerInfo.Host = swaggerConfig.Host
+		docs.SwaggerInfo.BasePath = swaggerConfig.BasePath
+		apiRouter.PathPrefix("/swagger").Handler(httpSwagger.Handler(
+			httpSwagger.URL("/api/swagger/doc.json"),
+		))
 	}
 
 	headersOk := handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type"})

@@ -28,12 +28,12 @@ const (
 	epochRewardsSummaryMethod               = "EpochRewardsSummary"
 	epochBadAuthorsCountMethod              = "EpochBadAuthorsCount"
 	epochBadAuthorsMethod                   = "EpochBadAuthors"
-	epochGoodAuthorsCountMethod             = "EpochGoodAuthorsCount"
-	epochGoodAuthorsMethod                  = "EpochGoodAuthors"
+	epochBadAuthorsOldMethod                = "EpochBadAuthorsOld"
 	epochRewardsCountMethod                 = "EpochRewardsCount"
 	epochRewardsMethod                      = "EpochRewards"
 	epochIdentitiesRewardsCountMethod       = "EpochIdentitiesRewardsCount"
 	epochIdentitiesRewardsMethod            = "EpochIdentitiesRewards"
+	epochIdentitiesRewardsOldMethod         = "EpochIdentitiesRewardsOld"
 	epochFundPaymentsMethod                 = "EpochFundPayments"
 	flipEpochAdjacentFlipsMethod            = "FlipEpochAdjacentFlips"
 	flipAddressAdjacentFlipsMethod          = "FlipAddressAdjacentFlips"
@@ -97,12 +97,12 @@ func createMaxItemLifeTimesByMethod() map[string]time.Duration {
 		epochRewardsSummaryMethod:               permanentDataLifeTime,
 		epochBadAuthorsCountMethod:              permanentDataLifeTime,
 		epochBadAuthorsMethod:                   permanentDataLifeTime,
-		epochGoodAuthorsCountMethod:             permanentDataLifeTime,
-		epochGoodAuthorsMethod:                  permanentDataLifeTime,
+		epochBadAuthorsOldMethod:                permanentDataLifeTime,
 		epochRewardsCountMethod:                 permanentDataLifeTime,
 		epochRewardsMethod:                      permanentDataLifeTime,
 		epochIdentitiesRewardsCountMethod:       permanentDataLifeTime,
 		epochIdentitiesRewardsMethod:            permanentDataLifeTime,
+		epochIdentitiesRewardsOldMethod:         permanentDataLifeTime,
 		epochFundPaymentsMethod:                 permanentDataLifeTime,
 	}
 }
@@ -188,8 +188,9 @@ func (a *cachedAccessor) log() {
 }
 
 type cachedValue struct {
-	res interface{}
-	err error
+	res               interface{}
+	continuationToken *string
+	err               error
 }
 
 func key(args ...interface{}) string {
@@ -212,6 +213,21 @@ func (a *cachedAccessor) getOrLoad(method string, load func() (interface{}, erro
 		err: err,
 	}, cache.DefaultExpiration)
 	return res, err
+}
+
+func (a *cachedAccessor) getOrLoadWithConToken(method string, load func() (interface{}, *string, error), args ...interface{}) (interface{}, *string, error) {
+	dbCache := a.getCache(method)
+	key := key(args)
+	if v, ok := dbCache.Get(key); ok {
+		return v.(*cachedValue).res, v.(*cachedValue).continuationToken, v.(*cachedValue).err
+	}
+	res, continuationToken, err := load()
+	dbCache.Set(key, &cachedValue{
+		res:               res,
+		continuationToken: continuationToken,
+		err:               err,
+	}, cache.DefaultExpiration)
+	return res, continuationToken, err
 }
 
 func (a *cachedAccessor) getCache(method string) Cache {
@@ -276,9 +292,16 @@ func (a *cachedAccessor) EpochsCount() (uint64, error) {
 	return res.(uint64), err
 }
 
-func (a *cachedAccessor) Epochs(startIndex uint64, count uint64) ([]types.EpochSummary, error) {
-	res, err := a.getOrLoad("Epochs", func() (interface{}, error) {
-		return a.Accessor.Epochs(startIndex, count)
+func (a *cachedAccessor) Epochs(count uint64, continuationToken *string) ([]types.EpochSummary, *string, error) {
+	res, nextContinuationToken, err := a.getOrLoadWithConToken("Epochs", func() (interface{}, *string, error) {
+		return a.Accessor.Epochs(count, continuationToken)
+	}, count, continuationToken)
+	return res.([]types.EpochSummary), nextContinuationToken, err
+}
+
+func (a *cachedAccessor) EpochsOld(startIndex uint64, count uint64) ([]types.EpochSummary, error) {
+	res, err := a.getOrLoad("EpochsOld", func() (interface{}, error) {
+		return a.Accessor.EpochsOld(startIndex, count)
 	}, startIndex, count)
 	return res.([]types.EpochSummary), err
 }
@@ -304,9 +327,16 @@ func (a *cachedAccessor) EpochBlocksCount(epoch uint64) (uint64, error) {
 	return res.(uint64), err
 }
 
-func (a *cachedAccessor) EpochBlocks(epoch uint64, startIndex uint64, count uint64) ([]types.BlockSummary, error) {
-	res, err := a.getOrLoad("EpochBlocks", func() (interface{}, error) {
-		return a.Accessor.EpochBlocks(epoch, startIndex, count)
+func (a *cachedAccessor) EpochBlocks(epoch uint64, count uint64, continuationToken *string) ([]types.BlockSummary, *string, error) {
+	res, nextContinuationToken, err := a.getOrLoadWithConToken("EpochBlocks", func() (interface{}, *string, error) {
+		return a.Accessor.EpochBlocks(epoch, count, continuationToken)
+	}, epoch, count, continuationToken)
+	return res.([]types.BlockSummary), nextContinuationToken, err
+}
+
+func (a *cachedAccessor) EpochBlocksOld(epoch uint64, startIndex uint64, count uint64) ([]types.BlockSummary, error) {
+	res, err := a.getOrLoad("EpochBlocksOld", func() (interface{}, error) {
+		return a.Accessor.EpochBlocksOld(epoch, startIndex, count)
 	}, epoch, startIndex, count)
 	return res.([]types.BlockSummary), err
 }
@@ -318,9 +348,16 @@ func (a *cachedAccessor) EpochFlipsCount(epoch uint64) (uint64, error) {
 	return res.(uint64), err
 }
 
-func (a *cachedAccessor) EpochFlips(epoch uint64, startIndex uint64, count uint64) ([]types.FlipSummary, error) {
-	res, err := a.getOrLoad("EpochFlips", func() (interface{}, error) {
-		return a.Accessor.EpochFlips(epoch, startIndex, count)
+func (a *cachedAccessor) EpochFlips(epoch uint64, count uint64, continuationToken *string) ([]types.FlipSummary, *string, error) {
+	res, nextContinuationToken, err := a.getOrLoadWithConToken("EpochFlips", func() (interface{}, *string, error) {
+		return a.Accessor.EpochFlips(epoch, count, continuationToken)
+	}, epoch, count, continuationToken)
+	return res.([]types.FlipSummary), nextContinuationToken, err
+}
+
+func (a *cachedAccessor) EpochFlipsOld(epoch uint64, startIndex uint64, count uint64) ([]types.FlipSummary, error) {
+	res, err := a.getOrLoad("EpochFlipsOld", func() (interface{}, error) {
+		return a.Accessor.EpochFlipsOld(epoch, startIndex, count)
 	}, epoch, startIndex, count)
 	return res.([]types.FlipSummary), err
 }
@@ -353,10 +390,18 @@ func (a *cachedAccessor) EpochIdentitiesCount(epoch uint64, prevStates []string,
 	return res.(uint64), err
 }
 
-func (a *cachedAccessor) EpochIdentities(epoch uint64, prevStates []string, states []string, startIndex uint64,
+func (a *cachedAccessor) EpochIdentities(epoch uint64, prevStates []string, states []string, count uint64,
+	continuationToken *string) ([]types.EpochIdentity, *string, error) {
+	res, nextContinuationToken, err := a.getOrLoadWithConToken("EpochIdentities", func() (interface{}, *string, error) {
+		return a.Accessor.EpochIdentities(epoch, prevStates, states, count, continuationToken)
+	}, epoch, prevStates, states, count, continuationToken)
+	return res.([]types.EpochIdentity), nextContinuationToken, err
+}
+
+func (a *cachedAccessor) EpochIdentitiesOld(epoch uint64, prevStates []string, states []string, startIndex uint64,
 	count uint64) ([]types.EpochIdentity, error) {
-	res, err := a.getOrLoad("EpochIdentities", func() (interface{}, error) {
-		return a.Accessor.EpochIdentities(epoch, prevStates, states, startIndex, count)
+	res, err := a.getOrLoad("EpochIdentitiesOld", func() (interface{}, error) {
+		return a.Accessor.EpochIdentitiesOld(epoch, prevStates, states, startIndex, count)
 	}, epoch, prevStates, states, startIndex, count)
 	return res.([]types.EpochIdentity), err
 }
@@ -396,9 +441,16 @@ func (a *cachedAccessor) EpochInvitesCount(epoch uint64) (uint64, error) {
 	return res.(uint64), err
 }
 
-func (a *cachedAccessor) EpochInvites(epoch uint64, startIndex uint64, count uint64) ([]types.Invite, error) {
-	res, err := a.getOrLoad("EpochInvites", func() (interface{}, error) {
-		return a.Accessor.EpochInvites(epoch, startIndex, count)
+func (a *cachedAccessor) EpochInvites(epoch uint64, count uint64, continuationToken *string) ([]types.Invite, *string, error) {
+	res, nextContinuationToken, err := a.getOrLoadWithConToken("EpochInvites", func() (interface{}, *string, error) {
+		return a.Accessor.EpochInvites(epoch, count, continuationToken)
+	}, epoch, count, continuationToken)
+	return res.([]types.Invite), nextContinuationToken, err
+}
+
+func (a *cachedAccessor) EpochInvitesOld(epoch uint64, startIndex uint64, count uint64) ([]types.Invite, error) {
+	res, err := a.getOrLoad("EpochInvitesOld", func() (interface{}, error) {
+		return a.Accessor.EpochInvitesOld(epoch, startIndex, count)
 	}, epoch, startIndex, count)
 	return res.([]types.Invite), err
 }
@@ -410,9 +462,16 @@ func (a *cachedAccessor) EpochTxsCount(epoch uint64) (uint64, error) {
 	return res.(uint64), err
 }
 
-func (a *cachedAccessor) EpochTxs(epoch uint64, startIndex uint64, count uint64) ([]types.TransactionSummary, error) {
-	res, err := a.getOrLoad("EpochTxs", func() (interface{}, error) {
-		return a.Accessor.EpochTxs(epoch, startIndex, count)
+func (a *cachedAccessor) EpochTxs(epoch uint64, count uint64, continuationToken *string) ([]types.TransactionSummary, *string, error) {
+	res, nextContinuationToken, err := a.getOrLoadWithConToken("EpochTxs", func() (interface{}, *string, error) {
+		return a.Accessor.EpochTxs(epoch, count, continuationToken)
+	}, epoch, count, continuationToken)
+	return res.([]types.TransactionSummary), nextContinuationToken, err
+}
+
+func (a *cachedAccessor) EpochTxsOld(epoch uint64, startIndex uint64, count uint64) ([]types.TransactionSummary, error) {
+	res, err := a.getOrLoad("EpochTxsOld", func() (interface{}, error) {
+		return a.Accessor.EpochTxsOld(epoch, startIndex, count)
 	}, epoch, startIndex, count)
 	return res.([]types.TransactionSummary), err
 }
@@ -438,25 +497,18 @@ func (a *cachedAccessor) EpochBadAuthorsCount(epoch uint64) (uint64, error) {
 	return res.(uint64), err
 }
 
-func (a *cachedAccessor) EpochBadAuthors(epoch uint64, startIndex uint64, count uint64) ([]types.BadAuthor, error) {
-	res, err := a.getOrLoad(epochBadAuthorsMethod, func() (interface{}, error) {
-		return a.Accessor.EpochBadAuthors(epoch, startIndex, count)
+func (a *cachedAccessor) EpochBadAuthors(epoch uint64, count uint64, continuationToken *string) ([]types.BadAuthor, *string, error) {
+	res, nextContinuationToken, err := a.getOrLoadWithConToken(epochBadAuthorsMethod, func() (interface{}, *string, error) {
+		return a.Accessor.EpochBadAuthors(epoch, count, continuationToken)
+	}, epoch, count, continuationToken)
+	return res.([]types.BadAuthor), nextContinuationToken, err
+}
+
+func (a *cachedAccessor) EpochBadAuthorsOld(epoch uint64, startIndex uint64, count uint64) ([]types.BadAuthor, error) {
+	res, err := a.getOrLoad(epochBadAuthorsOldMethod, func() (interface{}, error) {
+		return a.Accessor.EpochBadAuthorsOld(epoch, startIndex, count)
 	}, epoch, startIndex, count)
 	return res.([]types.BadAuthor), err
-}
-
-func (a *cachedAccessor) EpochGoodAuthorsCount(epoch uint64) (uint64, error) {
-	res, err := a.getOrLoad(epochGoodAuthorsCountMethod, func() (interface{}, error) {
-		return a.Accessor.EpochGoodAuthorsCount(epoch)
-	}, epoch)
-	return res.(uint64), err
-}
-
-func (a *cachedAccessor) EpochGoodAuthors(epoch uint64, startIndex uint64, count uint64) ([]types.AuthorValidationSummary, error) {
-	res, err := a.getOrLoad(epochGoodAuthorsMethod, func() (interface{}, error) {
-		return a.Accessor.EpochGoodAuthors(epoch, startIndex, count)
-	}, epoch, startIndex, count)
-	return res.([]types.AuthorValidationSummary), err
 }
 
 func (a *cachedAccessor) EpochRewardsCount(epoch uint64) (uint64, error) {
@@ -480,9 +532,16 @@ func (a *cachedAccessor) EpochIdentitiesRewardsCount(epoch uint64) (uint64, erro
 	return res.(uint64), err
 }
 
-func (a *cachedAccessor) EpochIdentitiesRewards(epoch uint64, startIndex uint64, count uint64) ([]types.Rewards, error) {
-	res, err := a.getOrLoad(epochIdentitiesRewardsMethod, func() (interface{}, error) {
-		return a.Accessor.EpochIdentitiesRewards(epoch, startIndex, count)
+func (a *cachedAccessor) EpochIdentitiesRewards(epoch uint64, count uint64, continuationToken *string) ([]types.Rewards, *string, error) {
+	res, nextContinuationToken, err := a.getOrLoadWithConToken(epochIdentitiesRewardsMethod, func() (interface{}, *string, error) {
+		return a.Accessor.EpochIdentitiesRewards(epoch, count, continuationToken)
+	}, epoch, count, continuationToken)
+	return res.([]types.Rewards), nextContinuationToken, err
+}
+
+func (a *cachedAccessor) EpochIdentitiesRewardsOld(epoch uint64, startIndex uint64, count uint64) ([]types.Rewards, error) {
+	res, err := a.getOrLoad(epochIdentitiesRewardsOldMethod, func() (interface{}, error) {
+		return a.Accessor.EpochIdentitiesRewardsOld(epoch, startIndex, count)
 	}, epoch, startIndex, count)
 	return res.([]types.Rewards), err
 }
@@ -599,9 +658,16 @@ func (a *cachedAccessor) BlockTxsCountByHeight(height uint64) (uint64, error) {
 	return res.(uint64), err
 }
 
-func (a *cachedAccessor) BlockTxsByHeight(height uint64, startIndex uint64, count uint64) ([]types.TransactionSummary, error) {
-	res, err := a.getOrLoad("BlockTxsByHeight", func() (interface{}, error) {
-		return a.Accessor.BlockTxsByHeight(height, startIndex, count)
+func (a *cachedAccessor) BlockTxsByHeight(height uint64, count uint64, continuationToken *string) ([]types.TransactionSummary, *string, error) {
+	res, nextContinuationToken, err := a.getOrLoadWithConToken("BlockTxsByHeight", func() (interface{}, *string, error) {
+		return a.Accessor.BlockTxsByHeight(height, count, continuationToken)
+	}, height, count, continuationToken)
+	return res.([]types.TransactionSummary), nextContinuationToken, err
+}
+
+func (a *cachedAccessor) BlockTxsByHeightOld(height uint64, startIndex uint64, count uint64) ([]types.TransactionSummary, error) {
+	res, err := a.getOrLoad("BlockTxsByHeightOld", func() (interface{}, error) {
+		return a.Accessor.BlockTxsByHeightOld(height, startIndex, count)
 	}, height, startIndex, count)
 	return res.([]types.TransactionSummary), err
 }
@@ -620,9 +686,16 @@ func (a *cachedAccessor) BlockTxsCountByHash(hash string) (uint64, error) {
 	return res.(uint64), err
 }
 
-func (a *cachedAccessor) BlockTxsByHash(hash string, startIndex uint64, count uint64) ([]types.TransactionSummary, error) {
-	res, err := a.getOrLoad("BlockTxsByHash", func() (interface{}, error) {
-		return a.Accessor.BlockTxsByHash(hash, startIndex, count)
+func (a *cachedAccessor) BlockTxsByHash(hash string, count uint64, continuationToken *string) ([]types.TransactionSummary, *string, error) {
+	res, nextContinuationToken, err := a.getOrLoadWithConToken("BlockTxsByHash", func() (interface{}, *string, error) {
+		return a.Accessor.BlockTxsByHash(hash, count, continuationToken)
+	}, hash, count, continuationToken)
+	return res.([]types.TransactionSummary), nextContinuationToken, err
+}
+
+func (a *cachedAccessor) BlockTxsByHashOld(hash string, startIndex uint64, count uint64) ([]types.TransactionSummary, error) {
+	res, err := a.getOrLoad("BlockTxsByHashOld", func() (interface{}, error) {
+		return a.Accessor.BlockTxsByHashOld(hash, startIndex, count)
 	}, hash, startIndex, count)
 	return res.([]types.TransactionSummary), err
 }
@@ -655,37 +728,16 @@ func (a *cachedAccessor) FlipContent(hash string) (types.FlipContent, error) {
 	return res.(types.FlipContent), err
 }
 
-func (a *cachedAccessor) FlipAnswersCount(hash string, isShort bool) (uint64, error) {
-	res, err := a.getOrLoad("FlipAnswersCount", func() (interface{}, error) {
-		return a.Accessor.FlipAnswersCount(hash, isShort)
-	}, hash, isShort)
-	return res.(uint64), err
-}
-
-func (a *cachedAccessor) FlipAnswers(hash string, isShort bool, startIndex uint64, count uint64) ([]types.Answer, error) {
+func (a *cachedAccessor) FlipAnswers(hash string, isShort bool) ([]types.Answer, error) {
 	res, err := a.getOrLoad("FlipAnswers", func() (interface{}, error) {
-		return a.Accessor.FlipAnswers(hash, isShort, startIndex, count)
-	}, hash, isShort, startIndex, count)
+		return a.Accessor.FlipAnswers(hash, isShort)
+	}, hash, isShort)
 	return res.([]types.Answer), err
 }
 
 func (a *cachedAccessor) FlipEpochAdjacentFlips(hash string) (types.AdjacentStrValues, error) {
 	res, err := a.getOrLoad(flipEpochAdjacentFlipsMethod, func() (interface{}, error) {
 		return a.Accessor.FlipEpochAdjacentFlips(hash)
-	}, hash)
-	return res.(types.AdjacentStrValues), err
-}
-
-func (a *cachedAccessor) FlipAddressAdjacentFlips(hash string) (types.AdjacentStrValues, error) {
-	res, err := a.getOrLoad(flipAddressAdjacentFlipsMethod, func() (interface{}, error) {
-		return a.Accessor.FlipAddressAdjacentFlips(hash)
-	}, hash)
-	return res.(types.AdjacentStrValues), err
-}
-
-func (a *cachedAccessor) FlipEpochIdentityAdjacentFlips(hash string) (types.AdjacentStrValues, error) {
-	res, err := a.getOrLoad(flipEpochIdentityAdjacentFlipsMethod, func() (interface{}, error) {
-		return a.Accessor.FlipEpochIdentityAdjacentFlips(hash)
 	}, hash)
 	return res.(types.AdjacentStrValues), err
 }
@@ -718,9 +770,16 @@ func (a *cachedAccessor) IdentityEpochsCount(address string) (uint64, error) {
 	return res.(uint64), err
 }
 
-func (a *cachedAccessor) IdentityEpochs(address string, startIndex uint64, count uint64) ([]types.EpochIdentity, error) {
-	res, err := a.getOrLoad("IdentityEpochs", func() (interface{}, error) {
-		return a.Accessor.IdentityEpochs(address, startIndex, count)
+func (a *cachedAccessor) IdentityEpochs(address string, count uint64, continuationToken *string) ([]types.EpochIdentity, *string, error) {
+	res, nextContinuationToken, err := a.getOrLoadWithConToken("IdentityEpochs", func() (interface{}, *string, error) {
+		return a.Accessor.IdentityEpochs(address, count, continuationToken)
+	}, address, count, continuationToken)
+	return res.([]types.EpochIdentity), nextContinuationToken, err
+}
+
+func (a *cachedAccessor) IdentityEpochsOld(address string, startIndex uint64, count uint64) ([]types.EpochIdentity, error) {
+	res, err := a.getOrLoad("IdentityEpochsOld", func() (interface{}, error) {
+		return a.Accessor.IdentityEpochsOld(address, startIndex, count)
 	}, address, startIndex, count)
 	return res.([]types.EpochIdentity), err
 }
@@ -732,9 +791,16 @@ func (a *cachedAccessor) IdentityFlipsCount(address string) (uint64, error) {
 	return res.(uint64), err
 }
 
-func (a *cachedAccessor) IdentityFlips(address string, startIndex uint64, count uint64) ([]types.FlipSummary, error) {
-	res, err := a.getOrLoad("IdentityFlips", func() (interface{}, error) {
-		return a.Accessor.IdentityFlips(address, startIndex, count)
+func (a *cachedAccessor) IdentityFlips(address string, count uint64, continuationToken *string) ([]types.FlipSummary, *string, error) {
+	res, nextContinuationToken, err := a.getOrLoadWithConToken("IdentityFlips", func() (interface{}, *string, error) {
+		return a.Accessor.IdentityFlips(address, count, continuationToken)
+	}, address, count, continuationToken)
+	return res.([]types.FlipSummary), nextContinuationToken, err
+}
+
+func (a *cachedAccessor) IdentityFlipsOld(address string, startIndex uint64, count uint64) ([]types.FlipSummary, error) {
+	res, err := a.getOrLoad("IdentityFlipsOld", func() (interface{}, error) {
+		return a.Accessor.IdentityFlipsOld(address, startIndex, count)
 	}, address, startIndex, count)
 	return res.([]types.FlipSummary), err
 }
@@ -760,9 +826,16 @@ func (a *cachedAccessor) IdentityInvitesCount(address string) (uint64, error) {
 	return res.(uint64), err
 }
 
-func (a *cachedAccessor) IdentityInvites(address string, startIndex uint64, count uint64) ([]types.Invite, error) {
-	res, err := a.getOrLoad("IdentityInvites", func() (interface{}, error) {
-		return a.Accessor.IdentityInvites(address, startIndex, count)
+func (a *cachedAccessor) IdentityInvites(address string, count uint64, continuationToken *string) ([]types.Invite, *string, error) {
+	res, nextContinuationToken, err := a.getOrLoadWithConToken("IdentityInvites", func() (interface{}, *string, error) {
+		return a.Accessor.IdentityInvites(address, count, continuationToken)
+	}, address, count, continuationToken)
+	return res.([]types.Invite), nextContinuationToken, err
+}
+
+func (a *cachedAccessor) IdentityInvitesOld(address string, startIndex uint64, count uint64) ([]types.Invite, error) {
+	res, err := a.getOrLoad("IdentityInvitesOld", func() (interface{}, error) {
+		return a.Accessor.IdentityInvitesOld(address, startIndex, count)
 	}, address, startIndex, count)
 	return res.([]types.Invite), err
 }
@@ -774,9 +847,16 @@ func (a *cachedAccessor) IdentityTxsCount(address string) (uint64, error) {
 	return res.(uint64), err
 }
 
-func (a *cachedAccessor) IdentityTxs(address string, startIndex uint64, count uint64) ([]types.TransactionSummary, error) {
-	res, err := a.getOrLoad("IdentityTxs", func() (interface{}, error) {
-		return a.Accessor.IdentityTxs(address, startIndex, count)
+func (a *cachedAccessor) IdentityTxs(address string, count uint64, continuationToken *string) ([]types.TransactionSummary, *string, error) {
+	res, nextContinuationToken, err := a.getOrLoadWithConToken("IdentityTxs", func() (interface{}, *string, error) {
+		return a.Accessor.IdentityTxs(address, count, continuationToken)
+	}, address, count, continuationToken)
+	return res.([]types.TransactionSummary), nextContinuationToken, err
+}
+
+func (a *cachedAccessor) IdentityTxsOld(address string, startIndex uint64, count uint64) ([]types.TransactionSummary, error) {
+	res, err := a.getOrLoad("IdentityTxsOld", func() (interface{}, error) {
+		return a.Accessor.IdentityTxsOld(address, startIndex, count)
 	}, address, startIndex, count)
 	return res.([]types.TransactionSummary), err
 }
@@ -788,9 +868,16 @@ func (a *cachedAccessor) IdentityRewardsCount(address string) (uint64, error) {
 	return res.(uint64), err
 }
 
-func (a *cachedAccessor) IdentityRewards(address string, startIndex uint64, count uint64) ([]types.Reward, error) {
-	res, err := a.getOrLoad("IdentityRewards", func() (interface{}, error) {
-		return a.Accessor.IdentityRewards(address, startIndex, count)
+func (a *cachedAccessor) IdentityRewards(address string, count uint64, continuationToken *string) ([]types.Reward, *string, error) {
+	res, nextContinuationToken, err := a.getOrLoadWithConToken("IdentityRewards", func() (interface{}, *string, error) {
+		return a.Accessor.IdentityRewards(address, count, continuationToken)
+	}, address, count, continuationToken)
+	return res.([]types.Reward), nextContinuationToken, err
+}
+
+func (a *cachedAccessor) IdentityRewardsOld(address string, startIndex uint64, count uint64) ([]types.Reward, error) {
+	res, err := a.getOrLoad("IdentityRewardsOld", func() (interface{}, error) {
+		return a.Accessor.IdentityRewardsOld(address, startIndex, count)
 	}, address, startIndex, count)
 	return res.([]types.Reward), err
 }
@@ -802,9 +889,16 @@ func (a *cachedAccessor) IdentityEpochRewardsCount(address string) (uint64, erro
 	return res.(uint64), err
 }
 
-func (a *cachedAccessor) IdentityEpochRewards(address string, startIndex uint64, count uint64) ([]types.Rewards, error) {
-	res, err := a.getOrLoad("IdentityEpochRewards", func() (interface{}, error) {
-		return a.Accessor.IdentityEpochRewards(address, startIndex, count)
+func (a *cachedAccessor) IdentityEpochRewards(address string, count uint64, continuationToken *string) ([]types.Rewards, *string, error) {
+	res, nextContinuationToken, err := a.getOrLoadWithConToken("IdentityEpochRewards", func() (interface{}, *string, error) {
+		return a.Accessor.IdentityEpochRewards(address, count, continuationToken)
+	}, address, count, continuationToken)
+	return res.([]types.Rewards), nextContinuationToken, err
+}
+
+func (a *cachedAccessor) IdentityEpochRewardsOld(address string, startIndex uint64, count uint64) ([]types.Rewards, error) {
+	res, err := a.getOrLoad("IdentityEpochRewardsOld", func() (interface{}, error) {
+		return a.Accessor.IdentityEpochRewardsOld(address, startIndex, count)
 	}, address, startIndex, count)
 	return res.([]types.Rewards), err
 }
@@ -823,40 +917,18 @@ func (a *cachedAccessor) AddressPenaltiesCount(address string) (uint64, error) {
 	return res.(uint64), err
 }
 
-func (a *cachedAccessor) AddressPenalties(address string, startIndex uint64, count uint64) ([]types.Penalty, error) {
-	res, err := a.getOrLoad("AddressPenalties", func() (interface{}, error) {
-		return a.Accessor.AddressPenalties(address, startIndex, count)
+func (a *cachedAccessor) AddressPenalties(address string, count uint64, continuationToken *string) ([]types.Penalty, *string, error) {
+	res, nextContinuationToken, err := a.getOrLoadWithConToken("AddressPenalties", func() (interface{}, *string, error) {
+		return a.Accessor.AddressPenalties(address, count, continuationToken)
+	}, address, count, continuationToken)
+	return res.([]types.Penalty), nextContinuationToken, err
+}
+
+func (a *cachedAccessor) AddressPenaltiesOld(address string, startIndex uint64, count uint64) ([]types.Penalty, error) {
+	res, err := a.getOrLoad("AddressPenaltiesOld", func() (interface{}, error) {
+		return a.Accessor.AddressPenaltiesOld(address, startIndex, count)
 	}, address, startIndex, count)
 	return res.([]types.Penalty), err
-}
-
-func (a *cachedAccessor) AddressMiningRewardsCount(address string) (uint64, error) {
-	res, err := a.getOrLoad("AddressMiningRewardsCount", func() (interface{}, error) {
-		return a.Accessor.AddressMiningRewardsCount(address)
-	}, address)
-	return res.(uint64), err
-}
-
-func (a *cachedAccessor) AddressMiningRewards(address string, startIndex uint64, count uint64) ([]types.Reward, error) {
-	res, err := a.getOrLoad("AddressMiningRewards", func() (interface{}, error) {
-		return a.Accessor.AddressMiningRewards(address, startIndex, count)
-	}, address, startIndex, count)
-	return res.([]types.Reward), err
-}
-
-func (a *cachedAccessor) AddressBlockMiningRewardsCount(address string) (uint64, error) {
-	res, err := a.getOrLoad("AddressBlockMiningRewardsCount", func() (interface{}, error) {
-		return a.Accessor.AddressBlockMiningRewardsCount(address)
-	}, address)
-	return res.(uint64), err
-}
-
-func (a *cachedAccessor) AddressBlockMiningRewards(address string, startIndex uint64,
-	count uint64) ([]types.BlockRewards, error) {
-	res, err := a.getOrLoad("AddressBlockMiningRewards", func() (interface{}, error) {
-		return a.Accessor.AddressBlockMiningRewards(address, startIndex, count)
-	}, address, startIndex, count)
-	return res.([]types.BlockRewards), err
 }
 
 func (a *cachedAccessor) AddressStatesCount(address string) (uint64, error) {
@@ -866,11 +938,11 @@ func (a *cachedAccessor) AddressStatesCount(address string) (uint64, error) {
 	return res.(uint64), err
 }
 
-func (a *cachedAccessor) AddressStates(address string, startIndex uint64, count uint64) ([]types.AddressState, error) {
-	res, err := a.getOrLoad("AddressStates", func() (interface{}, error) {
-		return a.Accessor.AddressStates(address, startIndex, count)
-	}, address, startIndex, count)
-	return res.([]types.AddressState), err
+func (a *cachedAccessor) AddressStates(address string, count uint64, continuationToken *string) ([]types.AddressState, *string, error) {
+	res, nextContinuationToken, err := a.getOrLoadWithConToken("AddressStates", func() (interface{}, *string, error) {
+		return a.Accessor.AddressStates(address, count, continuationToken)
+	}, address, count, continuationToken)
+	return res.([]types.AddressState), nextContinuationToken, err
 }
 
 func (a *cachedAccessor) AddressTotalLatestMiningReward(afterTime time.Time, address string) (types.TotalMiningReward, error) {
@@ -894,11 +966,11 @@ func (a *cachedAccessor) AddressBadAuthorsCount(address string) (uint64, error) 
 	return res.(uint64), err
 }
 
-func (a *cachedAccessor) AddressBadAuthors(address string, startIndex uint64, count uint64) ([]types.BadAuthor, error) {
-	res, err := a.getOrLoad("AddressBadAuthors", func() (interface{}, error) {
-		return a.Accessor.AddressBadAuthors(address, startIndex, count)
-	}, address, startIndex, count)
-	return res.([]types.BadAuthor), err
+func (a *cachedAccessor) AddressBadAuthors(address string, count uint64, continuationToken *string) ([]types.BadAuthor, *string, error) {
+	res, nextContinuationToken, err := a.getOrLoadWithConToken("AddressBadAuthors", func() (interface{}, *string, error) {
+		return a.Accessor.AddressBadAuthors(address, count, continuationToken)
+	}, address, count, continuationToken)
+	return res.([]types.BadAuthor), nextContinuationToken, err
 }
 
 func (a *cachedAccessor) AddressBalanceUpdatesCount(address string) (uint64, error) {
@@ -908,11 +980,11 @@ func (a *cachedAccessor) AddressBalanceUpdatesCount(address string) (uint64, err
 	return res.(uint64), err
 }
 
-func (a *cachedAccessor) AddressBalanceUpdates(address string, startIndex uint64, count uint64) ([]types.BalanceUpdate, error) {
-	res, err := a.getOrLoad("AddressBalanceUpdates", func() (interface{}, error) {
-		return a.Accessor.AddressBalanceUpdates(address, startIndex, count)
-	}, address, startIndex, count)
-	return res.([]types.BalanceUpdate), err
+func (a *cachedAccessor) AddressBalanceUpdates(address string, count uint64, continuationToken *string) ([]types.BalanceUpdate, *string, error) {
+	res, nextContinuationToken, err := a.getOrLoadWithConToken("AddressBalanceUpdates", func() (interface{}, *string, error) {
+		return a.Accessor.AddressBalanceUpdates(address, count, continuationToken)
+	}, address, count, continuationToken)
+	return res.([]types.BalanceUpdate), nextContinuationToken, err
 }
 
 func (a *cachedAccessor) Transaction(hash string) (types.TransactionDetail, error) {
@@ -936,9 +1008,16 @@ func (a *cachedAccessor) BalancesCount() (uint64, error) {
 	return res.(uint64), err
 }
 
-func (a *cachedAccessor) Balances(startIndex uint64, count uint64) ([]types.Balance, error) {
-	res, err := a.getOrLoad("Balances", func() (interface{}, error) {
-		return a.Accessor.Balances(startIndex, count)
+func (a *cachedAccessor) Balances(count uint64, continuationToken *string) ([]types.Balance, *string, error) {
+	res, nextContinuationToken, err := a.getOrLoadWithConToken("Balances", func() (interface{}, *string, error) {
+		return a.Accessor.Balances(count, continuationToken)
+	}, count, continuationToken)
+	return res.([]types.Balance), nextContinuationToken, err
+}
+
+func (a *cachedAccessor) BalancesOld(startIndex uint64, count uint64) ([]types.Balance, error) {
+	res, err := a.getOrLoad("BalancesOld", func() (interface{}, error) {
+		return a.Accessor.BalancesOld(startIndex, count)
 	}, startIndex, count)
 	return res.([]types.Balance), err
 }

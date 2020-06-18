@@ -19,15 +19,17 @@ SELECT e.epoch,
        coalesce(preves.min_score_for_invite, 0) min_score_for_invite
 FROM epochs e
          LEFT JOIN epoch_summaries es ON es.epoch = e.epoch
-         left join epoch_summaries preves on preves.epoch = e.epoch - 1
-         left join (select b.epoch,
+         LEFT JOIN epoch_summaries preves ON preves.epoch = e.epoch - 1
+         LEFT JOIN (SELECT b.epoch,
                            trew.total,
                            trew.validation,
                            trew.flips,
                            trew.invitations,
                            trew.foundation,
                            trew.zero_wallet
-                    from total_rewards trew
-                             join blocks b on b.height = trew.block_height) trew on trew.epoch = e.epoch
+                    FROM total_rewards trew
+                             JOIN blocks b ON b.height = trew.block_height) trew ON trew.epoch = e.epoch
+WHERE $2::bigint IS NULL
+   OR e.epoch <= $2::bigint
 ORDER BY e.epoch DESC
-limit $2 offset $1
+LIMIT $1

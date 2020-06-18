@@ -1,4 +1,5 @@
-select f.Cid,
+SELECT f.tx_id,
+       f.Cid,
        f.Size,
        a.address                         author,
        b.epoch,
@@ -17,17 +18,17 @@ select f.Cid,
        coalesce(wd2.name, '')            word_name_2,
        coalesce(wd2.description, '')     word_desc_2,
        coalesce(fs.encrypted, false)     with_private_part
-from flips f
-         join transactions t on t.id = f.tx_id
-         join addresses a on a.id = t.from
-         join blocks b on b.height = t.block_height and b.epoch = $1
-         left join flip_icons fi on fi.fd_flip_tx_id = f.tx_id
-         left join flip_words fw on fw.flip_tx_id = f.tx_id
-         left join words_dictionary wd1 on wd1.id = fw.word_1
-         left join words_dictionary wd2 on wd2.id = fw.word_2
-         left join dic_flip_statuses dfs on dfs.id = f.status
-         left join dic_answers da on da.id = f.answer
-         left join flip_summaries fs on fs.flip_tx_id = f.tx_id
-where f.delete_tx_id is null
-order by f.tx_id desc
-limit $3 offset $2
+FROM flips f
+         JOIN transactions t ON t.id = f.tx_id
+         JOIN addresses a ON a.id = t.from
+         JOIN blocks b ON b.height = t.block_height AND b.epoch = $1
+         LEFT JOIN flip_icons fi ON fi.fd_flip_tx_id = f.tx_id
+         LEFT JOIN flip_words fw ON fw.flip_tx_id = f.tx_id
+         LEFT JOIN words_dictionary wd1 ON wd1.id = fw.word_1
+         LEFT JOIN words_dictionary wd2 ON wd2.id = fw.word_2
+         LEFT JOIN dic_flip_statuses dfs ON dfs.id = f.status
+         LEFT JOIN dic_answers da ON da.id = f.answer
+         LEFT JOIN flip_summaries fs ON fs.flip_tx_id = f.tx_id
+WHERE ($3::bigint IS NULL OR f.tx_id <= $3) AND f.delete_tx_id IS NULL
+ORDER BY f.tx_id DESC
+LIMIT $2

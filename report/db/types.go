@@ -1,4 +1,4 @@
-package types
+package db
 
 import "github.com/idena-network/idena-go/common/hexutil"
 

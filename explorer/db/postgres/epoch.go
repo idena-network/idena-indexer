@@ -5,6 +5,7 @@ import (
 	"github.com/idena-network/idena-indexer/explorer/types"
 	"github.com/lib/pq"
 	"github.com/pkg/errors"
+	"strconv"
 )
 
 const (
@@ -12,8 +13,10 @@ const (
 	lastEpochQuery                         = "lastEpoch.sql"
 	epochBlocksCountQuery                  = "epochBlocksCount.sql"
 	epochBlocksQuery                       = "epochBlocks.sql"
+	epochBlocksOldQuery                    = "epochBlocksOld.sql"
 	epochFlipsCountQuery                   = "epochFlipsCount.sql"
 	epochFlipsQuery                        = "epochFlips.sql"
+	epochFlipsOldQuery                     = "epochFlipsOld.sql"
 	epochFlipStatesQuery                   = "epochFlipStates.sql"
 	epochFlipQualifiedAnswersQuery         = "epochFlipQualifiedAnswers.sql"
 	epochFlipQualifiedWrongWordsQuery      = "epochFlipQualifiedWrongWords.sql"
@@ -22,21 +25,24 @@ const (
 	epochInviteStatesSummaryQuery          = "epochInviteStatesSummary.sql"
 	epochIdentitiesQueryCount              = "epochIdentitiesCount.sql"
 	epochIdentitiesQuery                   = "epochIdentities.sql"
+	epochIdentitiesOldQuery                = "epochIdentitiesOld.sql"
 	epochInvitesCountQuery                 = "epochInvitesCount.sql"
 	epochInvitesQuery                      = "epochInvites.sql"
+	epochInvitesOldQuery                   = "epochInvitesOld.sql"
 	epochInvitesSummaryQuery               = "epochInvitesSummary.sql"
 	epochTxsCountQuery                     = "epochTxsCount.sql"
 	epochTxsQuery                          = "epochTxs.sql"
+	epochTxsOldQuery                       = "epochTxsOld.sql"
 	epochCoinsQuery                        = "epochCoins.sql"
 	epochRewardsSummaryQuery               = "epochRewardsSummary.sql"
 	epochBadAuthorsCountQuery              = "epochBadAuthorsCount.sql"
 	epochBadAuthorsQuery                   = "epochBadAuthors.sql"
-	epochGoodAuthorsCountQuery             = "epochGoodAuthorsCount.sql"
-	epochGoodAuthorsQuery                  = "epochGoodAuthors.sql"
+	epochBadAuthorsOldQuery                = "epochBadAuthorsOld.sql"
 	epochRewardsCountQuery                 = "epochRewardsCount.sql"
 	epochRewardsQuery                      = "epochRewards.sql"
 	epochIdentitiesRewardsCountQuery       = "epochIdentitiesRewardsCount.sql"
 	epochIdentitiesRewardsQuery            = "epochIdentitiesRewards.sql"
+	epochIdentitiesRewardsOldQuery         = "epochIdentitiesRewardsOld.sql"
 	epochFundPaymentsQuery                 = "epochFundPayments.sql"
 )
 
@@ -98,8 +104,48 @@ func (a *postgresAccessor) EpochBlocksCount(epoch uint64) (uint64, error) {
 	return a.count(epochBlocksCountQuery, epoch)
 }
 
-func (a *postgresAccessor) EpochBlocks(epoch uint64, startIndex uint64, count uint64) ([]types.BlockSummary, error) {
-	rows, err := a.db.Query(a.getQuery(epochBlocksQuery), epoch, startIndex, count)
+func (a *postgresAccessor) EpochBlocks(epoch uint64, count uint64, continuationToken *string) ([]types.BlockSummary, *string, error) {
+	res, nextContinuationToken, err := a.page(epochBlocksQuery, func(rows *sql.Rows) (interface{}, uint64, error) {
+		defer rows.Close()
+		var res []types.BlockSummary
+		var height uint64
+		for rows.Next() {
+			block := types.BlockSummary{
+				Coins: types.AllCoins{},
+			}
+			var timestamp int64
+			if err := rows.Scan(&height,
+				&block.Hash,
+				&timestamp,
+				&block.TxCount,
+				&block.Proposer,
+				&block.ProposerVrfScore,
+				&block.IsEmpty,
+				&block.BodySize,
+				&block.FullSize,
+				&block.VrfProposerThreshold,
+				&block.FeeRate,
+				&block.Coins.Burnt,
+				&block.Coins.Minted,
+				&block.Coins.TotalBalance,
+				&block.Coins.TotalStake,
+				pq.Array(&block.Flags)); err != nil {
+				return nil, 0, err
+			}
+			block.Height = height
+			block.Timestamp = timestampToTimeUTC(timestamp)
+			res = append(res, block)
+		}
+		return res, height, nil
+	}, count, continuationToken, epoch)
+	if err != nil {
+		return nil, nil, err
+	}
+	return res.([]types.BlockSummary), nextContinuationToken, nil
+}
+
+func (a *postgresAccessor) EpochBlocksOld(epoch uint64, startIndex uint64, count uint64) ([]types.BlockSummary, error) {
+	rows, err := a.db.Query(a.getQuery(epochBlocksOldQuery), epoch, startIndex, count)
 	if err != nil {
 		return nil, err
 	}
@@ -139,8 +185,12 @@ func (a *postgresAccessor) EpochFlipsCount(epoch uint64) (uint64, error) {
 	return a.count(epochFlipsCountQuery, epoch)
 }
 
-func (a *postgresAccessor) EpochFlips(epoch uint64, startIndex uint64, count uint64) ([]types.FlipSummary, error) {
-	return a.flips(epochFlipsQuery, epoch, startIndex, count)
+func (a *postgresAccessor) EpochFlips(epoch uint64, count uint64, continuationToken *string) ([]types.FlipSummary, *string, error) {
+	return a.flips(epochFlipsQuery, count, continuationToken, epoch)
+}
+
+func (a *postgresAccessor) EpochFlipsOld(epoch uint64, startIndex uint64, count uint64) ([]types.FlipSummary, error) {
+	return a.flipsOld(epochFlipsOldQuery, epoch, startIndex, count)
 }
 
 func (a *postgresAccessor) EpochFlipAnswersSummary(epoch uint64) ([]types.StrValueCount, error) {
@@ -167,7 +217,26 @@ func (a *postgresAccessor) EpochIdentitiesCount(epoch uint64, prevStates []strin
 	return a.count(epochIdentitiesQueryCount, epoch, pq.Array(prevStateIds), pq.Array(stateIds))
 }
 
-func (a *postgresAccessor) EpochIdentities(epoch uint64, prevStates []string, states []string, startIndex uint64, count uint64) ([]types.EpochIdentity, error) {
+func (a *postgresAccessor) EpochIdentities(epoch uint64, prevStates []string, states []string, count uint64,
+	continuationToken *string) ([]types.EpochIdentity, *string, error) {
+	prevStateIds, err := convertIdentityStates(prevStates)
+	if err != nil {
+		return nil, nil, err
+	}
+	stateIds, err := convertIdentityStates(states)
+	if err != nil {
+		return nil, nil, err
+	}
+	res, nextContinuationToken, err := a.page(epochIdentitiesQuery, func(rows *sql.Rows) (interface{}, uint64, error) {
+		return readEpochIdentities(rows)
+	}, count, continuationToken, epoch, pq.Array(prevStateIds), pq.Array(stateIds))
+	if err != nil {
+		return nil, nil, err
+	}
+	return res.([]types.EpochIdentity), nextContinuationToken, nil
+}
+
+func (a *postgresAccessor) EpochIdentitiesOld(epoch uint64, prevStates []string, states []string, startIndex uint64, count uint64) ([]types.EpochIdentity, error) {
 	prevStateIds, err := convertIdentityStates(prevStates)
 	if err != nil {
 		return nil, err
@@ -176,7 +245,7 @@ func (a *postgresAccessor) EpochIdentities(epoch uint64, prevStates []string, st
 	if err != nil {
 		return nil, err
 	}
-	rows, err := a.db.Query(a.getQuery(epochIdentitiesQuery),
+	rows, err := a.db.Query(a.getQuery(epochIdentitiesOldQuery),
 		epoch,
 		pq.Array(prevStateIds),
 		pq.Array(stateIds),
@@ -186,7 +255,7 @@ func (a *postgresAccessor) EpochIdentities(epoch uint64, prevStates []string, st
 	if err != nil {
 		return nil, err
 	}
-	return readEpochIdentities(rows)
+	return readEpochIdentitiesOld(rows)
 }
 
 func (a *postgresAccessor) EpochIdentityStatesSummary(epoch uint64) ([]types.StrValueCount, error) {
@@ -217,24 +286,44 @@ func (a *postgresAccessor) EpochInvitesCount(epoch uint64) (uint64, error) {
 	return a.count(epochInvitesCountQuery, epoch)
 }
 
-func (a *postgresAccessor) EpochInvites(epoch uint64, startIndex uint64, count uint64) ([]types.Invite, error) {
-	rows, err := a.db.Query(a.getQuery(epochInvitesQuery), epoch, startIndex, count)
+func (a *postgresAccessor) EpochInvites(epoch uint64, count uint64, continuationToken *string) ([]types.Invite, *string, error) {
+	res, nextContinuationToken, err := a.page(epochInvitesQuery, func(rows *sql.Rows) (interface{}, uint64, error) {
+		return readInvites(rows)
+	}, count, continuationToken, epoch)
+	if err != nil {
+		return nil, nil, err
+	}
+	return res.([]types.Invite), nextContinuationToken, nil
+}
+
+func (a *postgresAccessor) EpochInvitesOld(epoch uint64, startIndex uint64, count uint64) ([]types.Invite, error) {
+	rows, err := a.db.Query(a.getQuery(epochInvitesOldQuery), epoch, startIndex, count)
 	if err != nil {
 		return nil, err
 	}
-	return readInvites(rows)
+	return readInvitesOld(rows)
 }
 
 func (a *postgresAccessor) EpochTxsCount(epoch uint64) (uint64, error) {
 	return a.count(epochTxsCountQuery, epoch)
 }
 
-func (a *postgresAccessor) EpochTxs(epoch uint64, startIndex uint64, count uint64) ([]types.TransactionSummary, error) {
-	rows, err := a.db.Query(a.getQuery(epochTxsQuery), epoch, startIndex, count)
+func (a *postgresAccessor) EpochTxs(epoch uint64, count uint64, continuationToken *string) ([]types.TransactionSummary, *string, error) {
+	res, nextContinuationToken, err := a.page(epochTxsQuery, func(rows *sql.Rows) (interface{}, uint64, error) {
+		return readTxs(rows)
+	}, count, continuationToken, epoch)
+	if err != nil {
+		return nil, nil, err
+	}
+	return res.([]types.TransactionSummary), nextContinuationToken, nil
+}
+
+func (a *postgresAccessor) EpochTxsOld(epoch uint64, startIndex uint64, count uint64) ([]types.TransactionSummary, error) {
+	rows, err := a.db.Query(a.getQuery(epochTxsOldQuery), epoch, startIndex, count)
 	if err != nil {
 		return nil, err
 	}
-	return readTxs(rows)
+	return readTxsOld(rows)
 }
 
 func (a *postgresAccessor) EpochCoins(epoch uint64) (types.AllCoins, error) {
@@ -269,36 +358,22 @@ func (a *postgresAccessor) EpochBadAuthorsCount(epoch uint64) (uint64, error) {
 	return a.count(epochBadAuthorsCountQuery, epoch)
 }
 
-func (a *postgresAccessor) EpochBadAuthors(epoch uint64, startIndex uint64, count uint64) ([]types.BadAuthor, error) {
-	rows, err := a.db.Query(a.getQuery(epochBadAuthorsQuery), epoch, startIndex, count)
+func (a *postgresAccessor) EpochBadAuthors(epoch uint64, count uint64, continuationToken *string) ([]types.BadAuthor, *string, error) {
+	res, nextContinuationToken, err := a.page(epochBadAuthorsQuery, func(rows *sql.Rows) (interface{}, uint64, error) {
+		return readBadAuthors(rows)
+	}, count, continuationToken, epoch)
+	if err != nil {
+		return nil, nil, err
+	}
+	return res.([]types.BadAuthor), nextContinuationToken, nil
+}
+
+func (a *postgresAccessor) EpochBadAuthorsOld(epoch uint64, startIndex uint64, count uint64) ([]types.BadAuthor, error) {
+	rows, err := a.db.Query(a.getQuery(epochBadAuthorsOldQuery), epoch, startIndex, count)
 	if err != nil {
 		return nil, err
 	}
-	return readBadAuthors(rows)
-}
-
-func (a *postgresAccessor) EpochGoodAuthorsCount(epoch uint64) (uint64, error) {
-	return a.count(epochGoodAuthorsCountQuery, epoch)
-}
-
-func (a *postgresAccessor) EpochGoodAuthors(epoch uint64, startIndex uint64, count uint64) ([]types.AuthorValidationSummary, error) {
-	rows, err := a.db.Query(a.getQuery(epochGoodAuthorsQuery), epoch, startIndex, count)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var res []types.AuthorValidationSummary
-	for rows.Next() {
-		item := types.AuthorValidationSummary{}
-		if err := rows.Scan(&item.Address,
-			&item.StrongFlips,
-			&item.WeakFlips,
-			&item.SuccessfulInvites); err != nil {
-			return nil, err
-		}
-		res = append(res, item)
-	}
-	return res, nil
+	return readBadAuthorsOld(rows)
 }
 
 func (a *postgresAccessor) EpochRewardsCount(epoch uint64) (uint64, error) {
@@ -306,15 +381,59 @@ func (a *postgresAccessor) EpochRewardsCount(epoch uint64) (uint64, error) {
 }
 
 func (a *postgresAccessor) EpochRewards(epoch uint64, startIndex uint64, count uint64) ([]types.Reward, error) {
-	return a.rewards(epochRewardsQuery, epoch, startIndex, count)
+	return a.rewardsOld(epochRewardsQuery, epoch, startIndex, count)
 }
 
 func (a *postgresAccessor) EpochIdentitiesRewardsCount(epoch uint64) (uint64, error) {
 	return a.count(epochIdentitiesRewardsCountQuery, epoch)
 }
 
-func (a *postgresAccessor) EpochIdentitiesRewards(epoch uint64, startIndex uint64, count uint64) ([]types.Rewards, error) {
-	rows, err := a.db.Query(a.getQuery(epochIdentitiesRewardsQuery), epoch, startIndex, count)
+func (a *postgresAccessor) EpochIdentitiesRewards(epoch uint64, count uint64, continuationToken *string) ([]types.Rewards, *string, error) {
+	var continuationId *uint64
+	var err error
+	if continuationId, err = parseUintContinuationToken(continuationToken); err != nil {
+		return nil, nil, err
+	}
+	if continuationId == nil {
+		v := uint64(0)
+		continuationId = &v
+	}
+	rows, err := a.db.Query(a.getQuery(epochIdentitiesRewardsQuery), epoch, count+1, continuationId)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer rows.Close()
+	var res []types.Rewards
+	var item *types.Rewards
+	for rows.Next() {
+		reward := types.Reward{}
+		var address, prevState, state string
+		var age uint16
+		if err := rows.Scan(&address, &reward.Balance, &reward.Stake, &reward.Type, &prevState, &state, &age); err != nil {
+			return nil, nil, err
+		}
+		if item == nil || item.Address != address {
+			if item != nil {
+				res = append(res, *item)
+			}
+			item = &types.Rewards{
+				Address:   address,
+				PrevState: prevState,
+				State:     state,
+				Age:       age,
+			}
+		}
+		item.Rewards = append(item.Rewards, reward)
+	}
+	if item != nil {
+		res = append(res, *item)
+	}
+	resSlice, nextContinuationToken := getResWithContinuationToken(strconv.FormatUint(*continuationId+count, 10), count, res)
+	return resSlice.([]types.Rewards), nextContinuationToken, nil
+}
+
+func (a *postgresAccessor) EpochIdentitiesRewardsOld(epoch uint64, startIndex uint64, count uint64) ([]types.Rewards, error) {
+	rows, err := a.db.Query(a.getQuery(epochIdentitiesRewardsOldQuery), epoch, startIndex, count)
 	if err != nil {
 		return nil, err
 	}

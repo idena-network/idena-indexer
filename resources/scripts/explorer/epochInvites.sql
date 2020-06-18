@@ -1,4 +1,5 @@
-select t.Hash                      invite_hash,
+select t.id                        id,
+       t.Hash                      invite_hash,
        a.address                   invite_author,
        b.timestamp                 invite_timestamp,
        b.epoch                     invite_epoch,
@@ -11,7 +12,7 @@ select t.Hash                      invite_hash,
        coalesce(kitb.epoch, 0)     kill_invitee_epoch
 from transactions t
          join addresses a on a.id = t.from
-         join blocks b on b.height = t.block_height
+         join blocks b on b.height = t.block_height and b.epoch = $1
          left join activation_txs ui on ui.invite_tx_id = t.id
          left join transactions at on at.id = ui.tx_id
          left join blocks ab on ab.height = at.block_height
@@ -24,9 +25,7 @@ from transactions t
          left join kill_invitee_txs kit on kit.invite_tx_id = t.id
          left join transactions kitt on kitt.id = kit.tx_id
          left join blocks kitb on kitb.height = kitt.block_height
-where t.type = (select id from dic_tx_types where name = 'InviteTx')
-  and b.epoch = $1
-order by b.height desc
-limit $3
-offset
-$2
+where ($3::bigint IS NULL OR t.id <= $3)
+  and t.type = (select id from dic_tx_types where name = 'InviteTx')
+order by t.id desc
+limit $2

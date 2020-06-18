@@ -8,14 +8,11 @@ import (
 )
 
 const (
-	flipQuery                           = "flip.sql"
-	flipAnswersCountQuery               = "flipAnswersCount.sql"
-	flipAnswersQuery                    = "flipAnswers.sql"
-	flipPicsQuery                       = "flipPics.sql"
-	flipPicOrdersQuery                  = "flipPicOrders.sql"
-	flipEpochAdjacentFlipsQuery         = "flipEpochAdjacentFlips.sql"
-	flipAddressAdjacentFlipsQuery       = "flipAddressAdjacentFlips.sql"
-	flipEpochIdentityAdjacentFlipsQuery = "flipEpochIdentityAdjacentFlips.sql"
+	flipQuery                   = "flip.sql"
+	flipAnswersQuery            = "flipAnswers.sql"
+	flipPicsQuery               = "flipPics.sql"
+	flipPicOrdersQuery          = "flipPicOrders.sql"
+	flipEpochAdjacentFlipsQuery = "flipEpochAdjacentFlips.sql"
 )
 
 func (a *postgresAccessor) Flip(hash string) (types.Flip, error) {
@@ -62,11 +59,13 @@ func (a *postgresAccessor) FlipContent(hash string) (types.FlipContent, error) {
 		return types.FlipContent{}, NoDataFound
 	} else {
 		res.Pics = pics
+		res.PicsOld = pics
 	}
 	if leftOrder, rightOrder, err := a.flipPicOrders(hash); err != nil {
 		return types.FlipContent{}, err
 	} else {
 		res.LeftOrder, res.RightOrder = leftOrder, rightOrder
+		res.LeftOrderOld, res.RightOrderOld = leftOrder, rightOrder
 	}
 	return res, nil
 }
@@ -114,12 +113,8 @@ func (a *postgresAccessor) flipPicOrders(hash string) ([]uint16, []uint16, error
 	return leftOrder, rightOrder, nil
 }
 
-func (a *postgresAccessor) FlipAnswersCount(hash string, isShort bool) (uint64, error) {
-	return a.count(flipAnswersCountQuery, hash, isShort)
-}
-
-func (a *postgresAccessor) FlipAnswers(hash string, isShort bool, startIndex uint64, count uint64) ([]types.Answer, error) {
-	rows, err := a.db.Query(a.getQuery(flipAnswersQuery), hash, isShort, startIndex, count)
+func (a *postgresAccessor) FlipAnswers(hash string, isShort bool) ([]types.Answer, error) {
+	rows, err := a.db.Query(a.getQuery(flipAnswersQuery), hash, isShort)
 	if err != nil {
 		return nil, err
 	}
@@ -128,12 +123,4 @@ func (a *postgresAccessor) FlipAnswers(hash string, isShort bool, startIndex uin
 
 func (a *postgresAccessor) FlipEpochAdjacentFlips(hash string) (types.AdjacentStrValues, error) {
 	return a.adjacentStrValues(flipEpochAdjacentFlipsQuery, hash)
-}
-
-func (a *postgresAccessor) FlipAddressAdjacentFlips(hash string) (types.AdjacentStrValues, error) {
-	return a.adjacentStrValues(flipAddressAdjacentFlipsQuery, hash)
-}
-
-func (a *postgresAccessor) FlipEpochIdentityAdjacentFlips(hash string) (types.AdjacentStrValues, error) {
-	return a.adjacentStrValues(flipEpochIdentityAdjacentFlipsQuery, hash)
 }

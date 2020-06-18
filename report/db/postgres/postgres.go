@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"github.com/idena-network/idena-go/common/hexutil"
 	"github.com/idena-network/idena-indexer/log"
-	"github.com/idena-network/idena-indexer/report/types"
+	"github.com/idena-network/idena-indexer/report/db"
 )
 
 type postgresAccessor struct {
@@ -57,21 +57,21 @@ func (a *postgresAccessor) FlipCids(epoch uint64) ([]string, error) {
 	return res, nil
 }
 
-func (a *postgresAccessor) FlipContent(cid string) (types.FlipContent, error) {
+func (a *postgresAccessor) FlipContent(cid string) (db.FlipContent, error) {
 	var dataId int64
 	err := a.db.QueryRow(a.getQuery(flipContentQuery), cid).Scan(&dataId)
 	if err == sql.ErrNoRows {
 		err = errors.New("no flip content in db")
 	}
 	if err != nil {
-		return types.FlipContent{}, err
+		return db.FlipContent{}, err
 	}
-	res := types.FlipContent{}
+	res := db.FlipContent{}
 	if res.Pics, err = a.flipPics(dataId); err != nil {
-		return types.FlipContent{}, err
+		return db.FlipContent{}, err
 	}
 	if res.LeftOrder, res.RightOrder, err = a.flipPicOrders(dataId); err != nil {
-		return types.FlipContent{}, err
+		return db.FlipContent{}, err
 	}
 	return res, nil
 }

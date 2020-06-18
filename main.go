@@ -30,10 +30,11 @@ import (
 	"time"
 )
 
+// @license.name Apache 2.0
 func main() {
 	app := cli.NewApp()
 	app.Name = "github.com/idena-network/idena-indexer"
-	app.Version = "0.0.1"
+	app.Version = "0.1.0"
 
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
@@ -86,7 +87,7 @@ func main() {
 			explorerConf.ReqsPerMinuteLimit,
 			description,
 		)
-		go apiServer.Start(explorerRi, ownRi)
+		go apiServer.Start(explorerConf.Swagger, explorerRi, ownRi)
 
 		indxr.WaitForNodeStop()
 

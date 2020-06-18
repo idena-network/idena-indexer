@@ -11,10 +11,7 @@ const (
 	addressQuery                        = "address.sql"
 	addressPenaltiesCountQuery          = "addressPenaltiesCount.sql"
 	addressPenaltiesQuery               = "addressPenalties.sql"
-	addressMiningRewardsCountQuery      = "addressMiningRewardsCount.sql"
-	addressMiningRewardsQuery           = "addressMiningRewards.sql"
-	addressBlockMiningRewardsCountQuery = "addressBlockMiningRewardsCount.sql"
-	addressBlockMiningRewardsQuery      = "addressBlockMiningRewards.sql"
+	addressPenaltiesOldQuery            = "addressPenaltiesOld.sql"
 	addressStatesCountQuery             = "addressStatesCount.sql"
 	addressStatesQuery                  = "addressStates.sql"
 	addressTotalLatestMiningRewardQuery = "addressTotalLatestMiningReward.sql"
@@ -51,8 +48,39 @@ func (a *postgresAccessor) AddressPenaltiesCount(address string) (uint64, error)
 	return a.count(addressPenaltiesCountQuery, address)
 }
 
-func (a *postgresAccessor) AddressPenalties(address string, startIndex uint64, count uint64) ([]types.Penalty, error) {
-	rows, err := a.db.Query(a.getQuery(addressPenaltiesQuery), address, startIndex, count)
+func (a *postgresAccessor) AddressPenalties(address string, count uint64, continuationToken *string) ([]types.Penalty, *string, error) {
+	res, nextContinuationToken, err := a.page(addressPenaltiesQuery, func(rows *sql.Rows) (interface{}, uint64, error) {
+		defer rows.Close()
+		var res []types.Penalty
+		var id uint64
+		for rows.Next() {
+			item := types.Penalty{}
+			var timestamp int64
+			if err := rows.Scan(
+				&id,
+				&item.Address,
+				&item.Penalty,
+				&item.Paid,
+				&item.BlockHeight,
+				&item.BlockHash,
+				&timestamp,
+				&item.Epoch,
+			); err != nil {
+				return nil, 0, err
+			}
+			item.Timestamp = timestampToTimeUTC(timestamp)
+			res = append(res, item)
+		}
+		return res, id, nil
+	}, count, continuationToken, address)
+	if err != nil {
+		return nil, nil, err
+	}
+	return res.([]types.Penalty), nextContinuationToken, nil
+}
+
+func (a *postgresAccessor) AddressPenaltiesOld(address string, startIndex uint64, count uint64) ([]types.Penalty, error) {
+	rows, err := a.db.Query(a.getQuery(addressPenaltiesOldQuery), address, startIndex, count)
 	if err != nil {
 		return nil, err
 	}
@@ -77,79 +105,39 @@ func (a *postgresAccessor) AddressPenalties(address string, startIndex uint64, c
 	return res, nil
 }
 
-func (a *postgresAccessor) AddressMiningRewardsCount(address string) (uint64, error) {
-	return a.count(addressMiningRewardsCountQuery, address)
-}
-
-func (a *postgresAccessor) AddressMiningRewards(address string, startIndex uint64, count uint64) (
-	[]types.Reward, error) {
-	return a.rewards(addressMiningRewardsQuery, address, startIndex, count)
-}
-
-func (a *postgresAccessor) AddressBlockMiningRewardsCount(address string) (uint64, error) {
-	return a.count(addressBlockMiningRewardsCountQuery, address)
-}
-
-func (a *postgresAccessor) AddressBlockMiningRewards(address string, startIndex uint64, count uint64) (
-	[]types.BlockRewards, error) {
-	rows, err := a.db.Query(a.getQuery(addressBlockMiningRewardsQuery), address, startIndex, count)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var res []types.BlockRewards
-	var item *types.BlockRewards
-	for rows.Next() {
-		reward := types.Reward{}
-		var blockHeight, epoch uint64
-		if err := rows.Scan(&blockHeight, &epoch, &reward.Balance, &reward.Stake, &reward.Type); err != nil {
-			return nil, err
-		}
-		if item == nil || item.Height != blockHeight {
-			if item != nil {
-				res = append(res, *item)
-			}
-			item = &types.BlockRewards{
-				Height: blockHeight,
-				Epoch:  epoch,
-			}
-		}
-		item.Rewards = append(item.Rewards, reward)
-	}
-	if item != nil {
-		res = append(res, *item)
-	}
-	return res, nil
-}
-
 func (a *postgresAccessor) AddressStatesCount(address string) (uint64, error) {
 	return a.count(addressStatesCountQuery, address)
 }
 
-func (a *postgresAccessor) AddressStates(address string, startIndex uint64, count uint64) ([]types.AddressState, error) {
-	rows, err := a.db.Query(a.getQuery(addressStatesQuery), address, startIndex, count)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var res []types.AddressState
-	for rows.Next() {
-		item := types.AddressState{}
-		var timestamp int64
-		err = rows.Scan(&item.State,
-			&item.Epoch,
-			&item.BlockHeight,
-			&item.BlockHash,
-			&item.TxHash,
-			&timestamp,
-			&item.IsValidation)
-		if err != nil {
-			return nil, err
+func (a *postgresAccessor) AddressStates(address string, count uint64, continuationToken *string) ([]types.AddressState, *string, error) {
+	res, nextContinuationToken, err := a.page(addressStatesQuery, func(rows *sql.Rows) (interface{}, uint64, error) {
+		defer rows.Close()
+		var res []types.AddressState
+		var id uint64
+		for rows.Next() {
+			item := types.AddressState{}
+			var timestamp int64
+			if err := rows.Scan(
+				&id,
+				&item.State,
+				&item.Epoch,
+				&item.BlockHeight,
+				&item.BlockHash,
+				&item.TxHash,
+				&timestamp,
+				&item.IsValidation,
+			); err != nil {
+				return nil, 0, err
+			}
+			item.Timestamp = timestampToTimeUTC(timestamp)
+			res = append(res, item)
 		}
-		item.Timestamp = timestampToTimeUTC(timestamp)
-		res = append(res, item)
+		return res, id, nil
+	}, count, continuationToken, address)
+	if err != nil {
+		return nil, nil, err
 	}
-	return res, nil
+	return res.([]types.AddressState), nextContinuationToken, nil
 }
 
 func (a *postgresAccessor) AddressTotalLatestMiningReward(afterTime time.Time, address string) (types.TotalMiningReward, error) {
@@ -176,12 +164,14 @@ func (a *postgresAccessor) AddressBadAuthorsCount(address string) (uint64, error
 	return a.count(addressBadAuthorsCountQuery, address)
 }
 
-func (a *postgresAccessor) AddressBadAuthors(address string, startIndex uint64, count uint64) ([]types.BadAuthor, error) {
-	rows, err := a.db.Query(a.getQuery(addressBadAuthorsQuery), address, startIndex, count)
+func (a *postgresAccessor) AddressBadAuthors(address string, count uint64, continuationToken *string) ([]types.BadAuthor, *string, error) {
+	res, nextContinuationToken, err := a.page(addressBadAuthorsQuery, func(rows *sql.Rows) (interface{}, uint64, error) {
+		return readBadAuthors(rows)
+	}, count, continuationToken, address)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return readBadAuthors(rows)
+	return res.([]types.BadAuthor), nextContinuationToken, nil
 }
 
 func (a *postgresAccessor) AddressBalanceUpdatesCount(address string) (uint64, error) {
@@ -197,43 +187,46 @@ type balanceUpdateOptionalData struct {
 	blocksCount        uint32
 }
 
-func (a *postgresAccessor) AddressBalanceUpdates(address string, startIndex uint64, count uint64) ([]types.BalanceUpdate, error) {
-	rows, err := a.db.Query(a.getQuery(addressBalanceUpdatesQuery), address, startIndex, count)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var res []types.BalanceUpdate
-	for rows.Next() {
-		item := types.BalanceUpdate{}
-		var timestamp int64
-		optionalData := &balanceUpdateOptionalData{}
-		err = rows.Scan(
-			&item.BalanceOld,
-			&item.StakeOld,
-			&item.PenaltyOld,
-			&item.BalanceNew,
-			&item.StakeNew,
-			&item.PenaltyNew,
-			&item.Reason,
-			&item.BlockHeight,
-			&item.BlockHash,
-			&timestamp,
-			&optionalData.txHash,
-			&optionalData.lastBlockHeight,
-			&optionalData.lastBlockHash,
-			&optionalData.lastBlockTimestamp,
-			&optionalData.rewardShare,
-			&optionalData.blocksCount,
-		)
-		if err != nil {
-			return nil, err
+func (a *postgresAccessor) AddressBalanceUpdates(address string, count uint64, continuationToken *string) ([]types.BalanceUpdate, *string, error) {
+	res, nextContinuationToken, err := a.page(addressBalanceUpdatesQuery, func(rows *sql.Rows) (interface{}, uint64, error) {
+		defer rows.Close()
+		var res []types.BalanceUpdate
+		var id uint64
+		for rows.Next() {
+			item := types.BalanceUpdate{}
+			var timestamp int64
+			optionalData := &balanceUpdateOptionalData{}
+			if err := rows.Scan(
+				&id,
+				&item.BalanceOld,
+				&item.StakeOld,
+				&item.PenaltyOld,
+				&item.BalanceNew,
+				&item.StakeNew,
+				&item.PenaltyNew,
+				&item.Reason,
+				&item.BlockHeight,
+				&item.BlockHash,
+				&timestamp,
+				&optionalData.txHash,
+				&optionalData.lastBlockHeight,
+				&optionalData.lastBlockHash,
+				&optionalData.lastBlockTimestamp,
+				&optionalData.rewardShare,
+				&optionalData.blocksCount,
+			); err != nil {
+				return nil, 0, err
+			}
+			item.Timestamp = timestampToTimeUTC(timestamp)
+			item.Data = readBalanceUpdateSpecificData(item.Reason, optionalData)
+			res = append(res, item)
 		}
-		item.Timestamp = timestampToTimeUTC(timestamp)
-		item.Data = readBalanceUpdateSpecificData(item.Reason, optionalData)
-		res = append(res, item)
+		return res, id, nil
+	}, count, continuationToken, address)
+	if err != nil {
+		return nil, nil, err
 	}
-	return res, nil
+	return res.([]types.BalanceUpdate), nextContinuationToken, nil
 }
 
 func readBalanceUpdateSpecificData(reason string, optionalData *balanceUpdateOptionalData) interface{} {

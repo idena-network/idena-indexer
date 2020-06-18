@@ -28,6 +28,8 @@ func (ri *routerInitializer) InitRouter(router *mux.Router) {
 	router.Path(strings.ToLower("/OnlineIdentities/Count")).HandlerFunc(ri.onlineIdentitiesCount)
 	router.Path(strings.ToLower("/OnlineIdentities")).
 		Queries("skip", "{skip}", "limit", "{limit}").
+		HandlerFunc(ri.onlineIdentitiesOld)
+	router.Path(strings.ToLower("/OnlineIdentities")).
 		HandlerFunc(ri.onlineIdentities)
 
 	router.Path(strings.ToLower("/OnlineIdentity/{address}")).HandlerFunc(ri.onlineIdentity)
@@ -45,12 +47,23 @@ func (ri *routerInitializer) onlineIdentitiesCount(w http.ResponseWriter, r *htt
 }
 
 func (ri *routerInitializer) onlineIdentities(w http.ResponseWriter, r *http.Request) {
-	startIndex, count, err := ReadPaginatorParams(mux.Vars(r))
+	count, continuationToken, err := ReadPaginatorParams(r.Form)
 	if err != nil {
 		WriteErrorResponse(w, err, ri.logger)
 		return
 	}
-	resp := ri.api.GetOnlineIdentities(startIndex, count)
+	resp, nextContinuationToken, err := ri.api.GetOnlineIdentities(count, continuationToken)
+	WriteResponsePage(w, resp, nextContinuationToken, err, ri.logger)
+}
+
+// Deprecated
+func (ri *routerInitializer) onlineIdentitiesOld(w http.ResponseWriter, r *http.Request) {
+	startIndex, count, err := ReadOldPaginatorParams(mux.Vars(r))
+	if err != nil {
+		WriteErrorResponse(w, err, ri.logger)
+		return
+	}
+	resp := ri.api.GetOnlineIdentitiesOld(startIndex, count)
 	WriteResponse(w, resp, nil, ri.logger)
 }
 

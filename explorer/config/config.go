@@ -24,11 +24,18 @@ type Config struct {
 	FrozenBalanceAddrs          []string
 	ReqsPerMinuteLimit          int
 	DynamicConfigFile           string
+	Swagger                     SwaggerConfig
 }
 
 type PerformanceMonitorConfig struct {
 	Enabled  bool
 	Interval string
+}
+
+type SwaggerConfig struct {
+	Enabled  bool
+	Host     string
+	BasePath string
 }
 
 func LoadConfig(configPath string) *Config {
@@ -61,5 +68,8 @@ func newDefaultConfig() *Config {
 		DefaultCacheItemLifeTimeSec: 60,
 		ReqsPerMinuteLimit:          0,
 		DynamicConfigFile:           filepath.Join("conf", "explorerDynamic.json"),
+		Swagger: SwaggerConfig{
+			Enabled: false,
+		},
 	}
 }

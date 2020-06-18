@@ -1,4 +1,5 @@
-select f.Cid,
+select f.tx_id,
+       f.Cid,
        f.Size,
        a.address                         author,
        b.epoch,
@@ -28,6 +29,7 @@ from flips f
          left join dic_flip_statuses dfs on dfs.id = f.status
          left join dic_answers da on da.id = f.answer
          left join flip_summaries fs on fs.flip_tx_id = f.tx_id
-where f.delete_tx_id is null
+WHERE ($3::bigint IS NULL OR f.tx_id <= $3)
+  AND f.delete_tx_id IS NULL
 order by f.tx_id desc
-limit $3 offset $2
+limit $2

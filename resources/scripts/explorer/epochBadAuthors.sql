@@ -1,4 +1,5 @@
-select a.address                  address,
+select ba.ei_address_state_id     id,
+       a.address                  address,
        0                          epoch,
        ba.reason = 2              wrong_words,
        dicr.name                  reason,
@@ -12,7 +13,6 @@ from bad_authors ba
          left join address_states prevs on prevs.id = s.prev_id
          join dic_identity_states dis on dis.id = s.state
          left join dic_identity_states prevdis on prevdis.id = prevs.state
-order by ba.reason desc
-limit $3
-offset
-$2
+WHERE $3::bigint IS NULL OR ba.ei_address_state_id >= $3
+order by ba.ei_address_state_id
+limit $2

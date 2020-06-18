@@ -1,4 +1,5 @@
-select t.Hash,
+select t.id,
+       t.Hash,
        dtt.name                                                                                     "type",
        b.Timestamp,
        afrom.Address                                                                                "from",
@@ -13,7 +14,7 @@ select t.Hash,
                          kitxs.stake_transfer))                                                     transfer,
        (case when online.tx_id is not null then true when offline.tx_id is not null then false end) become_online
 from transactions t
-         join addresses a on lower(a.address)=lower($1) and a.id in (t.from, t.to)
+         join addresses a on lower(a.address) = lower($1) and a.id in (t.from, t.to)
          join blocks b on b.height = t.block_height
          join addresses afrom on afrom.id = t.from
          left join addresses ato on ato.id = t.to
@@ -23,7 +24,7 @@ from transactions t
          left join kill_invitee_tx_transfers kitxs on kitxs.tx_id = t.id and t.type = 10
          left join become_online_txs online on online.tx_id = t.id and t.type = 9
          left join become_offline_txs offline on offline.tx_id = t.id and t.type = 9
+WHERE $3::bigint IS NULL
+   OR t.id <= $3
 order by t.id desc
-limit $3
-offset
-$2
+limit $2

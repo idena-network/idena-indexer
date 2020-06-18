@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/idena-network/idena-indexer/log"
 	"github.com/idena-network/idena-indexer/report/db"
-	"github.com/idena-network/idena-indexer/report/types"
 	"github.com/pkg/errors"
 	"os"
 	"path/filepath"
@@ -54,7 +53,7 @@ func (p *Provider) ExportAllFlips() error {
 	return nil
 }
 
-func (p *Provider) exportFlip(epoch uint64, cid string, content types.FlipContent) error {
+func (p *Provider) exportFlip(epoch uint64, cid string, content db.FlipContent) error {
 	dir := filepath.Join(p.outputDir, fmt.Sprintf("epoch-%d", epoch), fmt.Sprintf("flip-%s", cid))
 	if err := checkDir(dir); err != nil {
 		return err

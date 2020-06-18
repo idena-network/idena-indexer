@@ -92,7 +92,7 @@ func (a *postgresAccessor) epochIdentityAnswers(epoch uint64, address string, is
 }
 
 func (a *postgresAccessor) EpochIdentityFlips(epoch uint64, address string) ([]types.FlipSummary, error) {
-	return a.flips(epochIdentityFlipsQuery, epoch, address)
+	return a.flipsOld(epochIdentityFlipsQuery, epoch, address)
 }
 
 func (a *postgresAccessor) EpochIdentityFlipsWithRewardFlag(epoch uint64, address string) ([]types.FlipWithRewardFlag, error) {
@@ -143,11 +143,11 @@ func (a *postgresAccessor) EpochIdentityValidationTxs(epoch uint64, address stri
 	if err != nil {
 		return nil, err
 	}
-	return readTxs(rows)
+	return readTxsOld(rows)
 }
 
 func (a *postgresAccessor) EpochIdentityRewards(epoch uint64, address string) ([]types.Reward, error) {
-	return a.rewards(epochIdentityRewardsQuery, epoch, address)
+	return a.rewardsOld(epochIdentityRewardsQuery, epoch, address)
 }
 
 func (a *postgresAccessor) EpochIdentityBadAuthor(epoch uint64, address string) (*types.BadAuthor, error) {

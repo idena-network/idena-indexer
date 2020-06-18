@@ -1,4 +1,5 @@
-select a.address,
+select ei.address_state_id,
+       a.address,
        ei.epoch,
        dis.name                   state,
        coalesce(prevdis.name, '') prev_state,
@@ -23,5 +24,7 @@ from epoch_identities ei
          join dic_identity_states dis on dis.id = s.state
          left join address_states prevs on prevs.id = s.prev_id
          left join dic_identity_states prevdis on prevdis.id = prevs.state
+WHERE $3::bigint IS NULL
+   OR ei.address_state_id <= $3
 order by ei.address_state_id desc
-limit $3 offset $2
+limit $2

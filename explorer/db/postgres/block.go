@@ -12,7 +12,9 @@ const (
 	blockTxsCountByHeightQuery = "blockTxsCountByHeight.sql"
 	blockTxsCountByHashQuery   = "blockTxsCountByHash.sql"
 	blockTxsByHeightQuery      = "blockTxsByHeight.sql"
+	blockTxsByHeightOldQuery   = "blockTxsByHeightOld.sql"
 	blockTxsByHashQuery        = "blockTxsByHash.sql"
+	blockTxsByHashOldQuery     = "blockTxsByHashOld.sql"
 	blockCoinsByHeightQuery    = "blockCoinsByHeight.sql"
 	blockCoinsByHashQuery      = "blockCoinsByHash.sql"
 )
@@ -62,20 +64,40 @@ func (a *postgresAccessor) BlockTxsCountByHash(hash string) (uint64, error) {
 	return a.count(blockTxsCountByHashQuery, hash)
 }
 
-func (a *postgresAccessor) BlockTxsByHeight(height uint64, startIndex uint64, count uint64) ([]types.TransactionSummary, error) {
-	rows, err := a.db.Query(a.getQuery(blockTxsByHeightQuery), height, startIndex, count)
+func (a *postgresAccessor) BlockTxsByHeight(height uint64, count uint64, continuationToken *string) ([]types.TransactionSummary, *string, error) {
+	res, nextContinuationToken, err := a.page(blockTxsByHeightQuery, func(rows *sql.Rows) (interface{}, uint64, error) {
+		return readTxs(rows)
+	}, count, continuationToken, height)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return readTxs(rows)
+	return res.([]types.TransactionSummary), nextContinuationToken, nil
 }
 
-func (a *postgresAccessor) BlockTxsByHash(hash string, startIndex uint64, count uint64) ([]types.TransactionSummary, error) {
-	rows, err := a.db.Query(a.getQuery(blockTxsByHashQuery), hash, startIndex, count)
+func (a *postgresAccessor) BlockTxsByHeightOld(height uint64, startIndex uint64, count uint64) ([]types.TransactionSummary, error) {
+	rows, err := a.db.Query(a.getQuery(blockTxsByHeightOldQuery), height, startIndex, count)
 	if err != nil {
 		return nil, err
 	}
-	return readTxs(rows)
+	return readTxsOld(rows)
+}
+
+func (a *postgresAccessor) BlockTxsByHash(hash string, count uint64, continuationToken *string) ([]types.TransactionSummary, *string, error) {
+	res, nextContinuationToken, err := a.page(blockTxsByHashQuery, func(rows *sql.Rows) (interface{}, uint64, error) {
+		return readTxs(rows)
+	}, count, continuationToken, hash)
+	if err != nil {
+		return nil, nil, err
+	}
+	return res.([]types.TransactionSummary), nextContinuationToken, nil
+}
+
+func (a *postgresAccessor) BlockTxsByHashOld(hash string, startIndex uint64, count uint64) ([]types.TransactionSummary, error) {
+	rows, err := a.db.Query(a.getQuery(blockTxsByHashOldQuery), hash, startIndex, count)
+	if err != nil {
+		return nil, err
+	}
+	return readTxsOld(rows)
 }
 
 func (a *postgresAccessor) BlockCoinsByHeight(height uint64) (types.AllCoins, error) {

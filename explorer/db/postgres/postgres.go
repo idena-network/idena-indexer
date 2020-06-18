@@ -46,14 +46,20 @@ func (a *postgresAccessor) Search(value string) ([]types.Entity, error) {
 		return nil, err
 	} else if exists {
 		res = append(res, types.Entity{
-			Name:  "Identity",
-			Value: value,
-			Ref:   fmt.Sprintf("/api/Identity/%s", value),
+			Name:     "Identity",
+			Value:    value,
+			Ref:      fmt.Sprintf("/api/Identity/%s", value),
+			NameOld:  "Identity",
+			ValueOld: value,
+			RefOld:   fmt.Sprintf("/api/Identity/%s", value),
 		})
 		res = append(res, types.Entity{
-			Name:  "Address",
-			Value: value,
-			Ref:   fmt.Sprintf("/api/Address/%s", value),
+			Name:     "Address",
+			Value:    value,
+			Ref:      fmt.Sprintf("/api/Address/%s", value),
+			NameOld:  "Address",
+			ValueOld: value,
+			RefOld:   fmt.Sprintf("/api/Address/%s", value),
 		})
 	}
 
@@ -61,18 +67,24 @@ func (a *postgresAccessor) Search(value string) ([]types.Entity, error) {
 		return nil, err
 	} else if exists {
 		res = append(res, types.Entity{
-			Name:  "Block",
-			Value: value,
-			Ref:   fmt.Sprintf("/api/Block/%s", value),
+			Name:     "Block",
+			Value:    value,
+			Ref:      fmt.Sprintf("/api/Block/%s", value),
+			NameOld:  "Block",
+			ValueOld: value,
+			RefOld:   fmt.Sprintf("/api/Block/%s", value),
 		})
 	} else if isNum {
 		if exists, err := a.isEntity(value, isBlockHeightQuery); err != nil {
 			return nil, err
 		} else if exists {
 			res = append(res, types.Entity{
-				Name:  "Block",
-				Value: value,
-				Ref:   fmt.Sprintf("/api/Block/%s", value),
+				Name:     "Block",
+				Value:    value,
+				Ref:      fmt.Sprintf("/api/Block/%s", value),
+				NameOld:  "Block",
+				ValueOld: value,
+				RefOld:   fmt.Sprintf("/api/Block/%s", value),
 			})
 		}
 	}
@@ -82,9 +94,12 @@ func (a *postgresAccessor) Search(value string) ([]types.Entity, error) {
 			return nil, err
 		} else if exists {
 			res = append(res, types.Entity{
-				Name:  "Epoch",
-				Value: value,
-				Ref:   fmt.Sprintf("/api/Epoch/%s", value),
+				Name:     "Epoch",
+				Value:    value,
+				Ref:      fmt.Sprintf("/api/Epoch/%s", value),
+				NameOld:  "Epoch",
+				ValueOld: value,
+				RefOld:   fmt.Sprintf("/api/Epoch/%s", value),
 			})
 		}
 	}
@@ -93,9 +108,12 @@ func (a *postgresAccessor) Search(value string) ([]types.Entity, error) {
 		return nil, err
 	} else if exists {
 		res = append(res, types.Entity{
-			Name:  "Flip",
-			Value: value,
-			Ref:   fmt.Sprintf("/api/Flip/%s", value),
+			Name:     "Flip",
+			Value:    value,
+			Ref:      fmt.Sprintf("/api/Flip/%s", value),
+			NameOld:  "Flip",
+			ValueOld: value,
+			RefOld:   fmt.Sprintf("/api/Flip/%s", value),
 		})
 	}
 
@@ -103,9 +121,12 @@ func (a *postgresAccessor) Search(value string) ([]types.Entity, error) {
 		return nil, err
 	} else if exists {
 		res = append(res, types.Entity{
-			Name:  "Transaction",
-			Value: value,
-			Ref:   fmt.Sprintf("/api/Transaction/%s", value),
+			Name:     "Transaction",
+			Value:    value,
+			Ref:      fmt.Sprintf("/api/Transaction/%s", value),
+			NameOld:  "Transaction",
+			ValueOld: value,
+			RefOld:   fmt.Sprintf("/api/Transaction/%s", value),
 		})
 	}
 

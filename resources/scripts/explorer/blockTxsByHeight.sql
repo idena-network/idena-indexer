@@ -1,4 +1,5 @@
-select t.Hash,
+select t.id,
+       t.Hash,
        dtt.name                                                                                     "type",
        b.Timestamp,
        afrom.Address                                                                                "from",
@@ -22,8 +23,8 @@ from transactions t
          left join kill_invitee_tx_transfers kitxs on kitxs.tx_id = t.id and t.type = 10
          left join become_online_txs online on online.tx_id = t.id and t.type = 9
          left join become_offline_txs offline on offline.tx_id = t.id and t.type = 9
-where b.height = $1
+where ($3::bigint IS NULL
+    OR t.id <= $3)
+  AND t.block_height = $1
 order by t.id desc
-limit $3
-offset
-$2
+limit $2

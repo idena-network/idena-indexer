@@ -1,4 +1,5 @@
-select dis.name            state,
+select s.id,
+       dis.name                          state,
        b.epoch,
        s.block_height,
        b.hash,
@@ -11,7 +12,7 @@ from address_states s
          left join epoch_identities ei on ei.address_state_id = s.id
          left join transactions t on t.id = s.tx_id
          join dic_identity_states dis on dis.id = s.state
+WHERE $3::bigint IS NULL
+   OR s.id <= $3
 order by s.id desc
-limit $3
-offset
-$2
+limit $2

@@ -1,4 +1,5 @@
-select ei.epoch,
+select fvr.ei_address_state_id,
+       ei.epoch,
        vr.balance,
        vr.stake,
        dert.name                  "type",
@@ -10,8 +11,10 @@ from (
          from validation_rewards vr
                   join address_states s on s.id = vr.ei_address_state_id
                   join addresses a on a.id = s.address_id and lower(a.address) = lower($1)
+         WHERE $3::bigint IS NULL
+            OR vr.ei_address_state_id <= $3
          order by vr.ei_address_state_id desc
-         limit $3 offset $2
+         limit $2
      ) fvr
          join validation_rewards vr on vr.ei_address_state_id = fvr.ei_address_state_id
          join dic_epoch_reward_types dert on dert.id = vr.type

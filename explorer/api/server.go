@@ -68,43 +68,9 @@ func (s *httpServer) generateReqId() int {
 	return id
 }
 
-//func (s *httpServer) requestFilter(next http.Handler) http.Handler {
-//	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-//		reqId := s.generateReqId()
-//		var urlToLog *url.URL
-//		if !strings.Contains(strings.ToLower(r.URL.Path), "/search") {
-//			urlToLog = r.URL
-//		}
-//		s.log.Debug(fmt.Sprintf("Got api request, reqId=%v, url=%v, from=%v", reqId, urlToLog, server.GetIP(r)))
-//		defer s.log.Debug("Completed api request", "reqId", reqId)
-//		err := r.ParseForm()
-//		if err != nil {
-//			s.log.Error("Unable to parse API request", "err", err)
-//			w.WriteHeader(http.StatusBadRequest)
-//			return
-//		}
-//		r.URL.Path = strings.ToLower(r.URL.Path)
-//		next.ServeHTTP(w, r)
-//	})
-//}
-
 func (s *httpServer) Start() {
-	// todo Currently indexer starts its own server for explorer
-	//headersOk := handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type"})
-	//originsOk := handlers.AllowedOrigins([]string{"*"})
-	//methodsOk := handlers.AllowedMethods([]string{"GET", "HEAD", "POST", "PUT", "OPTIONS"})
-	//err := http.ListenAndServe(fmt.Sprintf(":%d", s.port), handlers.CORS(originsOk, headersOk, methodsOk)(s.initHandler()))
-	//if err != nil {
-	//	panic(err)
-	//}
+	// Currently indexer starts its own server for explorer
 }
-
-//func (s *httpServer) initHandler() http.Handler {
-//	r := mux.NewRouter()
-//	api := r.PathPrefix("/api").Subrouter()
-//	s.InitRouter(api)
-//	return s.requestFilter(r)
-//}
 
 func (s *httpServer) InitRouter(router *mux.Router) {
 	router.Path(strings.ToLower("/DumpLink")).HandlerFunc(s.dumpLink)
@@ -128,7 +94,8 @@ func (s *httpServer) InitRouter(router *mux.Router) {
 	router.Path(strings.ToLower("/Epochs/Count")).HandlerFunc(s.epochsCount)
 	router.Path(strings.ToLower("/Epochs")).
 		Queries("skip", "{skip}", "limit", "{limit}").
-		HandlerFunc(s.epochs)
+		HandlerFunc(s.epochsOld)
+	router.Path(strings.ToLower("/Epochs")).HandlerFunc(s.epochs)
 
 	router.Path(strings.ToLower("/Epoch/Last")).HandlerFunc(s.lastEpoch)
 	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}")).HandlerFunc(s.epoch)
@@ -136,11 +103,15 @@ func (s *httpServer) InitRouter(router *mux.Router) {
 		HandlerFunc(s.epochBlocksCount)
 	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Blocks")).
 		Queries("skip", "{skip}", "limit", "{limit}").
+		HandlerFunc(s.epochBlocksOld)
+	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Blocks")).
 		HandlerFunc(s.epochBlocks)
 	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Flips/Count")).
 		HandlerFunc(s.epochFlipsCount)
 	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Flips")).
 		Queries("skip", "{skip}", "limit", "{limit}").
+		HandlerFunc(s.epochFlipsOld)
+	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Flips")).
 		HandlerFunc(s.epochFlips)
 	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/FlipAnswersSummary")).HandlerFunc(s.epochFlipAnswersSummary)
 	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/FlipStatesSummary")).HandlerFunc(s.epochFlipStatesSummary)
@@ -149,6 +120,8 @@ func (s *httpServer) InitRouter(router *mux.Router) {
 		HandlerFunc(s.epochIdentitiesCount)
 	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Identities")).
 		Queries("skip", "{skip}", "limit", "{limit}").
+		HandlerFunc(s.epochIdentitiesOld)
+	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Identities")).
 		HandlerFunc(s.epochIdentities)
 	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/IdentityStatesSummary")).HandlerFunc(s.epochIdentityStatesSummary)
 	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/IdentityStatesInterimSummary")).HandlerFunc(s.epochIdentityStatesInterimSummary)
@@ -158,11 +131,15 @@ func (s *httpServer) InitRouter(router *mux.Router) {
 		HandlerFunc(s.epochInvitesCount)
 	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Invites")).
 		Queries("skip", "{skip}", "limit", "{limit}").
+		HandlerFunc(s.epochInvitesOld)
+	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Invites")).
 		HandlerFunc(s.epochInvites)
 	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Txs/Count")).
 		HandlerFunc(s.epochTxsCount)
 	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Txs")).
 		Queries("skip", "{skip}", "limit", "{limit}").
+		HandlerFunc(s.epochTxsOld)
+	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Txs")).
 		HandlerFunc(s.epochTxs)
 	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Coins")).
 		HandlerFunc(s.epochCoins)
@@ -170,18 +147,18 @@ func (s *httpServer) InitRouter(router *mux.Router) {
 	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Authors/Bad/Count")).HandlerFunc(s.epochBadAuthorsCount)
 	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Authors/Bad")).
 		Queries("skip", "{skip}", "limit", "{limit}").
+		HandlerFunc(s.epochBadAuthorsOld)
+	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Authors/Bad")).
 		HandlerFunc(s.epochBadAuthors)
-	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Authors/Good/Count")).HandlerFunc(s.epochGoodAuthorsCount)
-	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Authors/Good")).
-		Queries("skip", "{skip}", "limit", "{limit}").
-		HandlerFunc(s.epochGoodAuthors)
-	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Rewards/Count")).HandlerFunc(s.epochRewardsCount)
-	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Rewards")).
-		Queries("skip", "{skip}", "limit", "{limit}").
-		HandlerFunc(s.epochRewards)
+	//router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Rewards/Count")).HandlerFunc(s.epochRewardsCount)
+	//router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Rewards")).
+	//	Queries("skip", "{skip}", "limit", "{limit}").
+	//	HandlerFunc(s.epochRewards)
 	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/IdentityRewards/Count")).HandlerFunc(s.epochIdentitiesRewardsCount)
 	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/IdentityRewards")).
 		Queries("skip", "{skip}", "limit", "{limit}").
+		HandlerFunc(s.epochIdentitiesRewardsOld)
+	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/IdentityRewards")).
 		HandlerFunc(s.epochIdentitiesRewards)
 	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/FundPayments")).HandlerFunc(s.epochFundPayments)
 
@@ -191,7 +168,7 @@ func (s *httpServer) InitRouter(router *mux.Router) {
 	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Identity/{address}/FlipsToSolve/Long")).
 		HandlerFunc(s.epochIdentityLongFlipsToSolve)
 	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Identity/{address}/Answers/Short")).
-		HandlerFunc(s.epochIdentityShortAnswes)
+		HandlerFunc(s.epochIdentityShortAnswers)
 	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Identity/{address}/Answers/Long")).
 		HandlerFunc(s.epochIdentityLongAnswers)
 	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Identity/{address}/Flips")).HandlerFunc(s.epochIdentityFlips)
@@ -214,6 +191,8 @@ func (s *httpServer) InitRouter(router *mux.Router) {
 	router.Path(strings.ToLower("/Block/{id}/Txs/Count")).HandlerFunc(s.blockTxsCount)
 	router.Path(strings.ToLower("/Block/{id}/Txs")).
 		Queries("skip", "{skip}", "limit", "{limit}").
+		HandlerFunc(s.blockTxsOld)
+	router.Path(strings.ToLower("/Block/{id}/Txs")).
 		HandlerFunc(s.blockTxs)
 	router.Path(strings.ToLower("/Block/{id}/Coins")).
 		HandlerFunc(s.blockCoins)
@@ -224,35 +203,44 @@ func (s *httpServer) InitRouter(router *mux.Router) {
 	router.Path(strings.ToLower("/Identity/{address}/Epochs/Count")).HandlerFunc(s.identityEpochsCount)
 	router.Path(strings.ToLower("/Identity/{address}/Epochs")).
 		Queries("skip", "{skip}", "limit", "{limit}").
+		HandlerFunc(s.identityEpochsOld)
+	router.Path(strings.ToLower("/Identity/{address}/Epochs")).
 		HandlerFunc(s.identityEpochs)
+	router.Path(strings.ToLower("/Identity/{address}/Flips/Count")).HandlerFunc(s.identityFlipsCount)
+	router.Path(strings.ToLower("/Identity/{address}/Flips")).
+		Queries("skip", "{skip}", "limit", "{limit}").
+		HandlerFunc(s.identityFlipsOld)
+	router.Path(strings.ToLower("/Identity/{address}/Flips")).HandlerFunc(s.identityFlips)
 	router.Path(strings.ToLower("/Identity/{address}/FlipStates")).HandlerFunc(s.identityFlipStates)
 	router.Path(strings.ToLower("/Identity/{address}/FlipQualifiedAnswers")).HandlerFunc(s.identityFlipRightAnswers)
 	router.Path(strings.ToLower("/Identity/{address}/Invites/Count")).HandlerFunc(s.identityInvitesCount)
 	router.Path(strings.ToLower("/Identity/{address}/Invites")).
 		Queries("skip", "{skip}", "limit", "{limit}").
+		HandlerFunc(s.identityInvitesOld)
+	router.Path(strings.ToLower("/Identity/{address}/Invites")).
 		HandlerFunc(s.identityInvites)
 	router.Path(strings.ToLower("/Identity/{address}/Rewards/Count")).HandlerFunc(s.identityRewardsCount)
 	router.Path(strings.ToLower("/Identity/{address}/Rewards")).
 		Queries("skip", "{skip}", "limit", "{limit}").
+		HandlerFunc(s.identityRewardsOld)
+	router.Path(strings.ToLower("/Identity/{address}/Rewards")).
 		HandlerFunc(s.identityRewards)
 	router.Path(strings.ToLower("/Identity/{address}/EpochRewards/Count")).HandlerFunc(s.identityEpochRewardsCount)
 	router.Path(strings.ToLower("/Identity/{address}/EpochRewards")).
 		Queries("skip", "{skip}", "limit", "{limit}").
+		HandlerFunc(s.identityEpochRewardsOld)
+	router.Path(strings.ToLower("/Identity/{address}/EpochRewards")).
 		HandlerFunc(s.identityEpochRewards)
+	router.Path(strings.ToLower("/Identity/{address}/Authors/Bad/Count")).HandlerFunc(s.addressBadAuthorsCount)
+	router.Path(strings.ToLower("/Identity/{address}/Authors/Bad")).HandlerFunc(s.addressBadAuthors)
 
 	router.Path(strings.ToLower("/Flip/{hash}")).HandlerFunc(s.flip)
 	router.Path(strings.ToLower("/Flip/{hash}/Content")).HandlerFunc(s.flipContent)
-	router.Path(strings.ToLower("/Flip/{hash}/Answers/Short/Count")).HandlerFunc(s.flipShortAnswersCount)
 	router.Path(strings.ToLower("/Flip/{hash}/Answers/Short")).
-		Queries("skip", "{skip}", "limit", "{limit}").
 		HandlerFunc(s.flipShortAnswers)
-	router.Path(strings.ToLower("/Flip/{hash}/Answers/Long/Count")).HandlerFunc(s.flipLongAnswersCount)
 	router.Path(strings.ToLower("/Flip/{hash}/Answers/Long")).
-		Queries("skip", "{skip}", "limit", "{limit}").
 		HandlerFunc(s.flipLongAnswers)
 	router.Path(strings.ToLower("/Flip/{hash}/Epoch/AdjacentFlips")).HandlerFunc(s.flipEpochAdjacentFlips)
-	router.Path(strings.ToLower("/Flip/{hash}/Address/AdjacentFlips")).HandlerFunc(s.flipAddressAdjacentFlips)
-	router.Path(strings.ToLower("/Flip/{hash}/EpochIdentity/AdjacentFlips")).HandlerFunc(s.flipEpochIdentityAdjacentFlips)
 
 	router.Path(strings.ToLower("/Transaction/{hash}")).HandlerFunc(s.transaction)
 	router.Path(strings.ToLower("/Transaction/{hash}/Raw")).HandlerFunc(s.transactionRaw)
@@ -261,56 +249,52 @@ func (s *httpServer) InitRouter(router *mux.Router) {
 	router.Path(strings.ToLower("/Address/{address}/Txs/Count")).HandlerFunc(s.identityTxsCount)
 	router.Path(strings.ToLower("/Address/{address}/Txs")).
 		Queries("skip", "{skip}", "limit", "{limit}").
+		HandlerFunc(s.identityTxsOld)
+	router.Path(strings.ToLower("/Address/{address}/Txs")).
 		HandlerFunc(s.identityTxs)
 	router.Path(strings.ToLower("/Address/{address}/Penalties/Count")).HandlerFunc(s.addressPenaltiesCount)
 	router.Path(strings.ToLower("/Address/{address}/Penalties")).
 		Queries("skip", "{skip}", "limit", "{limit}").
+		HandlerFunc(s.addressPenaltiesOld)
+	router.Path(strings.ToLower("/Address/{address}/Penalties")).
 		HandlerFunc(s.addressPenalties)
+
+	// Deprecated path
 	router.Path(strings.ToLower("/Address/{address}/Flips/Count")).HandlerFunc(s.identityFlipsCount)
+	// Deprecated path
 	router.Path(strings.ToLower("/Address/{address}/Flips")).
 		Queries("skip", "{skip}", "limit", "{limit}").
-		HandlerFunc(s.identityFlips)
-	//router.Path(strings.ToLower("/Address/{address}/MiningRewards/Count")).HandlerFunc(s.addressMiningRewardsCount)
-	//router.Path(strings.ToLower("/Address/{address}/MiningRewards")).
-	//	Queries("skip", "{skip}", "limit", "{limit}").
-	//	HandlerFunc(s.addressMiningRewards)
-	//router.Path(strings.ToLower("/Address/{address}/BlockMiningRewards/Count")).
-	//	HandlerFunc(s.addressBlockMiningRewardsCount)
-	//router.Path(strings.ToLower("/Address/{address}/BlockMiningRewards")).
-	//	Queries("skip", "{skip}", "limit", "{limit}").
-	//	HandlerFunc(s.addressBlockMiningRewards)
+		HandlerFunc(s.identityFlipsOld)
+	// Deprecated path
+	router.Path(strings.ToLower("/Address/{address}/Flips")).HandlerFunc(s.identityFlips)
+
 	router.Path(strings.ToLower("/Address/{address}/States/Count")).
 		HandlerFunc(s.addressStatesCount)
 	router.Path(strings.ToLower("/Address/{address}/States")).
-		Queries("skip", "{skip}", "limit", "{limit}").
 		HandlerFunc(s.addressStates)
 	router.Path(strings.ToLower("/Address/{address}/TotalLatestMiningReward")).
 		HandlerFunc(s.addressTotalLatestMiningReward)
 	router.Path(strings.ToLower("/Address/{address}/TotalLatestBurntCoins")).
 		HandlerFunc(s.addressTotalLatestBurntCoins)
-	router.Path(strings.ToLower("/Address/{address}/Authors/Bad/Count")).HandlerFunc(s.addressBadAuthorsCount)
-	router.Path(strings.ToLower("/Address/{address}/Authors/Bad")).
-		Queries("skip", "{skip}", "limit", "{limit}").
-		HandlerFunc(s.addressBadAuthors)
-	router.Path(strings.ToLower("/Address/{address}/Balance/Changes/Count")).HandlerFunc(s.addressBalanceUpdatesCount)
+
+	//router.Path(strings.ToLower("/Address/{address}/Balance/Changes/Count")).HandlerFunc(s.addressBalanceUpdatesCount)
 	router.Path(strings.ToLower("/Address/{address}/Balance/Changes")).
-		Queries("skip", "{skip}", "limit", "{limit}").
 		HandlerFunc(s.addressBalanceUpdates)
 
-	router.Path(strings.ToLower("/Balances/Count")).HandlerFunc(s.balancesCount)
+	//router.Path(strings.ToLower("/Balances/Count")).HandlerFunc(s.balancesCount)
 	router.Path(strings.ToLower("/Balances")).
 		Queries("skip", "{skip}", "limit", "{limit}").
+		HandlerFunc(s.balancesOld)
+	router.Path(strings.ToLower("/Balances")).
 		HandlerFunc(s.balances)
 
-	router.Path(strings.ToLower("/TotalLatestMiningRewards/Count")).HandlerFunc(s.totalLatestMiningRewardsCount)
-	router.Path(strings.ToLower("/TotalLatestMiningRewards")).
-		Queries("skip", "{skip}", "limit", "{limit}").
-		HandlerFunc(s.totalLatestMiningRewards)
+	//router.Path(strings.ToLower("/TotalLatestMiningRewards/Count")).HandlerFunc(s.totalLatestMiningRewardsCount)
+	//router.Path(strings.ToLower("/TotalLatestMiningRewards")).HandlerFunc(s.totalLatestMiningRewards)
 
-	router.Path(strings.ToLower("/TotalLatestBurntCoins/Count")).HandlerFunc(s.totalLatestBurntCoinsCount)
-	router.Path(strings.ToLower("/TotalLatestBurntCoins")).
-		Queries("skip", "{skip}", "limit", "{limit}").
-		HandlerFunc(s.totalLatestBurntCoins)
+	//router.Path(strings.ToLower("/TotalLatestBurntCoins/Count")).HandlerFunc(s.totalLatestBurntCoinsCount)
+	//router.Path(strings.ToLower("/TotalLatestBurntCoins")).
+	//	Queries("skip", "{skip}", "limit", "{limit}").
+	//	HandlerFunc(s.totalLatestBurntCoins)
 }
 
 func (s *httpServer) dumpLink(w http.ResponseWriter, r *http.Request) {
@@ -319,6 +303,15 @@ func (s *httpServer) dumpLink(w http.ResponseWriter, r *http.Request) {
 	server.WriteResponse(w, s.getDumpLink(), nil, s.log)
 }
 
+// @Tags Search
+// @Id Search
+// @Param value query string true "value to search"
+// @Success 200 {object} server.Response{result=[]types.Entity}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Search [get]
 func (s *httpServer) search(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("search", r.RequestURI)
 	defer s.pm.Complete(id)
@@ -343,6 +336,14 @@ func keyToAddrOrEmpty(pkHex string) string {
 	return crypto.PubkeyToAddress(key.PublicKey).Hex()
 }
 
+// @Tags Coins
+// @Id Coins
+// @Success 200 {object} server.Response{result=types.AllCoins}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Coins [get]
 func (s *httpServer) coins(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("coins", r.RequestURI)
 	defer s.pm.Complete(id)
@@ -351,6 +352,15 @@ func (s *httpServer) coins(w http.ResponseWriter, r *http.Request) {
 	server.WriteResponse(w, resp, err, s.log)
 }
 
+// @Tags Coins
+// @Id CirculatingSupply
+// @Param format query string false "result value format" ENUMS(full,short)
+// @Success 200 {object} server.Response{result=string}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /CirculatingSupply [get]
 func (s *httpServer) circulatingSupply(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("circulatingSupply", r.RequestURI)
 	defer s.pm.Complete(id)
@@ -366,12 +376,20 @@ func (s *httpServer) circulatingSupply(w http.ResponseWriter, r *http.Request) {
 
 	resp, err := s.db.CirculatingSupply(s.frozenBalanceAddrs)
 	if err == nil && full {
-		server.WriteResponse(w, blockchain.ConvertToInt(resp), err, s.log)
+		server.WriteResponse(w, blockchain.ConvertToInt(resp).String(), err, s.log)
 		return
 	}
 	server.WriteResponse(w, resp, err, s.log)
 }
 
+// @Tags Coins
+// @Id ActiveAddressesCount
+// @Success 200 {object} server.Response{result=integer}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /ActiveAddresses/Count [get]
 func (s *httpServer) activeAddressesCount(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("activeAddressesCount", r.RequestURI)
 	defer s.pm.Complete(id)
@@ -380,6 +398,14 @@ func (s *httpServer) activeAddressesCount(w http.ResponseWriter, r *http.Request
 	server.WriteResponse(w, resp, err, s.log)
 }
 
+// @Tags Epochs
+// @Id EpochsCount
+// @Success 200 {object} server.Response{result=integer}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Epochs/Count [get]
 func (s *httpServer) epochsCount(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("epochsCount", r.RequestURI)
 	defer s.pm.Complete(id)
@@ -388,19 +414,37 @@ func (s *httpServer) epochsCount(w http.ResponseWriter, r *http.Request) {
 	server.WriteResponse(w, resp, err, s.log)
 }
 
+// @Tags Epochs
+// @Id Epochs
+// @Param limit query integer true "items to take"
+// @Param continuationToken query string false "continuation token to get next page items"
+// @Success 200 {object} server.ResponsePage{result=[]types.EpochSummary}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Epochs [get]
 func (s *httpServer) epochs(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("epochs", r.RequestURI)
 	defer s.pm.Complete(id)
 
-	startIndex, count, err := server.ReadPaginatorParams(mux.Vars(r))
+	count, continuationToken, err := server.ReadPaginatorParams(r.Form)
 	if err != nil {
 		server.WriteErrorResponse(w, err, s.log)
 		return
 	}
-	resp, err := s.db.Epochs(startIndex, count)
-	server.WriteResponse(w, resp, err, s.log)
+	resp, nextContinuationToken, err := s.db.Epochs(count, continuationToken)
+	server.WriteResponsePage(w, resp, nextContinuationToken, err, s.log)
 }
 
+// @Tags Epochs
+// @Id LastEpoch
+// @Success 200 {object} server.Response{result=types.EpochDetail}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Epoch/Last [get]
 func (s *httpServer) lastEpoch(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("lastEpoch", r.RequestURI)
 	defer s.pm.Complete(id)
@@ -409,11 +453,20 @@ func (s *httpServer) lastEpoch(w http.ResponseWriter, r *http.Request) {
 	server.WriteResponse(w, resp, err, s.log)
 }
 
+// @Tags Epochs
+// @Id Epoch
+// @Param epoch path integer true "epoch"
+// @Success 200 {object} server.Response{result=types.EpochDetail}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Epoch/{epoch} [get]
 func (s *httpServer) epoch(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("epoch", r.RequestURI)
 	defer s.pm.Complete(id)
 
-	epoch, err := server.ToUint(mux.Vars(r), "epoch")
+	epoch, err := server.ReadUint(mux.Vars(r), "epoch")
 	if err != nil {
 		server.WriteErrorResponse(w, err, s.log)
 		return
@@ -422,11 +475,20 @@ func (s *httpServer) epoch(w http.ResponseWriter, r *http.Request) {
 	server.WriteResponse(w, resp, err, s.log)
 }
 
+// @Tags Epochs
+// @Id EpochBlocksCount
+// @Param epoch path integer true "epoch"
+// @Success 200 {object} server.Response{result=integer}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Epoch/{epoch}/Blocks/Count [get]
 func (s *httpServer) epochBlocksCount(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("epochBlocksCount", r.RequestURI)
 	defer s.pm.Complete(id)
 
-	epoch, err := server.ToUint(mux.Vars(r), "epoch")
+	epoch, err := server.ReadUint(mux.Vars(r), "epoch")
 	if err != nil {
 		server.WriteErrorResponse(w, err, s.log)
 		return
@@ -435,30 +497,50 @@ func (s *httpServer) epochBlocksCount(w http.ResponseWriter, r *http.Request) {
 	server.WriteResponse(w, resp, err, s.log)
 }
 
+// @Tags Epochs
+// @Id EpochBlocks
+// @Param epoch path integer true "epoch"
+// @Param limit query integer true "items to take"
+// @Param continuationToken query string false "continuation token to get next page items"
+// @Success 200 {object} server.ResponsePage{result=[]types.BlockSummary}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Epoch/{epoch}/Blocks [get]
 func (s *httpServer) epochBlocks(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("epochBlocks", r.RequestURI)
 	defer s.pm.Complete(id)
 
 	vars := mux.Vars(r)
-	epoch, err := server.ToUint(vars, "epoch")
+	epoch, err := server.ReadUint(vars, "epoch")
 	if err != nil {
 		server.WriteErrorResponse(w, err, s.log)
 		return
 	}
-	startIndex, count, err := server.ReadPaginatorParams(vars)
+	count, continuationToken, err := server.ReadPaginatorParams(r.Form)
 	if err != nil {
 		server.WriteErrorResponse(w, err, s.log)
 		return
 	}
-	resp, err := s.db.EpochBlocks(epoch, startIndex, count)
-	server.WriteResponse(w, resp, err, s.log)
+	resp, nextContinuationToken, err := s.db.EpochBlocks(epoch, count, continuationToken)
+	server.WriteResponsePage(w, resp, nextContinuationToken, err, s.log)
 }
 
+// @Tags Epochs
+// @Id EpochFlipsCount
+// @Param epoch path integer true "epoch"
+// @Success 200 {object} server.Response{result=integer}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Epoch/{epoch}/Flips/Count [get]
 func (s *httpServer) epochFlipsCount(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("epochFlipsCount", r.RequestURI)
 	defer s.pm.Complete(id)
 
-	epoch, err := server.ToUint(mux.Vars(r), "epoch")
+	epoch, err := server.ReadUint(mux.Vars(r), "epoch")
 	if err != nil {
 		server.WriteErrorResponse(w, err, s.log)
 		return
@@ -467,31 +549,51 @@ func (s *httpServer) epochFlipsCount(w http.ResponseWriter, r *http.Request) {
 	server.WriteResponse(w, resp, err, s.log)
 }
 
+// @Tags Epochs
+// @Id EpochFlips
+// @Param epoch path integer true "epoch"
+// @Param limit query integer true "items to take"
+// @Param continuationToken query string false "continuation token to get next page items"
+// @Success 200 {object} server.ResponsePage{result=[]types.FlipSummary}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Epoch/{epoch}/Flips [get]
 func (s *httpServer) epochFlips(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("epochFlips", r.RequestURI)
 	defer s.pm.Complete(id)
 
 	vars := mux.Vars(r)
-	epoch, err := server.ToUint(vars, "epoch")
+	epoch, err := server.ReadUint(vars, "epoch")
 	if err != nil {
 		server.WriteErrorResponse(w, err, s.log)
 		return
 	}
-	startIndex, count, err := server.ReadPaginatorParams(vars)
+	count, continuationToken, err := server.ReadPaginatorParams(r.Form)
 	if err != nil {
 		server.WriteErrorResponse(w, err, s.log)
 		return
 	}
-	resp, err := s.db.EpochFlips(epoch, startIndex, count)
-	server.WriteResponse(w, resp, err, s.log)
+	resp, nextContinuationToken, err := s.db.EpochFlips(epoch, count, continuationToken)
+	server.WriteResponsePage(w, resp, nextContinuationToken, err, s.log)
 }
 
+// @Tags Epochs
+// @Id EpochFlipAnswersSummary
+// @Param epoch path integer true "epoch"
+// @Success 200 {object} server.Response{result=[]types.FlipAnswerCount}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Epoch/{epoch}/FlipAnswersSummary [get]
 func (s *httpServer) epochFlipAnswersSummary(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("epochFlipAnswersSummary", r.RequestURI)
 	defer s.pm.Complete(id)
 
 	vars := mux.Vars(r)
-	epoch, err := server.ToUint(vars, "epoch")
+	epoch, err := server.ReadUint(vars, "epoch")
 	if err != nil {
 		server.WriteErrorResponse(w, err, s.log)
 		return
@@ -500,12 +602,21 @@ func (s *httpServer) epochFlipAnswersSummary(w http.ResponseWriter, r *http.Requ
 	server.WriteResponse(w, resp, err, s.log)
 }
 
+// @Tags Epochs
+// @Id EpochFlipStatesSummary
+// @Param epoch path integer true "epoch"
+// @Success 200 {object} server.Response{result=[]types.FlipStateCount}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Epoch/{epoch}/FlipStatesSummary [get]
 func (s *httpServer) epochFlipStatesSummary(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("epochFlipStatesSummary", r.RequestURI)
 	defer s.pm.Complete(id)
 
 	vars := mux.Vars(r)
-	epoch, err := server.ToUint(vars, "epoch")
+	epoch, err := server.ReadUint(vars, "epoch")
 	if err != nil {
 		server.WriteErrorResponse(w, err, s.log)
 		return
@@ -514,12 +625,21 @@ func (s *httpServer) epochFlipStatesSummary(w http.ResponseWriter, r *http.Reque
 	server.WriteResponse(w, resp, err, s.log)
 }
 
+// @Tags Epochs
+// @Id EpochFlipWrongWordsSummary
+// @Param epoch path integer true "epoch"
+// @Success 200 {object} server.Response{result=[]types.NullableBoolValueCount}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Epoch/{epoch}/FlipWrongWordsSummary [get]
 func (s *httpServer) epochFlipWrongWordsSummary(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("epochFlipWrongWordsSummary", r.RequestURI)
 	defer s.pm.Complete(id)
 
 	vars := mux.Vars(r)
-	epoch, err := server.ToUint(vars, "epoch")
+	epoch, err := server.ReadUint(vars, "epoch")
 	if err != nil {
 		server.WriteErrorResponse(w, err, s.log)
 		return
@@ -528,11 +648,22 @@ func (s *httpServer) epochFlipWrongWordsSummary(w http.ResponseWriter, r *http.R
 	server.WriteResponse(w, resp, err, s.log)
 }
 
+// @Tags Epochs
+// @Id EpochIdentitiesCount
+// @Param epoch path integer true "epoch"
+// @Param states[] query []string false "identity state filter"
+// @Param prevStates[] query []string false "identity previous state filter"
+// @Success 200 {object} server.Response{result=integer}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Epoch/{epoch}/Identities/Count [get]
 func (s *httpServer) epochIdentitiesCount(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("epochIdentitiesCount", r.RequestURI)
 	defer s.pm.Complete(id)
 
-	epoch, err := server.ToUint(mux.Vars(r), "epoch")
+	epoch, err := server.ReadUint(mux.Vars(r), "epoch")
 	if err != nil {
 		server.WriteErrorResponse(w, err, s.log)
 		return
@@ -542,24 +673,37 @@ func (s *httpServer) epochIdentitiesCount(w http.ResponseWriter, r *http.Request
 	server.WriteResponse(w, resp, err, s.log)
 }
 
+// @Tags Epochs
+// @Id EpochIdentities
+// @Param epoch path integer true "epoch"
+// @Param limit query integer true "items to take"
+// @Param continuationToken query string false "continuation token to get next page items"
+// @Param states[] query []string false "identity state filter"
+// @Param prevStates[] query []string false "identity previous state filter"
+// @Success 200 {object} server.ResponsePage{result=[]types.EpochIdentity}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"types.EpochIdentity
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Epoch/{epoch}/Identities [get]
 func (s *httpServer) epochIdentities(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("epochIdentities", r.RequestURI)
 	defer s.pm.Complete(id)
 
 	vars := mux.Vars(r)
-	epoch, err := server.ToUint(vars, "epoch")
+	epoch, err := server.ReadUint(vars, "epoch")
 	if err != nil {
 		server.WriteErrorResponse(w, err, s.log)
 		return
 	}
-	startIndex, count, err := server.ReadPaginatorParams(vars)
+	count, continuationToken, err := server.ReadPaginatorParams(r.Form)
 	if err != nil {
 		server.WriteErrorResponse(w, err, s.log)
 		return
 	}
-	resp, err := s.db.EpochIdentities(epoch, convertStates(r.Form["prevstates[]"]), convertStates(r.Form["states[]"]),
-		startIndex, count)
-	server.WriteResponse(w, resp, err, s.log)
+	resp, nextContinuationToken, err := s.db.EpochIdentities(epoch, convertStates(r.Form["prevstates[]"]),
+		convertStates(r.Form["states[]"]), count, continuationToken)
+	server.WriteResponsePage(w, resp, nextContinuationToken, err, s.log)
 }
 
 func convertStates(formValues []string) []string {
@@ -579,12 +723,21 @@ func convertStates(formValues []string) []string {
 	return res
 }
 
+// @Tags Epochs
+// @Id EpochIdentityStatesSummary
+// @Param epoch path integer true "epoch"
+// @Success 200 {object} server.Response{result=[]types.IdentityStateCount}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Epoch/{epoch}/IdentityStatesSummary [get]
 func (s *httpServer) epochIdentityStatesSummary(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("epochIdentityStatesSummary", r.RequestURI)
 	defer s.pm.Complete(id)
 
 	vars := mux.Vars(r)
-	epoch, err := server.ToUint(vars, "epoch")
+	epoch, err := server.ReadUint(vars, "epoch")
 	if err != nil {
 		server.WriteErrorResponse(w, err, s.log)
 		return
@@ -593,12 +746,21 @@ func (s *httpServer) epochIdentityStatesSummary(w http.ResponseWriter, r *http.R
 	server.WriteResponse(w, resp, err, s.log)
 }
 
+// @Tags Epochs
+// @Id EpochIdentityStatesInterimSummary
+// @Param epoch path integer true "epoch"
+// @Success 200 {object} server.Response{result=[]types.IdentityStateCount}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Epoch/{epoch}/IdentityStatesInterimSummary [get]
 func (s *httpServer) epochIdentityStatesInterimSummary(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("epochIdentityStatesInterimSummary", r.RequestURI)
 	defer s.pm.Complete(id)
 
 	vars := mux.Vars(r)
-	epoch, err := server.ToUint(vars, "epoch")
+	epoch, err := server.ReadUint(vars, "epoch")
 	if err != nil {
 		server.WriteErrorResponse(w, err, s.log)
 		return
@@ -607,12 +769,21 @@ func (s *httpServer) epochIdentityStatesInterimSummary(w http.ResponseWriter, r 
 	server.WriteResponse(w, resp, err, s.log)
 }
 
+// @Tags Epochs
+// @Id EpochInvitesSummary
+// @Param epoch path integer true "epoch"
+// @Success 200 {object} server.Response{result=types.InvitesSummary}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Epoch/{epoch}/InvitesSummary [get]
 func (s *httpServer) epochInvitesSummary(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("epochInvitesSummary", r.RequestURI)
 	defer s.pm.Complete(id)
 
 	vars := mux.Vars(r)
-	epoch, err := server.ToUint(vars, "epoch")
+	epoch, err := server.ReadUint(vars, "epoch")
 	if err != nil {
 		server.WriteErrorResponse(w, err, s.log)
 		return
@@ -621,12 +792,21 @@ func (s *httpServer) epochInvitesSummary(w http.ResponseWriter, r *http.Request)
 	server.WriteResponse(w, resp, err, s.log)
 }
 
+// @Tags Epochs
+// @Id EpochInviteStatesSummary
+// @Param epoch path integer true "epoch"
+// @Success 200 {object} server.Response{result=[]types.IdentityStateCount}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Epoch/{epoch}/InviteStatesSummary [get]
 func (s *httpServer) epochInviteStatesSummary(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("epochInviteStatesSummary", r.RequestURI)
 	defer s.pm.Complete(id)
 
 	vars := mux.Vars(r)
-	epoch, err := server.ToUint(vars, "epoch")
+	epoch, err := server.ReadUint(vars, "epoch")
 	if err != nil {
 		server.WriteErrorResponse(w, err, s.log)
 		return
@@ -635,11 +815,20 @@ func (s *httpServer) epochInviteStatesSummary(w http.ResponseWriter, r *http.Req
 	server.WriteResponse(w, resp, err, s.log)
 }
 
+// @Tags Epochs
+// @Id EpochInvitesCount
+// @Param epoch path integer true "epoch"
+// @Success 200 {object} server.Response{result=integer}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Epoch/{epoch}/Invites/Count [get]
 func (s *httpServer) epochInvitesCount(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("epochInvitesCount", r.RequestURI)
 	defer s.pm.Complete(id)
 
-	epoch, err := server.ToUint(mux.Vars(r), "epoch")
+	epoch, err := server.ReadUint(mux.Vars(r), "epoch")
 	if err != nil {
 		server.WriteErrorResponse(w, err, s.log)
 		return
@@ -648,30 +837,50 @@ func (s *httpServer) epochInvitesCount(w http.ResponseWriter, r *http.Request) {
 	server.WriteResponse(w, resp, err, s.log)
 }
 
+// @Tags Epochs
+// @Id EpochInvites
+// @Param epoch path integer true "epoch"
+// @Param limit query integer true "items to take"
+// @Param continuationToken query string false "continuation token to get next page items"
+// @Success 200 {object} server.ResponsePage{result=[]types.Invite}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Epoch/{epoch}/Invites [get]
 func (s *httpServer) epochInvites(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("epochInvites", r.RequestURI)
 	defer s.pm.Complete(id)
 
 	vars := mux.Vars(r)
-	epoch, err := server.ToUint(vars, "epoch")
+	epoch, err := server.ReadUint(vars, "epoch")
 	if err != nil {
 		server.WriteErrorResponse(w, err, s.log)
 		return
 	}
-	startIndex, count, err := server.ReadPaginatorParams(vars)
+	count, continuationToken, err := server.ReadPaginatorParams(r.Form)
 	if err != nil {
 		server.WriteErrorResponse(w, err, s.log)
 		return
 	}
-	resp, err := s.db.EpochInvites(epoch, startIndex, count)
-	server.WriteResponse(w, resp, err, s.log)
+	resp, nextContinuationToken, err := s.db.EpochInvites(epoch, count, continuationToken)
+	server.WriteResponsePage(w, resp, nextContinuationToken, err, s.log)
 }
 
+// @Tags Epochs
+// @Id EpochTxsCount
+// @Param epoch path integer true "epoch"
+// @Success 200 {object} server.Response{result=integer}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Epoch/{epoch}/Txs/Count [get]
 func (s *httpServer) epochTxsCount(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("epochTxsCount", r.RequestURI)
 	defer s.pm.Complete(id)
 
-	epoch, err := server.ToUint(mux.Vars(r), "epoch")
+	epoch, err := server.ReadUint(mux.Vars(r), "epoch")
 	if err != nil {
 		server.WriteErrorResponse(w, err, s.log)
 		return
@@ -680,31 +889,51 @@ func (s *httpServer) epochTxsCount(w http.ResponseWriter, r *http.Request) {
 	server.WriteResponse(w, resp, err, s.log)
 }
 
+// @Tags Epochs
+// @Id EpochTxs
+// @Param epoch path integer true "epoch"
+// @Param limit query integer true "items to take"
+// @Param continuationToken query string false "continuation token to get next page items"
+// @Success 200 {object} server.ResponsePage{result=[]types.TransactionSummary{data=types.TransactionSpecificData}}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Epoch/{epoch}/Txs [get]
 func (s *httpServer) epochTxs(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("epochTxs", r.RequestURI)
 	defer s.pm.Complete(id)
 
 	vars := mux.Vars(r)
-	epoch, err := server.ToUint(vars, "epoch")
+	epoch, err := server.ReadUint(vars, "epoch")
 	if err != nil {
 		server.WriteErrorResponse(w, err, s.log)
 		return
 	}
-	startIndex, count, err := server.ReadPaginatorParams(vars)
+	count, continuationToken, err := server.ReadPaginatorParams(r.Form)
 	if err != nil {
 		server.WriteErrorResponse(w, err, s.log)
 		return
 	}
-	resp, err := s.db.EpochTxs(epoch, startIndex, count)
-	server.WriteResponse(w, resp, err, s.log)
+	resp, nextContinuationToken, err := s.db.EpochTxs(epoch, count, continuationToken)
+	server.WriteResponsePage(w, resp, nextContinuationToken, err, s.log)
 }
 
+// @Tags Epochs
+// @Id EpochCoins
+// @Param epoch path integer true "epoch"
+// @Success 200 {object} server.Response{result=types.AllCoins}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Epoch/{epoch}/Coins [get]
 func (s *httpServer) epochCoins(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("epochCoins", r.RequestURI)
 	defer s.pm.Complete(id)
 
 	vars := mux.Vars(r)
-	epoch, err := server.ToUint(vars, "epoch")
+	epoch, err := server.ReadUint(vars, "epoch")
 	if err != nil {
 		server.WriteErrorResponse(w, err, s.log)
 		return
@@ -713,12 +942,21 @@ func (s *httpServer) epochCoins(w http.ResponseWriter, r *http.Request) {
 	server.WriteResponse(w, resp, err, s.log)
 }
 
+// @Tags Epochs
+// @Id EpochRewardsSummary
+// @Param epoch path integer true "epoch"
+// @Success 200 {object} server.Response{result=types.RewardsSummary}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Epoch/{epoch}/RewardsSummary [get]
 func (s *httpServer) epochRewardsSummary(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("epochRewardsSummary", r.RequestURI)
 	defer s.pm.Complete(id)
 
 	vars := mux.Vars(r)
-	epoch, err := server.ToUint(vars, "epoch")
+	epoch, err := server.ReadUint(vars, "epoch")
 	if err != nil {
 		server.WriteErrorResponse(w, err, s.log)
 		return
@@ -727,8 +965,17 @@ func (s *httpServer) epochRewardsSummary(w http.ResponseWriter, r *http.Request)
 	server.WriteResponse(w, resp, err, s.log)
 }
 
+// @Tags Epochs
+// @Id EpochBadAuthorsCount
+// @Param epoch path integer true "epoch"
+// @Success 200 {object} server.Response{result=integer}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Epoch/{epoch}/Authors/Bad/Count [get]
 func (s *httpServer) epochBadAuthorsCount(w http.ResponseWriter, r *http.Request) {
-	epoch, err := server.ToUint(mux.Vars(r), "epoch")
+	epoch, err := server.ReadUint(mux.Vars(r), "epoch")
 	if err != nil {
 		server.WriteErrorResponse(w, err, s.log)
 		return
@@ -737,62 +984,41 @@ func (s *httpServer) epochBadAuthorsCount(w http.ResponseWriter, r *http.Request
 	server.WriteResponse(w, resp, err, s.log)
 }
 
+// @Tags Epochs
+// @Id EpochBadAuthors
+// @Param epoch path integer true "epoch"
+// @Param limit query integer true "items to take"
+// @Param continuationToken query string false "continuation token to get next page items"
+// @Success 200 {object} server.ResponsePage{result=[]types.BadAuthor}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Epoch/{epoch}/Authors/Bad [get]
 func (s *httpServer) epochBadAuthors(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("epochBadAuthors", r.RequestURI)
 	defer s.pm.Complete(id)
 
 	vars := mux.Vars(r)
-	epoch, err := server.ToUint(vars, "epoch")
+	epoch, err := server.ReadUint(vars, "epoch")
 	if err != nil {
 		server.WriteErrorResponse(w, err, s.log)
 		return
 	}
-	startIndex, count, err := server.ReadPaginatorParams(vars)
+	count, continuationToken, err := server.ReadPaginatorParams(r.Form)
 	if err != nil {
 		server.WriteErrorResponse(w, err, s.log)
 		return
 	}
-	resp, err := s.db.EpochBadAuthors(epoch, startIndex, count)
-	server.WriteResponse(w, resp, err, s.log)
-}
-
-func (s *httpServer) epochGoodAuthorsCount(w http.ResponseWriter, r *http.Request) {
-	id := s.pm.Start("epochGoodAuthorsCount", r.RequestURI)
-	defer s.pm.Complete(id)
-
-	epoch, err := server.ToUint(mux.Vars(r), "epoch")
-	if err != nil {
-		server.WriteErrorResponse(w, err, s.log)
-		return
-	}
-	resp, err := s.db.EpochGoodAuthorsCount(epoch)
-	server.WriteResponse(w, resp, err, s.log)
-}
-
-func (s *httpServer) epochGoodAuthors(w http.ResponseWriter, r *http.Request) {
-	id := s.pm.Start("epochGoodAuthors", r.RequestURI)
-	defer s.pm.Complete(id)
-
-	vars := mux.Vars(r)
-	epoch, err := server.ToUint(vars, "epoch")
-	if err != nil {
-		server.WriteErrorResponse(w, err, s.log)
-		return
-	}
-	startIndex, count, err := server.ReadPaginatorParams(vars)
-	if err != nil {
-		server.WriteErrorResponse(w, err, s.log)
-		return
-	}
-	resp, err := s.db.EpochGoodAuthors(epoch, startIndex, count)
-	server.WriteResponse(w, resp, err, s.log)
+	resp, nextContinuationToken, err := s.db.EpochBadAuthors(epoch, count, continuationToken)
+	server.WriteResponsePage(w, resp, nextContinuationToken, err, s.log)
 }
 
 func (s *httpServer) epochRewardsCount(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("epochRewardsCount", r.RequestURI)
 	defer s.pm.Complete(id)
 
-	epoch, err := server.ToUint(mux.Vars(r), "epoch")
+	epoch, err := server.ReadUint(mux.Vars(r), "epoch")
 	if err != nil {
 		server.WriteErrorResponse(w, err, s.log)
 		return
@@ -801,30 +1027,20 @@ func (s *httpServer) epochRewardsCount(w http.ResponseWriter, r *http.Request) {
 	server.WriteResponse(w, resp, err, s.log)
 }
 
-func (s *httpServer) epochRewards(w http.ResponseWriter, r *http.Request) {
-	id := s.pm.Start("epochRewards", r.RequestURI)
-	defer s.pm.Complete(id)
-
-	vars := mux.Vars(r)
-	epoch, err := server.ToUint(vars, "epoch")
-	if err != nil {
-		server.WriteErrorResponse(w, err, s.log)
-		return
-	}
-	startIndex, count, err := server.ReadPaginatorParams(vars)
-	if err != nil {
-		server.WriteErrorResponse(w, err, s.log)
-		return
-	}
-	resp, err := s.db.EpochRewards(epoch, startIndex, count)
-	server.WriteResponse(w, resp, err, s.log)
-}
-
+// @Tags Epochs
+// @Id EpochIdentitiesRewardsCount
+// @Param epoch path integer true "epoch"
+// @Success 200 {object} server.Response{result=integer}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Epoch/{epoch}/IdentityRewards/Count [get]
 func (s *httpServer) epochIdentitiesRewardsCount(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("epochIdentitiesRewardsCount", r.RequestURI)
 	defer s.pm.Complete(id)
 
-	epoch, err := server.ToUint(mux.Vars(r), "epoch")
+	epoch, err := server.ReadUint(mux.Vars(r), "epoch")
 	if err != nil {
 		server.WriteErrorResponse(w, err, s.log)
 		return
@@ -833,31 +1049,51 @@ func (s *httpServer) epochIdentitiesRewardsCount(w http.ResponseWriter, r *http.
 	server.WriteResponse(w, resp, err, s.log)
 }
 
+// @Tags Epochs
+// @Id EpochIdentitiesRewards
+// @Param epoch path integer true "epoch"
+// @Param limit query integer true "items to take"
+// @Param continuationToken query string false "continuation token to get next page items"
+// @Success 200 {object} server.ResponsePage{result=[]types.Rewards}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Epoch/{epoch}/IdentityRewards [get]
 func (s *httpServer) epochIdentitiesRewards(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("epochIdentitiesRewards", r.RequestURI)
 	defer s.pm.Complete(id)
 
 	vars := mux.Vars(r)
-	epoch, err := server.ToUint(vars, "epoch")
+	epoch, err := server.ReadUint(vars, "epoch")
 	if err != nil {
 		server.WriteErrorResponse(w, err, s.log)
 		return
 	}
-	startIndex, count, err := server.ReadPaginatorParams(vars)
+	count, continuationToken, err := server.ReadPaginatorParams(r.Form)
 	if err != nil {
 		server.WriteErrorResponse(w, err, s.log)
 		return
 	}
-	resp, err := s.db.EpochIdentitiesRewards(epoch, startIndex, count)
-	server.WriteResponse(w, resp, err, s.log)
+	resp, nextContinuationToken, err := s.db.EpochIdentitiesRewards(epoch, count, continuationToken)
+	server.WriteResponsePage(w, resp, nextContinuationToken, err, s.log)
 }
 
+// @Tags Epochs
+// @Id EpochFundPayments
+// @Param epoch path integer true "epoch"
+// @Success 200 {object} server.Response{result=[]types.FundPayment}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Epoch/{epoch}/FundPayments [get]
 func (s *httpServer) epochFundPayments(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("epochFundPayments", r.RequestURI)
 	defer s.pm.Complete(id)
 
 	vars := mux.Vars(r)
-	epoch, err := server.ToUint(vars, "epoch")
+	epoch, err := server.ReadUint(vars, "epoch")
 	if err != nil {
 		server.WriteErrorResponse(w, err, s.log)
 		return
@@ -866,12 +1102,22 @@ func (s *httpServer) epochFundPayments(w http.ResponseWriter, r *http.Request) {
 	server.WriteResponse(w, resp, err, s.log)
 }
 
+// @Tags Identity
+// @Id EpochIdentity
+// @Param epoch path integer true "epoch"
+// @Param address path string true "address"
+// @Success 200 {object} server.Response{result=types.EpochIdentity}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Epoch/{epoch}/Identity/{address} [get]
 func (s *httpServer) epochIdentity(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("epochIdentity", r.RequestURI)
 	defer s.pm.Complete(id)
 
 	vars := mux.Vars(r)
-	epoch, err := server.ToUint(vars, "epoch")
+	epoch, err := server.ReadUint(vars, "epoch")
 	if err != nil {
 		server.WriteErrorResponse(w, err, s.log)
 		return
@@ -880,12 +1126,22 @@ func (s *httpServer) epochIdentity(w http.ResponseWriter, r *http.Request) {
 	server.WriteResponse(w, resp, err, s.log)
 }
 
+// @Tags Identity
+// @Id EpochIdentityShortFlipsToSolve
+// @Param epoch path integer true "epoch"
+// @Param address path string true "address"
+// @Success 200 {object} server.Response{result=[]string}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Epoch/{epoch}/Identity/{address}/FlipsToSolve/Short [get]
 func (s *httpServer) epochIdentityShortFlipsToSolve(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("epochIdentityShortFlipsToSolve", r.RequestURI)
 	defer s.pm.Complete(id)
 
 	vars := mux.Vars(r)
-	epoch, err := server.ToUint(vars, "epoch")
+	epoch, err := server.ReadUint(vars, "epoch")
 	if err != nil {
 		server.WriteErrorResponse(w, err, s.log)
 		return
@@ -894,12 +1150,22 @@ func (s *httpServer) epochIdentityShortFlipsToSolve(w http.ResponseWriter, r *ht
 	server.WriteResponse(w, resp, err, s.log)
 }
 
+// @Tags Identity
+// @Id EpochIdentityLongFlipsToSolve
+// @Param epoch path integer true "epoch"
+// @Param address path string true "address"
+// @Success 200 {object} server.Response{result=[]string}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Epoch/{epoch}/Identity/{address}/FlipsToSolve/Long [get]
 func (s *httpServer) epochIdentityLongFlipsToSolve(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("epochIdentityLongFlipsToSolve", r.RequestURI)
 	defer s.pm.Complete(id)
 
 	vars := mux.Vars(r)
-	epoch, err := server.ToUint(vars, "epoch")
+	epoch, err := server.ReadUint(vars, "epoch")
 	if err != nil {
 		server.WriteErrorResponse(w, err, s.log)
 		return
@@ -908,12 +1174,22 @@ func (s *httpServer) epochIdentityLongFlipsToSolve(w http.ResponseWriter, r *htt
 	server.WriteResponse(w, resp, err, s.log)
 }
 
-func (s *httpServer) epochIdentityShortAnswes(w http.ResponseWriter, r *http.Request) {
-	id := s.pm.Start("epochIdentityShortAnswes", r.RequestURI)
+// @Tags Identity
+// @Id EpochIdentityShortAnswers
+// @Param epoch path integer true "epoch"
+// @Param address path string true "address"
+// @Success 200 {object} server.Response{result=[]types.Answer}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Epoch/{epoch}/Identity/{address}/Answers/Short [get]
+func (s *httpServer) epochIdentityShortAnswers(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("epochIdentityShortAnswers", r.RequestURI)
 	defer s.pm.Complete(id)
 
 	vars := mux.Vars(r)
-	epoch, err := server.ToUint(vars, "epoch")
+	epoch, err := server.ReadUint(vars, "epoch")
 	if err != nil {
 		server.WriteErrorResponse(w, err, s.log)
 		return
@@ -922,12 +1198,22 @@ func (s *httpServer) epochIdentityShortAnswes(w http.ResponseWriter, r *http.Req
 	server.WriteResponse(w, resp, err, s.log)
 }
 
+// @Tags Identity
+// @Id EpochIdentityLongAnswers
+// @Param epoch path integer true "epoch"
+// @Param address path string true "address"
+// @Success 200 {object} server.Response{result=[]types.Answer}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Epoch/{epoch}/Identity/{address}/Answers/Long [get]
 func (s *httpServer) epochIdentityLongAnswers(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("epochIdentityLongAnswers", r.RequestURI)
 	defer s.pm.Complete(id)
 
 	vars := mux.Vars(r)
-	epoch, err := server.ToUint(vars, "epoch")
+	epoch, err := server.ReadUint(vars, "epoch")
 	if err != nil {
 		server.WriteErrorResponse(w, err, s.log)
 		return
@@ -936,12 +1222,22 @@ func (s *httpServer) epochIdentityLongAnswers(w http.ResponseWriter, r *http.Req
 	server.WriteResponse(w, resp, err, s.log)
 }
 
+// @Tags Identity
+// @Id EpochIdentityFlips
+// @Param epoch path integer true "epoch"
+// @Param address path string true "address"
+// @Success 200 {object} server.Response{result=[]types.FlipSummary}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Epoch/{epoch}/Identity/{address}/Flips [get]
 func (s *httpServer) epochIdentityFlips(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("epochIdentityFlips", r.RequestURI)
 	defer s.pm.Complete(id)
 
 	vars := mux.Vars(r)
-	epoch, err := server.ToUint(vars, "epoch")
+	epoch, err := server.ReadUint(vars, "epoch")
 	if err != nil {
 		server.WriteErrorResponse(w, err, s.log)
 		return
@@ -950,12 +1246,22 @@ func (s *httpServer) epochIdentityFlips(w http.ResponseWriter, r *http.Request) 
 	server.WriteResponse(w, resp, err, s.log)
 }
 
+// @Tags Identity
+// @Id EpochIdentityRewardedFlips
+// @Param epoch path integer true "epoch"
+// @Param address path string true "address"
+// @Success 200 {object} server.Response{result=[]types.FlipWithRewardFlag}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Epoch/{epoch}/Identity/{address}/RewardedFlips [get]
 func (s *httpServer) epochIdentityFlipsWithRewardFlag(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("epochIdentityFlipsWithRewardFlag", r.RequestURI)
 	defer s.pm.Complete(id)
 
 	vars := mux.Vars(r)
-	epoch, err := server.ToUint(vars, "epoch")
+	epoch, err := server.ReadUint(vars, "epoch")
 	if err != nil {
 		server.WriteErrorResponse(w, err, s.log)
 		return
@@ -964,12 +1270,22 @@ func (s *httpServer) epochIdentityFlipsWithRewardFlag(w http.ResponseWriter, r *
 	server.WriteResponse(w, resp, err, s.log)
 }
 
+// @Tags Identity
+// @Id EpochIdentityBadAuthor
+// @Param epoch path integer true "epoch"
+// @Param address path string true "address"
+// @Success 200 {object} server.Response{result=types.BadAuthor}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Epoch/{epoch}/Identity/{address}/Authors/Bad [get]
 func (s *httpServer) epochIdentityBadAuthor(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("epochIdentityBadAuthor", r.RequestURI)
 	defer s.pm.Complete(id)
 
 	vars := mux.Vars(r)
-	epoch, err := server.ToUint(vars, "epoch")
+	epoch, err := server.ReadUint(vars, "epoch")
 	if err != nil {
 		server.WriteErrorResponse(w, err, s.log)
 		return
@@ -978,12 +1294,22 @@ func (s *httpServer) epochIdentityBadAuthor(w http.ResponseWriter, r *http.Reque
 	server.WriteResponse(w, resp, err, s.log)
 }
 
+// @Tags Identity
+// @Id EpochIdentityValidationTxs
+// @Param epoch path integer true "epoch"
+// @Param address path string true "address"
+// @Success 200 {object} server.Response{result=[]types.TransactionSummary}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Epoch/{epoch}/Identity/{address}/ValidationTxs [get]
 func (s *httpServer) epochIdentityValidationTxs(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("epochIdentityValidationTxs", r.RequestURI)
 	defer s.pm.Complete(id)
 
 	vars := mux.Vars(r)
-	epoch, err := server.ToUint(vars, "epoch")
+	epoch, err := server.ReadUint(vars, "epoch")
 	if err != nil {
 		server.WriteErrorResponse(w, err, s.log)
 		return
@@ -992,12 +1318,22 @@ func (s *httpServer) epochIdentityValidationTxs(w http.ResponseWriter, r *http.R
 	server.WriteResponse(w, resp, err, s.log)
 }
 
+// @Tags Identity
+// @Id EpochIdentityRewards
+// @Param epoch path integer true "epoch"
+// @Param address path string true "address"
+// @Success 200 {object} server.Response{result=[]types.Reward}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Epoch/{epoch}/Identity/{address}/Rewards [get]
 func (s *httpServer) epochIdentityRewards(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("epochIdentityRewards", r.RequestURI)
 	defer s.pm.Complete(id)
 
 	vars := mux.Vars(r)
-	epoch, err := server.ToUint(vars, "epoch")
+	epoch, err := server.ReadUint(vars, "epoch")
 	if err != nil {
 		server.WriteErrorResponse(w, err, s.log)
 		return
@@ -1006,12 +1342,22 @@ func (s *httpServer) epochIdentityRewards(w http.ResponseWriter, r *http.Request
 	server.WriteResponse(w, resp, err, s.log)
 }
 
+// @Tags Identity
+// @Id EpochIdentityRewardedInvites
+// @Param epoch path integer true "epoch"
+// @Param address path string true "address"
+// @Success 200 {object} server.Response{result=[]types.InviteWithRewardFlag}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Epoch/{epoch}/Identity/{address}/RewardedInvites [get]
 func (s *httpServer) epochIdentityInvitesWithRewardFlag(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("epochIdentityInvitesWithRewardFlag", r.RequestURI)
 	defer s.pm.Complete(id)
 
 	vars := mux.Vars(r)
-	epoch, err := server.ToUint(vars, "epoch")
+	epoch, err := server.ReadUint(vars, "epoch")
 	if err != nil {
 		server.WriteErrorResponse(w, err, s.log)
 		return
@@ -1020,12 +1366,22 @@ func (s *httpServer) epochIdentityInvitesWithRewardFlag(w http.ResponseWriter, r
 	server.WriteResponse(w, resp, err, s.log)
 }
 
+// @Tags Identity
+// @Id EpochIdentitySavedInviteRewards
+// @Param epoch path integer true "epoch"
+// @Param address path string true "address"
+// @Success 200 {object} server.Response{result=[]types.SavedInviteRewardCount}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Epoch/{epoch}/Identity/{address}/SavedInviteRewards [get]
 func (s *httpServer) epochIdentitySavedInviteRewards(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("epochIdentitySavedInviteRewards", r.RequestURI)
 	defer s.pm.Complete(id)
 
 	vars := mux.Vars(r)
-	epoch, err := server.ToUint(vars, "epoch")
+	epoch, err := server.ReadUint(vars, "epoch")
 	if err != nil {
 		server.WriteErrorResponse(w, err, s.log)
 		return
@@ -1034,12 +1390,22 @@ func (s *httpServer) epochIdentitySavedInviteRewards(w http.ResponseWriter, r *h
 	server.WriteResponse(w, resp, err, s.log)
 }
 
+// @Tags Identity
+// @Id EpochIdentityAvailableInvites
+// @Param epoch path integer true "epoch"
+// @Param address path string true "address"
+// @Success 200 {object} server.Response{result=[]types.EpochInvites}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Epoch/{epoch}/Identity/{address}/AvailableInvites [get]
 func (s *httpServer) epochIdentityAvailableInvites(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("epochIdentityAvailableInvites", r.RequestURI)
 	defer s.pm.Complete(id)
 
 	vars := mux.Vars(r)
-	epoch, err := server.ToUint(vars, "epoch")
+	epoch, err := server.ReadUint(vars, "epoch")
 	if err != nil {
 		server.WriteErrorResponse(w, err, s.log)
 		return
@@ -1048,13 +1414,22 @@ func (s *httpServer) epochIdentityAvailableInvites(w http.ResponseWriter, r *htt
 	server.WriteResponse(w, resp, err, s.log)
 }
 
+// @Tags Block
+// @Id Block
+// @Param id path string true "block hash or height"
+// @Success 200 {object} server.Response{result=types.BlockDetail}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Block/{id} [get]
 func (s *httpServer) block(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("block", r.RequestURI)
 	defer s.pm.Complete(id)
 
 	var resp interface{}
 	vars := mux.Vars(r)
-	height, err := server.ToUint(vars, "id")
+	height, err := server.ReadUint(vars, "id")
 	if err != nil {
 		resp, err = s.db.BlockByHash(vars["id"])
 	} else {
@@ -1063,13 +1438,22 @@ func (s *httpServer) block(w http.ResponseWriter, r *http.Request) {
 	server.WriteResponse(w, resp, err, s.log)
 }
 
+// @Tags Block
+// @Id BlockTxsCount
+// @Param id path string true "block hash or height"
+// @Success 200 {object} server.Response{result=integer}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Block/{id}/Txs/Count [get]
 func (s *httpServer) blockTxsCount(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("blockTxsCount", r.RequestURI)
 	defer s.pm.Complete(id)
 
 	var resp interface{}
 	vars := mux.Vars(r)
-	height, err := server.ToUint(vars, "id")
+	height, err := server.ReadUint(vars, "id")
 	if err != nil {
 		resp, err = s.db.BlockTxsCountByHash(vars["id"])
 	} else {
@@ -1078,33 +1462,54 @@ func (s *httpServer) blockTxsCount(w http.ResponseWriter, r *http.Request) {
 	server.WriteResponse(w, resp, err, s.log)
 }
 
+// @Tags Block
+// @Id BlockTxs
+// @Param id path string true "block hash or height"
+// @Param limit query integer true "items to take"
+// @Param continuationToken query string false "continuation token to get next page items"
+// @Success 200 {object} server.ResponsePage{result=[]types.TransactionSummary{data=types.TransactionSpecificData}}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Block/{id}/Txs [get]
 func (s *httpServer) blockTxs(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("blockTxs", r.RequestURI)
 	defer s.pm.Complete(id)
 
-	var resp interface{}
-	vars := mux.Vars(r)
-	startIndex, count, err := server.ReadPaginatorParams(vars)
+	count, continuationToken, err := server.ReadPaginatorParams(r.Form)
 	if err != nil {
 		server.WriteErrorResponse(w, err, s.log)
 		return
 	}
-	height, err := server.ToUint(vars, "id")
+	vars := mux.Vars(r)
+	height, err := server.ReadUint(vars, "id")
+	var resp interface{}
+	var nextContinuationToken *string
 	if err != nil {
-		resp, err = s.db.BlockTxsByHash(vars["id"], startIndex, count)
+		resp, nextContinuationToken, err = s.db.BlockTxsByHash(vars["id"], count, continuationToken)
 	} else {
-		resp, err = s.db.BlockTxsByHeight(height, startIndex, count)
+		resp, nextContinuationToken, err = s.db.BlockTxsByHeight(height, count, continuationToken)
 	}
-	server.WriteResponse(w, resp, err, s.log)
+	server.WriteResponsePage(w, resp, nextContinuationToken, err, s.log)
 }
 
+// @Tags Block
+// @Id BlockCoins
+// @Param id path string true "block hash or height"
+// @Success 200 {object} server.Response{result=types.AllCoins}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Block/{id}/Coins [get]
 func (s *httpServer) blockCoins(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("blockCoins", r.RequestURI)
 	defer s.pm.Complete(id)
 
 	var resp interface{}
 	vars := mux.Vars(r)
-	height, err := server.ToUint(vars, "id")
+	height, err := server.ReadUint(vars, "id")
 	if err != nil {
 		resp, err = s.db.BlockCoinsByHash(vars["id"])
 	} else {
@@ -1113,6 +1518,15 @@ func (s *httpServer) blockCoins(w http.ResponseWriter, r *http.Request) {
 	server.WriteResponse(w, resp, err, s.log)
 }
 
+// @Tags Identity
+// @Id Identity
+// @Param address path string true "address"
+// @Success 200 {object} server.Response{result=types.Identity}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Identity/{address} [get]
 func (s *httpServer) identity(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("identity", r.RequestURI)
 	defer s.pm.Complete(id)
@@ -1121,6 +1535,15 @@ func (s *httpServer) identity(w http.ResponseWriter, r *http.Request) {
 	server.WriteResponse(w, resp, err, s.log)
 }
 
+// @Tags Identity
+// @Id IdentityAge
+// @Param address path string true "address"
+// @Success 200 {object} server.Response{result=integer}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Identity/{address}/Age [get]
 func (s *httpServer) identityAge(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("identityAge", r.RequestURI)
 	defer s.pm.Complete(id)
@@ -1129,6 +1552,15 @@ func (s *httpServer) identityAge(w http.ResponseWriter, r *http.Request) {
 	server.WriteResponse(w, resp, err, s.log)
 }
 
+// @Tags Identity
+// @Id IdentityCurrentFlipCids
+// @Param address path string true "address"
+// @Success 200 {object} server.Response{result=[]string}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Identity/{address}/CurrentFlipCids [get]
 func (s *httpServer) identityCurrentFlipCids(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("identityCurrentFlipCids", r.RequestURI)
 	defer s.pm.Complete(id)
@@ -1137,6 +1569,15 @@ func (s *httpServer) identityCurrentFlipCids(w http.ResponseWriter, r *http.Requ
 	server.WriteResponse(w, resp, err, s.log)
 }
 
+// @Tags Identity
+// @Id IdentityEpochsCount
+// @Param address path string true "address"
+// @Success 200 {object} server.Response{result=integer}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Identity/{address}/Epochs/Count [get]
 func (s *httpServer) identityEpochsCount(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("identityEpochsCount", r.RequestURI)
 	defer s.pm.Complete(id)
@@ -1145,20 +1586,39 @@ func (s *httpServer) identityEpochsCount(w http.ResponseWriter, r *http.Request)
 	server.WriteResponse(w, resp, err, s.log)
 }
 
+// @Tags Identity
+// @Id IdentityEpochs
+// @Param address path string true "address"
+// @Param limit query integer true "items to take"
+// @Param continuationToken query string false "continuation token to get next page items"
+// @Success 200 {object} server.ResponsePage{result=[]types.EpochIdentity}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Identity/{address}/Epochs [get]
 func (s *httpServer) identityEpochs(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("identityEpochs", r.RequestURI)
 	defer s.pm.Complete(id)
-
-	vars := mux.Vars(r)
-	startIndex, count, err := server.ReadPaginatorParams(vars)
+	count, continuationToken, err := server.ReadPaginatorParams(r.Form)
 	if err != nil {
 		server.WriteErrorResponse(w, err, s.log)
 		return
 	}
-	resp, err := s.db.IdentityEpochs(vars["address"], startIndex, count)
-	server.WriteResponse(w, resp, err, s.log)
+	vars := mux.Vars(r)
+	resp, nextContinuationToken, err := s.db.IdentityEpochs(vars["address"], count, continuationToken)
+	server.WriteResponsePage(w, resp, nextContinuationToken, err, s.log)
 }
 
+// @Tags Identity
+// @Id IdentityFlipsCount
+// @Param address path string true "address"
+// @Success 200 {object} server.Response{result=integer}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Identity/{address}/Flips/Count [get]
 func (s *httpServer) identityFlipsCount(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("identityFlipsCount", r.RequestURI)
 	defer s.pm.Complete(id)
@@ -1167,20 +1627,39 @@ func (s *httpServer) identityFlipsCount(w http.ResponseWriter, r *http.Request) 
 	server.WriteResponse(w, resp, err, s.log)
 }
 
+// @Tags Identity
+// @Id IdentityFlips
+// @Param address path string true "address"
+// @Param limit query integer true "items to take"
+// @Param continuationToken query string false "continuation token to get next page items"
+// @Success 200 {object} server.ResponsePage{result=[]types.FlipSummary}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Identity/{address}/Flips [get]
 func (s *httpServer) identityFlips(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("identityFlips", r.RequestURI)
 	defer s.pm.Complete(id)
-
-	vars := mux.Vars(r)
-	startIndex, count, err := server.ReadPaginatorParams(vars)
+	count, continuationToken, err := server.ReadPaginatorParams(r.Form)
 	if err != nil {
 		server.WriteErrorResponse(w, err, s.log)
 		return
 	}
-	resp, err := s.db.IdentityFlips(vars["address"], startIndex, count)
-	server.WriteResponse(w, resp, err, s.log)
+	vars := mux.Vars(r)
+	resp, nextContinuationToken, err := s.db.IdentityFlips(vars["address"], count, continuationToken)
+	server.WriteResponsePage(w, resp, nextContinuationToken, err, s.log)
 }
 
+// @Tags Identity
+// @Id IdentityFlipStates
+// @Param address path string true "address"
+// @Success 200 {object} server.Response{result=[]types.FlipStateCount}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Identity/{address}/FlipStates [get]
 func (s *httpServer) identityFlipStates(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("identityFlipStates", r.RequestURI)
 	defer s.pm.Complete(id)
@@ -1189,6 +1668,15 @@ func (s *httpServer) identityFlipStates(w http.ResponseWriter, r *http.Request) 
 	server.WriteResponse(w, resp, err, s.log)
 }
 
+// @Tags Identity
+// @Id IdentityFlipQualifiedAnswers
+// @Param address path string true "address"
+// @Success 200 {object} server.Response{result=[]types.FlipAnswerCount}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Identity/{address}/FlipQualifiedAnswers [get]
 func (s *httpServer) identityFlipRightAnswers(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("identityFlipRightAnswers", r.RequestURI)
 	defer s.pm.Complete(id)
@@ -1197,6 +1685,15 @@ func (s *httpServer) identityFlipRightAnswers(w http.ResponseWriter, r *http.Req
 	server.WriteResponse(w, resp, err, s.log)
 }
 
+// @Tags Identity
+// @Id IdentityInvitesCount
+// @Param address path string true "address"
+// @Success 200 {object} server.Response{result=integer}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Identity/{address}/Invites/Count [get]
 func (s *httpServer) identityInvitesCount(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("identityInvitesCount", r.RequestURI)
 	defer s.pm.Complete(id)
@@ -1205,20 +1702,39 @@ func (s *httpServer) identityInvitesCount(w http.ResponseWriter, r *http.Request
 	server.WriteResponse(w, resp, err, s.log)
 }
 
+// @Tags Identity
+// @Id IdentityInvites
+// @Param address path string true "address"
+// @Param limit query integer true "items to take"
+// @Param continuationToken query string false "continuation token to get next page items"
+// @Success 200 {object} server.ResponsePage{result=[]types.Invite}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Identity/{address}/Invites [get]
 func (s *httpServer) identityInvites(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("identityInvites", r.RequestURI)
 	defer s.pm.Complete(id)
-
-	vars := mux.Vars(r)
-	startIndex, count, err := server.ReadPaginatorParams(vars)
+	count, continuationToken, err := server.ReadPaginatorParams(r.Form)
 	if err != nil {
 		server.WriteErrorResponse(w, err, s.log)
 		return
 	}
-	resp, err := s.db.IdentityInvites(vars["address"], startIndex, count)
-	server.WriteResponse(w, resp, err, s.log)
+	vars := mux.Vars(r)
+	resp, nextContinuationToken, err := s.db.IdentityInvites(vars["address"], count, continuationToken)
+	server.WriteResponsePage(w, resp, nextContinuationToken, err, s.log)
 }
 
+// @Tags Address
+// @Id AddressTxsCount
+// @Param address path string true "address"
+// @Success 200 {object} server.Response{result=integer}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Address/{address}/Txs/Count [get]
 func (s *httpServer) identityTxsCount(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("identityTxsCount", r.RequestURI)
 	defer s.pm.Complete(id)
@@ -1227,20 +1743,39 @@ func (s *httpServer) identityTxsCount(w http.ResponseWriter, r *http.Request) {
 	server.WriteResponse(w, resp, err, s.log)
 }
 
+// @Tags Address
+// @Id AddressTxs
+// @Param address path string true "address"
+// @Param limit query integer true "items to take"
+// @Param continuationToken query string false "continuation token to get next page items"
+// @Success 200 {object} server.ResponsePage{result=[]types.TransactionSummary}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Address/{address}/Txs [get]
 func (s *httpServer) identityTxs(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("identityTxs", r.RequestURI)
 	defer s.pm.Complete(id)
-
-	vars := mux.Vars(r)
-	startIndex, count, err := server.ReadPaginatorParams(vars)
+	count, continuationToken, err := server.ReadPaginatorParams(r.Form)
 	if err != nil {
 		server.WriteErrorResponse(w, err, s.log)
 		return
 	}
-	resp, err := s.db.IdentityTxs(vars["address"], startIndex, count)
-	server.WriteResponse(w, resp, err, s.log)
+	vars := mux.Vars(r)
+	resp, nextContinuationToken, err := s.db.IdentityTxs(vars["address"], count, continuationToken)
+	server.WriteResponsePage(w, resp, nextContinuationToken, err, s.log)
 }
 
+// @Tags Identity
+// @Id IdentityRewardsCount
+// @Param address path string true "address"
+// @Success 200 {object} server.Response{result=integer}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Identity/{address}/Rewards/Count [get]
 func (s *httpServer) identityRewardsCount(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("identityRewardsCount", r.RequestURI)
 	defer s.pm.Complete(id)
@@ -1249,20 +1784,39 @@ func (s *httpServer) identityRewardsCount(w http.ResponseWriter, r *http.Request
 	server.WriteResponse(w, resp, err, s.log)
 }
 
+// @Tags Identity
+// @Id IdentityRewards
+// @Param address path string true "address"
+// @Param limit query integer true "items to take"
+// @Param continuationToken query string false "continuation token to get next page items"
+// @Success 200 {object} server.ResponsePage{result=[]types.Reward}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Identity/{address}/Rewards [get]
 func (s *httpServer) identityRewards(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("identityRewards", r.RequestURI)
 	defer s.pm.Complete(id)
-
-	vars := mux.Vars(r)
-	startIndex, count, err := server.ReadPaginatorParams(vars)
+	count, continuationToken, err := server.ReadPaginatorParams(r.Form)
 	if err != nil {
 		server.WriteErrorResponse(w, err, s.log)
 		return
 	}
-	resp, err := s.db.IdentityRewards(vars["address"], startIndex, count)
-	server.WriteResponse(w, resp, err, s.log)
+	vars := mux.Vars(r)
+	resp, nextContinuationToken, err := s.db.IdentityRewards(vars["address"], count, continuationToken)
+	server.WriteResponsePage(w, resp, nextContinuationToken, err, s.log)
 }
 
+// @Tags Identity
+// @Id IdentityEpochRewardsCount
+// @Param address path string true "address"
+// @Success 200 {object} server.Response{result=integer}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Identity/{address}/EpochRewards/Count [get]
 func (s *httpServer) identityEpochRewardsCount(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("identityEpochRewardsCount", r.RequestURI)
 	defer s.pm.Complete(id)
@@ -1271,20 +1825,39 @@ func (s *httpServer) identityEpochRewardsCount(w http.ResponseWriter, r *http.Re
 	server.WriteResponse(w, resp, err, s.log)
 }
 
+// @Tags Identity
+// @Id IdentityEpochRewards
+// @Param address path string true "address"
+// @Param limit query integer true "items to take"
+// @Param continuationToken query string false "continuation token to get next page items"
+// @Success 200 {object} server.ResponsePage{result=[]types.Rewards}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Identity/{address}/EpochRewards [get]
 func (s *httpServer) identityEpochRewards(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("identityEpochRewards", r.RequestURI)
 	defer s.pm.Complete(id)
-
-	vars := mux.Vars(r)
-	startIndex, count, err := server.ReadPaginatorParams(vars)
+	count, continuationToken, err := server.ReadPaginatorParams(r.Form)
 	if err != nil {
 		server.WriteErrorResponse(w, err, s.log)
 		return
 	}
-	resp, err := s.db.IdentityEpochRewards(vars["address"], startIndex, count)
-	server.WriteResponse(w, resp, err, s.log)
+	vars := mux.Vars(r)
+	resp, nextContinuationToken, err := s.db.IdentityEpochRewards(vars["address"], count, continuationToken)
+	server.WriteResponsePage(w, resp, nextContinuationToken, err, s.log)
 }
 
+// @Tags Flip
+// @Id Flip
+// @Param hash path string true "flip hash"
+// @Success 200 {object} server.Response{result=types.Flip}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Flip/{hash} [get]
 func (s *httpServer) flip(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("flip", r.RequestURI)
 	defer s.pm.Complete(id)
@@ -1293,6 +1866,15 @@ func (s *httpServer) flip(w http.ResponseWriter, r *http.Request) {
 	server.WriteResponse(w, resp, err, s.log)
 }
 
+// @Tags Flip
+// @Id FlipContent
+// @Param hash path string true "flip hash"
+// @Success 200 {object} server.Response{result=types.FlipContent}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Flip/{hash}/Content [get]
 func (s *httpServer) flipContent(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("flipContent", r.RequestURI)
 	defer s.pm.Complete(id)
@@ -1301,13 +1883,15 @@ func (s *httpServer) flipContent(w http.ResponseWriter, r *http.Request) {
 	server.WriteResponse(w, resp, err, s.log)
 }
 
-func (s *httpServer) flipShortAnswersCount(w http.ResponseWriter, r *http.Request) {
-	id := s.pm.Start("flipShortAnswersCount", r.RequestURI)
-	defer s.pm.Complete(id)
-
-	s.flipAnswersCount(w, r, true)
-}
-
+// @Tags Flip
+// @Id FlipShortAnswers
+// @Param hash path string true "flip hash"
+// @Success 200 {object} server.Response{result=[]types.Answer}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Flip/{hash}/Answers/Short [get]
 func (s *httpServer) flipShortAnswers(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("flipShortAnswers", r.RequestURI)
 	defer s.pm.Complete(id)
@@ -1315,13 +1899,15 @@ func (s *httpServer) flipShortAnswers(w http.ResponseWriter, r *http.Request) {
 	s.flipAnswers(w, r, true)
 }
 
-func (s *httpServer) flipLongAnswersCount(w http.ResponseWriter, r *http.Request) {
-	id := s.pm.Start("flipLongAnswersCount", r.RequestURI)
-	defer s.pm.Complete(id)
-
-	s.flipAnswersCount(w, r, false)
-}
-
+// @Tags Flip
+// @Id FlipLongAnswers
+// @Param hash path string true "flip hash"
+// @Success 200 {object} server.Response{result=[]types.Answer}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Flip/{hash}/Answers/Long [get]
 func (s *httpServer) flipLongAnswers(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("flipLongAnswers", r.RequestURI)
 	defer s.pm.Complete(id)
@@ -1329,19 +1915,9 @@ func (s *httpServer) flipLongAnswers(w http.ResponseWriter, r *http.Request) {
 	s.flipAnswers(w, r, false)
 }
 
-func (s *httpServer) flipAnswersCount(w http.ResponseWriter, r *http.Request, isShort bool) {
-	resp, err := s.db.FlipAnswersCount(mux.Vars(r)["hash"], isShort)
-	server.WriteResponse(w, resp, err, s.log)
-}
-
 func (s *httpServer) flipAnswers(w http.ResponseWriter, r *http.Request, isShort bool) {
 	vars := mux.Vars(r)
-	startIndex, count, err := server.ReadPaginatorParams(vars)
-	if err != nil {
-		server.WriteErrorResponse(w, err, s.log)
-		return
-	}
-	resp, err := s.db.FlipAnswers(vars["hash"], isShort, startIndex, count)
+	resp, err := s.db.FlipAnswers(vars["hash"], isShort)
 	server.WriteResponse(w, resp, err, s.log)
 }
 
@@ -1353,22 +1929,15 @@ func (s *httpServer) flipEpochAdjacentFlips(w http.ResponseWriter, r *http.Reque
 	server.WriteResponse(w, resp, err, s.log)
 }
 
-func (s *httpServer) flipAddressAdjacentFlips(w http.ResponseWriter, r *http.Request) {
-	id := s.pm.Start("flipAddressAdjacentFlips", r.RequestURI)
-	defer s.pm.Complete(id)
-
-	resp, err := s.db.FlipAddressAdjacentFlips(mux.Vars(r)["hash"])
-	server.WriteResponse(w, resp, err, s.log)
-}
-
-func (s *httpServer) flipEpochIdentityAdjacentFlips(w http.ResponseWriter, r *http.Request) {
-	id := s.pm.Start("flipEpochIdentityAdjacentFlips", r.RequestURI)
-	defer s.pm.Complete(id)
-
-	resp, err := s.db.FlipEpochIdentityAdjacentFlips(mux.Vars(r)["hash"])
-	server.WriteResponse(w, resp, err, s.log)
-}
-
+// @Tags Address
+// @Id Address
+// @Param address path string true "address"
+// @Success 200 {object} server.Response{result=types.Address}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Address/{address} [get]
 func (s *httpServer) address(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("address", r.RequestURI)
 	defer s.pm.Complete(id)
@@ -1377,6 +1946,15 @@ func (s *httpServer) address(w http.ResponseWriter, r *http.Request) {
 	server.WriteResponse(w, resp, err, s.log)
 }
 
+// @Tags Address
+// @Id AddressPenaltiesCount
+// @Param address path string true "address"
+// @Success 200 {object} server.Response{result=integer}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Address/{address}/Penalties/Count [get]
 func (s *httpServer) addressPenaltiesCount(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("addressPenaltiesCount", r.RequestURI)
 	defer s.pm.Complete(id)
@@ -1385,62 +1963,28 @@ func (s *httpServer) addressPenaltiesCount(w http.ResponseWriter, r *http.Reques
 	server.WriteResponse(w, resp, err, s.log)
 }
 
+// @Tags Address
+// @Id AddressPenalties
+// @Param address path string true "address"
+// @Param limit query integer true "items to take"
+// @Param continuationToken query string false "continuation token to get next page items"
+// @Success 200 {object} server.ResponsePage{result=[]types.Penalty}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Address/{address}/Penalties [get]
 func (s *httpServer) addressPenalties(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("addressPenalties", r.RequestURI)
 	defer s.pm.Complete(id)
-
-	vars := mux.Vars(r)
-	startIndex, count, err := server.ReadPaginatorParams(vars)
+	count, continuationToken, err := server.ReadPaginatorParams(r.Form)
 	if err != nil {
 		server.WriteErrorResponse(w, err, s.log)
 		return
 	}
-	resp, err := s.db.AddressPenalties(vars["address"], startIndex, count)
-	server.WriteResponse(w, resp, err, s.log)
-}
-
-func (s *httpServer) addressMiningRewardsCount(w http.ResponseWriter, r *http.Request) {
-	id := s.pm.Start("addressMiningRewardsCount", r.RequestURI)
-	defer s.pm.Complete(id)
-
-	resp, err := s.db.AddressMiningRewardsCount(mux.Vars(r)["address"])
-	server.WriteResponse(w, resp, err, s.log)
-}
-
-func (s *httpServer) addressMiningRewards(w http.ResponseWriter, r *http.Request) {
-	id := s.pm.Start("addressMiningRewards", r.RequestURI)
-	defer s.pm.Complete(id)
-
 	vars := mux.Vars(r)
-	startIndex, count, err := server.ReadPaginatorParams(vars)
-	if err != nil {
-		server.WriteErrorResponse(w, err, s.log)
-		return
-	}
-	resp, err := s.db.AddressMiningRewards(vars["address"], startIndex, count)
-	server.WriteResponse(w, resp, err, s.log)
-}
-
-func (s *httpServer) addressBlockMiningRewardsCount(w http.ResponseWriter, r *http.Request) {
-	id := s.pm.Start("addressBlockMiningRewardsCount", r.RequestURI)
-	defer s.pm.Complete(id)
-
-	resp, err := s.db.AddressBlockMiningRewardsCount(mux.Vars(r)["address"])
-	server.WriteResponse(w, resp, err, s.log)
-}
-
-func (s *httpServer) addressBlockMiningRewards(w http.ResponseWriter, r *http.Request) {
-	id := s.pm.Start("addressBlockMiningRewards", r.RequestURI)
-	defer s.pm.Complete(id)
-
-	vars := mux.Vars(r)
-	startIndex, count, err := server.ReadPaginatorParams(vars)
-	if err != nil {
-		server.WriteErrorResponse(w, err, s.log)
-		return
-	}
-	resp, err := s.db.AddressBlockMiningRewards(vars["address"], startIndex, count)
-	server.WriteResponse(w, resp, err, s.log)
+	resp, nextContinuationToken, err := s.db.AddressPenalties(vars["address"], count, continuationToken)
+	server.WriteResponsePage(w, resp, nextContinuationToken, err, s.log)
 }
 
 func (s *httpServer) addressStatesCount(w http.ResponseWriter, r *http.Request) {
@@ -1454,15 +1998,14 @@ func (s *httpServer) addressStatesCount(w http.ResponseWriter, r *http.Request) 
 func (s *httpServer) addressStates(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("addressStates", r.RequestURI)
 	defer s.pm.Complete(id)
-
-	vars := mux.Vars(r)
-	startIndex, count, err := server.ReadPaginatorParams(vars)
+	count, continuationToken, err := server.ReadPaginatorParams(r.Form)
 	if err != nil {
 		server.WriteErrorResponse(w, err, s.log)
 		return
 	}
-	resp, err := s.db.AddressStates(vars["address"], startIndex, count)
-	server.WriteResponse(w, resp, err, s.log)
+	vars := mux.Vars(r)
+	resp, nextContinuationToken, err := s.db.AddressStates(vars["address"], count, continuationToken)
+	server.WriteResponsePage(w, resp, nextContinuationToken, err, s.log)
 }
 
 func (s *httpServer) addressTotalLatestMiningReward(w http.ResponseWriter, r *http.Request) {
@@ -1492,15 +2035,14 @@ func (s *httpServer) addressBadAuthorsCount(w http.ResponseWriter, r *http.Reque
 func (s *httpServer) addressBadAuthors(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("addressBadAuthors", r.RequestURI)
 	defer s.pm.Complete(id)
-
-	vars := mux.Vars(r)
-	startIndex, count, err := server.ReadPaginatorParams(vars)
+	count, continuationToken, err := server.ReadPaginatorParams(r.Form)
 	if err != nil {
 		server.WriteErrorResponse(w, err, s.log)
 		return
 	}
-	resp, err := s.db.AddressBadAuthors(vars["address"], startIndex, count)
-	server.WriteResponse(w, resp, err, s.log)
+	vars := mux.Vars(r)
+	resp, nextContinuationToken, err := s.db.AddressBadAuthors(vars["address"], count, continuationToken)
+	server.WriteResponsePage(w, resp, nextContinuationToken, err, s.log)
 }
 
 func (s *httpServer) addressBalanceUpdatesCount(w http.ResponseWriter, r *http.Request) {
@@ -1514,17 +2056,25 @@ func (s *httpServer) addressBalanceUpdatesCount(w http.ResponseWriter, r *http.R
 func (s *httpServer) addressBalanceUpdates(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("addressBalanceUpdates", r.RequestURI)
 	defer s.pm.Complete(id)
-
-	vars := mux.Vars(r)
-	startIndex, count, err := server.ReadPaginatorParams(vars)
+	count, continuationToken, err := server.ReadPaginatorParams(r.Form)
 	if err != nil {
 		server.WriteErrorResponse(w, err, s.log)
 		return
 	}
-	resp, err := s.db.AddressBalanceUpdates(vars["address"], startIndex, count)
-	server.WriteResponse(w, resp, err, s.log)
+	vars := mux.Vars(r)
+	resp, nextContinuationToken, err := s.db.AddressBalanceUpdates(vars["address"], count, continuationToken)
+	server.WriteResponsePage(w, resp, nextContinuationToken, err, s.log)
 }
 
+// @Tags Transaction
+// @Id Transaction
+// @Param hash path string true "transaction hash"
+// @Success 200 {object} server.Response{result=types.TransactionDetail{data=types.TransactionSpecificData}}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Transaction/{hash} [get]
 func (s *httpServer) transaction(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("transaction", r.RequestURI)
 	defer s.pm.Complete(id)
@@ -1533,6 +2083,15 @@ func (s *httpServer) transaction(w http.ResponseWriter, r *http.Request) {
 	server.WriteResponse(w, resp, err, s.log)
 }
 
+// @Tags Transaction
+// @Id TransactionRaw
+// @Param hash path string true "transaction hash"
+// @Success 200 {object} server.Response{result=string}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Transaction/{hash}/Raw [get]
 func (s *httpServer) transactionRaw(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("transactionRaw", r.RequestURI)
 	defer s.pm.Complete(id)
@@ -1549,17 +2108,26 @@ func (s *httpServer) balancesCount(w http.ResponseWriter, r *http.Request) {
 	server.WriteResponse(w, resp, err, s.log)
 }
 
+// @Tags Coins
+// @Id Balances
+// @Param limit query integer true "items to take"
+// @Param continuationToken query string false "continuation token to get next page items"
+// @Success 200 {object} server.ResponsePage{result=[]types.Balance}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Balances [get]
 func (s *httpServer) balances(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("balances", r.RequestURI)
 	defer s.pm.Complete(id)
-
-	startIndex, count, err := server.ReadPaginatorParams(mux.Vars(r))
+	count, continuationToken, err := server.ReadPaginatorParams(r.Form)
 	if err != nil {
 		server.WriteErrorResponse(w, err, s.log)
 		return
 	}
-	resp, err := s.db.Balances(startIndex, count)
-	server.WriteResponse(w, resp, err, s.log)
+	resp, nextContinuationToken, err := s.db.Balances(count, continuationToken)
+	server.WriteResponsePage(w, resp, nextContinuationToken, err, s.log)
 }
 
 func (s *httpServer) totalLatestMiningRewardsCount(w http.ResponseWriter, r *http.Request) {
@@ -1574,7 +2142,7 @@ func (s *httpServer) totalLatestMiningRewards(w http.ResponseWriter, r *http.Req
 	id := s.pm.Start("totalLatestMiningRewards", r.RequestURI)
 	defer s.pm.Complete(id)
 
-	startIndex, count, err := server.ReadPaginatorParams(mux.Vars(r))
+	startIndex, count, err := server.ReadOldPaginatorParams(mux.Vars(r))
 	if err != nil {
 		server.WriteErrorResponse(w, err, s.log)
 		return
@@ -1595,7 +2163,7 @@ func (s *httpServer) totalLatestBurntCoins(w http.ResponseWriter, r *http.Reques
 	id := s.pm.Start("totalLatestBurntCoins", r.RequestURI)
 	defer s.pm.Complete(id)
 
-	startIndex, count, err := server.ReadPaginatorParams(mux.Vars(r))
+	startIndex, count, err := server.ReadOldPaginatorParams(mux.Vars(r))
 	if err != nil {
 		server.WriteErrorResponse(w, err, s.log)
 		return

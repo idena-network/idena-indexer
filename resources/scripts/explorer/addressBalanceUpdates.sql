@@ -1,4 +1,5 @@
-select bu.balance_old,
+select bu.id,
+       bu.balance_old,
        bu.stake_old,
        coalesce(bu.penalty_old, 0)            penalty_old,
        bu.balance_new,
@@ -19,8 +20,7 @@ from balance_updates bu
          join dic_balance_update_reasons dicr on dicr.id = bu.reason
          join blocks b on b.height = bu.block_height
          left join blocks lb on lb.height = bu.last_block_height
-where bu.address_id = (select id from addresses where lower(address) = lower($1))
+where ($3::bigint IS NULL OR bu.id <= $3)
+  AND bu.address_id = (select id from addresses where lower(address) = lower($1))
 order by bu.id desc
-limit $3
-offset
-$2
+limit $2

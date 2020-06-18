@@ -287,6 +287,7 @@ ALTER TABLE blocks
 
 CREATE UNIQUE INDEX IF NOT EXISTS blocks_hash_unique_idx on blocks (LOWER(hash));
 CREATE INDEX IF NOT EXISTS blocks_epoch_idx on blocks (epoch);
+CREATE INDEX IF NOT EXISTS blocks_epoch_heights_idx on blocks (epoch, height desc);
 CREATE INDEX IF NOT EXISTS blocks_timestamp_idx on blocks ("timestamp" desc);
 
 -- Table: failed_validations
@@ -798,10 +799,6 @@ CREATE TABLE IF NOT EXISTS flips_to_solve
 ALTER TABLE flips_to_solve
     OWNER to postgres;
 
--- Table: balances
-
--- DROP TABLE balances;
-
 CREATE TABLE IF NOT EXISTS balances
 (
     address_id bigint NOT NULL,
@@ -812,14 +809,8 @@ CREATE TABLE IF NOT EXISTS balances
         REFERENCES addresses (id) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION
-)
-    WITH (
-        OIDS = FALSE
-    )
-    TABLESPACE pg_default;
-
-ALTER TABLE balances
-    OWNER to postgres;
+);
+CREATE INDEX IF NOT EXISTS balances_balance_address_id_idx on balances (balance desc, address_id);
 
 -- Table: birthdays
 

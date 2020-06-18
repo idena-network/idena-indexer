@@ -14,6 +14,3 @@ from answers a
          left join dic_answers fda on fda.id = f.answer
          join dic_answers ida on ida.id = a.answer
 where a.is_short = $2
-limit $4
-offset
-$3
