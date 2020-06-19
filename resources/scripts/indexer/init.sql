@@ -2268,7 +2268,8 @@ BEGIN
 
             if address_row.is_temporary then
                 insert into temporary_identities (address_id, block_height)
-                values (l_address_id, height);
+                values (l_address_id, height)
+                on conflict (address_id) do nothing;
             end if;
         end loop;
 
