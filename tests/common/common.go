@@ -100,6 +100,7 @@ func InitPostgres(
 		&TestWordsLoader{},
 		pm,
 		committeeRewardBlocksCount,
+		false,
 	)
 	return dbConnector, dbAccessor
 }

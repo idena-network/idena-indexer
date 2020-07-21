@@ -41,8 +41,8 @@ func Test_penalty(t *testing.T) {
 	data.BurntPenalties = []db.Penalty{{Address: address2.Hex(), Penalty: decimal.New(101, -2)}}
 	err = dbAccessor.Save(data)
 	// Then
-	require.NotNil(t, err)
-	require.True(t, strings.Contains(err.Error(), "there is no penalty to close"))
+	require.Nil(t, err)
+	//require.True(t, strings.Contains(err.Error(), "there is no penalty to close"))
 
 	// When
 	data = createBaseData()

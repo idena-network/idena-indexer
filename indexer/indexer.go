@@ -50,15 +50,17 @@ var (
 )
 
 type Indexer struct {
-	listener         incoming.Listener
-	memPoolIndexer   *mempool.Indexer
-	db               db.Accessor
-	restorer         *restore.Restorer
-	state            *indexerState
-	secondaryStorage *runtime.SecondaryStorage
-	restore          bool
-	pm               monitoring.PerformanceMonitor
-	flipLoader       flip.Loader
+	listener                    incoming.Listener
+	memPoolIndexer              *mempool.Indexer
+	db                          db.Accessor
+	restorer                    *restore.Restorer
+	state                       *indexerState
+	secondaryStorage            *runtime.SecondaryStorage
+	restore                     bool
+	pm                          monitoring.PerformanceMonitor
+	flipLoader                  flip.Loader
+	firstBlockHeight            uint64
+	firstBlockHeightInitialized bool
 }
 
 type result struct {
@@ -119,15 +121,24 @@ func (indexer *Indexer) statsHolder() stats.StatsHolder {
 }
 
 func (indexer *Indexer) indexBlock(block *types.Block) {
+	indexer.initFirstBlockHeight()
+
 	var genesisBlock *types.Block
 	for {
 		heightToIndex := indexer.getHeightToIndex()
 		if genesisBlock != nil {
 			heightToIndex++
 		}
-
-		if !indexer.isFirstBlock(block) && block.Height() > heightToIndex {
-			panic(fmt.Sprintf("Incoming block height=%d is greater than expected %d", block.Height(), heightToIndex))
+		if block.Height() > heightToIndex {
+			genesisBlock = indexer.getGenesisBlock()
+			if genesisBlock == nil {
+				log.Error("Unable to get genesis block")
+				indexer.waitForRetry()
+				continue
+			}
+			if block.Height() != genesisBlock.Height()+1 {
+				panic(fmt.Sprintf("Incoming block height=%d is greater than expected %d", block.Height(), heightToIndex))
+			}
 		}
 		if block.Height() < heightToIndex {
 			log.Info(fmt.Sprintf("Incoming block height=%d is less than expected %d, start resetting indexer db...", block.Height(), heightToIndex))
@@ -136,9 +147,7 @@ func (indexer *Indexer) indexBlock(block *types.Block) {
 			if !indexer.isFirstBlock(block) && block.Header.ParentHash() == indexer.listener.NodeCtx().Blockchain.Genesis() {
 				log.Info(fmt.Sprintf("Block %d is first after new genesis", block.Height()))
 				heightToReset--
-				genesisBlock = indexer.listener.NodeCtx().Blockchain.GetBlock(
-					indexer.listener.NodeCtx().Blockchain.Genesis(),
-				)
+				genesisBlock = indexer.getGenesisBlock()
 				if genesisBlock == nil {
 					log.Error("Unable to get genesis block")
 					indexer.waitForRetry()
@@ -156,20 +165,13 @@ func (indexer *Indexer) indexBlock(block *types.Block) {
 			continue
 		}
 
-		if indexer.restore {
-			log.Info("Start restoring DB data...")
-			indexer.restorer.Restore()
-			log.Info("DB data has been restored")
-			indexer.restore = false
-		}
-
-		indexer.pm.Start("Convert")
 		err := indexer.initializeStateIfNeeded(block)
 		if err != nil {
 			panic(err)
 		}
 
 		if genesisBlock != nil {
+			indexer.statsHolder().Disable()
 			res, err := indexer.convertIncomingData(genesisBlock)
 			if err != nil {
 				panic(err)
@@ -179,6 +181,15 @@ func (indexer *Indexer) indexBlock(block *types.Block) {
 			genesisBlock = nil
 		}
 
+		if indexer.restore {
+			log.Info("Start restoring DB data...")
+			indexer.restorer.Restore()
+			log.Info("DB data has been restored")
+			indexer.restore = false
+		}
+
+		indexer.statsHolder().Enable()
+		indexer.pm.Start("Convert")
 		res, err := indexer.convertIncomingData(block)
 		if err != nil {
 			panic(err)
@@ -207,12 +218,32 @@ func (indexer *Indexer) indexBlock(block *types.Block) {
 	}
 }
 
+func (indexer *Indexer) initFirstBlockHeight() {
+	if indexer.firstBlockHeightInitialized {
+		return
+	}
+	if indexer.state.lastIndexedHeight == 0 {
+		indexer.firstBlockHeight = indexer.getGenesisBlock().Height()
+	} else {
+		indexer.firstBlockHeight = 1
+	}
+	indexer.firstBlockHeightInitialized = true
+}
+
+func (indexer *Indexer) getGenesisBlock() *types.Block {
+	return indexer.listener.NodeCtx().Blockchain.GetBlock(
+		indexer.listener.NodeCtx().Blockchain.Genesis(),
+	)
+}
+
 func (indexer *Indexer) resetTo(height uint64) error {
 	err := indexer.db.ResetTo(height)
 	if err != nil {
 		return err
 	}
 	indexer.state = indexer.loadState()
+	indexer.firstBlockHeightInitialized = false
+	indexer.initFirstBlockHeight()
 	return nil
 }
 
@@ -220,7 +251,7 @@ func (indexer *Indexer) getHeightToIndex() uint64 {
 	if indexer.state == nil {
 		indexer.state = indexer.loadState()
 	}
-	return indexer.state.lastHeight + 1
+	return indexer.state.lastIndexedHeight + 1
 }
 
 func (indexer *Indexer) loadState() *indexerState {
@@ -232,7 +263,7 @@ func (indexer *Indexer) loadState() *indexerState {
 			continue
 		}
 		return &indexerState{
-			lastHeight: lastHeight,
+			lastIndexedHeight: lastHeight,
 		}
 	}
 }
@@ -381,29 +412,52 @@ func (indexer *Indexer) isFirstBlock(incomingBlock *types.Block) bool {
 }
 
 func (indexer *Indexer) isFirstBlockHeight(height uint64) bool {
-	return height == 2
+	return height == indexer.firstBlockHeight
 }
 
 func (indexer *Indexer) detectFirstAddresses(incomingBlock *types.Block, ctx *conversionContext) []*db.Address {
 	if !indexer.isFirstBlock(incomingBlock) {
 		return nil
 	}
+	stateChangeByAddr := make(map[common.Address]db.AddressStateChange)
+
+	ctx.newStateReadOnly.State.IterateOverIdentities(func(addr common.Address, identity state.Identity) {
+		stateChangeByAddr[addr] = db.AddressStateChange{
+			PrevState: convertIdentityState(state.Undefined),
+			NewState:  convertIdentityState(identity.State),
+		}
+	})
 	var addresses []*db.Address
 	var withZeroWallet bool
-	ctx.newStateReadOnly.State.IterateOverIdentities(func(addr common.Address, identity state.Identity) {
+	ctx.newStateReadOnly.State.IterateAccounts(func(key []byte, _ []byte) bool {
+		if key == nil {
+			return true
+		}
+		addr := conversion.BytesToAddr(key)
 		if !withZeroWallet && addr == (common.Address{}) {
 			withZeroWallet = true
 		}
-		addresses = append(addresses, &db.Address{
+		address := &db.Address{
+			Address: conversion.ConvertAddress(addr),
+		}
+		if stateChange, ok := stateChangeByAddr[addr]; ok {
+			address.StateChanges = []db.AddressStateChange{
+				stateChange,
+			}
+			delete(stateChangeByAddr, addr)
+		}
+		addresses = append(addresses, address)
+		return false
+	})
+	for addr, stateChange := range stateChangeByAddr {
+		address := &db.Address{
 			Address: conversion.ConvertAddress(addr),
 			StateChanges: []db.AddressStateChange{
-				{
-					PrevState: convertIdentityState(ctx.prevStateReadOnly.State.GetIdentityState(addr)),
-					NewState:  convertIdentityState(identity.State),
-				},
+				stateChange,
 			},
-		})
-	})
+		}
+		addresses = append(addresses, address)
+	}
 	if !withZeroWallet {
 		addresses = append(addresses, &db.Address{
 			Address: conversion.ConvertAddress(common.Address{}),
@@ -415,6 +469,7 @@ func (indexer *Indexer) detectFirstAddresses(incomingBlock *types.Block, ctx *co
 			},
 		})
 	}
+
 	return addresses
 }
 
@@ -941,7 +996,7 @@ func (indexer *Indexer) loadFlips(flipTxs []flipTx) {
 func (indexer *Indexer) saveData(data *db.Data) {
 	for {
 		if err := indexer.db.Save(data); err != nil {
-			log.Error(fmt.Sprintf("Unable to save incoming data: %v", err))
+			log.Error(fmt.Sprintf("Unable to save block %d data: %v", data.Block.Height, err))
 			indexer.waitForRetry()
 			continue
 		}
@@ -950,7 +1005,7 @@ func (indexer *Indexer) saveData(data *db.Data) {
 }
 
 func (indexer *Indexer) applyOnState(data *result) {
-	indexer.state.lastHeight = data.dbData.Block.Height
+	indexer.state.lastIndexedHeight = data.dbData.Block.Height
 	indexer.state.totalBalance = data.resData.totalBalance
 	indexer.state.totalStake = data.resData.totalStake
 }

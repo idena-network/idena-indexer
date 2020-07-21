@@ -21,6 +21,7 @@ type postgresAccessor struct {
 	queries                    map[string]string
 	mutex                      sync.Mutex
 	committeeRewardBlocksCount int
+	miningRewards              bool
 }
 
 const (
@@ -192,11 +193,13 @@ func (a *postgresAccessor) Save(data *Data) error {
 	}
 	a.pm.Complete("savePenalty")
 
-	a.pm.Start("saveMiningRewards")
-	if err = a.saveMiningRewards(ctx, data.MiningRewards); err != nil {
-		return err
+	if a.miningRewards {
+		a.pm.Start("saveMiningRewards")
+		if err = a.saveMiningRewards(ctx, data.MiningRewards); err != nil {
+			return err
+		}
+		a.pm.Complete("saveMiningRewards")
 	}
-	a.pm.Complete("saveMiningRewards")
 
 	a.pm.Start("saveBurntCoins")
 	if err = a.saveBurntCoins(ctx, data.BurntCoinsPerAddr); err != nil {

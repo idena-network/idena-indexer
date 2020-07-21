@@ -5,7 +5,7 @@ import (
 )
 
 type indexerState struct {
-	lastHeight   uint64
-	totalBalance *big.Int
-	totalStake   *big.Int
+	lastIndexedHeight uint64
+	totalBalance      *big.Int
+	totalStake        *big.Int
 }

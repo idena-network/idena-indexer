@@ -22,6 +22,7 @@ import (
 
 type statsCollector struct {
 	stats                           *Stats
+	statsEnabled                    bool
 	invitationRewardsByAddrAndType  map[common.Address]map[RewardType]*RewardStats
 	pendingBalanceUpdates           []*db.BalanceUpdate
 	epochRewardBalanceUpdatesByAddr map[common.Address]*db.BalanceUpdate
@@ -347,10 +348,6 @@ func (c *statsCollector) initBalanceUpdatesByAddr() {
 	c.stats.BalanceUpdateAddrs = mapset.NewSet()
 }
 
-func (c *statsCollector) GetStats() *Stats {
-	return c.stats
-}
-
 func (c *statsCollector) CompleteCollecting() {
 	c.stats = nil
 	c.invitationRewardsByAddrAndType = nil
@@ -523,4 +520,19 @@ func (c *statsCollector) getPenaltyIfNotKilled(addr common.Address, appState *ap
 
 func (c *statsCollector) SetCommitteeRewardShare(amount *big.Int) {
 	c.stats.CommitteeRewardShare = amount
+}
+
+func (c *statsCollector) Disable() {
+	c.statsEnabled = false
+}
+
+func (c *statsCollector) Enable() {
+	c.statsEnabled = true
+}
+
+func (c *statsCollector) GetStats() *Stats {
+	if !c.statsEnabled {
+		return &Stats{}
+	}
+	return c.stats
 }

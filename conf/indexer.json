@@ -1,0 +1,8 @@
+{
+  "postgres": {
+    "connStr": "postgres://postgres@localhost?sslmode=disable"
+  },
+  "verbosity": 3,
+  "nodeVerbosity": 1,
+  "wordsFile": "resources/words/words.json"
+}

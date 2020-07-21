@@ -18,7 +18,7 @@ BEGIN
             limit 1;
 
             if l_id is null then
-                raise exception 'there is no penalty to close for address %', l_paid_penalty.address;
+                return;
             end if;
 
             if (select exists(select 1

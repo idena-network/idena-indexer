@@ -182,6 +182,7 @@ $BODY$
 DECLARE
     l_flip_to_solve    tp_flip_to_solve;
     l_address_state_id bigint;
+    l_flip_tx_id       bigint;
 BEGIN
     for i in 1..cardinality(p_flips_to_solve)
         loop
@@ -194,9 +195,14 @@ BEGIN
                 where lower(address) = lower(l_flip_to_solve.address);
             end if;
 
+            select tx_id into l_flip_tx_id from flips where lower(cid) = lower(l_flip_to_solve.cid);
+            if l_flip_tx_id is null then
+                continue;
+            end if;
+
             insert into flips_to_solve (ei_address_state_id, flip_tx_id, is_short)
             values (l_address_state_id,
-                    (select tx_id from flips where lower(cid) = lower(l_flip_to_solve.cid)),
+                    l_flip_tx_id,
                     l_flip_to_solve.is_short);
         end loop;
 END
@@ -238,6 +244,9 @@ BEGIN
                 answer := answers[i];
                 IF char_length(answer.flip_cid) > 0 THEN
                     select tx_id into l_flip_tx_id from flips where lower(cid) = lower(answer.flip_cid);
+                end if;
+                if l_flip_tx_id is null then
+                    continue;
                 end if;
                 INSERT INTO ANSWERS (FLIP_TX_ID, ei_address_state_id, IS_SHORT, ANSWER, WRONG_WORDS, POINT)
                 VALUES (l_flip_tx_id,
@@ -447,11 +456,17 @@ CREATE OR REPLACE PROCEDURE save_rewarded_flips(p_rewarded_flip_cids text[])
     LANGUAGE 'plpgsql'
 AS
 $BODY$
+DECLARE
+    l_flip_tx_id bigint;
 BEGIN
     for i in 1..cardinality(p_rewarded_flip_cids)
         loop
+            select tx_id into l_flip_tx_id from flips where lower(cid) = lower(p_rewarded_flip_cids[i]);
+            if l_flip_tx_id is null then
+                continue;
+            end if;
             insert into rewarded_flips (flip_tx_id)
-            values ((select tx_id from flips where lower(cid) = lower(p_rewarded_flip_cids[i])));
+            values (l_flip_tx_id);
         end loop;
 END
 $BODY$;
@@ -463,12 +478,17 @@ AS
 $BODY$
 DECLARE
     l_rewarded_invitation tp_rewarded_invitation;
+    l_invite_tx_id        bigint;
 BEGIN
     for i in 1..cardinality(p_rewarded_invitations)
         loop
             l_rewarded_invitation = p_rewarded_invitations[i];
+            select id into l_invite_tx_id from transactions where lower(hash) = lower(l_rewarded_invitation.tx_hash);
+            if l_invite_tx_id is null then
+                continue;
+            end if;
             insert into rewarded_invitations (invite_tx_id, block_height, reward_type)
-            values ((select id from transactions where lower(hash) = lower(l_rewarded_invitation.tx_hash)),
+            values (l_invite_tx_id,
                     p_block_height,
                     l_rewarded_invitation.reward_type);
         end loop;

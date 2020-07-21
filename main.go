@@ -117,7 +117,7 @@ func initIndexer(config *config.Config) (*indexer.Indexer, incoming.Listener) {
 	wordsLoader := words.NewLoader(config.WordsFile)
 	listener := incoming.NewListener(config.NodeConfigFile, performanceMonitor)
 	dbAccessor := db.NewPostgresAccessor(config.Postgres.ConnStr, config.Postgres.ScriptsDir, wordsLoader,
-		performanceMonitor, config.CommitteeRewardBlocksCount)
+		performanceMonitor, config.CommitteeRewardBlocksCount, config.MiningRewards)
 	restorer := restore.NewRestorer(dbAccessor, listener.AppState(), listener.Blockchain())
 	var secondaryStorage *runtimeMigration.SecondaryStorage
 	if config.RuntimeMigration.Enabled {

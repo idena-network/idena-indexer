@@ -2440,13 +2440,17 @@ AS
 $BODY$
 DECLARE
     l_activation_tx tp_activation_tx;
+    l_invite_tx_id  bigint;
 BEGIN
     for i in 1..cardinality(p_activation_txs)
         loop
             l_activation_tx := p_activation_txs[i];
+            select id into l_invite_tx_id from transactions where lower(hash) = lower(l_activation_tx.invite_tx_hash);
+            if l_invite_tx_id is null then
+                continue;
+            end if;
             insert into activation_txs (tx_id, invite_tx_id)
-            values ((select id from transactions where lower(hash) = lower(l_activation_tx.tx_hash)),
-                    (select id from transactions where lower(hash) = lower(l_activation_tx.invite_tx_hash)));
+            values ((select id from transactions where lower(hash) = lower(l_activation_tx.tx_hash)), l_invite_tx_id);
         end loop;
 END
 $BODY$;
@@ -2458,13 +2462,17 @@ AS
 $BODY$
 DECLARE
     l_kill_invitee_tx tp_kill_invitee_tx;
+    l_invite_tx_id  bigint;
 BEGIN
     for i in 1..cardinality(p_kill_invitee_txs)
         loop
             l_kill_invitee_tx := p_kill_invitee_txs[i];
+            select id into l_invite_tx_id from transactions where lower(hash) = lower(l_kill_invitee_tx.invite_tx_hash);
+            if l_invite_tx_id is null then
+                continue;
+            end if;
             insert into kill_invitee_txs (tx_id, invite_tx_id)
-            values ((select id from transactions where lower(hash) = lower(l_kill_invitee_tx.tx_hash)),
-                    (select id from transactions where lower(hash) = lower(l_kill_invitee_tx.invite_tx_hash)));
+            values ((select id from transactions where lower(hash) = lower(l_kill_invitee_tx.tx_hash)), l_invite_tx_id);
         end loop;
 END
 $BODY$;
@@ -2541,9 +2549,17 @@ DECLARE
     l_epoch bigint;
 BEGIN
 
+    SET session_replication_role = replica;
+
     call reset_balance_updates_to(p_block_height);
 
+    if p_block_height < (select min(height) - 1 from blocks) then
+        raise exception 'wrong block height % to reset', p_block_height;
+    end if;
+
     select epoch into l_epoch from blocks where height = greatest(2, p_block_height);
+
+    l_epoch = coalesce(l_epoch, 0);
 
     delete
     from flips_queue
@@ -2857,6 +2873,8 @@ BEGIN
     call restore_coins_summary();
     call restore_epoch_summary(p_block_height);
     call restore_address_summaries();
+
+    SET session_replication_role = DEFAULT;
 END
 $BODY$;
 
