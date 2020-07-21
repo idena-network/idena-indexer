@@ -229,15 +229,10 @@ type MemPoolFlipKey struct {
 }
 
 type FlipWords struct {
-	FlipTxId uint64
-	TxHash   string
-	Word1    uint16
-	Word2    uint16
-}
-
-type FlipSizeUpdate struct {
-	Cid  string
-	Size uint32
+	Cid    string
+	TxHash string
+	Word1  uint16
+	Word2  uint16
 }
 
 type FlipContent struct {

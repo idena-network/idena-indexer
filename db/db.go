@@ -4,7 +4,6 @@ import "math/big"
 
 type Accessor interface {
 	GetLastHeight() (uint64, error)
-	GetCurrentFlips(address string) ([]Flip, error)
 	Save(data *Data) error
 	SaveRestoredData(data *RestoredData) error
 	SaveMemPoolData(data *MemPoolData) error

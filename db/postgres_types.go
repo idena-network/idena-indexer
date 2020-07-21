@@ -132,6 +132,10 @@ func (p Penalty) Value() (driver.Value, error) {
 	return fmt.Sprintf("(%v,%v)", p.Address, p.Penalty), nil
 }
 
+func (v FlipWords) Value() (driver.Value, error) {
+	return fmt.Sprintf("(%v,%v,%v,%v)", v.Cid, v.Word1, v.Word2, v.TxHash), nil
+}
+
 func (v *FailedFlipContent) Value() (driver.Value, error) {
 	var timestamp int64
 	if v.NextAttemptTimestamp != nil {

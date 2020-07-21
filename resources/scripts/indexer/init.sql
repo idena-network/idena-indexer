@@ -2016,6 +2016,21 @@ $$
     END
 $$;
 
+DO
+$$
+    BEGIN
+        CREATE TYPE tp_flip_words AS
+        (
+            cid     text,
+            word_1  smallint,
+            word_2  smallint,
+            tx_hash text
+        );
+    EXCEPTION
+        WHEN duplicate_object THEN null;
+    END
+$$;
+
 -- PROCEDURE: save_mining_rewards
 
 CREATE OR REPLACE PROCEDURE save_mining_rewards(height bigint, mr tp_mining_reward[])
@@ -2505,6 +2520,30 @@ BEGIN
             l_become_offline_tx := p_become_offline_txs[i];
             insert into become_offline_txs (tx_id)
             values ((select id from transactions where lower(hash) = lower(l_become_offline_tx)));
+        end loop;
+END
+$BODY$;
+
+CREATE OR REPLACE PROCEDURE save_flips_words(p_flips_words tp_flip_words[])
+    LANGUAGE 'plpgsql'
+AS
+$BODY$
+DECLARE
+    l_flip_words tp_flip_words;
+    l_flip_tx_id bigint;
+BEGIN
+    for i in 1..cardinality(p_flips_words)
+        loop
+            l_flip_words := p_flips_words[i];
+            SELECT tx_id into l_flip_tx_id FROM flips WHERE lower(cid) = lower(l_flip_words.cid);
+            if l_flip_tx_id is null then
+                continue;
+            end if;
+            INSERT INTO flip_words (flip_tx_id, word_1, word_2, tx_id)
+            VALUES (l_flip_tx_id,
+                    l_flip_words.word_1,
+                    l_flip_words.word_2,
+                    (SELECT id FROM transactions WHERE lower(hash) = lower(l_flip_words.tx_hash)));
         end loop;
 END
 $BODY$;

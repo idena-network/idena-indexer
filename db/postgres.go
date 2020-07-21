@@ -27,15 +27,12 @@ type postgresAccessor struct {
 const (
 	initQuery                           = "init.sql"
 	maxHeightQuery                      = "maxHeight.sql"
-	currentFlipsQuery                   = "currentFlips.sql"
 	insertBlockQuery                    = "insertBlock.sql"
 	insertBlockProposerQuery            = "insertBlockProposer.sql"
 	insertBlockProposerVrfScoreQuery    = "insertBlockProposerVrfScore.sql"
 	insertAddressesAndTransactionsQuery = "insertAddressesAndTransactions.sql"
 	insertSubmittedFlipQuery            = "insertSubmittedFlip.sql"
 	insertFlipKeyQuery                  = "insertFlipKey.sql"
-	insertFlipWordsQuery                = "insertFlipWords.sql"
-	flipWordsCountQuery                 = "flipWordsCount.sql"
 	insertEpochQuery                    = "insertEpoch.sql"
 	resetToBlockQuery                   = "resetToBlock.sql"
 	saveBalancesQuery                   = "saveBalances.sql"
@@ -47,6 +44,7 @@ const (
 	insertBurntCoinsQuery               = "insertBurntCoins.sql"
 	saveEpochResultQuery                = "saveEpochResult.sql"
 	savePaidPenaltiesQuery              = "savePaidPenalties.sql"
+	saveFlipsWordsQuery                 = "saveFlipsWords.sql"
 )
 
 func (a *postgresAccessor) getQuery(name string) string {
@@ -63,24 +61,6 @@ func (a *postgresAccessor) GetLastHeight() (uint64, error) {
 		return 0, err
 	}
 	return uint64(maxHeight), nil
-}
-
-func (a *postgresAccessor) GetCurrentFlips(address string) ([]Flip, error) {
-	rows, err := a.db.Query(a.getQuery(currentFlipsQuery), address)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var res []Flip
-	for rows.Next() {
-		var item Flip
-		err = rows.Scan(&item.TxId, &item.Cid, &item.Pair)
-		if err != nil {
-			return nil, err
-		}
-		res = append(res, item)
-	}
-	return res, nil
 }
 
 func (a *postgresAccessor) ResetTo(height uint64) error {
@@ -453,35 +433,11 @@ func (a *postgresAccessor) saveFlipKey(ctx *context, txId int64, key FlipKey) er
 }
 
 func (a *postgresAccessor) saveFlipsWords(ctx *context, words []FlipWords) error {
-	for _, key := range words {
-		txId, err := ctx.txId(key.TxHash)
-		if err != nil {
-			return err
-		}
-		if err := a.saveFlipWords(ctx, txId, key); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (a *postgresAccessor) saveFlipWords(ctx *context, txId int64, words FlipWords) error {
-	count, err := a.getFlipWordsCount(ctx, words.FlipTxId)
-	if err != nil {
-		return err
-	}
-	if count > 0 {
-		log.Warn(fmt.Sprintf("ignored duplicated flip words: %v", words))
+	if len(words) == 0 {
 		return nil
 	}
-	_, err = ctx.tx.Exec(a.getQuery(insertFlipWordsQuery), words.FlipTxId, words.Word1, words.Word2, txId)
-	return errors.Wrapf(err, "unable to save flip words %v", words)
-}
-
-func (a *postgresAccessor) getFlipWordsCount(ctx *context, flipTxId uint64) (int, error) {
-	var count int
-	err := ctx.tx.QueryRow(a.getQuery(flipWordsCountQuery), flipTxId).Scan(&count)
-	return count, errors.Wrapf(err, "unable to get flip words count for flip tx id %v", flipTxId)
+	_, err := ctx.tx.Exec(a.getQuery(saveFlipsWordsQuery), pq.Array(words))
+	return errors.Wrap(err, "unable to save flips words")
 }
 
 func (a *postgresAccessor) savePenalty(ctx *context, penalty *Penalty) error {

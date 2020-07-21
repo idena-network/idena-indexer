@@ -929,13 +929,6 @@ func (indexer *Indexer) handleLongAnswers(
 	}
 
 	sender, _ := types.Sender(tx)
-	from := conversion.ConvertAddress(sender)
-	// TODO extract flip cids during saving block data
-	senderFlips, err := indexer.db.GetCurrentFlips(from)
-	if err != nil {
-		log.Error("Unable to get current flips. Skipped.", "err", err, "tx", tx.Hash())
-		return
-	}
 
 	if len(attachment.Key) > 0 {
 		collector.flipKeys = append(collector.flipKeys, db.FlipKey{
@@ -945,17 +938,20 @@ func (indexer *Indexer) handleLongAnswers(
 	}
 
 	if len(attachment.Proof) > 0 {
-		for _, f := range senderFlips {
+		for _, f := range ctx.prevStateReadOnly.State.GetIdentity(sender).Flips {
 			word1, word2, err := getFlipWords(sender, attachment, int(f.Pair), ctx.prevStateReadOnly)
+			flipCid, _ := cid.Parse(f.Cid)
+			cidStr := convertCid(flipCid)
 			if err != nil {
-				log.Error("Unable to get flip words. Skipped.", "tx", tx.Hash(), "cid", f.Cid, "err", err)
+				log.Error("Unable to get flip words. Skipped.", "tx", tx.Hash(), "cid", cidStr, "err", err)
 				continue
 			}
+
 			collector.flipsWords = append(collector.flipsWords, db.FlipWords{
-				FlipTxId: f.TxId,
-				TxHash:   conversion.ConvertHash(tx.Hash()),
-				Word1:    uint16(word1),
-				Word2:    uint16(word2),
+				Cid:    cidStr,
+				TxHash: conversion.ConvertHash(tx.Hash()),
+				Word1:  uint16(word1),
+				Word2:  uint16(word2),
 			})
 		}
 	} else {
