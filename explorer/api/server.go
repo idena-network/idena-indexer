@@ -81,12 +81,17 @@ func (s *httpServer) InitRouter(router *mux.Router) {
 
 	router.Path(strings.ToLower("/Coins")).
 		HandlerFunc(s.coins)
+	router.Path(strings.ToLower("/Txt/TotalSupply")).
+		HandlerFunc(s.txtTotalSupply)
 
 	router.Path(strings.ToLower("/CirculatingSupply")).
 		Queries("format", "{format}").
 		HandlerFunc(s.circulatingSupply)
 	router.Path(strings.ToLower("/CirculatingSupply")).
 		HandlerFunc(s.circulatingSupply)
+
+	router.Path(strings.ToLower("/Txt/CirculatingSupply")).
+		HandlerFunc(s.txtCirculatingSupply)
 
 	router.Path(strings.ToLower("/ActiveAddresses/Count")).
 		HandlerFunc(s.activeAddressesCount)
@@ -352,6 +357,18 @@ func (s *httpServer) coins(w http.ResponseWriter, r *http.Request) {
 	server.WriteResponse(w, resp, err, s.log)
 }
 
+func (s *httpServer) txtTotalSupply(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("coins", r.RequestURI)
+	defer s.pm.Complete(id)
+
+	coins, err := s.db.Coins()
+	var resp string
+	if err == nil {
+		resp = coins.TotalBalance.Add(coins.TotalStake).String()
+	}
+	server.WriteTextPlainResponse(w, resp, err, s.log)
+}
+
 // @Tags Coins
 // @Id CirculatingSupply
 // @Param format query string false "result value format" ENUMS(full,short)
@@ -380,6 +397,18 @@ func (s *httpServer) circulatingSupply(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	server.WriteResponse(w, resp, err, s.log)
+}
+
+func (s *httpServer) txtCirculatingSupply(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("circulatingSupply", r.RequestURI)
+	defer s.pm.Complete(id)
+
+	amount, err := s.db.CirculatingSupply(s.frozenBalanceAddrs)
+	var resp string
+	if err == nil {
+		resp = amount.String()
+	}
+	server.WriteTextPlainResponse(w, resp, err, s.log)
 }
 
 // @Tags Coins

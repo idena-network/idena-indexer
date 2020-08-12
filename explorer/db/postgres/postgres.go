@@ -168,7 +168,7 @@ func (a *postgresAccessor) CirculatingSupply(addressesToExclude []string) (decim
 	if err != nil {
 		return decimal.Decimal{}, err
 	}
-	return totalBalance.Add(totalStake), nil
+	return totalBalance, nil
 }
 
 func (a *postgresAccessor) ActiveAddressesCount(afterTime time.Time) (uint64, error) {
