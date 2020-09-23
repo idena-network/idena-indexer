@@ -27,6 +27,7 @@ func (indexer *Indexer) detectEpochRewards(block *types.Block) *db.EpochRewards 
 	epochRewards.RewardedFlipCids = rewardsStats.RewardedFlipCids
 	epochRewards.RewardedInvitations = rewardsStats.RewardedInvites
 	epochRewards.SavedInviteRewards = convertSavedInviteRewards(rewardsStats.SavedInviteRewardsCountByAddrAndType)
+	epochRewards.ReportedFlipRewards = rewardsStats.ReportedFlipRewards
 
 	return epochRewards
 }

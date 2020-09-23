@@ -260,31 +260,6 @@ func readStrValueCounts(rows *sql.Rows) ([]types.StrValueCount, error) {
 	return res, nil
 }
 
-func (a *postgresAccessor) nullableBoolValueCounts(queryName string, args ...interface{}) ([]types.NullableBoolValueCount, error) {
-	rows, err := a.db.Query(a.getQuery(queryName), args...)
-	if err != nil {
-		return nil, err
-	}
-	return readNullableBoolValueCounts(rows)
-}
-
-func readNullableBoolValueCounts(rows *sql.Rows) ([]types.NullableBoolValueCount, error) {
-	defer rows.Close()
-	var res []types.NullableBoolValueCount
-	for rows.Next() {
-		item := types.NullableBoolValueCount{}
-		nullBool := sql.NullBool{}
-		if err := rows.Scan(&nullBool, &item.Count); err != nil {
-			return nil, err
-		}
-		if nullBool.Valid {
-			item.Value = &nullBool.Bool
-		}
-		res = append(res, item)
-	}
-	return res, nil
-}
-
 func (a *postgresAccessor) flips(
 	queryName string,
 	count uint64,
@@ -329,6 +304,7 @@ func readFlips(rows *sql.Rows) ([]types.FlipSummary, uint64, error) {
 			&words.Word2.Name,
 			&words.Word2.Desc,
 			&item.WithPrivatePart,
+			&item.Grade,
 		)
 		if err != nil {
 			return nil, 0, err
@@ -354,7 +330,8 @@ func (a *postgresAccessor) flipsOld(queryName string, args ...interface{}) ([]ty
 		item := types.FlipSummary{}
 		var timestamp int64
 		words := types.FlipWords{}
-		err := rows.Scan(&item.Cid,
+		err := rows.Scan(
+			&item.Cid,
 			&item.Size,
 			&item.Author,
 			&item.Epoch,
@@ -372,7 +349,9 @@ func (a *postgresAccessor) flipsOld(queryName string, args ...interface{}) ([]ty
 			&words.Word2.Index,
 			&words.Word2.Name,
 			&words.Word2.Desc,
-			&item.WithPrivatePart)
+			&item.WithPrivatePart,
+			&item.Grade,
+		)
 		if err != nil {
 			return nil, err
 		}
@@ -472,14 +451,18 @@ func readAnswers(rows *sql.Rows) ([]types.Answer, error) {
 	var res []types.Answer
 	for rows.Next() {
 		item := types.Answer{}
-		err := rows.Scan(&item.Cid,
+		err := rows.Scan(
+			&item.Cid,
 			&item.Address,
 			&item.RespAnswer,
 			&item.RespWrongWords,
 			&item.FlipAnswer,
 			&item.FlipWrongWords,
 			&item.FlipStatus,
-			&item.Point)
+			&item.Point,
+			&item.RespGrade,
+			&item.FlipGrade,
+		)
 		if err != nil {
 			return nil, err
 		}

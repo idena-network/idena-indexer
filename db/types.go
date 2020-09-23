@@ -69,6 +69,7 @@ type EpochRewards struct {
 	RewardedFlipCids    []string
 	RewardedInvitations []*RewardedInvite
 	SavedInviteRewards  []*SavedInviteRewards
+	ReportedFlipRewards []*ReportedFlipReward
 }
 
 type RewardedInvite struct {
@@ -80,6 +81,13 @@ type SavedInviteRewards struct {
 	Address string
 	Type    byte
 	Count   uint8
+}
+
+type ReportedFlipReward struct {
+	Address string
+	Balance decimal.Decimal
+	Stake   decimal.Decimal
+	Cid     string
 }
 
 type TotalRewards struct {
@@ -208,14 +216,14 @@ type FlipStats struct {
 	LongAnswers  []Answer
 	Status       byte
 	Answer       byte
-	WrongWords   bool
+	Grade        byte
 }
 
 type Answer struct {
-	Address    string
-	Answer     byte
-	WrongWords bool
-	Point      float32
+	Address string
+	Answer  byte
+	Point   float32
+	Grade   byte
 }
 
 type FlipKey struct {

@@ -209,7 +209,8 @@ func (a *postgresAccessor) saveEpochResult(
 		return nil
 	}
 	var identitiesArray, flipsToSolveArray, answersArray, statesArray, badAuthors, totalRewards, validationRewards,
-		rewardAges, fundRewards, rewardedFlipCids, rewardedInvitations, savedInviteRewards interface {
+		rewardAges, fundRewards, rewardedFlipCids, rewardedInvitations, savedInviteRewards,
+		reportedFlipRewards interface {
 		driver.Valuer
 	}
 	var shortAnswerCountsByAddr, longAnswerCountsByAdds, wrongWordsFlipsCountsByAddr map[string]int
@@ -229,6 +230,7 @@ func (a *postgresAccessor) saveEpochResult(
 		rewardedFlipCids = pq.Array(epochRewards.RewardedFlipCids)
 		rewardedInvitations = pq.Array(epochRewards.RewardedInvitations)
 		savedInviteRewards = pq.Array(epochRewards.SavedInviteRewards)
+		reportedFlipRewards = pq.Array(epochRewards.ReportedFlipRewards)
 	}
 	if _, err := tx.Exec(
 		a.getQuery(saveEpochResultQuery),
@@ -248,6 +250,7 @@ func (a *postgresAccessor) saveEpochResult(
 		rewardedFlipCids,
 		rewardedInvitations,
 		savedInviteRewards,
+		reportedFlipRewards,
 		epochResult.FailedValidation,
 		epochResult.MinScoreForInvite,
 	); err != nil {

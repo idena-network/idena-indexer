@@ -21,6 +21,7 @@ const (
 	Invitations3      RewardType = 6
 	SavedInvite       RewardType = 7
 	SavedInviteWin    RewardType = 8
+	ReportedFlips     RewardType = 9
 )
 
 type Stats struct {
@@ -57,6 +58,7 @@ type RewardsStats struct {
 	RewardedFlipCids                     []string
 	RewardedInvites                      []*db.RewardedInvite
 	SavedInviteRewardsCountByAddrAndType map[common.Address]map[RewardType]uint8
+	ReportedFlipRewards                  []*db.ReportedFlipReward
 }
 
 type RewardStats struct {

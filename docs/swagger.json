@@ -2002,6 +2002,65 @@
                 }
             }
         },
+        "/Epoch/{epoch}/Identity/{address}/ReportRewards": {
+            "get": {
+                "tags": [
+                    "Identity"
+                ],
+                "operationId": "EpochIdentityReportedFlipRewards",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "epoch",
+                        "name": "epoch",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "address",
+                        "name": "address",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "result": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/ReportedFlipReward"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request"
+                    },
+                    "429": {
+                        "description": "Request number limit exceeded"
+                    },
+                    "500": {
+                        "description": "Internal server error"
+                    },
+                    "503": {
+                        "description": "Service unavailable"
+                    }
+                }
+            }
+        },
         "/Epoch/{epoch}/Identity/{address}/RewardedFlips": {
             "get": {
                 "tags": [
@@ -4233,6 +4292,9 @@
                         "Right"
                     ]
                 },
+                "flipGrade": {
+                    "type": "integer"
+                },
                 "flipStatus": {
                     "type": "string",
                     "enum": [
@@ -4243,6 +4305,7 @@
                     ]
                 },
                 "flipWrongWords": {
+                    "description": "Deprecated",
                     "type": "boolean"
                 },
                 "point": {
@@ -4256,7 +4319,11 @@
                         "Right"
                     ]
                 },
+                "respGrade": {
+                    "type": "integer"
+                },
                 "respWrongWords": {
+                    "description": "Deprecated",
                     "type": "boolean"
                 }
             }
@@ -4666,6 +4733,9 @@
                 "epoch": {
                     "type": "integer"
                 },
+                "grade": {
+                    "type": "integer"
+                },
                 "size": {
                     "type": "integer"
                 },
@@ -4694,6 +4764,7 @@
                     "$ref": "#/definitions/FlipWords"
                 },
                 "wrongWords": {
+                    "description": "Deprecated",
                     "type": "boolean"
                 },
                 "wrongWordsVotes": {
@@ -4780,6 +4851,9 @@
                 "epoch": {
                     "type": "integer"
                 },
+                "grade": {
+                    "type": "integer"
+                },
                 "icon": {
                     "type": "string"
                 },
@@ -4814,6 +4888,7 @@
                     "$ref": "#/definitions/FlipWords"
                 },
                 "wrongWords": {
+                    "description": "Deprecated",
                     "type": "boolean"
                 },
                 "wrongWordsVotes": {
@@ -5015,6 +5090,20 @@
                 }
             }
         },
+        "ReportedFlipReward": {
+            "type": "object",
+            "properties": {
+                "balance": {
+                    "type": "string"
+                },
+                "cid": {
+                    "type": "string"
+                },
+                "stake": {
+                    "type": "string"
+                }
+            }
+        },
         "Response": {
             "type": "object",
             "properties": {
@@ -5095,6 +5184,9 @@
                 "epoch": {
                     "type": "integer"
                 },
+                "grade": {
+                    "type": "integer"
+                },
                 "icon": {
                     "type": "string"
                 },
@@ -5132,6 +5224,7 @@
                     "$ref": "#/definitions/FlipWords"
                 },
                 "wrongWords": {
+                    "description": "Deprecated",
                     "type": "boolean"
                 },
                 "wrongWordsVotes": {
@@ -5342,7 +5435,7 @@
                     "type": "string"
                 },
                 "transfer": {
-                    "description": "todo deprecated",
+                    "description": "Deprecated",
                     "type": "string"
                 },
                 "type": {

@@ -20,7 +20,8 @@ func (a *postgresAccessor) Flip(hash string) (types.Flip, error) {
 	words := types.FlipWords{}
 	var timestamp int64
 	err := a.db.QueryRow(a.getQuery(flipQuery), hash).
-		Scan(&flip.Author,
+		Scan(
+			&flip.Author,
 			&flip.Size,
 			&timestamp,
 			&flip.Answer,
@@ -37,7 +38,9 @@ func (a *postgresAccessor) Flip(hash string) (types.Flip, error) {
 			&words.Word2.Index,
 			&words.Word2.Name,
 			&words.Word2.Desc,
-			&flip.WithPrivatePart)
+			&flip.WithPrivatePart,
+			&flip.Grade,
+		)
 	if err == sql.ErrNoRows {
 		err = NoDataFound
 	}

@@ -144,7 +144,7 @@ func (indexer *Indexer) indexBlock(block *types.Block) {
 			log.Info(fmt.Sprintf("Incoming block height=%d is less than expected %d, start resetting indexer db...", block.Height(), heightToIndex))
 			heightToReset := block.Height() - 1
 
-			if !indexer.isFirstBlock(block) && block.Header.ParentHash() == indexer.listener.NodeCtx().Blockchain.Genesis() {
+			if !indexer.isFirstBlock(block) && block.Header.ParentHash() == indexer.listener.NodeCtx().Blockchain.Genesis().Hash() {
 				log.Info(fmt.Sprintf("Block %d is first after new genesis", block.Height()))
 				heightToReset--
 				genesisBlock = indexer.getGenesisBlock()
@@ -232,7 +232,7 @@ func (indexer *Indexer) initFirstBlockHeight() {
 
 func (indexer *Indexer) getGenesisBlock() *types.Block {
 	return indexer.listener.NodeCtx().Blockchain.GetBlock(
-		indexer.listener.NodeCtx().Blockchain.Genesis(),
+		indexer.listener.NodeCtx().Blockchain.Genesis().Hash(),
 	)
 }
 
@@ -294,7 +294,7 @@ func (indexer *Indexer) initializeStateIfNeeded(block *types.Block) error {
 
 func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) (*result, error) {
 	indexer.pm.Start("InitCtx")
-	isGenesisBlock := incomingBlock.Hash() == indexer.listener.NodeCtx().Blockchain.Genesis()
+	isGenesisBlock := incomingBlock.Hash() == indexer.listener.NodeCtx().Blockchain.Genesis().Hash()
 	var prevState *appstate.AppState
 	var err error
 	if isGenesisBlock {
@@ -508,7 +508,7 @@ func (indexer *Indexer) convertBlock(
 		ValidatorsCount:      len(indexer.statsHolder().GetStats().FinalCommittee),
 		VrfProposerThreshold: ctx.prevStateReadOnly.State.VrfProposerThreshold(),
 		ProposerVrfScore:     proposerVrfScore,
-		FeeRate:              blockchain.ConvertToFloat(ctx.prevStateReadOnly.State.FeePerByte()),
+		FeeRate:              blockchain.ConvertToFloat(ctx.prevStateReadOnly.State.FeePerGas()),
 	}, nil
 }
 
@@ -592,7 +592,7 @@ func (indexer *Indexer) convertTransaction(
 	}
 
 	senderPrevState := stateToApply.State.GetIdentityState(sender)
-	fee, err := indexer.listener.Blockchain().ApplyTxOnState(stateToApply, incomingTx, nil)
+	fee, _, err := indexer.listener.Blockchain().ApplyTxOnState(stateToApply, nil, incomingTx, nil)
 	if err != nil {
 		log.Error("Unable to apply tx on state", "tx", txHash, "err", err)
 	}
@@ -711,10 +711,10 @@ func convertStatsAnswers(incomingAnswers []statsTypes.FlipAnswerStats) []db.Answ
 
 func convertStatsAnswer(incomingAnswer statsTypes.FlipAnswerStats) db.Answer {
 	return db.Answer{
-		Address:    conversion.ConvertAddress(incomingAnswer.Respondent),
-		Answer:     convertAnswer(incomingAnswer.Answer),
-		WrongWords: incomingAnswer.WrongWords,
-		Point:      incomingAnswer.Point,
+		Address: conversion.ConvertAddress(incomingAnswer.Respondent),
+		Answer:  convertAnswer(incomingAnswer.Answer),
+		Point:   incomingAnswer.Point,
+		Grade:   byte(incomingAnswer.Grade),
 	}
 }
 
@@ -808,7 +808,7 @@ func (indexer *Indexer) detectEpochResult(block *types.Block, ctx *conversionCon
 			LongAnswers:  convertStatsAnswers(flipStats.LongAnswers),
 			Status:       convertFlipStatus(ceremony.FlipStatus(flipStats.Status)),
 			Answer:       convertAnswer(flipStats.Answer),
-			WrongWords:   flipStats.WrongWords,
+			Grade:        byte(flipStats.Grade),
 		}
 		flipsStats = append(flipsStats, flipStats)
 	}

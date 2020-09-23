@@ -2,7 +2,7 @@ select a.address                         author,
        f.size,
        b.timestamp,
        coalesce(da.name, '')             answer,
-       COALESCE(f.wrong_words, false)    wrongWords,
+       coalesce(f.grade, 0) = 1          reported,
        coalesce(fs.wrong_words_votes, 0) wrong_words_votes,
        COALESCE(dfs.name, '')            status,
        t.hash                            tx_hash,
@@ -15,7 +15,8 @@ select a.address                         author,
        coalesce(fw.word_2, 0)            word_id_2,
        coalesce(wd2.name, '')            word_name_2,
        coalesce(wd2.description, '')     word_desc_2,
-       coalesce(fs.encrypted, false)     with_private_part
+       coalesce(fs.encrypted, false)     with_private_part,
+       coalesce(f.grade, 0)              grade
 from flips f
          join transactions t on t.id = f.tx_id
          join blocks b on b.height = t.block_height

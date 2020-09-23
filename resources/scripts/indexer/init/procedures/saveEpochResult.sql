@@ -14,6 +14,7 @@ CREATE OR REPLACE PROCEDURE save_epoch_result(p_epoch bigint,
                                               p_rewarded_flip_cids text[],
                                               p_rewarded_invitations tp_rewarded_invitation[],
                                               p_saved_invite_rewards tp_saved_invite_rewards[],
+                                              p_reported_flip_rewards tp_reported_flip_reward[],
                                               p_failed_validation boolean,
                                               p_min_score_for_invite real)
     LANGUAGE 'plpgsql'
@@ -59,9 +60,11 @@ BEGIN
     call log_performance('save_flip_stats', l_start, l_end);
 
     select clock_timestamp() into l_start;
-    call save_epoch_rewards(p_height, p_bad_authors, p_total, p_validation_rewards, p_ages, p_fund_rewards,
+    call save_epoch_rewards(p_epoch, p_height, p_bad_authors, p_total, p_validation_rewards, p_ages, p_fund_rewards,
                             p_rewarded_flip_cids,
-                            p_rewarded_invitations, p_saved_invite_rewards);
+                            p_rewarded_invitations,
+                            p_saved_invite_rewards,
+                            p_reported_flip_rewards);
     select clock_timestamp() into l_end;
     call log_performance('save_epoch_rewards', l_start, l_end);
 
@@ -248,12 +251,12 @@ BEGIN
                 if l_flip_tx_id is null then
                     continue;
                 end if;
-                INSERT INTO ANSWERS (FLIP_TX_ID, ei_address_state_id, IS_SHORT, ANSWER, WRONG_WORDS, POINT)
+                INSERT INTO ANSWERS (FLIP_TX_ID, ei_address_state_id, IS_SHORT, ANSWER, POINT, GRADE)
                 VALUES (l_flip_tx_id,
                         (select address_state_id
                          from cur_epoch_identities
                          where lower(address) = lower(answer.address)),
-                        answer.is_short, answer.answer, answer.wrong_words, answer.point);
+                        answer.is_short, answer.answer, answer.point, answer.grade);
             end loop;
     end if;
 
@@ -264,7 +267,7 @@ BEGIN
                 UPDATE FLIPS
                 SET STATUS=state.status,
                     ANSWER=state.answer,
-                    WRONG_WORDS=state.wrong_words,
+                    GRADE=state.grade,
                     STATUS_BLOCK_HEIGHT=block_height
                 WHERE lower(CID) = lower(state.flip_cid);
             end loop;
@@ -272,7 +275,8 @@ BEGIN
 END
 $BODY$;
 
-CREATE OR REPLACE PROCEDURE save_epoch_rewards(p_block_height bigint,
+CREATE OR REPLACE PROCEDURE save_epoch_rewards(p_epoch bigint,
+                                               p_block_height bigint,
                                                p_bad_authors tp_bad_author[],
                                                p_total tp_total_epoch_reward,
                                                p_validation_rewards tp_epoch_reward[],
@@ -280,7 +284,8 @@ CREATE OR REPLACE PROCEDURE save_epoch_rewards(p_block_height bigint,
                                                p_fund_rewards tp_epoch_reward[],
                                                p_rewarded_flip_cids text[],
                                                p_rewarded_invitations tp_rewarded_invitation[],
-                                               p_saved_invite_rewards tp_saved_invite_rewards[])
+                                               p_saved_invite_rewards tp_saved_invite_rewards[],
+                                               p_reported_flip_rewards tp_reported_flip_reward[])
     LANGUAGE 'plpgsql'
 AS
 $BODY$
@@ -343,6 +348,13 @@ BEGIN
     end if;
     select clock_timestamp() into l_end;
     call log_performance('save_saved_invite_rewards', l_start, l_end);
+
+    select clock_timestamp() into l_start;
+    if p_reported_flip_rewards is not null then
+        call save_reported_flip_rewards(p_epoch, p_reported_flip_rewards);
+    end if;
+    select clock_timestamp() into l_end;
+    call log_performance('save_reported_flip_rewards', l_start, l_end);
 END
 $BODY$;
 
@@ -511,6 +523,37 @@ BEGIN
                      where lower(address) = lower(l_saved_invite_rewards.address)),
                     l_saved_invite_rewards.reward_type,
                     l_saved_invite_rewards.count);
+        end loop;
+END
+$BODY$;
+
+CREATE OR REPLACE PROCEDURE save_reported_flip_rewards(p_epoch bigint,
+                                                       p_reported_flip_rewards tp_reported_flip_reward[])
+    LANGUAGE 'plpgsql'
+AS
+$BODY$
+DECLARE
+    l_reported_flip_reward tp_reported_flip_reward;
+    l_flip_tx_id           bigint;
+BEGIN
+    for i in 1..cardinality(p_reported_flip_rewards)
+        loop
+            l_reported_flip_reward = p_reported_flip_rewards[i];
+            select tx_id into l_flip_tx_id from flips where lower(cid) = lower(l_reported_flip_reward.cid);
+            if l_flip_tx_id is null then
+                continue;
+            end if;
+            insert into reported_flip_rewards (ei_address_state_id, address_id, epoch, flip_tx_id, balance, stake)
+            values ((select address_state_id
+                     from cur_epoch_identities
+                     where lower(address) = lower(l_reported_flip_reward.address)),
+                    (select id
+                     from addresses
+                     where lower(address) = lower(l_reported_flip_reward.address)),
+                    p_epoch,
+                    l_flip_tx_id,
+                    l_reported_flip_reward.balance,
+                    l_reported_flip_reward.stake);
         end loop;
 END
 $BODY$;

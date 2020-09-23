@@ -51,18 +51,18 @@ BEGIN
                  join blocks b on b.height = t.block_height and b.epoch = p_epoch
                  left join (select a.flip_tx_id, count(*) answers
                             from answers a
-                            where a.is_short = true
+                            where a.is_short
                             group by a.flip_tx_id) short
                            on short.flip_tx_id = f.tx_id
                  left join (select a.flip_tx_id, count(*) answers
                             from answers a
-                            where a.is_short = false
+                            where not a.is_short
                             group by a.flip_tx_id) long
                            on long.flip_tx_id = f.tx_id
                  left join (select a.flip_tx_id, count(*) cnt
                             from answers a
                             where not a.is_short
-                              and a.wrong_words
+                              and a.grade = 1 -- reported
                             group by a.flip_tx_id) ww
                            on ww.flip_tx_id = f.tx_id
         where f.delete_tx_id is null

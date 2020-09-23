@@ -128,6 +128,15 @@ func (v *SavedInviteRewards) Value() (driver.Value, error) {
 	), nil
 }
 
+func (v *ReportedFlipReward) Value() (driver.Value, error) {
+	return fmt.Sprintf("(%v,%v,%v,%v)",
+		v.Address,
+		v.Cid,
+		v.Balance,
+		v.Stake,
+	), nil
+}
+
 func (p Penalty) Value() (driver.Value, error) {
 	return fmt.Sprintf("(%v,%v)", p.Address, p.Penalty), nil
 }
@@ -282,28 +291,28 @@ func (v *txHashId) Scan(value interface{}) error {
 }
 
 type postgresAnswer struct {
-	flipCid    string
-	address    string
-	isShort    bool
-	answer     byte
-	wrongWords bool
-	point      float32
+	flipCid string
+	address string
+	isShort bool
+	answer  byte
+	point   float32
+	grade   byte
 }
 
 func (v postgresAnswer) Value() (driver.Value, error) {
-	return fmt.Sprintf("(%v,%v,%v,%v,%v,%v)", v.flipCid, v.address, v.isShort, v.answer, v.wrongWords,
-		v.point), nil
+	return fmt.Sprintf("(%v,%v,%v,%v,%v,%v)", v.flipCid, v.address, v.isShort, v.answer,
+		v.point, v.grade), nil
 }
 
 type postgresFlipsState struct {
-	flipCid    string
-	answer     byte
-	wrongWords bool
-	status     byte
+	flipCid string
+	answer  byte
+	status  byte
+	grade   byte
 }
 
 func (v postgresFlipsState) Value() (driver.Value, error) {
-	return fmt.Sprintf("(%v,%v,%v,%v)", v.flipCid, v.answer, v.wrongWords, v.status), nil
+	return fmt.Sprintf("(%v,%v,%v,%v)", v.flipCid, v.answer, v.status, v.grade), nil
 }
 
 func getFlipStatsArrays(stats []FlipStats) (answersArray, statesArray interface {
@@ -316,11 +325,11 @@ func getFlipStatsArrays(stats []FlipStats) (answersArray, statesArray interface 
 	var isFirst bool
 	var convertAndAddAnswer = func(isShort bool, flipCid string, answer Answer) {
 		convertedAnswer := postgresAnswer{
-			address:    answer.Address,
-			answer:     answer.Answer,
-			wrongWords: answer.WrongWords,
-			point:      answer.Point,
-			isShort:    isShort,
+			address: answer.Address,
+			answer:  answer.Answer,
+			point:   answer.Point,
+			isShort: isShort,
+			grade:   answer.Grade,
 		}
 		if isFirst {
 			convertedAnswer.flipCid = flipCid
@@ -339,12 +348,13 @@ func getFlipStatsArrays(stats []FlipStats) (answersArray, statesArray interface 
 			longAnswerCountsByAddr[answer.Address]++
 		}
 		convertedStates = append(convertedStates, postgresFlipsState{
-			flipCid:    s.Cid,
-			answer:     s.Answer,
-			wrongWords: s.WrongWords,
-			status:     s.Status,
+			flipCid: s.Cid,
+			answer:  s.Answer,
+			status:  s.Status,
+			grade:   s.Grade,
 		})
-		if s.WrongWords {
+		const gradeReported = 1
+		if s.Grade == byte(gradeReported) {
 			wrongWordsFlipsCountsByAddr[s.Author]++
 		}
 	}

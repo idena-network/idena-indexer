@@ -1,6 +1,6 @@
 select ''                         address,
        0                          epoch,
-       ba.reason = 2              wrong_words,
+       ba.reason = 2              reported,
        dicr.name                  reason,
        coalesce(prevdis.name, '') prev_state,
        dis.name                   state

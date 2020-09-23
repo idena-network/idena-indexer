@@ -90,13 +90,14 @@ type BlockDetail struct {
 } // @Name Block
 
 type FlipSummary struct {
-	Cid             string        `json:"cid"`
-	Author          string        `json:"author"`
-	Epoch           uint64        `json:"epoch"`
-	ShortRespCount  uint32        `json:"shortRespCount"`
-	LongRespCount   uint32        `json:"longRespCount"`
-	Status          string        `json:"status" enums:",NotQualified,Qualified,WeaklyQualified,QualifiedByNone"`
-	Answer          string        `json:"answer" enums:",None,Left,Right"`
+	Cid            string `json:"cid"`
+	Author         string `json:"author"`
+	Epoch          uint64 `json:"epoch"`
+	ShortRespCount uint32 `json:"shortRespCount"`
+	LongRespCount  uint32 `json:"longRespCount"`
+	Status         string `json:"status" enums:",NotQualified,Qualified,WeaklyQualified,QualifiedByNone"`
+	Answer         string `json:"answer" enums:",None,Left,Right"`
+	// Deprecated
 	WrongWords      bool          `json:"wrongWords"`
 	WrongWordsVotes uint32        `json:"wrongWordsVotes"`
 	Timestamp       time.Time     `json:"timestamp" example:"2020-01-01T00:00:00Z"`
@@ -104,6 +105,7 @@ type FlipSummary struct {
 	Icon            hexutil.Bytes `json:"icon,omitempty"`
 	Words           *FlipWords    `json:"words"`
 	WithPrivatePart bool          `json:"withPrivatePart"`
+	Grade           byte          `json:"grade"`
 } // @Name FlipSummary
 
 type FlipWords struct {
@@ -174,18 +176,19 @@ type EpochIdentity struct {
 } // @Name EpochIdentity
 
 type TransactionSummary struct {
-	Hash      string           `json:"hash"`
-	Type      string           `json:"type" enums:"SendTx,ActivationTx,InviteTx,KillTx,SubmitFlipTx,SubmitAnswersHashTx,SubmitShortAnswersTx,SubmitLongAnswersTx,EvidenceTx,OnlineStatusTx,KillInviteeTx,ChangeGodAddressTx,BurnTx,ChangeProfileTx,DeleteFlipTx"`
-	Timestamp time.Time        `json:"timestamp" example:"2020-01-01T00:00:00Z"`
-	From      string           `json:"from"`
-	To        string           `json:"to,omitempty"`
-	Amount    decimal.Decimal  `json:"amount" swaggertype:"string"`
-	Tips      decimal.Decimal  `json:"tips" swaggertype:"string"`
-	MaxFee    decimal.Decimal  `json:"maxFee" swaggertype:"string"`
-	Fee       decimal.Decimal  `json:"fee" swaggertype:"string"`
-	Size      uint32           `json:"size"`
-	Transfer  *decimal.Decimal `json:"transfer,omitempty" swaggerignore:"true"` // todo deprecated
-	Data      interface{}      `json:"data,omitempty"`
+	Hash      string          `json:"hash"`
+	Type      string          `json:"type" enums:"SendTx,ActivationTx,InviteTx,KillTx,SubmitFlipTx,SubmitAnswersHashTx,SubmitShortAnswersTx,SubmitLongAnswersTx,EvidenceTx,OnlineStatusTx,KillInviteeTx,ChangeGodAddressTx,BurnTx,ChangeProfileTx,DeleteFlipTx"`
+	Timestamp time.Time       `json:"timestamp" example:"2020-01-01T00:00:00Z"`
+	From      string          `json:"from"`
+	To        string          `json:"to,omitempty"`
+	Amount    decimal.Decimal `json:"amount" swaggertype:"string"`
+	Tips      decimal.Decimal `json:"tips" swaggertype:"string"`
+	MaxFee    decimal.Decimal `json:"maxFee" swaggertype:"string"`
+	Fee       decimal.Decimal `json:"fee" swaggertype:"string"`
+	Size      uint32          `json:"size"`
+	// Deprecated
+	Transfer *decimal.Decimal `json:"transfer,omitempty" swaggerignore:"true"`
+	Data     interface{}      `json:"data,omitempty"`
 } // @Name TransactionSummary
 
 // mock type for swagger
@@ -195,21 +198,22 @@ type TransactionSpecificData struct {
 } // @Name TransactionSpecificData
 
 type TransactionDetail struct {
-	Epoch       uint64           `json:"epoch"`
-	BlockHeight uint64           `json:"blockHeight"`
-	BlockHash   string           `json:"blockHash"`
-	Hash        string           `json:"hash"`
-	Type        string           `json:"type" enums:"SendTx,ActivationTx,InviteTx,KillTx,SubmitFlipTx,SubmitAnswersHashTx,SubmitShortAnswersTx,SubmitLongAnswersTx,EvidenceTx,OnlineStatusTx,KillInviteeTx,ChangeGodAddressTx,BurnTx,ChangeProfileTx,DeleteFlipTx"`
-	Timestamp   time.Time        `json:"timestamp" example:"2020-01-01T00:00:00Z"`
-	From        string           `json:"from"`
-	To          string           `json:"to,omitempty"`
-	Amount      decimal.Decimal  `json:"amount" swaggertype:"string"`
-	Tips        decimal.Decimal  `json:"tips" swaggertype:"string"`
-	MaxFee      decimal.Decimal  `json:"maxFee" swaggertype:"string"`
-	Fee         decimal.Decimal  `json:"fee" swaggertype:"string"`
-	Size        uint32           `json:"size"`
-	Transfer    *decimal.Decimal `json:"transfer,omitempty" swaggertype:"string"` // todo deprecated
-	Data        interface{}      `json:"data,omitempty"`
+	Epoch       uint64          `json:"epoch"`
+	BlockHeight uint64          `json:"blockHeight"`
+	BlockHash   string          `json:"blockHash"`
+	Hash        string          `json:"hash"`
+	Type        string          `json:"type" enums:"SendTx,ActivationTx,InviteTx,KillTx,SubmitFlipTx,SubmitAnswersHashTx,SubmitShortAnswersTx,SubmitLongAnswersTx,EvidenceTx,OnlineStatusTx,KillInviteeTx,ChangeGodAddressTx,BurnTx,ChangeProfileTx,DeleteFlipTx"`
+	Timestamp   time.Time       `json:"timestamp" example:"2020-01-01T00:00:00Z"`
+	From        string          `json:"from"`
+	To          string          `json:"to,omitempty"`
+	Amount      decimal.Decimal `json:"amount" swaggertype:"string"`
+	Tips        decimal.Decimal `json:"tips" swaggertype:"string"`
+	MaxFee      decimal.Decimal `json:"maxFee" swaggertype:"string"`
+	Fee         decimal.Decimal `json:"fee" swaggertype:"string"`
+	Size        uint32          `json:"size"`
+	// Deprecated
+	Transfer *decimal.Decimal `json:"transfer,omitempty" swaggertype:"string"`
+	Data     interface{}      `json:"data,omitempty"`
 } // @Name Transaction
 
 type ActivationTxSpecificData struct {
@@ -221,7 +225,8 @@ type KillTxSpecificData = ActivationTxSpecificData
 type KillInviteeTxSpecificData = ActivationTxSpecificData
 
 type OnlineStatusTxSpecificData struct {
-	BecomeOnlineOld bool `json:"BecomeOnline"` // todo deprecated
+	// Deprecated
+	BecomeOnlineOld bool `json:"BecomeOnline"`
 	BecomeOnline    bool `json:"becomeOnline"`
 }
 
@@ -240,11 +245,12 @@ type Invite struct {
 } // @Name Invite
 
 type Flip struct {
-	Author          string     `json:"author"`
-	Timestamp       time.Time  `json:"timestamp" example:"2020-01-01T00:00:00Z"`
-	Size            uint32     `json:"size"`
-	Status          string     `json:"status" enums:",NotQualified,Qualified,WeaklyQualified,QualifiedByNone"`
-	Answer          string     `json:"answer" enums:",None,Left,Right"`
+	Author    string    `json:"author"`
+	Timestamp time.Time `json:"timestamp" example:"2020-01-01T00:00:00Z"`
+	Size      uint32    `json:"size"`
+	Status    string    `json:"status" enums:",NotQualified,Qualified,WeaklyQualified,QualifiedByNone"`
+	Answer    string    `json:"answer" enums:",None,Left,Right"`
+	// Deprecated
 	WrongWords      bool       `json:"wrongWords"`
 	WrongWordsVotes uint32     `json:"wrongWordsVotes"`
 	TxHash          string     `json:"txHash"`
@@ -253,26 +259,34 @@ type Flip struct {
 	Epoch           uint64     `json:"epoch"`
 	Words           *FlipWords `json:"words"`
 	WithPrivatePart bool       `json:"withPrivatePart"`
+	Grade           byte       `json:"grade"`
 } // @Name Flip
 
 type FlipContent struct {
-	LeftOrder     []uint16        `json:"leftOrder"`
-	RightOrder    []uint16        `json:"rightOrder"`
-	Pics          []hexutil.Bytes `json:"pics" swaggertype:"array"`
-	LeftOrderOld  []uint16        `json:"LeftOrder" swaggerignore:"true"`  // todo deprecated
-	RightOrderOld []uint16        `json:"RightOrder" swaggerignore:"true"` // todo deprecated
-	PicsOld       []hexutil.Bytes `json:"Pics" swaggerignore:"true"`       // todo deprecated
+	LeftOrder  []uint16        `json:"leftOrder"`
+	RightOrder []uint16        `json:"rightOrder"`
+	Pics       []hexutil.Bytes `json:"pics" swaggertype:"array"`
+	// Deprecated
+	LeftOrderOld []uint16 `json:"LeftOrder" swaggerignore:"true"`
+	// Deprecated
+	RightOrderOld []uint16 `json:"RightOrder" swaggerignore:"true"`
+	// Deprecated
+	PicsOld []hexutil.Bytes `json:"Pics" swaggerignore:"true"`
 } // @Name FlipContent
 
 type Answer struct {
-	Cid            string  `json:"cid,omitempty"`
-	Address        string  `json:"address,omitempty"`
-	RespAnswer     string  `json:"respAnswer" enums:"None,Left,Right"`
-	RespWrongWords bool    `json:"respWrongWords"`
-	FlipAnswer     string  `json:"flipAnswer" enums:"None,Left,Right"`
+	Cid        string `json:"cid,omitempty"`
+	Address    string `json:"address,omitempty"`
+	RespAnswer string `json:"respAnswer" enums:"None,Left,Right"`
+	// Deprecated
+	RespWrongWords bool   `json:"respWrongWords"`
+	FlipAnswer     string `json:"flipAnswer" enums:"None,Left,Right"`
+	// Deprecated
 	FlipWrongWords bool    `json:"flipWrongWords"`
 	FlipStatus     string  `json:"flipStatus" enums:"NotQualified,Qualified,WeaklyQualified,QualifiedByNone"`
 	Point          float32 `json:"point"`
+	RespGrade      byte    `json:"respGrade"`
+	FlipGrade      byte    `json:"flipGrade"`
 } // @Name Answer
 
 type Identity struct {
@@ -391,6 +405,12 @@ type FlipWithRewardFlag struct {
 	FlipSummary
 	Rewarded bool `json:"rewarded"`
 } // @Name RewardedFlip
+
+type ReportedFlipReward struct {
+	Cid     string          `json:"cid"`
+	Balance decimal.Decimal `json:"balance" swaggertype:"string"`
+	Stake   decimal.Decimal `json:"stake" swaggertype:"string"`
+} // @Name ReportedFlipReward
 
 type InviteWithRewardFlag struct {
 	Invite

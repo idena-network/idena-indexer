@@ -91,14 +91,14 @@ func Test_complex(t *testing.T) {
 		FlipCids: [][]byte{cid1.Bytes(), cidWrongWordsFlip.Bytes()},
 		FlipsPerIdx: map[int]*types.FlipStats{
 			0: {
-				Status:     byte(ceremony.Qualified),
-				Answer:     types2.Left,
-				WrongWords: false,
+				Status: byte(ceremony.Qualified),
+				Answer: types2.Left,
+				Grade:  types2.GradeA,
 				ShortAnswers: []types.FlipAnswerStats{
 					{
 						Respondent: addr,
 						Answer:     types2.Left,
-						WrongWords: false,
+						Grade:      types2.GradeA,
 						Point:      1,
 					},
 				},
@@ -106,20 +106,20 @@ func Test_complex(t *testing.T) {
 					{
 						Respondent: addr,
 						Answer:     types2.Left,
-						WrongWords: false,
+						Grade:      types2.GradeA,
 						Point:      1,
 					},
 				},
 			},
 			1: {
-				Status:     byte(ceremony.Qualified),
-				Answer:     types2.Right,
-				WrongWords: true,
+				Status: byte(ceremony.Qualified),
+				Answer: types2.Right,
+				Grade:  types2.GradeReported,
 				LongAnswers: []types.FlipAnswerStats{
 					{
 						Respondent: addr,
 						Answer:     types2.Right,
-						WrongWords: true,
+						Grade:      types2.GradeReported,
 						Point:      1,
 					},
 				},
@@ -224,14 +224,14 @@ func Test_complex(t *testing.T) {
 		FlipCids: [][]byte{cid1.Bytes(), cidWrongWordsFlip.Bytes()},
 		FlipsPerIdx: map[int]*types.FlipStats{
 			0: {
-				Status:     byte(ceremony.Qualified),
-				Answer:     types2.Left,
-				WrongWords: false,
+				Status: byte(ceremony.Qualified),
+				Answer: types2.Left,
+				Grade:  types2.GradeA,
 				ShortAnswers: []types.FlipAnswerStats{
 					{
 						Respondent: addr,
 						Answer:     types2.Left,
-						WrongWords: false,
+						Grade:      types2.GradeA,
 						Point:      1,
 					},
 				},
@@ -239,20 +239,20 @@ func Test_complex(t *testing.T) {
 					{
 						Respondent: addr,
 						Answer:     types2.Left,
-						WrongWords: false,
+						Grade:      types2.GradeA,
 						Point:      1,
 					},
 				},
 			},
 			1: {
-				Status:     byte(ceremony.Qualified),
-				Answer:     types2.Right,
-				WrongWords: true,
+				Status: byte(ceremony.Qualified),
+				Answer: types2.Right,
+				Grade:  types2.GradeReported,
 				LongAnswers: []types.FlipAnswerStats{
 					{
 						Respondent: addr,
 						Answer:     types2.Right,
-						WrongWords: true,
+						Grade:      types2.GradeReported,
 						Point:      1,
 					},
 				},

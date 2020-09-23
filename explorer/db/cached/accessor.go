@@ -602,6 +602,13 @@ func (a *cachedAccessor) EpochIdentityFlipsWithRewardFlag(epoch uint64, address 
 	return res.([]types.FlipWithRewardFlag), err
 }
 
+func (a *cachedAccessor) EpochIdentityReportedFlipRewards(epoch uint64, address string) ([]types.ReportedFlipReward, error) {
+	res, err := a.getOrLoad("EpochIdentityReportedFlipRewards", func() (interface{}, error) {
+		return a.Accessor.EpochIdentityReportedFlipRewards(epoch, address)
+	}, epoch, address)
+	return res.([]types.ReportedFlipReward), err
+}
+
 func (a *cachedAccessor) EpochIdentityValidationTxs(epoch uint64, address string) ([]types.TransactionSummary, error) {
 	res, err := a.getOrLoad("EpochIdentityValidationTxs", func() (interface{}, error) {
 		return a.Accessor.EpochIdentityValidationTxs(epoch, address)

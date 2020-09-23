@@ -257,3 +257,71 @@ func GetTransactionRaws(db *sql.DB) ([]TransactionRaw, error) {
 	}
 	return res, nil
 }
+
+type ValidationReward struct {
+	Address string
+	Epoch   int
+	Balance decimal.Decimal
+	Stake   decimal.Decimal
+	Type    int
+}
+
+func GetValidationRewards(db *sql.DB) ([]ValidationReward, error) {
+	rows, err := db.Query(`select a.address, ei.epoch, vr.balance, vr.stake, vr.type from validation_rewards vr
+join epoch_identities ei on ei.address_state_id=vr.ei_address_state_id
+join address_states s on s.id=ei.address_state_id
+join addresses a on a.id=s.address_id`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var res []ValidationReward
+	for rows.Next() {
+		item := ValidationReward{}
+		err := rows.Scan(
+			&item.Address,
+			&item.Epoch,
+			&item.Balance,
+			&item.Stake,
+			&item.Type,
+		)
+		if err != nil {
+			return nil, err
+		}
+		res = append(res, item)
+	}
+	return res, nil
+}
+
+type ReportedFlipRewards struct {
+	Address  string
+	Epoch    int
+	FlipTxId int
+	Balance  decimal.Decimal
+	Stake    decimal.Decimal
+}
+
+func GetReportedFlipRewards(db *sql.DB) ([]ReportedFlipRewards, error) {
+	rows, err := db.Query(`select a.address, rfr.epoch, rfr.flip_tx_id, rfr.balance, rfr.stake from reported_flip_rewards rfr
+join addresses a on a.id=rfr.address_id`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var res []ReportedFlipRewards
+	for rows.Next() {
+		item := ReportedFlipRewards{}
+		err := rows.Scan(
+			&item.Address,
+			&item.Epoch,
+			&item.FlipTxId,
+			&item.Balance,
+			&item.Stake,
+		)
+		if err != nil {
+			return nil, err
+		}
+		res = append(res, item)
+	}
+	return res, nil
+}

@@ -6,17 +6,18 @@ import (
 )
 
 const (
-	epochIdentityQuery                   = "epochIdentity.sql"
-	epochIdentityAnswersQuery            = "epochIdentityAnswers.sql"
-	epochIdentityFlipsToSolveQuery       = "epochIdentityFlipsToSolve.sql"
-	epochIdentityFlipsQuery              = "epochIdentityFlips.sql"
-	epochIdentityRewardedFlipsQuery      = "epochIdentityRewardedFlips.sql"
-	epochIdentityValidationTxsQuery      = "epochIdentityValidationTxs.sql"
-	epochIdentityRewardsQuery            = "epochIdentityRewards.sql"
-	epochIdentityBadAuthorQuery          = "epochIdentityBadAuthor.sql"
-	epochIdentityRewardedInvitesQuery    = "epochIdentityRewardedInvites.sql"
-	epochIdentitySavedInviteRewardsQuery = "epochIdentitySavedInviteRewards.sql"
-	epochIdentityAvailableInvitesQuery   = "epochIdentityAvailableInvites.sql"
+	epochIdentityQuery                    = "epochIdentity.sql"
+	epochIdentityAnswersQuery             = "epochIdentityAnswers.sql"
+	epochIdentityFlipsToSolveQuery        = "epochIdentityFlipsToSolve.sql"
+	epochIdentityFlipsQuery               = "epochIdentityFlips.sql"
+	epochIdentityRewardedFlipsQuery       = "epochIdentityRewardedFlips.sql"
+	epochIdentityReportedFlipRewardsQuery = "epochIdentityReportedFlipRewards.sql"
+	epochIdentityValidationTxsQuery       = "epochIdentityValidationTxs.sql"
+	epochIdentityRewardsQuery             = "epochIdentityRewards.sql"
+	epochIdentityBadAuthorQuery           = "epochIdentityBadAuthor.sql"
+	epochIdentityRewardedInvitesQuery     = "epochIdentityRewardedInvites.sql"
+	epochIdentitySavedInviteRewardsQuery  = "epochIdentitySavedInviteRewards.sql"
+	epochIdentityAvailableInvitesQuery    = "epochIdentityAvailableInvites.sql"
 )
 
 func (a *postgresAccessor) EpochIdentity(epoch uint64, address string) (types.EpochIdentity, error) {
@@ -106,7 +107,8 @@ func (a *postgresAccessor) EpochIdentityFlipsWithRewardFlag(epoch uint64, addres
 		item := types.FlipWithRewardFlag{}
 		var timestamp int64
 		words := types.FlipWords{}
-		err := rows.Scan(&item.Cid,
+		err := rows.Scan(
+			&item.Cid,
 			&item.Size,
 			&item.Author,
 			&item.Epoch,
@@ -125,13 +127,37 @@ func (a *postgresAccessor) EpochIdentityFlipsWithRewardFlag(epoch uint64, addres
 			&words.Word2.Name,
 			&words.Word2.Desc,
 			&item.WithPrivatePart,
-			&item.Rewarded)
+			&item.Grade,
+			&item.Rewarded,
+		)
 		if err != nil {
 			return nil, err
 		}
 		item.Timestamp = timestampToTimeUTC(timestamp)
 		if !words.IsEmpty() {
 			item.Words = &words
+		}
+		res = append(res, item)
+	}
+	return res, nil
+}
+
+func (a *postgresAccessor) EpochIdentityReportedFlipRewards(epoch uint64, address string) ([]types.ReportedFlipReward, error) {
+	rows, err := a.db.Query(a.getQuery(epochIdentityReportedFlipRewardsQuery), epoch, address)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var res []types.ReportedFlipReward
+	for rows.Next() {
+		item := types.ReportedFlipReward{}
+		err := rows.Scan(
+			&item.Cid,
+			&item.Balance,
+			&item.Stake,
+		)
+		if err != nil {
+			return nil, err
 		}
 		res = append(res, item)
 	}

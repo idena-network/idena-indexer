@@ -202,7 +202,26 @@ func (a *postgresAccessor) EpochFlipStatesSummary(epoch uint64) ([]types.StrValu
 }
 
 func (a *postgresAccessor) EpochFlipWrongWordsSummary(epoch uint64) ([]types.NullableBoolValueCount, error) {
-	return a.nullableBoolValueCounts(epochFlipQualifiedWrongWordsQuery, epoch)
+	rows, err := a.db.Query(a.getQuery(epochFlipQualifiedWrongWordsQuery), epoch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var res []types.NullableBoolValueCount
+	for rows.Next() {
+		item := types.NullableBoolValueCount{}
+		nullGrade := sql.NullInt32{}
+		if err := rows.Scan(&nullGrade, &item.Count); err != nil {
+			return nil, err
+		}
+		if nullGrade.Valid {
+			const gradeReported = 1
+			reported := nullGrade.Int32 == int32(gradeReported)
+			item.Value = &reported
+		}
+		res = append(res, item)
+	}
+	return res, nil
 }
 
 func (a *postgresAccessor) EpochIdentitiesCount(epoch uint64, prevStates []string, states []string) (uint64, error) {

@@ -4,3 +4,5 @@
 # executables
 /*.exe
 *.exe~
+
+go.sum

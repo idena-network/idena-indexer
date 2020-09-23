@@ -183,6 +183,8 @@ func (s *httpServer) InitRouter(router *mux.Router) {
 		HandlerFunc(s.epochIdentityRewards)
 	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Identity/{address}/RewardedFlips")).
 		HandlerFunc(s.epochIdentityFlipsWithRewardFlag)
+	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Identity/{address}/ReportRewards")).
+		HandlerFunc(s.epochIdentityReportedFlipRewards)
 	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Identity/{address}/Authors/Bad")).
 		HandlerFunc(s.epochIdentityBadAuthor)
 	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Identity/{address}/RewardedInvites")).
@@ -1296,6 +1298,30 @@ func (s *httpServer) epochIdentityFlipsWithRewardFlag(w http.ResponseWriter, r *
 		return
 	}
 	resp, err := s.db.EpochIdentityFlipsWithRewardFlag(epoch, vars["address"])
+	server.WriteResponse(w, resp, err, s.log)
+}
+
+// @Tags Identity
+// @Id EpochIdentityReportedFlipRewards
+// @Param epoch path integer true "epoch"
+// @Param address path string true "address"
+// @Success 200 {object} server.Response{result=[]types.ReportedFlipReward}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Epoch/{epoch}/Identity/{address}/ReportRewards [get]
+func (s *httpServer) epochIdentityReportedFlipRewards(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("epochIdentityReportedFlipRewards", r.RequestURI)
+	defer s.pm.Complete(id)
+
+	vars := mux.Vars(r)
+	epoch, err := server.ReadUint(vars, "epoch")
+	if err != nil {
+		server.WriteErrorResponse(w, err, s.log)
+		return
+	}
+	resp, err := s.db.EpochIdentityReportedFlipRewards(epoch, vars["address"])
 	server.WriteResponse(w, resp, err, s.log)
 }
 

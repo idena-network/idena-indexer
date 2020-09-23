@@ -180,6 +180,9 @@ ON CONFLICT DO NOTHING;
 INSERT INTO dic_epoch_reward_types
 values (8, 'SavedInviteWin')
 ON CONFLICT DO NOTHING;
+INSERT INTO dic_epoch_reward_types
+values (9, 'Reports')
+ON CONFLICT DO NOTHING;
 
 CREATE TABLE IF NOT EXISTS dic_bad_author_reasons
 (
@@ -645,10 +648,6 @@ CREATE TABLE IF NOT EXISTS epoch_identity_interim_states
         ON DELETE NO ACTION
 );
 
--- Table: flips
-
--- DROP TABLE flips;
-
 CREATE TABLE IF NOT EXISTS flips
 (
     tx_id               bigint                                              NOT NULL,
@@ -657,9 +656,9 @@ CREATE TABLE IF NOT EXISTS flips
     pair                smallint                                            NOT NULL,
     status_block_height bigint,
     answer              smallint,
-    wrong_words         boolean,
     status              smallint,
     delete_tx_id        bigint,
+    grade               smallint,
     CONSTRAINT flips_pkey PRIMARY KEY (tx_id),
     CONSTRAINT flips_status_block_height_fkey FOREIGN KEY (status_block_height)
         REFERENCES blocks (height) MATCH SIMPLE
@@ -681,17 +680,9 @@ CREATE TABLE IF NOT EXISTS flips
         REFERENCES transactions (id) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION
-)
-    WITH (
-        OIDS = FALSE
-    )
-    TABLESPACE pg_default;
-
-ALTER TABLE flips
-    OWNER to postgres;
+);
 
 CREATE UNIQUE INDEX IF NOT EXISTS flips_cid_unique_idx on flips (LOWER(cid));
-CREATE INDEX IF NOT EXISTS flips_wrong_words_idx on flips ((1)) WHERE wrong_words;
 CREATE INDEX IF NOT EXISTS flips_zero_size_idx on flips (tx_id) WHERE size = 0 and delete_tx_id is NULL;
 CREATE INDEX IF NOT EXISTS flips_actual_idx on flips (tx_id) WHERE delete_tx_id is NULL;
 
@@ -744,8 +735,8 @@ CREATE TABLE IF NOT EXISTS answers
     ei_address_state_id bigint   NOT NULL,
     is_short            boolean  NOT NULL,
     answer              smallint NOT NULL,
-    wrong_words         boolean  NOT NULL,
     point               real     NOT NULL,
+    grade               smallint NOT NULL,
     CONSTRAINT answers_ei_address_state_id_fkey FOREIGN KEY (ei_address_state_id)
         REFERENCES epoch_identities (address_state_id) MATCH SIMPLE
         ON UPDATE NO ACTION
@@ -767,7 +758,7 @@ CREATE TABLE IF NOT EXISTS answers
 ALTER TABLE answers
     OWNER to postgres;
 
-CREATE INDEX IF NOT EXISTS answers_long_wrong_words_idx on answers (flip_tx_id) WHERE not is_short and wrong_words;
+CREATE INDEX IF NOT EXISTS answers_long_reported_idx on answers (flip_tx_id) WHERE not is_short and grade = 1;
 CREATE INDEX IF NOT EXISTS answers_short_idx on answers (flip_tx_id) WHERE is_short;
 CREATE INDEX IF NOT EXISTS answers_long_idx on answers (flip_tx_id) WHERE not is_short;
 CREATE INDEX IF NOT EXISTS answers_short_respondent_idx on answers (ei_address_state_id) WHERE is_short;
@@ -1368,6 +1359,34 @@ CREATE TABLE IF NOT EXISTS saved_invite_rewards
         ON DELETE NO ACTION
 );
 
+CREATE TABLE IF NOT EXISTS reported_flip_rewards
+(
+    ei_address_state_id bigint          NOT NULL,
+    address_id          bigint          NOT NULL,
+    epoch               bigint          NOT NULL,
+    flip_tx_id          bigint          NOT NULL,
+    balance             numeric(30, 18) NOT NULL,
+    stake               numeric(30, 18) NOT NULL,
+    CONSTRAINT reported_flip_rewards_ei_address_state_id_fkey FOREIGN KEY (ei_address_state_id)
+        REFERENCES epoch_identities (address_state_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT reported_flip_rewards_address_id_fkey FOREIGN KEY (address_id)
+        REFERENCES addresses (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT reported_flip_rewards_epoch_fkey FOREIGN KEY (epoch)
+        REFERENCES epochs (epoch) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT reported_flip_rewards_flip_tx_id_fkey FOREIGN KEY (flip_tx_id)
+        REFERENCES flips (tx_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+);
+CREATE UNIQUE INDEX IF NOT EXISTS reported_flip_rewards_unique_idx1 on reported_flip_rewards (ei_address_state_id, flip_tx_id);
+CREATE UNIQUE INDEX IF NOT EXISTS reported_flip_rewards_unique_idx2 on reported_flip_rewards (address_id, flip_tx_id);
+
 CREATE SEQUENCE IF NOT EXISTS balance_updates_id_seq
     INCREMENT 1
     START 1
@@ -1677,19 +1696,15 @@ $$;
 DO
 $$
     BEGIN
-        -- Type: tp_answer
         CREATE TYPE tp_answer AS
         (
-            flip_cid    character varying(100),
-            address     character(42),
-            is_short    boolean,
-            answer      smallint,
-            wrong_words boolean,
-            point       real
+            flip_cid character varying(100),
+            address  character(42),
+            is_short boolean,
+            answer   smallint,
+            point    real,
+            grade    smallint
         );
-
-        ALTER TYPE tp_answer
-            OWNER TO postgres;
     EXCEPTION
         WHEN duplicate_object THEN null;
     END
@@ -1698,17 +1713,13 @@ $$;
 DO
 $$
     BEGIN
-        -- Type: tp_flip_state
         CREATE TYPE tp_flip_state AS
         (
-            flip_cid    character varying(100),
-            answer      smallint,
-            wrong_words boolean,
-            status      smallint
+            flip_cid character varying(100),
+            answer   smallint,
+            status   smallint,
+            grade    smallint
         );
-
-        ALTER TYPE tp_flip_state
-            OWNER TO postgres;
     EXCEPTION
         WHEN duplicate_object THEN null;
     END
@@ -1982,6 +1993,22 @@ $$
         WHEN duplicate_object THEN null;
     END
 $$;
+
+DO
+$$
+    BEGIN
+        CREATE TYPE tp_reported_flip_reward AS
+        (
+            address text,
+            cid     text,
+            balance numeric,
+            stake   numeric
+        );
+    EXCEPTION
+        WHEN duplicate_object THEN null;
+    END
+$$;
+
 
 DO
 $$
@@ -2653,6 +2680,14 @@ BEGIN
                                      b.epoch + 1 > l_epoch);
 
     delete
+    from reported_flip_rewards
+    where flip_tx_id in
+          (select t.id
+           from transactions t
+                    join blocks b on b.height = t.block_height and
+                                     b.epoch + 1 > l_epoch);
+
+    delete
     from flip_summaries
     where flip_tx_id in
           (select t.id
@@ -2802,7 +2837,7 @@ BEGIN
     set status_block_height=null,
         status=null,
         answer=null,
-        wrong_words=null
+        grade=null
     where status_block_height > p_block_height;
     update flips
     set delete_tx_id=null

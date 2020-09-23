@@ -24,6 +24,7 @@ type statsCollector struct {
 	stats                           *Stats
 	statsEnabled                    bool
 	invitationRewardsByAddrAndType  map[common.Address]map[RewardType]*RewardStats
+	reportedFlipRewardsByAddr       map[common.Address]*RewardStats
 	pendingBalanceUpdates           []*db.BalanceUpdate
 	epochRewardBalanceUpdatesByAddr map[common.Address]*db.BalanceUpdate
 }
@@ -48,6 +49,13 @@ func (c *statsCollector) initInvitationRewardsByAddrAndType() {
 		return
 	}
 	c.invitationRewardsByAddrAndType = make(map[common.Address]map[RewardType]*RewardStats)
+}
+
+func (c *statsCollector) initReportedFlipRewardsByAddr() {
+	if c.reportedFlipRewardsByAddr != nil {
+		return
+	}
+	c.reportedFlipRewardsByAddr = make(map[common.Address]*RewardStats)
 }
 
 func (c *statsCollector) SetValidation(validation *statsTypes.ValidationStats) {
@@ -105,24 +113,48 @@ func (c *statsCollector) AddValidationReward(addr common.Address, age uint16, ba
 }
 
 func (c *statsCollector) AddFlipsReward(addr common.Address, balance *big.Int, stake *big.Int,
-	rewardedStrongFlipCids [][]byte, rewardedWeakFlipCids [][]byte) {
+	flipsToReward []*types.FlipToReward) {
 	c.addReward(addr, balance, stake, Flips)
-	c.addRewardedFlips(rewardedStrongFlipCids, rewardedWeakFlipCids)
+	c.addRewardedFlips(flipsToReward)
 }
 
-func (c *statsCollector) addRewardedFlips(rewardedStrongFlipCids [][]byte, rewardedWeakFlipCids [][]byte) {
-	if len(rewardedStrongFlipCids)+len(rewardedWeakFlipCids) == 0 {
+func (c *statsCollector) addRewardedFlips(flipsToReward []*types.FlipToReward) {
+	if len(flipsToReward) == 0 {
 		return
 	}
 	c.initRewardStats()
-	for _, cidBytes := range rewardedStrongFlipCids {
-		flipCid, _ := cid.Parse(cidBytes)
+	for _, rewardedFlip := range flipsToReward {
+		flipCid, _ := cid.Parse(rewardedFlip.Cid)
 		c.stats.RewardsStats.RewardedFlipCids = append(c.stats.RewardsStats.RewardedFlipCids, flipCid.String())
 	}
-	for _, cidBytes := range rewardedWeakFlipCids {
-		flipCid, _ := cid.Parse(cidBytes)
-		c.stats.RewardsStats.RewardedFlipCids = append(c.stats.RewardsStats.RewardedFlipCids, flipCid.String())
+}
+
+func (c *statsCollector) AddReportedFlipsReward(addr common.Address, flipIdx int, balance *big.Int, stake *big.Int) {
+	c.addReward(addr, balance, stake, ReportedFlips)
+	c.addReportedFlipReward(addr, flipIdx, balance, stake)
+}
+
+func (c *statsCollector) addReportedFlipReward(addr common.Address, flipIdx int, balance *big.Int, stake *big.Int) {
+	cidBytes, ok := c.getFlipCid(flipIdx)
+	if !ok {
+		log.Warn(fmt.Sprintf("Cid for flip %d not found", flipIdx))
+		return
 	}
+	flipCid, _ := cid.Parse(cidBytes)
+	c.initRewardStats()
+	c.stats.RewardsStats.ReportedFlipRewards = append(c.stats.RewardsStats.ReportedFlipRewards, &db.ReportedFlipReward{
+		Address: conversion.ConvertAddress(addr),
+		Balance: blockchain.ConvertToFloat(balance),
+		Stake:   blockchain.ConvertToFloat(stake),
+		Cid:     flipCid.String(),
+	})
+}
+
+func (c *statsCollector) getFlipCid(flipIdx int) ([]byte, bool) {
+	if flipIdx >= len(c.stats.ValidationStats.FlipCids) {
+		return nil, false
+	}
+	return c.stats.ValidationStats.FlipCids[flipIdx], true
 }
 
 func (c *statsCollector) AddInvitationsReward(addr common.Address, balance *big.Int, stake *big.Int, age uint16,
@@ -197,6 +229,9 @@ func (c *statsCollector) addReward(addr common.Address, balance *big.Int, stake 
 	if c.increaseInvitationRewardIfExists(rewardsStats) {
 		return
 	}
+	if c.increaseReportedFlipRewardIfExists(rewardsStats) {
+		return
+	}
 	c.stats.RewardsStats.Rewards = append(c.stats.RewardsStats.Rewards, rewardsStats)
 }
 
@@ -218,6 +253,21 @@ func (c *statsCollector) increaseInvitationRewardIfExists(rewardsStats *RewardSt
 	}
 	addrInvitationRewardsByType[rewardsStats.Type] = rewardsStats
 	c.invitationRewardsByAddrAndType[rewardsStats.Address] = addrInvitationRewardsByType
+	return false
+}
+
+func (c *statsCollector) increaseReportedFlipRewardIfExists(rewardsStats *RewardStats) bool {
+	if rewardsStats.Type != ReportedFlips {
+		return false
+	}
+	c.initReportedFlipRewardsByAddr()
+	reportedFlipRewards, ok := c.reportedFlipRewardsByAddr[rewardsStats.Address]
+	if ok {
+		reportedFlipRewards.Balance.Add(reportedFlipRewards.Balance, rewardsStats.Balance)
+		reportedFlipRewards.Stake.Add(reportedFlipRewards.Stake, rewardsStats.Stake)
+		return true
+	}
+	c.reportedFlipRewardsByAddr[rewardsStats.Address] = rewardsStats
 	return false
 }
 
@@ -351,6 +401,7 @@ func (c *statsCollector) initBalanceUpdatesByAddr() {
 func (c *statsCollector) CompleteCollecting() {
 	c.stats = nil
 	c.invitationRewardsByAddrAndType = nil
+	c.reportedFlipRewardsByAddr = nil
 	c.pendingBalanceUpdates = nil
 	c.epochRewardBalanceUpdatesByAddr = nil
 }

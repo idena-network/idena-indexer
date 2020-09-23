@@ -4,7 +4,7 @@ select f.Cid,
        b.epoch,
        COALESCE(dfs.name, '')            status,
        COALESCE(da.name, '')             answer,
-       COALESCE(f.wrong_words, false)    wrongWords,
+       coalesce(f.grade, 0) = 1          reported,
        coalesce(fs.wrong_words_votes, 0) wrong_words_votes,
        coalesce(fs.short_answers, 0)     short_answers,
        coalesce(fs.long_answers, 0)      long_answers,
@@ -17,6 +17,7 @@ select f.Cid,
        coalesce(wd2.name, '')            word_name_2,
        coalesce(wd2.description, '')     word_desc_2,
        coalesce(fs.encrypted, false)     with_private_part,
+       coalesce(f.grade, 0)              grade,
        rf.flip_tx_id is not null         rewarded
 from flips f
          join transactions t on t.id = f.tx_id
