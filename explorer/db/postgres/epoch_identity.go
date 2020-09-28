@@ -151,13 +151,25 @@ func (a *postgresAccessor) EpochIdentityReportedFlipRewards(epoch uint64, addres
 	var res []types.ReportedFlipReward
 	for rows.Next() {
 		item := types.ReportedFlipReward{}
+		words := types.FlipWords{}
 		err := rows.Scan(
 			&item.Cid,
+			&item.Icon,
+			&item.Author,
+			&words.Word1.Index,
+			&words.Word1.Name,
+			&words.Word1.Desc,
+			&words.Word2.Index,
+			&words.Word2.Name,
+			&words.Word2.Desc,
 			&item.Balance,
 			&item.Stake,
 		)
 		if err != nil {
 			return nil, err
+		}
+		if !words.IsEmpty() {
+			item.Words = &words
 		}
 		res = append(res, item)
 	}

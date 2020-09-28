@@ -408,6 +408,9 @@ type FlipWithRewardFlag struct {
 
 type ReportedFlipReward struct {
 	Cid     string          `json:"cid"`
+	Icon    hexutil.Bytes   `json:"icon,omitempty"`
+	Author  string          `json:"author"`
+	Words   *FlipWords      `json:"words"`
 	Balance decimal.Decimal `json:"balance" swaggertype:"string"`
 	Stake   decimal.Decimal `json:"stake" swaggertype:"string"`
 } // @Name ReportedFlipReward

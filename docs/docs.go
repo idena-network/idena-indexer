@@ -5113,14 +5113,24 @@ var doc = `{
         "ReportedFlipReward": {
             "type": "object",
             "properties": {
+                "author": {
+                    "type": "string"
+                },
                 "balance": {
                     "type": "string"
                 },
                 "cid": {
                     "type": "string"
                 },
+                "icon": {
+                    "type": "string"
+                },
                 "stake": {
                     "type": "string"
+                },
+                "words": {
+                    "type": "object",
+                    "$ref": "#/definitions/FlipWords"
                 }
             }
         },

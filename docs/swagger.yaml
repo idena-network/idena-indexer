@@ -592,12 +592,19 @@ definitions:
     type: object
   ReportedFlipReward:
     properties:
+      author:
+        type: string
       balance:
         type: string
       cid:
         type: string
+      icon:
+        type: string
       stake:
         type: string
+      words:
+        $ref: '#/definitions/FlipWords'
+        type: object
     type: object
   Response:
     properties:
