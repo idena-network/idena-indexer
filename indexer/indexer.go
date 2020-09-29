@@ -739,9 +739,8 @@ func (indexer *Indexer) detectEpochResult(block *types.Block, ctx *conversionCon
 		convertedAddress := conversion.ConvertAddress(addr)
 		convertedIdentity := db.EpochIdentity{}
 		convertedIdentity.Address = convertedAddress
-		convertedIdentity.State = convertIdentityState(ctx.newStateReadOnly.State.GetIdentityState(addr))
-		convertedIdentity.TotalShortPoint = ctx.prevStateReadOnly.State.GetShortFlipPoints(addr)
-		convertedIdentity.TotalShortFlips = ctx.prevStateReadOnly.State.GetQualifiedFlipsCount(addr)
+		newIdentityState := ctx.newStateReadOnly.State.GetIdentityState(addr)
+		convertedIdentity.State = convertIdentityState(newIdentityState)
 		convertedIdentity.RequiredFlips = ctx.prevStateReadOnly.State.GetRequiredFlips(addr)
 		identityPrevState := ctx.prevStateReadOnly.State.GetIdentity(addr)
 		convertedIdentity.AvailableFlips = identityPrevState.GetMaximumAvailableFlips()
@@ -749,9 +748,20 @@ func (indexer *Indexer) detectEpochResult(block *types.Block, ctx *conversionCon
 		convertedIdentity.NextEpochInvites = ctx.newStateReadOnly.State.GetInvites(addr)
 		if identityStats, present := validationStats.IdentitiesPerAddr[addr]; present {
 			convertedIdentity.ShortPoint = identityStats.ShortPoint
-			convertedIdentity.TotalShortPoint += identityStats.ShortPoint
 			convertedIdentity.ShortFlips = identityStats.ShortFlips
-			convertedIdentity.TotalShortFlips += identityStats.ShortFlips
+
+			if newIdentityState.NewbieOrBetter() || newIdentityState == state.Suspended || newIdentityState == state.Zombie {
+				convertedIdentity.TotalShortPoint, convertedIdentity.TotalShortFlips = common.CalculateIdentityScores(ctx.newStateReadOnly.State.GetScores(addr),
+					ctx.newStateReadOnly.State.GetShortFlipPoints(addr), ctx.newStateReadOnly.State.GetQualifiedFlipsCount(addr))
+			} else if identityStats.Missed {
+				convertedIdentity.TotalShortPoint, convertedIdentity.TotalShortFlips = common.CalculateIdentityScores(identity.Scores,
+					ctx.prevStateReadOnly.State.GetShortFlipPoints(addr), ctx.prevStateReadOnly.State.GetQualifiedFlipsCount(addr))
+			} else {
+				convertedIdentity.TotalShortPoint, convertedIdentity.TotalShortFlips = calculateNewTotalScore(identity.Scores,
+					identityStats.ShortPoint, identityStats.ShortFlips, ctx.prevStateReadOnly.State.GetShortFlipPoints(addr),
+					ctx.prevStateReadOnly.State.GetQualifiedFlipsCount(addr))
+			}
+
 			convertedIdentity.LongPoint = identityStats.LongPoint
 			convertedIdentity.LongFlips = identityStats.LongFlips
 			convertedIdentity.Approved = identityStats.Approved
@@ -761,6 +771,8 @@ func (indexer *Indexer) detectEpochResult(block *types.Block, ctx *conversionCon
 		} else {
 			convertedIdentity.Approved = false
 			convertedIdentity.Missed = true
+			convertedIdentity.TotalShortPoint, convertedIdentity.TotalShortFlips = common.CalculateIdentityScores(identity.Scores,
+				ctx.prevStateReadOnly.State.GetShortFlipPoints(addr), ctx.prevStateReadOnly.State.GetQualifiedFlipsCount(addr))
 		}
 
 		if identityPrevState.State == state.Invite || identityPrevState.State == state.Candidate {
@@ -828,6 +840,16 @@ func (indexer *Indexer) detectEpochResult(block *types.Block, ctx *conversionCon
 		EpochRewards:      indexer.detectEpochRewards(block),
 		MinScoreForInvite: minScoreForInvite,
 	}
+}
+
+func calculateNewTotalScore(scores []byte, shortPoints float32, shortFlipsCount uint32, totalShortPoints float32, totalShortFlipsCount uint32) (totalPoints float32, totalFlips uint32) {
+	newScores := make([]byte, len(scores))
+	copy(newScores, scores)
+	newScores = append(newScores, common.EncodeScore(shortPoints, shortFlipsCount))
+	if len(newScores) > common.LastScoresCount {
+		newScores = newScores[len(newScores)-common.LastScoresCount:]
+	}
+	return common.CalculateIdentityScores(newScores, totalShortPoints, totalShortFlipsCount)
 }
 
 func (indexer *Indexer) detectMemPoolFlipKey(addr common.Address, identity state.Identity) *db.MemPoolFlipKey {
