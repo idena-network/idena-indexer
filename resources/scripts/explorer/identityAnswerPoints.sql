@@ -1,4 +1,4 @@
-select ei.total_short_point,
+select least(ei.total_short_point, ei.total_short_flips) total_short_point,
        ei.total_short_flips
 from epoch_identities ei
          join address_states s on s.id = ei.address_state_id and

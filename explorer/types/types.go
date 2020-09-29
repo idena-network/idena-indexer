@@ -413,6 +413,7 @@ type ReportedFlipReward struct {
 	Words   *FlipWords      `json:"words"`
 	Balance decimal.Decimal `json:"balance" swaggertype:"string"`
 	Stake   decimal.Decimal `json:"stake" swaggertype:"string"`
+	Grade   byte            `json:"grade"`
 } // @Name ReportedFlipReward
 
 type InviteWithRewardFlag struct {

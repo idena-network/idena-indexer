@@ -5122,6 +5122,9 @@ var doc = `{
                 "cid": {
                     "type": "string"
                 },
+                "grade": {
+                    "type": "integer"
+                },
                 "icon": {
                     "type": "string"
                 },

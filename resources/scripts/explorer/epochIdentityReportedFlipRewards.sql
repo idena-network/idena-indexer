@@ -8,7 +8,8 @@ SELECT f.cid,
        coalesce(wd2.name, '')         word_name_2,
        coalesce(wd2.description, '')  word_desc_2,
        coalesce(rfr.balance, 0)       balance,
-       coalesce(rfr.stake, 0)         stake
+       coalesce(rfr.stake, 0)         stake,
+       a.grade
 FROM answers a
          JOIN flips f ON f.tx_id = a.flip_tx_id AND f.grade = 1
          JOIN epoch_identities ei ON ei.address_state_id = a.ei_address_state_id AND ei.epoch = $1

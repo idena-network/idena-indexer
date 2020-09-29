@@ -164,6 +164,7 @@ func (a *postgresAccessor) EpochIdentityReportedFlipRewards(epoch uint64, addres
 			&words.Word2.Desc,
 			&item.Balance,
 			&item.Stake,
+			&item.Grade,
 		)
 		if err != nil {
 			return nil, err

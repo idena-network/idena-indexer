@@ -1,26 +1,26 @@
 SELECT eis.address_state_id,
        a.address,
        eis.epoch,
-       dis.name                                  state,
-       coalesce(prevdis.name, '')                prev_state,
+       dis.name                                                       state,
+       coalesce(prevdis.name, '')                                     prev_state,
        coalesce(ei.approved, false),
        coalesce(ei.missed, false),
        coalesce(ei.short_point, 0),
        coalesce(ei.short_flips, 0),
-       coalesce(ei.total_short_point, 0),
+       coalesce(least(ei.total_short_point, ei.total_short_flips), 0) total_short_point,
        coalesce(ei.total_short_flips, 0),
        coalesce(ei.long_point, 0),
        coalesce(ei.long_flips, 0),
-       coalesce(ei.required_flips, 0)            required_flips,
-       coalesce(ei.made_flips, 0)                made_flips,
-       coalesce(ei.available_flips, 0)           available_flips,
+       coalesce(ei.required_flips, 0)                                 required_flips,
+       coalesce(ei.made_flips, 0)                                     made_flips,
+       coalesce(ei.available_flips, 0)                                available_flips,
        coalesce((SELECT sum(vr.balance + vr.stake)
                  FROM validation_rewards vr
                  WHERE vr.ei_address_state_id = eis.address_state_id
-                   AND ei.epoch = eis.epoch), 0) total_validation_reward,
-       coalesce(ei.birth_epoch, 0)               birth_epoch,
-       coalesce(ei.short_answers, 0)             short_answers,
-       coalesce(ei.long_answers, 0)              long_answers
+                   AND ei.epoch = eis.epoch), 0)                      total_validation_reward,
+       coalesce(ei.birth_epoch, 0)                                    birth_epoch,
+       coalesce(ei.short_answers, 0)                                  short_answers,
+       coalesce(ei.long_answers, 0)                                   long_answers
 FROM epoch_identity_states eis
          JOIN addresses a ON a.id = eis.address_id
          LEFT JOIN address_states prevs ON prevs.id = eis.prev_id
