@@ -47,7 +47,7 @@ func getProposerVrfScore(
 		}
 	}
 	v := new(big.Float).SetInt(new(big.Int).SetBytes(hash[:]))
-	q := new(big.Float).Quo(v, blockchain.MaxHash).SetPrec(10)
+	q := new(big.Float).Quo(v, blockchain.MaxHash)
 	f, _ := q.Float64()
 	return f, true
 }
