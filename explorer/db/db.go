@@ -14,6 +14,8 @@ type Accessor interface {
 	CirculatingSupply(addressesToExclude []string) (decimal.Decimal, error)
 	ActiveAddressesCount(afterTime time.Time) (uint64, error)
 
+	Upgrades(count uint64, continuationToken *string) ([]types.BlockSummary, *string, error)
+
 	EpochsCount() (uint64, error)
 	Epochs(count uint64, continuationToken *string) ([]types.EpochSummary, *string, error)
 	// Deprecated

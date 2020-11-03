@@ -275,7 +275,9 @@ func (a *postgresAccessor) saveBlock(ctx *context, block Block) error {
 		block.BodySize,
 		block.VrfProposerThreshold,
 		block.FullSize,
-		block.FeeRate)
+		block.FeeRate,
+		block.Upgrade,
+	)
 	return err
 }
 

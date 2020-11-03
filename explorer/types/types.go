@@ -69,7 +69,8 @@ type BlockSummary struct {
 	Proposer             string          `json:"proposer"`
 	ProposerVrfScore     float64         `json:"proposerVrfScore,omitempty"`
 	FeeRate              decimal.Decimal `json:"feeRate" swaggertype:"string"`
-	Flags                []string        `json:"flags" enums:"IdentityUpdate,FlipLotteryStarted,ShortSessionStarted,LongSessionStarted,AfterLongSessionStarted,ValidationFinished,Snapshot,OfflinePropose,OfflineCommit"`
+	Flags                []string        `json:"flags" enums:"IdentityUpdate,FlipLotteryStarted,ShortSessionStarted,LongSessionStarted,AfterLongSessionStarted,ValidationFinished,Snapshot,OfflinePropose,OfflineCommit,NewGenesis"`
+	Upgrade              *uint32         `json:"upgrade,omitempty"`
 } // @Name BlockSummary
 
 type BlockDetail struct {
@@ -86,7 +87,8 @@ type BlockDetail struct {
 	Proposer             string          `json:"proposer"`
 	ProposerVrfScore     float64         `json:"proposerVrfScore,omitempty"`
 	FeeRate              decimal.Decimal `json:"feeRate" swaggertype:"string"`
-	Flags                []string        `json:"flags" enums:"IdentityUpdate,FlipLotteryStarted,ShortSessionStarted,LongSessionStarted,AfterLongSessionStarted,ValidationFinished,Snapshot,OfflinePropose,OfflineCommit"`
+	Flags                []string        `json:"flags" enums:"IdentityUpdate,FlipLotteryStarted,ShortSessionStarted,LongSessionStarted,AfterLongSessionStarted,ValidationFinished,Snapshot,OfflinePropose,OfflineCommit,NewGenesis"`
+	Upgrade              *uint32         `json:"upgrade,omitempty"`
 } // @Name Block
 
 type FlipSummary struct {

@@ -114,6 +114,7 @@ func (a *postgresAccessor) EpochBlocks(epoch uint64, count uint64, continuationT
 				Coins: types.AllCoins{},
 			}
 			var timestamp int64
+			var upgrade sql.NullInt64
 			if err := rows.Scan(&height,
 				&block.Hash,
 				&timestamp,
@@ -129,11 +130,17 @@ func (a *postgresAccessor) EpochBlocks(epoch uint64, count uint64, continuationT
 				&block.Coins.Minted,
 				&block.Coins.TotalBalance,
 				&block.Coins.TotalStake,
-				pq.Array(&block.Flags)); err != nil {
+				pq.Array(&block.Flags),
+				&upgrade,
+			); err != nil {
 				return nil, 0, err
 			}
 			block.Height = height
 			block.Timestamp = timestampToTimeUTC(timestamp)
+			if upgrade.Valid {
+				v := uint32(upgrade.Int64)
+				block.Upgrade = &v
+			}
 			res = append(res, block)
 		}
 		return res, height, nil
@@ -156,6 +163,7 @@ func (a *postgresAccessor) EpochBlocksOld(epoch uint64, startIndex uint64, count
 			Coins: types.AllCoins{},
 		}
 		var timestamp int64
+		var upgrade sql.NullInt64
 		err = rows.Scan(&block.Height,
 			&block.Hash,
 			&timestamp,
@@ -171,11 +179,17 @@ func (a *postgresAccessor) EpochBlocksOld(epoch uint64, startIndex uint64, count
 			&block.Coins.Minted,
 			&block.Coins.TotalBalance,
 			&block.Coins.TotalStake,
-			pq.Array(&block.Flags))
+			pq.Array(&block.Flags),
+			&upgrade,
+		)
 		if err != nil {
 			return nil, err
 		}
 		block.Timestamp = timestampToTimeUTC(timestamp)
+		if upgrade.Valid {
+			v := uint32(upgrade.Int64)
+			block.Upgrade = &v
+		}
 		blocks = append(blocks, block)
 	}
 	return blocks, nil

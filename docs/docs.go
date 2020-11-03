@@ -4269,6 +4269,64 @@ var doc = `{
                     }
                 }
             }
+        },
+        "/Upgrades": {
+            "get": {
+                "tags": [
+                    "Upgrades"
+                ],
+                "operationId": "Upgrades",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "items to take",
+                        "name": "limit",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "continuation token to get next page items",
+                        "name": "continuationToken",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/ResponsePage"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "result": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/BlockSummary"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request"
+                    },
+                    "429": {
+                        "description": "Request number limit exceeded"
+                    },
+                    "500": {
+                        "description": "Internal server error"
+                    },
+                    "503": {
+                        "description": "Service unavailable"
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -4437,7 +4495,8 @@ var doc = `{
                             "ValidationFinished",
                             "Snapshot",
                             "OfflinePropose",
-                            "OfflineCommit"
+                            "OfflineCommit",
+                            "NewGenesis"
                         ]
                     }
                 },
@@ -4464,6 +4523,9 @@ var doc = `{
                     "example": "2020-01-01T00:00:00Z"
                 },
                 "txCount": {
+                    "type": "integer"
+                },
+                "upgrade": {
                     "type": "integer"
                 },
                 "validatorsCount": {
@@ -4500,7 +4562,8 @@ var doc = `{
                             "ValidationFinished",
                             "Snapshot",
                             "OfflinePropose",
-                            "OfflineCommit"
+                            "OfflineCommit",
+                            "NewGenesis"
                         ]
                     }
                 },
@@ -4527,6 +4590,9 @@ var doc = `{
                     "example": "2020-01-01T00:00:00Z"
                 },
                 "txCount": {
+                    "type": "integer"
+                },
+                "upgrade": {
                     "type": "integer"
                 },
                 "vrfProposerThreshold": {

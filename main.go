@@ -8,6 +8,7 @@ import (
 	"github.com/idena-network/idena-indexer/core/api"
 	"github.com/idena-network/idena-indexer/core/flip"
 	"github.com/idena-network/idena-indexer/core/holder/online"
+	"github.com/idena-network/idena-indexer/core/holder/upgrade"
 	"github.com/idena-network/idena-indexer/core/mempool"
 	"github.com/idena-network/idena-indexer/core/restore"
 	"github.com/idena-network/idena-indexer/core/server"
@@ -67,11 +68,13 @@ func main() {
 
 		// Server for explorer & indexer api
 		currentOnlineIdentitiesHolder := online.NewCurrentOnlineIdentitiesCache(listener.AppState(),
-			listener.Blockchain(),
-			listener.OfflineDetector())
+			listener.NodeCtx().Blockchain,
+			listener.NodeCtx().OfflineDetector)
+
+		upgradesVoting := upgrade.NewUpgradesVotingHolder(listener.NodeCtx().Upgrader)
 
 		explorerRi := e.RouterInitializer()
-		indexerApi := api.NewApi(currentOnlineIdentitiesHolder)
+		indexerApi := api.NewApi(currentOnlineIdentitiesHolder, upgradesVoting)
 		ownRi := server.NewRouterInitializer(indexerApi, e.Logger())
 
 		description, err := ioutil.ReadFile(filepath.Join(explorerConf.HtmlDir, "api.html"))
@@ -118,7 +121,7 @@ func initIndexer(config *config.Config) (*indexer.Indexer, incoming.Listener) {
 	listener := incoming.NewListener(config.NodeConfigFile, performanceMonitor)
 	dbAccessor := db.NewPostgresAccessor(config.Postgres.ConnStr, config.Postgres.ScriptsDir, wordsLoader,
 		performanceMonitor, config.CommitteeRewardBlocksCount, config.MiningRewards)
-	restorer := restore.NewRestorer(dbAccessor, listener.AppState(), listener.Blockchain())
+	restorer := restore.NewRestorer(dbAccessor, listener.AppState(), listener.NodeCtx().Blockchain)
 	var secondaryStorage *runtimeMigration.SecondaryStorage
 	if config.RuntimeMigration.Enabled {
 		secondaryStorage = runtimeMigration.NewSecondaryStorage(runtimeMigrationDb.NewPostgresAccessor(
@@ -139,7 +142,7 @@ func initIndexer(config *config.Config) (*indexer.Indexer, incoming.Listener) {
 			return uint64(listener.AppState().State.Epoch())
 		},
 		func() bool {
-			head := listener.Blockchain().Head
+			head := listener.NodeCtx().Blockchain.Head
 			if head == nil {
 				return false
 			}

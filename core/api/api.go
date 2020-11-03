@@ -4,17 +4,20 @@ import (
 	"github.com/idena-network/idena-go/common/hexutil"
 	"github.com/idena-network/idena-go/crypto"
 	"github.com/idena-network/idena-indexer/core/holder/online"
+	"github.com/idena-network/idena-indexer/core/holder/upgrade"
 	"github.com/pkg/errors"
 	"strconv"
 )
 
 type Api struct {
 	onlineIdentities online.CurrentOnlineIdentitiesHolder
+	upgradesVoting   upgrade.UpgradesVotingHolder
 }
 
-func NewApi(onlineIdentities online.CurrentOnlineIdentitiesHolder) *Api {
+func NewApi(onlineIdentities online.CurrentOnlineIdentitiesHolder, upgradesVoting upgrade.UpgradesVotingHolder) *Api {
 	return &Api{
 		onlineIdentities: onlineIdentities,
+		upgradesVoting:   upgradesVoting,
 	}
 }
 
@@ -97,4 +100,19 @@ func (a *Api) SignatureAddress(value, signature string) (string, error) {
 		return "", err
 	}
 	return addr.Hex(), nil
+}
+
+func (a *Api) UpgradeVoting() []*UpgradeVotes {
+	votes := a.upgradesVoting.Get()
+	var res []*UpgradeVotes
+	if len(votes) > 0 {
+		res = make([]*UpgradeVotes, len(votes))
+		for i, v := range votes {
+			res[i] = &UpgradeVotes{
+				Upgrade: v.Upgrade,
+				Votes:   v.Votes,
+			}
+		}
+	}
+	return res
 }

@@ -8,6 +8,7 @@ import (
 	"github.com/idena-network/idena-go/core/appstate"
 	"github.com/idena-network/idena-go/core/flip"
 	"github.com/idena-network/idena-go/core/mempool"
+	"github.com/idena-network/idena-go/core/upgrade"
 	"github.com/idena-network/idena-go/events"
 	"github.com/idena-network/idena-go/node"
 	"github.com/idena-network/idena-go/stats/collector"
@@ -21,11 +22,9 @@ type Listener interface {
 	AppState() *appstate.AppState
 	NodeCtx() *node.NodeCtx
 	StatsCollector() collector.StatsCollector
-	Blockchain() *blockchain.Blockchain
 	Flipper() *flip.Flipper
 	Config() *config.Config
 	KeysPool() *mempool.KeysPool
-	OfflineDetector() *blockchain.OfflineDetector
 	NodeEventBus() eventbus.Bus
 	Destroy()
 	WaitForStop()
@@ -40,6 +39,7 @@ type listenerImpl struct {
 	flipper         *flip.Flipper
 	keysPool        *mempool.KeysPool
 	offlineDetector *blockchain.OfflineDetector
+	upgrader        *upgrade.Upgrader
 	config          *config.Config
 	node            *node.Node
 	handleBlock     func(block *types.Block)
@@ -92,6 +92,7 @@ func NewListener(nodeConfigFile string, pm monitoring.PerformanceMonitor) Listen
 	l.blockchain = nodeCtx.Blockchain
 	l.keysPool = nodeCtx.KeysPool
 	l.offlineDetector = nodeCtx.OfflineDetector
+	l.upgrader = nodeCtx.Upgrader
 	l.config = cfg
 	l.nodeCtx = nodeCtx
 	l.statsCollector = statsCollector
@@ -117,20 +118,12 @@ func (l *listenerImpl) StatsCollector() collector.StatsCollector {
 	return l.statsCollector
 }
 
-func (l *listenerImpl) Blockchain() *blockchain.Blockchain {
-	return l.blockchain
-}
-
 func (l *listenerImpl) Flipper() *flip.Flipper {
 	return l.flipper
 }
 
 func (l *listenerImpl) KeysPool() *mempool.KeysPool {
 	return l.keysPool
-}
-
-func (l *listenerImpl) OfflineDetector() *blockchain.OfflineDetector {
-	return l.offlineDetector
 }
 
 func (l *listenerImpl) Config() *config.Config {

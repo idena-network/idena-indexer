@@ -274,6 +274,7 @@ CREATE TABLE IF NOT EXISTS blocks
     vrf_proposer_threshold double precision                           NOT NULL,
     full_size              integer                                    NOT NULL,
     fee_rate               numeric(30, 18)                            NOT NULL,
+    upgrade                integer,
     CONSTRAINT blocks_pkey PRIMARY KEY (height),
     CONSTRAINT blocks_epoch_fkey FOREIGN KEY (epoch)
         REFERENCES epochs (epoch) MATCH SIMPLE
@@ -292,6 +293,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS blocks_hash_unique_idx on blocks (LOWER(hash))
 CREATE INDEX IF NOT EXISTS blocks_epoch_idx on blocks (epoch);
 CREATE INDEX IF NOT EXISTS blocks_epoch_heights_idx on blocks (epoch, height desc);
 CREATE INDEX IF NOT EXISTS blocks_timestamp_idx on blocks ("timestamp" desc);
+CREATE INDEX IF NOT EXISTS blocks_upgrades_history_api_idx ON blocks (height) WHERE coalesce(upgrade, 0) > 0;
 
 -- Table: failed_validations
 
@@ -2504,7 +2506,7 @@ AS
 $BODY$
 DECLARE
     l_kill_invitee_tx tp_kill_invitee_tx;
-    l_invite_tx_id  bigint;
+    l_invite_tx_id    bigint;
 BEGIN
     for i in 1..cardinality(p_kill_invitee_txs)
         loop

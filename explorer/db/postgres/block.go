@@ -30,6 +30,7 @@ func (a *postgresAccessor) BlockByHash(hash string) (types.BlockDetail, error) {
 func (a *postgresAccessor) block(query string, id interface{}) (types.BlockDetail, error) {
 	res := types.BlockDetail{}
 	var timestamp int64
+	var upgrade sql.NullInt64
 	err := a.db.QueryRow(a.getQuery(query), id).Scan(
 		&res.Epoch,
 		&res.Height,
@@ -45,6 +46,7 @@ func (a *postgresAccessor) block(query string, id interface{}) (types.BlockDetai
 		&res.VrfProposerThreshold,
 		&res.FeeRate,
 		pq.Array(&res.Flags),
+		&upgrade,
 	)
 	if err == sql.ErrNoRows {
 		err = NoDataFound
@@ -53,6 +55,10 @@ func (a *postgresAccessor) block(query string, id interface{}) (types.BlockDetai
 		return types.BlockDetail{}, err
 	}
 	res.Timestamp = timestampToTimeUTC(timestamp)
+	if upgrade.Valid {
+		v := uint32(upgrade.Int64)
+		res.Upgrade = &v
+	}
 	return res, nil
 }
 

@@ -96,6 +96,9 @@ func (s *httpServer) InitRouter(router *mux.Router) {
 	router.Path(strings.ToLower("/ActiveAddresses/Count")).
 		HandlerFunc(s.activeAddressesCount)
 
+	router.Path(strings.ToLower("/Upgrades")).
+		HandlerFunc(s.upgrades)
+
 	router.Path(strings.ToLower("/Epochs/Count")).HandlerFunc(s.epochsCount)
 	router.Path(strings.ToLower("/Epochs")).
 		Queries("skip", "{skip}", "limit", "{limit}").
@@ -427,6 +430,29 @@ func (s *httpServer) activeAddressesCount(w http.ResponseWriter, r *http.Request
 
 	resp, err := s.db.ActiveAddressesCount(getOffsetUTC(s.activeAddrHours))
 	server.WriteResponse(w, resp, err, s.log)
+}
+
+// @Tags Upgrades
+// @Id Upgrades
+// @Param limit query integer true "items to take"
+// @Param continuationToken query string false "continuation token to get next page items"
+// @Success 200 {object} server.ResponsePage{result=[]types.BlockSummary}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Upgrades [get]
+func (s *httpServer) upgrades(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("upgrades", r.RequestURI)
+	defer s.pm.Complete(id)
+
+	count, continuationToken, err := server.ReadPaginatorParams(r.Form)
+	if err != nil {
+		server.WriteErrorResponse(w, err, s.log)
+		return
+	}
+	resp, nextContinuationToken, err := s.db.Upgrades(count, continuationToken)
+	server.WriteResponsePage(w, resp, nextContinuationToken, err, s.log)
 }
 
 // @Tags Epochs

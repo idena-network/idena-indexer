@@ -1,7 +1,7 @@
-select b.height,
+SELECT b.height,
        b.Hash,
        b.timestamp,
-       (select count(*) from transactions where block_height = b.height)         TX_COUNT,
+       (SELECT count(*) FROM transactions WHERE block_height = b.height)         TX_COUNT,
        coalesce(a.address, '')                                                   proposer,
        coalesce(vs.vrf_score, 0)                                                 proposer_vrf_score,
        b.is_empty,
@@ -15,13 +15,12 @@ select b.height,
        c.total_stake,
        (SELECT array_agg("flag") FROM block_flags WHERE block_height = b.height) flags,
        b.upgrade
-from (select *
-      from blocks
-      where epoch = $1
-      order by height desc
-      limit $3 offset $2) b
-         left join block_proposers p on p.block_height = b.height
-         left join block_proposer_vrf_scores vs on vs.block_height = b.height
-         left join addresses a on a.id = p.address_id
-         join coins c on c.block_height = b.height
-order by b.height desc
+FROM blocks b
+         LEFT JOIN block_proposers p ON p.block_height = b.height
+         LEFT JOIN block_proposer_vrf_scores vs ON vs.block_height = b.height
+         LEFT JOIN addresses a ON a.id = p.address_id
+         JOIN coins c ON c.block_height = b.height
+WHERE coalesce(upgrade, 0) > 0
+  AND ($2::bigint IS NULL OR height <= $2::bigint)
+ORDER BY b.height DESC
+LIMIT $1

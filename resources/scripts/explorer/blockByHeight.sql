@@ -11,7 +11,8 @@ select b.epoch,
        b.full_size,
        b.vrf_proposer_threshold,
        b.fee_rate,
-       (select array_agg("flag") from block_flags where block_height = b.height) flags
+       (select array_agg("flag") from block_flags where block_height = b.height) flags,
+       b.upgrade
 from blocks b
          left join block_proposers p on p.block_height = b.height
          left join block_proposer_vrf_scores vs on vs.block_height = b.height

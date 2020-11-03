@@ -39,6 +39,8 @@ func (ri *routerInitializer) InitRouter(router *mux.Router) {
 	router.Path(strings.ToLower("/SignatureAddress")).
 		Queries("value", "{value}", "signature", "{signature}").
 		HandlerFunc(ri.signatureAddress)
+
+	router.Path(strings.ToLower("/UpgradeVoting")).HandlerFunc(ri.upgradeVoting)
 }
 
 func (ri *routerInitializer) onlineIdentitiesCount(w http.ResponseWriter, r *http.Request) {
@@ -82,4 +84,9 @@ func (ri *routerInitializer) signatureAddress(w http.ResponseWriter, r *http.Req
 	signature := mux.Vars(r)["signature"]
 	resp, err := ri.api.SignatureAddress(value, signature)
 	WriteResponse(w, resp, err, ri.logger)
+}
+
+func (ri *routerInitializer) upgradeVoting(w http.ResponseWriter, r *http.Request) {
+	resp := ri.api.UpgradeVoting()
+	WriteResponse(w, resp, nil, ri.logger)
 }

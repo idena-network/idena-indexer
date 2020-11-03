@@ -136,6 +136,7 @@ type Block struct {
 	ValidatorsCount      int
 	ProposerVrfScore     float64
 	FeeRate              decimal.Decimal
+	Upgrade              *uint32
 }
 
 type Transaction struct {
