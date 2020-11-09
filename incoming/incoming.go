@@ -9,10 +9,12 @@ import (
 	"github.com/idena-network/idena-go/core/flip"
 	"github.com/idena-network/idena-go/core/mempool"
 	"github.com/idena-network/idena-go/core/upgrade"
+	"github.com/idena-network/idena-go/database"
 	"github.com/idena-network/idena-go/events"
 	"github.com/idena-network/idena-go/node"
 	"github.com/idena-network/idena-go/stats/collector"
 	"github.com/idena-network/idena-indexer/core/stats"
+	"github.com/idena-network/idena-indexer/log"
 	"github.com/idena-network/idena-indexer/monitoring"
 )
 
@@ -61,6 +63,8 @@ func NewListener(nodeConfigFile string, pm monitoring.PerformanceMonitor) Listen
 	cfg.IpfsConf.Routing = "dhtclient"
 	cfg.Sync.FastSync = false
 
+	cfgTransform(cfg)
+
 	bus := eventbus.New()
 
 	pm.Start("Full")
@@ -100,6 +104,22 @@ func NewListener(nodeConfigFile string, pm monitoring.PerformanceMonitor) Listen
 	l.node = nodeCtx.Node
 
 	return l
+}
+
+func cfgTransform(cfg *config.Config) {
+	db, err := node.OpenDatabase(cfg.DataDir, "idenachain", 16, 16)
+	if err != nil {
+		log.Error("Cannot transform consensus config", "err", err)
+		return
+	}
+	defer db.Close()
+	repo := database.NewRepo(db)
+	consVersion := repo.ReadConsensusVersion()
+	if consVersion <= uint32(cfg.Consensus.Version) {
+		return
+	}
+	config.ApplyConsensusVersion(config.ConsensusVerson(consVersion), cfg.Consensus)
+	log.Info("Consensus config transformed to", "ver", consVersion)
 }
 
 func (l *listenerImpl) AppStateReadonly(height uint64) (*appstate.AppState, error) {
