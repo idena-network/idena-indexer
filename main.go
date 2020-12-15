@@ -164,7 +164,9 @@ func initIndexer(config *config.Config) (*indexer.Indexer, incoming.Listener) {
 		log.New("component", "flipContentLoader"),
 	)
 
+	enabled := config.Enabled == nil || *config.Enabled
 	return indexer.NewIndexer(
+			enabled,
 			listener,
 			memPoolIndexer,
 			dbAccessor,

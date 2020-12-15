@@ -51,6 +51,7 @@ var (
 )
 
 type Indexer struct {
+	enabled                     bool
 	listener                    incoming.Listener
 	memPoolIndexer              *mempool.Indexer
 	db                          db.Accessor
@@ -81,6 +82,7 @@ type flipTx struct {
 }
 
 func NewIndexer(
+	enabled bool,
 	listener incoming.Listener,
 	mempoolIndexer *mempool.Indexer,
 	db db.Accessor,
@@ -91,6 +93,7 @@ func NewIndexer(
 	flipLoader flip.Loader,
 ) *Indexer {
 	return &Indexer{
+		enabled:          enabled,
 		listener:         listener,
 		memPoolIndexer:   mempoolIndexer,
 		db:               db,
@@ -122,6 +125,14 @@ func (indexer *Indexer) statsHolder() stats.StatsHolder {
 }
 
 func (indexer *Indexer) indexBlock(block *types.Block) {
+
+	if !indexer.enabled {
+		for {
+			log.Warn("Indexing is disabled")
+			time.Sleep(time.Minute)
+		}
+	}
+
 	indexer.initFirstBlockHeight()
 
 	var genesisBlock *types.Block

@@ -21,6 +21,7 @@ type Config struct {
 	FlipContentLoader          FlipContentLoaderConfig
 	CommitteeRewardBlocksCount int
 	MiningRewards              bool
+	Enabled                    *bool
 }
 
 type PerformanceMonitorConfig struct {
