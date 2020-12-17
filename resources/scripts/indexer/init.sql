@@ -1486,7 +1486,7 @@ ALTER TABLE flips_queue
     OWNER to postgres;
 
 CREATE INDEX IF NOT EXISTS flips_queue_next_attempt_timestamp_idx on flips_queue (next_attempt_timestamp desc);
-CREATE UNIQUE INDEX IF NOT EXISTS flips_cid_unique_idx on flips (LOWER(cid));
+CREATE UNIQUE INDEX IF NOT EXISTS flips_queue_cid_unique_idx on flips_queue (LOWER(cid));
 
 CREATE OR REPLACE VIEW epoch_identity_states AS
 SELECT s.id AS address_state_id,
@@ -2582,28 +2582,41 @@ CREATE OR REPLACE PROCEDURE update_flips_queue()
 AS
 $BODY$
 DECLARE
-    l_epoch bigint;
+    l_epoch                bigint;
+    l_min_height           bigint;
+    l_max_height           bigint;
+    l_last_block_timestamp bigint;
 BEGIN
     select max(epoch) into l_epoch from epochs;
+
+    SELECT min(height), max(height)
+    INTO l_min_height, l_max_height
+    FROM blocks
+    WHERE epoch = l_epoch;
+
+    SELECT "timestamp" INTO l_last_block_timestamp FROM blocks WHERE height = l_max_height;
+
     insert into flips_queue
         (
-            select f.cid, coalesce(fk.key, mpfk.key) "key", 0, 0
+            select f.cid, coalesce(fk.key, mpfk.key) "key", 0, l_last_block_timestamp + 30 * 60
             from flips f
-                     join transactions t on f.tx_id = t.id
-                     join blocks b on t.block_height = b.height and b.epoch = l_epoch
-                     left join (
-                select distinct on (t.from) fk.key, t.from
-                from flip_keys fk
-                         join transactions t on t.id = fk.tx_id
-                         join blocks b on b.height = t.block_height and b.epoch = l_epoch
-            ) fk on t.from = fk.from
-                     left join (
-                select mpfk.key, s.address_id
-                from mem_pool_flip_keys mpfk
-                         join epoch_identities ei
-                              on ei.address_state_id = mpfk.ei_address_state_id and ei.epoch = l_epoch
-                         join address_states s on s.id = ei.address_state_id
-            ) mpfk on t.from = mpfk.address_id
+
+                     join transactions t
+                          on f.tx_id = t.id AND t.block_height >= l_min_height and t.block_height <= l_max_height
+
+                     left join (select distinct on (t.from) fk.key, t.from
+                                from flip_keys fk
+                                         join transactions t
+                                              on t.id = fk.tx_id AND t.block_height >= l_min_height and
+                                                 t.block_height <= l_max_height) fk on t.from = fk.from
+
+                     left join (select mpfk.key, s.address_id
+                                from mem_pool_flip_keys mpfk
+                                         join epoch_identities ei
+                                              on ei.address_state_id = mpfk.ei_address_state_id and ei.epoch = l_epoch
+                                         join address_states s on s.id = ei.address_state_id) mpfk
+                               on t.from = mpfk.address_id
+
             where (fk.key is not null or mpfk.key is not null)
         );
 END
