@@ -8,6 +8,7 @@ import (
 	"github.com/idena-network/idena-go/core/appstate"
 	"github.com/idena-network/idena-go/node"
 	"github.com/idena-network/idena-indexer/core/mempool"
+	"github.com/idena-network/idena-indexer/core/restore"
 	"github.com/idena-network/idena-indexer/core/stats"
 	"github.com/idena-network/idena-indexer/db"
 	"github.com/idena-network/idena-indexer/incoming"
@@ -34,17 +35,18 @@ func initLog() {
 
 func InitIndexer(
 	clearDb bool,
-	committeeRewardBlocksCount int,
+	changesHistoryBlocksCount int,
 	schema string,
 	scriptsPathPrefix string,
 ) (*sql.DB, *indexer.Indexer, incoming.Listener, db.Accessor, eventbus.Bus) {
 	initLog()
 	pm := monitoring.NewEmptyPerformanceMonitor()
-	dbConnector, dbAccessor := InitPostgres(clearDb, committeeRewardBlocksCount, schema, scriptsPathPrefix, pm)
+	dbConnector, dbAccessor := InitPostgres(clearDb, changesHistoryBlocksCount, schema, scriptsPathPrefix, pm)
 	memPoolIndexer := mempool.NewIndexer(dbAccessor, log.New("component", "mpi"))
 	memDb := db2.NewMemDB()
 	appState := appstate.NewAppState(memDb, eventbus.New())
-	bus := eventbus.New()
+	nodeEventBus := eventbus.New()
+	collectorEventBus := eventbus.New()
 
 	chain, _, _, _ := blockchain.NewTestBlockchain(true, nil)
 	nodeCtx := &node.NodeCtx{
@@ -55,24 +57,25 @@ func InitIndexer(
 		AppState:   appState,
 		Blockchain: chain.Blockchain,
 	}
-	listener := NewTestListener(bus, stats.NewStatsCollector(), appState, nodeCtx)
+	listener := NewTestListener(nodeEventBus, stats.NewStatsCollector(collectorEventBus), appState, nodeCtx)
+	restorer := restore.NewRestorer(dbAccessor, appState, chain.Blockchain)
 	testIndexer := indexer.NewIndexer(
 		listener,
 		memPoolIndexer,
 		dbAccessor,
-		nil,
+		restorer,
 		nil,
 		false,
 		pm,
 		&TestFlipLoader{},
 	)
 	testIndexer.Start()
-	return dbConnector, testIndexer, listener, dbAccessor, bus
+	return dbConnector, testIndexer, listener, dbAccessor, nodeEventBus
 }
 
 func InitPostgres(
 	clearDb bool,
-	committeeRewardBlocksCount int,
+	changesHistoryBlocksCount int,
 	schema string,
 	scriptsPathPrefix string,
 	pm monitoring.PerformanceMonitor) (*sql.DB, db.Accessor) {
@@ -99,7 +102,7 @@ func InitPostgres(
 		filepath.Join(scriptsPathPrefix, defaultScriptsPath),
 		&TestWordsLoader{},
 		pm,
-		committeeRewardBlocksCount,
+		changesHistoryBlocksCount,
 		false,
 	)
 	return dbConnector, dbAccessor

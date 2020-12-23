@@ -13,7 +13,6 @@ import (
 	"github.com/idena-network/idena-go/events"
 	"github.com/idena-network/idena-go/node"
 	"github.com/idena-network/idena-go/stats/collector"
-	"github.com/idena-network/idena-indexer/core/stats"
 	"github.com/idena-network/idena-indexer/log"
 	"github.com/idena-network/idena-indexer/monitoring"
 )
@@ -47,7 +46,7 @@ type listenerImpl struct {
 	handleBlock     func(block *types.Block)
 }
 
-func NewListener(nodeConfigFile string, pm monitoring.PerformanceMonitor) Listener {
+func NewListener(nodeConfigFile string, pm monitoring.PerformanceMonitor, statsCollector collector.StatsCollector) Listener {
 	l := &listenerImpl{}
 
 	cfg, err := config.MakeConfigFromFile(nodeConfigFile)
@@ -84,7 +83,6 @@ func NewListener(nodeConfigFile string, pm monitoring.PerformanceMonitor) Listen
 			pm.Start("Node")
 		})
 
-	statsCollector := stats.NewStatsCollector()
 	nodeCtx, err := node.NewNodeWithInjections(cfg, bus, statsCollector, "0.0.1")
 	if err != nil {
 		panic(err)

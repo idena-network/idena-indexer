@@ -8,9 +8,11 @@ import (
 	"github.com/idena-network/idena-indexer/core/server"
 	"github.com/idena-network/idena-indexer/explorer/db"
 	"github.com/idena-network/idena-indexer/explorer/monitoring"
+	"github.com/idena-network/idena-indexer/explorer/service"
 	"github.com/idena-network/idena-indexer/log"
 	"github.com/pkg/errors"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -28,6 +30,7 @@ func NewServer(
 	frozenBalanceAddrs []string,
 	getDumpLink func() string,
 	db db.Accessor,
+	contractsService service.Contracts,
 	logger log.Logger,
 	pm monitoring.PerformanceMonitor,
 ) Server {
@@ -38,6 +41,7 @@ func NewServer(
 	return &httpServer{
 		port:               port,
 		db:                 db,
+		contractsService:   contractsService,
 		log:                logger,
 		latestHours:        latestHours,
 		activeAddrHours:    activeAddrHours,
@@ -53,6 +57,7 @@ type httpServer struct {
 	activeAddrHours    int
 	frozenBalanceAddrs []string
 	db                 db.Accessor
+	contractsService   service.Contracts
 	log                log.Logger
 	pm                 monitoring.PerformanceMonitor
 	counter            int
@@ -305,6 +310,12 @@ func (s *httpServer) InitRouter(router *mux.Router) {
 	//router.Path(strings.ToLower("/TotalLatestBurntCoins")).
 	//	Queries("skip", "{skip}", "limit", "{limit}").
 	//	HandlerFunc(s.totalLatestBurntCoins)
+
+	router.Path(strings.ToLower("/OracleVotingContracts")).HandlerFunc(s.oracleVotingContracts)
+	router.Path(strings.ToLower("/OracleVotingContract/{address}")).HandlerFunc(s.oracleVotingContract)
+	router.Path(strings.ToLower("/Address/{address}/OracleVotingContracts")).HandlerFunc(s.addressOracleVotingContracts)
+	router.Path(strings.ToLower("/Address/{address}/Contract/{contractAddress}/BalanceUpdates")).HandlerFunc(s.addressContractTxBalanceUpdates)
+	router.Path(strings.ToLower("/OracleVotingContracts/EstimatedOracleRewards")).HandlerFunc(s.estimatedOracleRewards)
 }
 
 func (s *httpServer) dumpLink(w http.ResponseWriter, r *http.Request) {
@@ -739,7 +750,7 @@ func (s *httpServer) epochIdentitiesCount(w http.ResponseWriter, r *http.Request
 // @Param prevStates[] query []string false "identity previous state filter"
 // @Success 200 {object} server.ResponsePage{result=[]types.EpochIdentity}
 // @Failure 400 "Bad request"
-// @Failure 429 "Request number limit exceeded"types.EpochIdentity
+// @Failure 429 "Request number limit exceeded"
 // @Failure 500 "Internal server error"
 // @Failure 503 "Service unavailable"
 // @Router /Epoch/{epoch}/Identities [get]
@@ -778,6 +789,13 @@ func convertStates(formValues []string) []string {
 		}
 	}
 	return res
+}
+
+func getFormValue(formValues url.Values, name string) string {
+	if len(formValues[name]) == 0 {
+		return ""
+	}
+	return formValues[name][0]
 }
 
 // @Tags Epochs
@@ -2259,4 +2277,130 @@ func (s *httpServer) getOffsetUTC() time.Time {
 
 func getOffsetUTC(hours int) time.Time {
 	return time.Now().UTC().Add(-time.Hour * time.Duration(hours))
+}
+
+// @Tags Contracts
+// @Id OracleVotingContracts
+// @Param states[] query []string false "filter by voting states"
+// @Param oracle query string false "oracle address"
+// @Param all query boolean false "flag to return all voting contracts independently on oracle address"
+// @Param limit query integer true "items to take"
+// @Param continuationToken query string false "continuation token to get next page items"
+// @Success 200 {object} server.ResponsePage{result=[]types.OracleVotingContract}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /OracleVotingContracts [get]
+func (s *httpServer) oracleVotingContracts(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("oracleVotingContracts", r.RequestURI)
+	defer s.pm.Complete(id)
+	count, continuationToken, err := server.ReadPaginatorParams(r.Form)
+	if err != nil {
+		server.WriteErrorResponse(w, err, s.log)
+		return
+	}
+	all := getFormValue(r.Form, "all") == "true"
+	address := mux.Vars(r)["address"]
+
+	convertStates := func(formValues []string) []string {
+		if len(formValues) == 0 {
+			return nil
+		}
+		var res []string
+		for _, formValue := range formValues {
+			res = append(res, strings.Split(formValue, ",")...)
+		}
+		return res
+	}
+	states := convertStates(r.Form["states[]"])
+	resp, nextContinuationToken, err := s.contractsService.OracleVotingContracts(address, getFormValue(r.Form, "oracle"),
+		states, all, count, continuationToken)
+	server.WriteResponsePage(w, resp, nextContinuationToken, err, s.log)
+}
+
+// @Tags Address
+// @Tags Contracts
+// @Id AddressOracleVotingContracts
+// @Param address path string true "contract author address"
+// @Param states[] query []string false "filter by voting states"
+// @Param oracle query string false "oracle address"
+// @Param all query boolean false "flag to return all voting contracts independently on oracle address"
+// @Param limit query integer true "items to take"
+// @Param continuationToken query string false "continuation token to get next page items"
+// @Success 200 {object} server.ResponsePage{result=[]types.OracleVotingContract}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Address/{address}/OracleVotingContracts [get]
+func (s *httpServer) addressOracleVotingContracts(w http.ResponseWriter, r *http.Request) {
+	s.oracleVotingContracts(w, r)
+}
+
+// @Tags Contracts
+// @Id OracleVotingContract
+// @Param address path string true "contract address"
+// @Param oracle query string false "oracle address"
+// @Success 200 {object} server.Response{result=types.OracleVotingContract}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /OracleVotingContract/{address} [get]
+func (s *httpServer) oracleVotingContract(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("oracleVotingContract", r.RequestURI)
+	defer s.pm.Complete(id)
+
+	resp, err := s.contractsService.OracleVotingContract(mux.Vars(r)["address"], r.Form.Get("oracle"))
+	server.WriteResponse(w, resp, err, s.log)
+}
+
+// @Tags Contracts
+// @Id EstimatedOracleRewards
+// @Param committeeSize query string true "committee size"
+// @Success 200 {object} server.Response{result=[]types.EstimatedOracleReward}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /OracleVotingContracts/EstimatedOracleRewards [get]
+func (s *httpServer) estimatedOracleRewards(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("estimatedOracleRewards", r.RequestURI)
+	defer s.pm.Complete(id)
+
+	committeeSize, err := server.ReadUintUrlValue(r.Form, "committeesize")
+	if err != nil {
+		server.WriteErrorResponse(w, err, s.log)
+		return
+	}
+
+	resp, err := s.db.EstimatedOracleRewards(committeeSize)
+	server.WriteResponse(w, resp, err, s.log)
+}
+
+// @Tags Address
+// @Tags Contracts
+// @Id AddressContractTxBalanceUpdates
+// @Param address path string true "address"
+// @Param contractAddress path string true "contract address"
+// @Param limit query integer true "items to take"
+// @Param continuationToken query string false "continuation token to get next page items"
+// @Success 200 {object} server.ResponsePage{result=[]types.ContractTxBalanceUpdate}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Address/{address}/Contract/{contractAddress}/BalanceUpdates [get]
+func (s *httpServer) addressContractTxBalanceUpdates(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("addressContractTxBalanceUpdates", r.RequestURI)
+	defer s.pm.Complete(id)
+	count, continuationToken, err := server.ReadPaginatorParams(r.Form)
+	if err != nil {
+		server.WriteErrorResponse(w, err, s.log)
+		return
+	}
+	vars := mux.Vars(r)
+	resp, nextContinuationToken, err := s.contractsService.AddressContractTxBalanceUpdates(vars["address"], vars["contractaddress"], count, continuationToken)
+	server.WriteResponsePage(w, resp, nextContinuationToken, err, s.log)
 }

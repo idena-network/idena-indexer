@@ -571,7 +571,7 @@ func parseUintContinuationToken(continuationToken *string) (*uint64, error) {
 	}
 	var result *uint64
 	var err error
-	if num, err := strconv.ParseUint(*continuationToken, 10, 64); err != nil {
+	if num, parsingErr := strconv.ParseUint(*continuationToken, 10, 64); parsingErr != nil {
 		err = errors.New("invalid continuation token")
 	} else {
 		result = &num
@@ -606,6 +606,7 @@ func (a *postgresAccessor) page(
 	if err != nil {
 		return nil, nil, err
 	}
+	defer rows.Close()
 	res, nextId, err := readRows(rows)
 	if err != nil {
 		return nil, nil, err

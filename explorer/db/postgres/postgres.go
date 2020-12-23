@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/idena-network/idena-go/common/hexutil"
+	"github.com/idena-network/idena-indexer/explorer/service"
 	"github.com/idena-network/idena-indexer/explorer/types"
 	"github.com/idena-network/idena-indexer/log"
 	"github.com/lib/pq"
@@ -14,9 +15,11 @@ import (
 )
 
 type postgresAccessor struct {
-	db      *sql.DB
-	queries map[string]string
-	log     log.Logger
+	db                          *sql.DB
+	networkSizeLoader           service.NetworkSizeLoader
+	estimatedOracleRewardsCache *estimatedOracleRewardsService
+	queries                     map[string]string
+	log                         log.Logger
 }
 
 const (

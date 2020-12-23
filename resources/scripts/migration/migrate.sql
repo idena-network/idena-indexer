@@ -1,3 +1,5 @@
+-- todo delete migration
+
 -- epochs
 insert into epochs (select *
                     from OLD_SCHEMA_TAG.epochs

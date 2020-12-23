@@ -11,6 +11,8 @@ import (
 	"github.com/idena-network/idena-indexer/core/conversion"
 	"github.com/lib/pq"
 	"github.com/pkg/errors"
+	"github.com/shopspring/decimal"
+	"math/big"
 	"strconv"
 	"strings"
 )
@@ -154,6 +156,345 @@ func (v *FailedFlipContent) Value() (driver.Value, error) {
 		v.Cid,
 		v.AttemptsLimitReached,
 		timestamp,
+	), nil
+}
+
+func negativeIfNil(v *big.Int) decimal.Decimal {
+	if v == nil {
+		return decimal.NewFromInt(-1)
+	}
+	return blockchain.ConvertToFloat(v)
+}
+
+func negativeIfNilByte(v *byte) int64 {
+	if v == nil {
+		return -1
+	}
+	return int64(*v)
+}
+
+func (v *OracleVotingContract) Value() (driver.Value, error) {
+	return fmt.Sprintf("(%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v)",
+		conversion.ConvertHash(v.TxHash),
+		conversion.ConvertAddress(v.ContractAddress),
+		blockchain.ConvertToFloat(v.Stake),
+		v.StartTime,
+		v.VotingDuration,
+		negativeIfNil(v.VotingMinPayment),
+		hex.EncodeToString(v.Fact),
+		v.State,
+		v.PublicVotingDuration,
+		v.WinnerThreshold,
+		v.Quorum,
+		v.CommitteeSize,
+		v.OwnerFee,
+	), nil
+}
+
+type oracleVotingContractCallStart struct {
+	TxHash           string   `json:"txHash"`
+	State            byte     `json:"state"`
+	StartHeight      uint64   `json:"startBlockHeight"`
+	Epoch            uint16   `json:"epoch"`
+	VotingMinPayment *string  `json:"votingMinPayment,omitempty"`
+	VrfSeed          bytes    `json:"vrfSeed"`
+	Committee        []string `json:"committee,omitempty"`
+}
+
+func (v *OracleVotingContractCallStart) Value() (driver.Value, error) {
+	res := oracleVotingContractCallStart{}
+	res.TxHash = conversion.ConvertHash(v.TxHash)
+	res.State = v.State
+	res.StartHeight = v.StartHeight
+	res.Epoch = v.Epoch
+	if v.VotingMinPayment != nil {
+		s := blockchain.ConvertToFloat(v.VotingMinPayment).String()
+		res.VotingMinPayment = &s
+	}
+	res.VrfSeed = v.VrfSeed
+	if len(v.Committee) > 0 {
+		res.Committee = make([]string, len(v.Committee))
+		for i, addr := range v.Committee {
+			res.Committee[i] = conversion.ConvertAddress(addr)
+		}
+	}
+	return json.Marshal(res)
+}
+
+func (v *OracleVotingContractCallVoteProof) Value() (driver.Value, error) {
+	return fmt.Sprintf("(%v,%v)",
+		conversion.ConvertHash(v.TxHash),
+		hex.EncodeToString(v.VoteHash),
+	), nil
+}
+
+func (v *OracleVotingContractCallVote) Value() (driver.Value, error) {
+	return fmt.Sprintf("(%v,%v,%v)",
+		conversion.ConvertHash(v.TxHash),
+		v.Vote,
+		hex.EncodeToString(v.Salt),
+	), nil
+}
+
+func (v *OracleVotingContractCallFinish) Value() (driver.Value, error) {
+	return fmt.Sprintf("(%v,%v,%v,%v,%v,%v)",
+		conversion.ConvertHash(v.TxHash),
+		v.State,
+		negativeIfNilByte(v.Result),
+		blockchain.ConvertToFloat(v.Fund),
+		blockchain.ConvertToFloat(v.OracleReward),
+		blockchain.ConvertToFloat(v.OwnerReward),
+	), nil
+}
+
+type oracleVotingContractCallProlongation struct {
+	TxHash      string   `json:"txHash"`
+	Epoch       uint16   `json:"epoch"`
+	StartHeight *uint64  `json:"startBlockHeight"`
+	VrfSeed     bytes    `json:"vrfSeed"`
+	Committee   []string `json:"committee,omitempty"`
+}
+
+func (v *OracleVotingContractCallProlongation) Value() (driver.Value, error) {
+	res := oracleVotingContractCallProlongation{}
+	res.TxHash = conversion.ConvertHash(v.TxHash)
+	res.Epoch = v.Epoch
+	res.StartHeight = v.StartBlock
+	res.VrfSeed = v.VrfSeed
+	if len(v.Committee) > 0 {
+		res.Committee = make([]string, len(v.Committee))
+		for i, addr := range v.Committee {
+			res.Committee[i] = conversion.ConvertAddress(addr)
+		}
+	}
+	return json.Marshal(res)
+}
+
+func (v *OracleVotingContractCallAddStake) Value() (driver.Value, error) {
+	return fmt.Sprintf("(%v)",
+		conversion.ConvertHash(v.TxHash),
+	), nil
+}
+
+func (v *OracleVotingContractTermination) Value() (driver.Value, error) {
+	return fmt.Sprintf("(%v,%v,%v,%v)",
+		conversion.ConvertHash(v.TxHash),
+		negativeIfNil(v.Fund),
+		negativeIfNil(v.OracleReward),
+		negativeIfNil(v.OwnerReward),
+	), nil
+}
+
+func (v *OracleLockContract) Value() (driver.Value, error) {
+	return fmt.Sprintf("(%v,%v,%v,%v,%v,%v,%v)",
+		conversion.ConvertHash(v.TxHash),
+		conversion.ConvertAddress(v.ContractAddress),
+		blockchain.ConvertToFloat(v.Stake),
+		conversion.ConvertAddress(v.OracleVotingAddress),
+		v.ExpectedValue,
+		conversion.ConvertAddress(v.SuccessAddress),
+		conversion.ConvertAddress(v.FailAddress),
+	), nil
+}
+
+func (v *OracleLockContractCallPush) Value() (driver.Value, error) {
+	return fmt.Sprintf("(%v,%v,%v,%v)",
+		conversion.ConvertHash(v.TxHash),
+		v.Success,
+		v.OracleVotingResult,
+		blockchain.ConvertToFloat(v.Transfer),
+	), nil
+}
+
+func (v *OracleLockContractCallCheckOracleVoting) Value() (driver.Value, error) {
+	return fmt.Sprintf("(%v,%v)",
+		conversion.ConvertHash(v.TxHash),
+		negativeIfNilByte(v.OracleVotingResult),
+	), nil
+}
+
+func (v *OracleLockContractTermination) Value() (driver.Value, error) {
+	return fmt.Sprintf("(%v,%v)",
+		conversion.ConvertHash(v.TxHash),
+		conversion.ConvertAddress(v.Dest),
+	), nil
+}
+
+func (v *RefundableOracleLockContract) Value() (driver.Value, error) {
+	var successAddress, failAddress string
+	if v.SuccessAddress != nil {
+		successAddress = conversion.ConvertAddress(*v.SuccessAddress)
+	}
+	if v.FailAddress != nil {
+		failAddress = conversion.ConvertAddress(*v.FailAddress)
+	}
+	return fmt.Sprintf("(%v,%v,%v,%v,%v,%v,%v,%v,%v,%v)",
+		conversion.ConvertHash(v.TxHash),
+		conversion.ConvertAddress(v.ContractAddress),
+		blockchain.ConvertToFloat(v.Stake),
+		conversion.ConvertAddress(v.OracleVotingAddress),
+		v.ExpectedValue,
+		successAddress,
+		failAddress,
+		v.RefundDelay,
+		v.DepositDeadline,
+		v.OracleVotingFee,
+	), nil
+}
+
+func (v *RefundableOracleLockContractCallDeposit) Value() (driver.Value, error) {
+	return fmt.Sprintf("(%v,%v,%v,%v)",
+		conversion.ConvertHash(v.TxHash),
+		blockchain.ConvertToFloat(v.OwnSum),
+		blockchain.ConvertToFloat(v.Sum),
+		blockchain.ConvertToFloat(v.Fee),
+	), nil
+}
+
+func (v *RefundableOracleLockContractCallPush) Value() (driver.Value, error) {
+	return fmt.Sprintf("(%v,%v,%v,%v,%v,%v)",
+		conversion.ConvertHash(v.TxHash),
+		v.State,
+		v.OracleVotingExists,
+		negativeIfNilByte(v.OracleVotingResult),
+		blockchain.ConvertToFloat(v.Transfer),
+		v.RefundBlock,
+	), nil
+}
+
+func (v *RefundableOracleLockContractCallRefund) Value() (driver.Value, error) {
+	return fmt.Sprintf("(%v,%v,%v)",
+		conversion.ConvertHash(v.TxHash),
+		blockchain.ConvertToFloat(v.Balance),
+		v.Coef,
+	), nil
+}
+
+func (v *RefundableOracleLockContractTermination) Value() (driver.Value, error) {
+	return fmt.Sprintf("(%v,%v)",
+		conversion.ConvertHash(v.TxHash),
+		conversion.ConvertAddress(v.Dest),
+	), nil
+}
+
+func (v *TimeLockContract) Value() (driver.Value, error) {
+	return fmt.Sprintf("(%v,%v,%v,%v)",
+		conversion.ConvertHash(v.TxHash),
+		conversion.ConvertAddress(v.ContractAddress),
+		blockchain.ConvertToFloat(v.Stake),
+		v.Timestamp,
+	), nil
+}
+
+func (v *TimeLockContractCallTransfer) Value() (driver.Value, error) {
+	return fmt.Sprintf("(%v,%v,%v)",
+		conversion.ConvertHash(v.TxHash),
+		conversion.ConvertAddress(v.Dest),
+		blockchain.ConvertToFloat(v.Amount),
+	), nil
+}
+
+func (v *TimeLockContractTermination) Value() (driver.Value, error) {
+	return fmt.Sprintf("(%v,%v)",
+		conversion.ConvertHash(v.TxHash),
+		conversion.ConvertAddress(v.Dest),
+	), nil
+}
+
+func (v *MultisigContract) Value() (driver.Value, error) {
+	return fmt.Sprintf("(%v,%v,%v,%v,%v,%v)",
+		conversion.ConvertHash(v.TxHash),
+		conversion.ConvertAddress(v.ContractAddress),
+		blockchain.ConvertToFloat(v.Stake),
+		v.MinVotes,
+		v.MaxVotes,
+		v.State,
+	), nil
+}
+
+func (v *MultisigContractCallAdd) Value() (driver.Value, error) {
+	return fmt.Sprintf("(%v,%v,%v)",
+		conversion.ConvertHash(v.TxHash),
+		conversion.ConvertAddress(v.Address),
+		negativeIfNilByte(v.NewState),
+	), nil
+}
+
+func (v *MultisigContractCallSend) Value() (driver.Value, error) {
+	return fmt.Sprintf("(%v,%v,%v)",
+		conversion.ConvertHash(v.TxHash),
+		conversion.ConvertAddress(v.Dest),
+		blockchain.ConvertToFloat(v.Amount),
+	), nil
+}
+
+func (v *MultisigContractCallPush) Value() (driver.Value, error) {
+	return fmt.Sprintf("(%v,%v,%v,%v,%v)",
+		conversion.ConvertHash(v.TxHash),
+		conversion.ConvertAddress(v.Dest),
+		blockchain.ConvertToFloat(v.Amount),
+		v.VoteAddressCnt,
+		v.VoteAmountCnt,
+	), nil
+}
+
+func (v *MultisigContractTermination) Value() (driver.Value, error) {
+	return fmt.Sprintf("(%v,%v)",
+		conversion.ConvertHash(v.TxHash),
+		conversion.ConvertAddress(v.Dest),
+	), nil
+}
+
+type contractTxBalanceUpdates struct {
+	TxHash             string                     `json:"txHash"`
+	ContractAddress    string                     `json:"contractAddress"`
+	ContractCallMethod *uint8                     `json:"contractCallMethod,omitempty"`
+	Updates            []*contractTxBalanceUpdate `json:"updates"`
+}
+
+type contractTxBalanceUpdate struct {
+	Address    string           `json:"address"`
+	BalanceOld *decimal.Decimal `json:"balanceOld"`
+	BalanceNew *decimal.Decimal `json:"balanceNew"`
+}
+
+func (v *ContractTxBalanceUpdates) Value() (driver.Value, error) {
+	res := contractTxBalanceUpdates{}
+	res.TxHash = conversion.ConvertHash(v.TxHash)
+	res.ContractAddress = conversion.ConvertAddress(v.ContractAddress)
+	res.ContractCallMethod = v.ContractCallMethod
+	res.Updates = make([]*contractTxBalanceUpdate, len(v.Updates))
+	for i, update := range v.Updates {
+		var balanceOld, balanceNew *decimal.Decimal
+		if update.BalanceOld != nil {
+			v := blockchain.ConvertToFloat(update.BalanceOld)
+			balanceOld = &v
+		}
+		if update.BalanceNew != nil {
+			v := blockchain.ConvertToFloat(update.BalanceNew)
+			balanceNew = &v
+		}
+		res.Updates[i] = &contractTxBalanceUpdate{
+			Address:    conversion.ConvertAddress(update.Address),
+			BalanceOld: balanceOld,
+			BalanceNew: balanceNew,
+		}
+	}
+	return json.Marshal(res)
+}
+
+func (v *TxReceipt) Value() (driver.Value, error) {
+	errorMsg := v.Error
+	if len(errorMsg) > 50 {
+		errorMsg = errorMsg[:50]
+	}
+	return fmt.Sprintf("(%v,%v,%v,%v,%v,%v)",
+		conversion.ConvertHash(v.TxHash),
+		v.Success,
+		v.GasUsed,
+		blockchain.ConvertToFloat(v.GasCost),
+		v.Method,
+		errorMsg,
 	), nil
 }
 

@@ -58,49 +58,58 @@ CREATE TABLE IF NOT EXISTS dic_tx_types
 );
 
 INSERT INTO dic_tx_types
-values (0, 'SendTx')
+VALUES (0, 'SendTx')
 ON CONFLICT DO NOTHING;
 INSERT INTO dic_tx_types
-values (1, 'ActivationTx')
+VALUES (1, 'ActivationTx')
 ON CONFLICT DO NOTHING;
 INSERT INTO dic_tx_types
-values (2, 'InviteTx')
+VALUES (2, 'InviteTx')
 ON CONFLICT DO NOTHING;
 INSERT INTO dic_tx_types
-values (3, 'KillTx')
+VALUES (3, 'KillTx')
 ON CONFLICT DO NOTHING;
 INSERT INTO dic_tx_types
-values (4, 'SubmitFlipTx')
+VALUES (4, 'SubmitFlipTx')
 ON CONFLICT DO NOTHING;
 INSERT INTO dic_tx_types
-values (5, 'SubmitAnswersHashTx')
+VALUES (5, 'SubmitAnswersHashTx')
 ON CONFLICT DO NOTHING;
 INSERT INTO dic_tx_types
-values (6, 'SubmitShortAnswersTx')
+VALUES (6, 'SubmitShortAnswersTx')
 ON CONFLICT DO NOTHING;
 INSERT INTO dic_tx_types
-values (7, 'SubmitLongAnswersTx')
+VALUES (7, 'SubmitLongAnswersTx')
 ON CONFLICT DO NOTHING;
 INSERT INTO dic_tx_types
-values (8, 'EvidenceTx')
+VALUES (8, 'EvidenceTx')
 ON CONFLICT DO NOTHING;
 INSERT INTO dic_tx_types
-values (9, 'OnlineStatusTx')
+VALUES (9, 'OnlineStatusTx')
 ON CONFLICT DO NOTHING;
 INSERT INTO dic_tx_types
-values (10, 'KillInviteeTx')
+VALUES (10, 'KillInviteeTx')
 ON CONFLICT DO NOTHING;
 INSERT INTO dic_tx_types
-values (11, 'ChangeGodAddressTx')
+VALUES (11, 'ChangeGodAddressTx')
 ON CONFLICT DO NOTHING;
 INSERT INTO dic_tx_types
-values (12, 'BurnTx')
+VALUES (12, 'BurnTx')
 ON CONFLICT DO NOTHING;
 INSERT INTO dic_tx_types
-values (13, 'ChangeProfileTx')
+VALUES (13, 'ChangeProfileTx')
 ON CONFLICT DO NOTHING;
 INSERT INTO dic_tx_types
-values (14, 'DeleteFlipTx')
+VALUES (14, 'DeleteFlipTx')
+ON CONFLICT DO NOTHING;
+INSERT INTO dic_tx_types
+VALUES (15, 'DeployContract')
+ON CONFLICT DO NOTHING;
+INSERT INTO dic_tx_types
+VALUES (16, 'CallContract')
+ON CONFLICT DO NOTHING;
+INSERT INTO dic_tx_types
+VALUES (17, 'TerminateContract')
 ON CONFLICT DO NOTHING;
 
 CREATE TABLE IF NOT EXISTS dic_flip_statuses
@@ -238,11 +247,11 @@ INSERT INTO dic_balance_update_reasons
 values (8, 'Initial')
 ON CONFLICT DO NOTHING;
 INSERT INTO dic_balance_update_reasons
-values (9, 'DustClearingReason')
+values (9, 'DustClearing')
 ON CONFLICT DO NOTHING;
--- Table: epochs
-
--- DROP TABLE epochs;
+INSERT INTO dic_balance_update_reasons
+values (10, 'EmbeddedContract')
+ON CONFLICT DO NOTHING;
 
 CREATE TABLE IF NOT EXISTS epochs
 (
@@ -257,10 +266,6 @@ CREATE TABLE IF NOT EXISTS epochs
 
 ALTER TABLE epochs
     OWNER to postgres;
-
--- Table: blocks
-
--- DROP TABLE blocks;
 
 CREATE TABLE IF NOT EXISTS blocks
 (
@@ -1488,6 +1493,45 @@ ALTER TABLE flips_queue
 CREATE INDEX IF NOT EXISTS flips_queue_next_attempt_timestamp_idx on flips_queue (next_attempt_timestamp desc);
 CREATE UNIQUE INDEX IF NOT EXISTS flips_queue_cid_unique_idx on flips_queue (LOWER(cid));
 
+CREATE TABLE IF NOT EXISTS dic_change_types
+(
+    id   smallint               NOT NULL,
+    name character varying(100) NOT NULL,
+    CONSTRAINT dic_change_types_pkey PRIMARY KEY (id),
+    CONSTRAINT dic_change_types_name_key UNIQUE (name)
+);
+INSERT INTO dic_change_types
+VALUES (1, 'oracle_voting_contract_results')
+ON CONFLICT DO NOTHING;
+INSERT INTO dic_change_types
+VALUES (2, 'oracle_voting_contract_summaries')
+ON CONFLICT DO NOTHING;
+INSERT INTO dic_change_types
+VALUES (3, 'sorted_oracle_voting_contracts')
+ON CONFLICT DO NOTHING;
+INSERT INTO dic_change_types
+VALUES (4, 'sorted_oracle_voting_contract_committees')
+ON CONFLICT DO NOTHING;
+
+CREATE SEQUENCE IF NOT EXISTS changes_id_seq
+    INCREMENT 1
+    START 1
+    MINVALUE 1
+    MAXVALUE 9223372036854775807
+    CACHE 1;
+CREATE TABLE IF NOT EXISTS changes
+(
+    id           bigint   NOT NULL DEFAULT nextval('changes_id_seq'::regclass),
+    block_height bigint   NOT NULL,
+    type         smallint NOT NULL,
+    CONSTRAINT changes_pkey PRIMARY KEY (id),
+    CONSTRAINT changes_type_fkey FOREIGN KEY (type)
+        REFERENCES dic_change_types (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+);
+CREATE INDEX IF NOT EXISTS changes_block_height_idx on changes (block_height);
+
 CREATE OR REPLACE VIEW epoch_identity_states AS
 SELECT s.id AS address_state_id,
        s.address_id,
@@ -2060,6 +2104,374 @@ $$
     END
 $$;
 
+DO
+$$
+    BEGIN
+        CREATE TYPE tp_oracle_voting_contract AS
+        (
+            tx_hash                text,
+            contract_address       text,
+            stake                  numeric,
+            start_time             bigint,
+            voting_duration        bigint,
+            voting_min_payment     numeric,
+            fact                   text,
+            state                  smallint,
+            public_voting_duration bigint,
+            winner_threshold       smallint,
+            quorum                 smallint,
+            committee_size         bigint,
+            owner_fee              smallint
+        );
+    EXCEPTION
+        WHEN duplicate_object THEN null;
+    END
+$$;
+
+DO
+$$
+    BEGIN
+        CREATE TYPE tp_oracle_voting_contract_call_vote_proof AS
+        (
+            tx_hash   text,
+            vote_hash text
+        );
+    EXCEPTION
+        WHEN duplicate_object THEN null;
+    END
+$$;
+
+DO
+$$
+    BEGIN
+        CREATE TYPE tp_oracle_voting_contract_call_vote AS
+        (
+            tx_hash text,
+            vote    smallint,
+            salt    text
+        );
+    EXCEPTION
+        WHEN duplicate_object THEN null;
+    END
+$$;
+
+DO
+$$
+    BEGIN
+        CREATE TYPE tp_oracle_voting_contract_call_finish AS
+        (
+            tx_hash       text,
+            state         smallint,
+            result        smallint,
+            fund          numeric,
+            oracle_reward numeric,
+            owner_reward  numeric
+        );
+    EXCEPTION
+        WHEN duplicate_object THEN null;
+    END
+$$;
+
+DO
+$$
+    BEGIN
+        CREATE TYPE tp_oracle_voting_contract_call_add_stake AS
+        (
+            tx_hash text
+        );
+    EXCEPTION
+        WHEN duplicate_object THEN null;
+    END
+$$;
+
+DO
+$$
+    BEGIN
+        CREATE TYPE tp_oracle_voting_contract_termination AS
+        (
+            tx_hash       text,
+            fund          numeric,
+            oracle_reward numeric,
+            owner_reward  numeric
+        );
+    EXCEPTION
+        WHEN duplicate_object THEN null;
+    END
+$$;
+
+DO
+$$
+    BEGIN
+        CREATE TYPE tp_oracle_lock_contract AS
+        (
+            tx_hash               text,
+            contract_address      text,
+            stake                 numeric,
+            oracle_voting_address text,
+            "value"               smallint,
+            success_address       text,
+            fail_address          text
+        );
+    EXCEPTION
+        WHEN duplicate_object THEN null;
+    END
+$$;
+
+DO
+$$
+    BEGIN
+        CREATE TYPE tp_oracle_lock_contract_call_check_oracle_voting AS
+        (
+            tx_hash              text,
+            oracle_voting_result smallint
+        );
+    EXCEPTION
+        WHEN duplicate_object THEN null;
+    END
+$$;
+
+
+DO
+$$
+    BEGIN
+        CREATE TYPE tp_oracle_lock_contract_call_push AS
+        (
+            tx_hash              text,
+            success              boolean,
+            oracle_voting_result smallint,
+            transfer             numeric
+        );
+    EXCEPTION
+        WHEN duplicate_object THEN null;
+    END
+$$;
+
+DO
+$$
+    BEGIN
+        CREATE TYPE tp_oracle_lock_contract_termination AS
+        (
+            tx_hash text,
+            dest    text
+        );
+    EXCEPTION
+        WHEN duplicate_object THEN null;
+    END
+$$;
+
+DO
+$$
+    BEGIN
+        CREATE TYPE tp_refundable_oracle_lock_contract AS
+        (
+            tx_hash               text,
+            contract_address      text,
+            stake                 numeric,
+            oracle_voting_address text,
+            "value"               smallint,
+            success_address       text,
+            fail_address          text,
+            refund_delay          bigint,
+            deposit_deadline      bigint,
+            oracle_voting_fee     smallint
+        );
+    EXCEPTION
+        WHEN duplicate_object THEN null;
+    END
+$$;
+
+DO
+$$
+    BEGIN
+        CREATE TYPE tp_refundable_oracle_lock_contract_call_deposit AS
+        (
+            tx_hash text,
+            own_sum numeric,
+            sum     numeric,
+            fee     numeric
+        );
+    EXCEPTION
+        WHEN duplicate_object THEN null;
+    END
+$$;
+
+DO
+$$
+    BEGIN
+        CREATE TYPE tp_refundable_oracle_lock_contract_call_push AS
+        (
+            tx_hash              text,
+            state                smallint,
+            oracle_voting_exists boolean,
+            oracle_voting_result smallint,
+            transfer             numeric,
+            refund_block         bigint
+        );
+    EXCEPTION
+        WHEN duplicate_object THEN null;
+    END
+$$;
+
+DO
+$$
+    BEGIN
+        CREATE TYPE tp_refundable_oracle_lock_contract_call_refund AS
+        (
+            tx_hash text,
+            balance numeric,
+            coef    double precision
+        );
+    EXCEPTION
+        WHEN duplicate_object THEN null;
+    END
+$$;
+
+DO
+$$
+    BEGIN
+        CREATE TYPE tp_refundable_oracle_lock_contract_termination AS
+        (
+            tx_hash text,
+            dest    text
+        );
+    EXCEPTION
+        WHEN duplicate_object THEN null;
+    END
+$$;
+
+DO
+$$
+    BEGIN
+        CREATE TYPE tp_multisig_contract AS
+        (
+            tx_hash          text,
+            contract_address text,
+            stake            numeric,
+            min_votes        smallint,
+            max_votes        smallint,
+            state            smallint
+        );
+    EXCEPTION
+        WHEN duplicate_object THEN null;
+    END
+$$;
+
+DO
+$$
+    BEGIN
+        CREATE TYPE tp_multisig_contract_call_add AS
+        (
+            tx_hash   text,
+            address   text,
+            new_state smallint
+        );
+    EXCEPTION
+        WHEN duplicate_object THEN null;
+    END
+$$;
+
+DO
+$$
+    BEGIN
+        CREATE TYPE tp_multisig_contract_call_send AS
+        (
+            tx_hash text,
+            dest    text,
+            amount  numeric
+        );
+    EXCEPTION
+        WHEN duplicate_object THEN null;
+    END
+$$;
+
+DO
+$$
+    BEGIN
+        CREATE TYPE tp_multisig_contract_call_push AS
+        (
+            tx_hash          text,
+            dest             text,
+            amount           numeric,
+            vote_address_cnt smallint,
+            vote_amount_cnt  smallint
+        );
+    EXCEPTION
+        WHEN duplicate_object THEN null;
+    END
+$$;
+
+DO
+$$
+    BEGIN
+        CREATE TYPE tp_multisig_contract_termination AS
+        (
+            tx_hash text,
+            dest    text
+        );
+    EXCEPTION
+        WHEN duplicate_object THEN null;
+    END
+$$;
+
+DO
+$$
+    BEGIN
+        CREATE TYPE tp_time_lock_contract AS
+        (
+            tx_hash          text,
+            contract_address text,
+            stake            numeric,
+            "timestamp"      bigint
+        );
+    EXCEPTION
+        WHEN duplicate_object THEN null;
+    END
+$$;
+
+DO
+$$
+    BEGIN
+        CREATE TYPE tp_time_lock_contract_call_transfer AS
+        (
+            tx_hash text,
+            dest    text,
+            amount  numeric
+        );
+    EXCEPTION
+        WHEN duplicate_object THEN null;
+    END
+$$;
+
+DO
+$$
+    BEGIN
+        CREATE TYPE tp_time_lock_contract_termination AS
+        (
+            tx_hash text,
+            dest    text
+        );
+    EXCEPTION
+        WHEN duplicate_object THEN null;
+    END
+$$;
+
+DO
+$$
+    BEGIN
+        CREATE TYPE tp_tx_receipt AS
+        (
+            tx_hash   text,
+            success   boolean,
+            gas_used  bigint,
+            gas_cost  numeric,
+            "method"  text,
+            error_msg text
+        );
+    EXCEPTION
+        WHEN duplicate_object THEN null;
+    END
+$$;
+
 -- PROCEDURE: save_mining_rewards
 
 CREATE OR REPLACE PROCEDURE save_mining_rewards(height bigint, mr tp_mining_reward[])
@@ -2123,14 +2535,14 @@ BEGIN
             loop
                 b_row = b[i];
                 insert into balances (address_id, balance, stake)
-                values ((select id from addresses where lower(address) = lower(b_row.address)),
-                        b_row.balance, b_row.stake)
+                values (get_address_id_or_insert(p_block_height, b_row.address), b_row.balance, b_row.stake)
                 on conflict (address_id) do update set balance=b_row.balance, stake=b_row.stake;
             end loop;
     end if;
 
     if p_updates is not null then
         call save_balance_updates(p_block_height, p_updates, p_committee_reward_share);
+        call apply_balance_updates_on_contracts(p_block_height, p_updates);
     end if;
 
     delete
@@ -2149,6 +2561,7 @@ DECLARE
     COMMITTEE_REASON CONSTANT smallint = 3;
     l_balance_update          tp_balance_update;
     l_tx_id                   bigint;
+    l_address_id              bigint;
 BEGIN
     if p_updates is null then
         return;
@@ -2166,10 +2579,11 @@ BEGIN
                 else
                     l_tx_id = null;
                 end if;
+                l_address_id = get_address_id_or_insert(p_block_height, l_balance_update.address);
                 insert into balance_updates (address_id, balance_old, stake_old, penalty_old, balance_new, stake_new,
                                              penalty_new, reason, block_height, tx_id, last_block_height,
                                              committee_reward_share, blocks_count)
-                values ((select id from addresses where lower(address) = lower(l_balance_update.address)),
+                values (l_address_id,
                         l_balance_update.balance_old,
                         l_balance_update.stake_old,
                         null_if_zero(l_balance_update.penalty_old),
@@ -2267,7 +2681,47 @@ BEGIN
 END
 $BODY$;
 
+CREATE OR REPLACE FUNCTION null_if_negative_numeric(v numeric)
+    RETURNS numeric
+    LANGUAGE 'plpgsql'
+AS
+$BODY$
+BEGIN
+    if v < 0 then
+        return null;
+    end if;
+    return v;
+END
+$BODY$;
+
+CREATE OR REPLACE FUNCTION null_if_zero_bigint(v bigint)
+    RETURNS numeric
+    LANGUAGE 'plpgsql'
+AS
+$BODY$
+BEGIN
+    if v = 0 then
+        return null;
+    end if;
+    return v;
+END
+$BODY$;
+
+CREATE OR REPLACE FUNCTION null_if_negative_bigint(v bigint)
+    RETURNS numeric
+    LANGUAGE 'plpgsql'
+AS
+$BODY$
+BEGIN
+    if v < 0 then
+        return null;
+    end if;
+    return v;
+END
+$BODY$;
+
 CREATE OR REPLACE FUNCTION save_addrs_and_txs(height bigint,
+                                              p_changes_blocks_count smallint,
                                               addresses tp_address[],
                                               txs tp_tx[],
                                               p_activation_tx_transfers tp_activation_tx_transfer[],
@@ -2278,7 +2732,34 @@ CREATE OR REPLACE FUNCTION save_addrs_and_txs(height bigint,
                                               p_activation_txs tp_activation_tx[],
                                               p_kill_invitee_txs tp_kill_invitee_tx[],
                                               p_become_online_txs character(66)[],
-                                              p_become_offline_txs character(66)[])
+                                              p_become_offline_txs character(66)[],
+                                              p_oracle_voting_contracts tp_oracle_voting_contract[],
+                                              p_oracle_voting_contract_call_starts jsonb[],
+                                              p_oracle_voting_contract_call_vote_proofs tp_oracle_voting_contract_call_vote_proof[],
+                                              p_oracle_voting_contract_call_votes tp_oracle_voting_contract_call_vote[],
+                                              p_oracle_voting_contract_call_finishes tp_oracle_voting_contract_call_finish[],
+                                              p_oracle_voting_contract_call_prolongations jsonb[],
+                                              p_oracle_voting_contract_call_add_stakes tp_oracle_voting_contract_call_add_stake[],
+                                              p_oracle_voting_contract_terminations tp_oracle_voting_contract_termination[],
+                                              p_oracle_lock_contracts tp_oracle_lock_contract[],
+                                              p_oracle_lock_contract_call_check_oracle_votings tp_oracle_lock_contract_call_check_oracle_voting[],
+                                              p_oracle_lock_contract_call_pushes tp_oracle_lock_contract_call_push[],
+                                              p_oracle_lock_contract_terminations tp_oracle_lock_contract_termination[],
+                                              p_refundable_oracle_lock_contracts tp_refundable_oracle_lock_contract[],
+                                              p_refundable_oracle_lock_contract_call_deposits tp_refundable_oracle_lock_contract_call_deposit[],
+                                              p_refundable_oracle_lock_contract_call_pushes tp_refundable_oracle_lock_contract_call_push[],
+                                              p_refundable_oracle_lock_contract_call_refunds tp_refundable_oracle_lock_contract_call_refund[],
+                                              p_refundable_oracle_lock_contract_terminations tp_refundable_oracle_lock_contract_termination[],
+                                              p_time_lock_contracts tp_time_lock_contract[],
+                                              p_time_lock_contract_call_transfers tp_time_lock_contract_call_transfer[],
+                                              p_time_lock_contract_terminations tp_time_lock_contract_termination[],
+                                              p_multisig_contracts tp_multisig_contract[],
+                                              p_multisig_contract_call_adds tp_multisig_contract_call_add[],
+                                              p_multisig_contract_call_sends tp_multisig_contract_call_send[],
+                                              p_multisig_contract_call_pushes tp_multisig_contract_call_push[],
+                                              p_multisig_contract_terminations tp_multisig_contract_termination[],
+                                              p_contract_tx_balance_updates jsonb[],
+                                              p_tx_receipts tp_tx_receipt[])
     RETURNS tp_tx_hash_id[]
     LANGUAGE 'plpgsql'
 AS
@@ -2296,26 +2777,20 @@ DECLARE
     l_invites_count          integer;
     l_flips_count_diff       integer;
 BEGIN
-    for i in 1..cardinality(addresses)
-        loop
-            address_row = addresses[i];
-            select id
-            into l_address_id
-            from addresses
-            where lower(address) = lower(address_row.address);
+    if addresses is not null then
+        for i in 1..cardinality(addresses)
+            loop
+                address_row = addresses[i];
 
-            if l_address_id is null then
-                insert into addresses (address, block_height)
-                values (address_row.address, height)
-                returning id into l_address_id;
-            end if;
+                l_address_id = get_address_id_or_insert(height, address_row.address);
 
-            if address_row.is_temporary then
-                insert into temporary_identities (address_id, block_height)
-                values (l_address_id, height)
-                on conflict (address_id) do nothing;
-            end if;
-        end loop;
+                if address_row.is_temporary then
+                    insert into temporary_identities (address_id, block_height)
+                    values (l_address_id, height)
+                    on conflict (address_id) do nothing;
+                end if;
+            end loop;
+    end if;
 
     if txs is not null then
         l_invites_count = 0;
@@ -2418,6 +2893,118 @@ BEGIN
                 where lower(cid) = lower(deleted_flip.cid);
             end loop;
     end if;
+
+    if p_oracle_voting_contracts is not null then
+        call save_oracle_voting_contracts(height, p_oracle_voting_contracts);
+    end if;
+
+    if p_oracle_voting_contract_call_starts is not null then
+        call save_oracle_voting_contract_call_starts(height, p_oracle_voting_contract_call_starts);
+    end if;
+
+    if p_oracle_voting_contract_call_vote_proofs is not null then
+        call save_oracle_voting_contract_call_vote_proofs(height, p_oracle_voting_contract_call_vote_proofs);
+    end if;
+
+    if p_oracle_voting_contract_call_votes is not null then
+        call save_oracle_voting_contract_call_votes(height, p_oracle_voting_contract_call_votes);
+    end if;
+
+    if p_oracle_voting_contract_call_finishes is not null then
+        call save_oracle_voting_contract_call_finishes(height, p_oracle_voting_contract_call_finishes);
+    end if;
+
+    if p_oracle_voting_contract_call_prolongations is not null then
+        call save_oracle_voting_contract_call_prolongations(height, p_oracle_voting_contract_call_prolongations);
+    end if;
+
+    if p_oracle_voting_contract_call_add_stakes is not null then
+        call save_oracle_voting_contract_call_add_stakes(height, p_oracle_voting_contract_call_add_stakes);
+    end if;
+
+    if p_oracle_voting_contract_terminations is not null then
+        call save_oracle_voting_contract_terminations(height, p_oracle_voting_contract_terminations);
+    end if;
+
+    if p_oracle_lock_contracts is not null then
+        call save_oracle_lock_contracts(height, p_oracle_lock_contracts);
+    end if;
+
+    if p_oracle_lock_contract_call_check_oracle_votings is not null then
+        call save_oracle_lock_contract_call_check_oracle_votings(p_oracle_lock_contract_call_check_oracle_votings);
+    end if;
+
+    if p_oracle_lock_contract_call_pushes is not null then
+        call save_oracle_lock_contract_call_pushes(p_oracle_lock_contract_call_pushes);
+    end if;
+
+    if p_oracle_lock_contract_terminations is not null then
+        call save_oracle_lock_contract_terminations(height, p_oracle_lock_contract_terminations);
+    end if;
+
+    if p_refundable_oracle_lock_contracts is not null then
+        call save_refundable_oracle_lock_contracts(height, p_refundable_oracle_lock_contracts);
+    end if;
+
+    if p_refundable_oracle_lock_contract_call_deposits is not null then
+        call save_refundable_oracle_lock_contract_call_deposits(p_refundable_oracle_lock_contract_call_deposits);
+    end if;
+
+    if p_refundable_oracle_lock_contract_call_pushes is not null then
+        call save_refundable_oracle_lock_contract_call_pushes(p_refundable_oracle_lock_contract_call_pushes);
+    end if;
+
+    if p_refundable_oracle_lock_contract_call_refunds is not null then
+        call save_refundable_oracle_lock_contract_call_refunds(p_refundable_oracle_lock_contract_call_refunds);
+    end if;
+
+    if p_refundable_oracle_lock_contract_terminations is not null then
+        call save_refundable_oracle_lock_contract_terminations(height, p_refundable_oracle_lock_contract_terminations);
+    end if;
+
+    if p_time_lock_contracts is not null then
+        call save_time_lock_contracts(height, p_time_lock_contracts);
+    end if;
+
+    if p_time_lock_contract_call_transfers is not null then
+        call save_time_lock_contract_call_transfers(height, p_time_lock_contract_call_transfers);
+    end if;
+
+    if p_time_lock_contract_terminations is not null then
+        call save_time_lock_contract_terminations(height, p_time_lock_contract_terminations);
+    end if;
+
+    if p_multisig_contracts is not null then
+        call save_multisig_contracts(height, p_multisig_contracts);
+    end if;
+
+    if p_multisig_contract_call_adds is not null then
+        call save_multisig_contract_call_adds(height, p_multisig_contract_call_adds);
+    end if;
+
+    if p_multisig_contract_call_sends is not null then
+        call save_multisig_contract_call_sends(height, p_multisig_contract_call_sends);
+    end if;
+
+    if p_multisig_contract_call_pushes is not null then
+        call save_multisig_contract_call_pushes(height, p_multisig_contract_call_pushes);
+    end if;
+
+    if p_multisig_contract_terminations is not null then
+        call save_multisig_contract_terminations(height, p_multisig_contract_terminations);
+    end if;
+
+    if p_contract_tx_balance_updates is not null then
+        call save_contract_tx_balance_updates(height, p_contract_tx_balance_updates);
+    end if;
+
+    if p_tx_receipts is not null then
+        call save_tx_receipts(p_tx_receipts);
+    end if;
+
+    call apply_block_on_sorted_contracts(height);
+
+    DELETE FROM changes WHERE block_height <= height - p_changes_blocks_count;
 
     return res;
 END
@@ -2637,6 +3224,9 @@ BEGIN
     if p_block_height < (select min(height) - 1 from blocks) then
         raise exception 'wrong block height % to reset', p_block_height;
     end if;
+
+    call reset_changes_to(p_block_height);
+    call reset_contracts_to(p_block_height);
 
     select epoch into l_epoch from blocks where height = greatest(2, p_block_height);
 
@@ -3088,5 +3678,23 @@ $$
 BEGIN
     insert into performance_logs (timestamp, message, duration)
     values ((select current_timestamp), p_message, (SELECT EXTRACT(EPOCH FROM (age(p_end, p_start)))));
+END
+$$;
+
+CREATE OR REPLACE FUNCTION get_address_id_or_insert(p_block_height bigint, p_address text)
+    RETURNS bigint
+    LANGUAGE 'plpgsql'
+AS
+$$
+DECLARE
+    l_address_id bigint;
+BEGIN
+    SELECT id INTO l_address_id FROM addresses WHERE lower(address) = lower(p_address);
+    if l_address_id is null then
+        INSERT INTO addresses (address, block_height)
+        VALUES (p_address, p_block_height)
+        RETURNING id INTO l_address_id;
+    end if;
+    return l_address_id;
 END
 $$;

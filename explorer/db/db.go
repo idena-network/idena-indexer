@@ -142,6 +142,7 @@ type Accessor interface {
 	AddressBadAuthors(address string, count uint64, continuationToken *string) ([]types.BadAuthor, *string, error)
 	AddressBalanceUpdatesCount(address string) (uint64, error)
 	AddressBalanceUpdates(address string, count uint64, continuationToken *string) ([]types.BalanceUpdate, *string, error)
+	AddressContractTxBalanceUpdates(address string, contractAddress string, count uint64, continuationToken *string) ([]types.ContractTxBalanceUpdate, *string, error)
 
 	Transaction(hash string) (types.TransactionDetail, error)
 	TransactionRaw(hash string) (hexutil.Bytes, error)
@@ -155,6 +156,10 @@ type Accessor interface {
 	TotalLatestMiningRewards(afterTime time.Time, startIndex uint64, count uint64) ([]types.TotalMiningReward, error)
 	TotalLatestBurntCoinsCount(afterTime time.Time) (uint64, error)
 	TotalLatestBurntCoins(afterTime time.Time, startIndex uint64, count uint64) ([]types.AddressBurntCoins, error)
+
+	OracleVotingContracts(authorAddress, oracleAddress string, states []string, all bool, count uint64, continuationToken *string) ([]types.OracleVotingContract, *string, error)
+	OracleVotingContract(address, oracle string) (types.OracleVotingContract, error)
+	EstimatedOracleRewards(committeeSize uint64) ([]types.EstimatedOracleReward, error)
 
 	Destroy()
 }

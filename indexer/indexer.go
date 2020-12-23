@@ -358,30 +358,57 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) (*result
 	coins, totalBalance, totalStake := indexer.getCoins(indexer.isFirstBlock(incomingBlock), diff)
 
 	dbData := &db.Data{
-		Epoch:                  epoch,
-		ValidationTime:         *big.NewInt(ctx.newStateReadOnly.State.NextValidationTime().Unix()),
-		Block:                  block,
-		ActivationTxTransfers:  collectorStats.ActivationTxTransfers,
-		KillTxTransfers:        collectorStats.KillTxTransfers,
-		KillInviteeTxTransfers: collectorStats.KillInviteeTxTransfers,
-		ActivationTxs:          collector.activationTxs,
-		KillInviteeTxs:         collector.killInviteeTxs,
-		BecomeOnlineTxs:        collector.becomeOnlineTxs,
-		BecomeOfflineTxs:       collector.becomeOfflineTxs,
-		SubmittedFlips:         collector.submittedFlips,
-		DeletedFlips:           collector.deletedFlips,
-		FlipKeys:               collector.flipKeys,
-		FlipsWords:             collector.flipsWords,
-		Addresses:              collector.getAddresses(),
-		ChangedBalances:        balanceUpdates,
-		Coins:                  coins,
-		Penalty:                detectChargedPenalty(incomingBlock, ctx.newStateReadOnly),
-		BurntPenalties:         convertBurntPenalties(collectorStats.BurntPenaltiesByAddr),
-		MiningRewards:          collectorStats.MiningRewards,
-		BurntCoinsPerAddr:      collectorStats.BurntCoinsByAddr,
-		BalanceUpdates:         collectorStats.BalanceUpdates,
-		CommitteeRewardShare:   collectorStats.CommitteeRewardShare,
-		EpochResult:            epochResult,
+		Epoch:                                    epoch,
+		ValidationTime:                           *big.NewInt(ctx.newStateReadOnly.State.NextValidationTime().Unix()),
+		Block:                                    block,
+		ActivationTxTransfers:                    collectorStats.ActivationTxTransfers,
+		KillTxTransfers:                          collectorStats.KillTxTransfers,
+		KillInviteeTxTransfers:                   collectorStats.KillInviteeTxTransfers,
+		ActivationTxs:                            collector.activationTxs,
+		KillInviteeTxs:                           collector.killInviteeTxs,
+		BecomeOnlineTxs:                          collector.becomeOnlineTxs,
+		BecomeOfflineTxs:                         collector.becomeOfflineTxs,
+		SubmittedFlips:                           collector.submittedFlips,
+		DeletedFlips:                             collector.deletedFlips,
+		FlipKeys:                                 collector.flipKeys,
+		FlipsWords:                               collector.flipsWords,
+		Addresses:                                collector.getAddresses(),
+		ChangedBalances:                          balanceUpdates,
+		Coins:                                    coins,
+		Penalty:                                  detectChargedPenalty(incomingBlock, ctx.newStateReadOnly),
+		BurntPenalties:                           convertBurntPenalties(collectorStats.BurntPenaltiesByAddr),
+		MiningRewards:                            collectorStats.MiningRewards,
+		BurntCoinsPerAddr:                        collectorStats.BurntCoinsByAddr,
+		BalanceUpdates:                           collectorStats.BalanceUpdates,
+		CommitteeRewardShare:                     collectorStats.CommitteeRewardShare,
+		OracleVotingContracts:                    collectorStats.OracleVotingContracts,
+		OracleVotingContractCallStarts:           collectorStats.OracleVotingContractCallStarts,
+		OracleVotingContractCallVoteProofs:       collectorStats.OracleVotingContractCallVoteProofs,
+		OracleVotingContractCallVotes:            collectorStats.OracleVotingContractCallVotes,
+		OracleVotingContractCallFinishes:         collectorStats.OracleVotingContractCallFinishes,
+		OracleVotingContractCallProlongations:    collectorStats.OracleVotingContractCallProlongations,
+		OracleVotingContractCallAddStakes:        collectorStats.OracleVotingContractCallAddStakes,
+		OracleVotingContractTerminations:         collectorStats.OracleVotingContractTerminations,
+		OracleLockContracts:                      collectorStats.OracleLockContracts,
+		OracleLockContractCallCheckOracleVotings: collectorStats.OracleLockContractCallCheckOracleVotings,
+		OracleLockContractCallPushes:             collectorStats.OracleLockContractCallPushes,
+		OracleLockContractTerminations:           collectorStats.OracleLockContractTerminations,
+		RefundableOracleLockContracts:            collectorStats.RefundableOracleLockContracts,
+		RefundableOracleLockContractCallDeposits: collectorStats.RefundableOracleLockContractCallDeposits,
+		RefundableOracleLockContractCallPushes:   collectorStats.RefundableOracleLockContractCallPushes,
+		RefundableOracleLockContractCallRefunds:  collectorStats.RefundableOracleLockContractCallRefunds,
+		RefundableOracleLockContractTerminations: collectorStats.RefundableOracleLockContractTerminations,
+		MultisigContracts:                        collectorStats.MultisigContracts,
+		MultisigContractCallAdds:                 collectorStats.MultisigContractCallAdds,
+		MultisigContractCallSends:                collectorStats.MultisigContractCallSends,
+		MultisigContractCallPushes:               collectorStats.MultisigContractCallPushes,
+		MultisigContractTerminations:             collectorStats.MultisigContractTerminations,
+		TimeLockContracts:                        collectorStats.TimeLockContracts,
+		TimeLockContractCallTransfers:            collectorStats.TimeLockContractCallTransfers,
+		TimeLockContractTerminations:             collectorStats.TimeLockContractTerminations,
+		TxReceipts:                               collectorStats.TxReceipts,
+		ContractTxsBalanceUpdates:                collectorStats.ContractTxsBalanceUpdates,
+		EpochResult:                              epochResult,
 	}
 	resData := &resultData{
 		totalBalance: totalBalance,
@@ -492,11 +519,7 @@ func (indexer *Indexer) convertBlock(
 ) (db.Block, error) {
 	var txs []db.Transaction
 	if len(incomingBlock.Body.Transactions) > 0 {
-		stateToApply, err := ctx.newStateReadOnly.Readonly(ctx.blockHeight - 1)
-		if err != nil {
-			return db.Block{}, err
-		}
-		txs = indexer.convertTransactions(incomingBlock.Body.Transactions, ctx, stateToApply, collector)
+		txs = indexer.convertTransactions(incomingBlock.Body.Transactions, ctx, collector)
 	}
 
 	incomingBlock.Header.Flags()
@@ -542,7 +565,6 @@ func convertFlags(incomingFlags types.BlockFlag) []string {
 func (indexer *Indexer) convertTransactions(
 	incomingTxs []*types.Transaction,
 	ctx *conversionContext,
-	stateToApply *appstate.AppState,
 	collector *conversionCollector,
 ) []db.Transaction {
 	if len(incomingTxs) == 0 {
@@ -550,7 +572,7 @@ func (indexer *Indexer) convertTransactions(
 	}
 	var txs []db.Transaction
 	for _, incomingTx := range incomingTxs {
-		txs = append(txs, indexer.convertTransaction(incomingTx, ctx, stateToApply, collector))
+		txs = append(txs, indexer.convertTransaction(incomingTx, ctx, collector))
 	}
 	return txs
 }
@@ -558,7 +580,6 @@ func (indexer *Indexer) convertTransactions(
 func (indexer *Indexer) convertTransaction(
 	incomingTx *types.Transaction,
 	ctx *conversionContext,
-	stateToApply *appstate.AppState,
 	collector *conversionCollector,
 ) db.Transaction {
 	if f, h := detectSubmittedFlip(incomingTx); f != nil {
@@ -595,8 +616,35 @@ func (indexer *Indexer) convertTransaction(
 		}
 	}
 
+	getIdentityStateChange := func(address common.Address) *stats.IdentityStateChange {
+		if indexer.statsHolder().GetStats().IdentityStateChangesByTxHashAndAddress == nil {
+			return nil
+		}
+		txChanges, ok := indexer.statsHolder().GetStats().IdentityStateChangesByTxHashAndAddress[incomingTx.Hash()]
+		if !ok {
+			return nil
+		}
+		change, ok := txChanges[address]
+		if !ok {
+			return nil
+		}
+		return change
+	}
+
+	senderStateChange := getIdentityStateChange(sender)
+	if senderStateChange != nil {
+		if incomingTx.Type == types.ActivationTx && senderStateChange.NewState == state.Killed {
+			collector.addresses[from].IsTemporary = true
+		}
+		collector.addresses[from].StateChanges = append(collector.addresses[from].StateChanges,
+			db.AddressStateChange{
+				PrevState: convertIdentityState(senderStateChange.PrevState),
+				NewState:  convertIdentityState(senderStateChange.NewState),
+				TxHash:    txHash,
+			})
+	}
+
 	var to string
-	var recipientPrevState *state.IdentityState
 	if incomingTx.To != nil {
 		to = conversion.ConvertAddress(*incomingTx.To)
 		if _, present := collector.addresses[to]; !present {
@@ -604,38 +652,16 @@ func (indexer *Indexer) convertTransaction(
 				Address: to,
 			}
 		}
-		st := stateToApply.State.GetIdentityState(*incomingTx.To)
-		recipientPrevState = &st
-	}
-
-	senderPrevState := stateToApply.State.GetIdentityState(sender)
-	fee, _, err := indexer.listener.NodeCtx().Blockchain.ApplyTxOnState(stateToApply, nil, incomingTx, nil)
-	if err != nil {
-		log.Error("Unable to apply tx on state", "tx", txHash, "err", err)
-	}
-
-	senderNewState := stateToApply.State.GetIdentityState(sender)
-
-	if senderNewState != senderPrevState {
-		if incomingTx.Type == types.ActivationTx && senderNewState == state.Killed {
-			collector.addresses[from].IsTemporary = true
-		}
-		collector.addresses[from].StateChanges = append(collector.addresses[from].StateChanges,
-			db.AddressStateChange{
-				PrevState: convertIdentityState(senderPrevState),
-				NewState:  convertIdentityState(senderNewState),
-				TxHash:    txHash,
-			})
-	}
-	if recipientPrevState != nil && *incomingTx.To != sender {
-		recipientNewState := stateToApply.State.GetIdentityState(*incomingTx.To)
-		if recipientNewState != *recipientPrevState {
-			collector.addresses[to].StateChanges = append(collector.addresses[to].StateChanges,
-				db.AddressStateChange{
-					PrevState: convertIdentityState(*recipientPrevState),
-					NewState:  convertIdentityState(recipientNewState),
-					TxHash:    txHash,
-				})
+		if *incomingTx.To != sender {
+			recipientStateChange := getIdentityStateChange(*incomingTx.To)
+			if recipientStateChange != nil {
+				collector.addresses[to].StateChanges = append(collector.addresses[to].StateChanges,
+					db.AddressStateChange{
+						PrevState: convertIdentityState(recipientStateChange.PrevState),
+						NewState:  convertIdentityState(recipientStateChange.NewState),
+						TxHash:    txHash,
+					})
+			}
 		}
 	}
 
@@ -653,7 +679,7 @@ func (indexer *Indexer) convertTransaction(
 		Amount:  blockchain.ConvertToFloat(incomingTx.Amount),
 		Tips:    blockchain.ConvertToFloat(incomingTx.Tips),
 		MaxFee:  blockchain.ConvertToFloat(incomingTx.MaxFee),
-		Fee:     blockchain.ConvertToFloat(fee),
+		Fee:     blockchain.ConvertToFloat(indexer.statsHolder().GetStats().FeesByTxHash[incomingTx.Hash()]),
 		Size:    incomingTx.Size(),
 		Raw:     hex.EncodeToString(txRaw),
 	}

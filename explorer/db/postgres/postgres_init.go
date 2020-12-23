@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/idena-network/idena-indexer/explorer/db"
+	"github.com/idena-network/idena-indexer/explorer/service"
 	"github.com/idena-network/idena-indexer/log"
 	"io/ioutil"
 	"path/filepath"
@@ -11,7 +12,7 @@ import (
 	"time"
 )
 
-func NewPostgresAccessor(connStr string, scriptsDirPath string, logger log.Logger) db.Accessor {
+func NewPostgresAccessor(connStr string, scriptsDirPath string, networkSizeLoader service.NetworkSizeLoader, logger log.Logger) db.Accessor {
 	dbAccessor, err := sql.Open("postgres", connStr)
 	if err != nil {
 		panic(err)
@@ -21,11 +22,14 @@ func NewPostgresAccessor(connStr string, scriptsDirPath string, logger log.Logge
 	dbAccessor.SetMaxIdleConns(25)
 	dbAccessor.SetConnMaxLifetime(5 * time.Minute)
 
-	return &postgresAccessor{
-		db:      dbAccessor,
-		queries: readQueries(scriptsDirPath, logger),
-		log:     logger,
+	res := &postgresAccessor{
+		db:                dbAccessor,
+		queries:           readQueries(scriptsDirPath, logger),
+		networkSizeLoader: networkSizeLoader,
+		log:               logger,
 	}
+	res.estimatedOracleRewardsCache = newEstimatedOracleRewardsCache(res.lastBlockFeeRate, networkSizeLoader.Load)
+	return res
 }
 
 func readQueries(scriptsDirPath string, log log.Logger) map[string]string {

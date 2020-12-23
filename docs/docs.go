@@ -116,6 +116,166 @@ var doc = `{
                 }
             }
         },
+        "/Address/{address}/Contract/{contractAddress}/BalanceUpdates": {
+            "get": {
+                "tags": [
+                    "Address",
+                    "Contracts"
+                ],
+                "operationId": "AddressContractTxBalanceUpdates",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "address",
+                        "name": "address",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "contract address",
+                        "name": "contractAddress",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "items to take",
+                        "name": "limit",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "continuation token to get next page items",
+                        "name": "continuationToken",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/ResponsePage"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "result": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/ContractTxBalanceUpdate"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request"
+                    },
+                    "429": {
+                        "description": "Request number limit exceeded"
+                    },
+                    "500": {
+                        "description": "Internal server error"
+                    },
+                    "503": {
+                        "description": "Service unavailable"
+                    }
+                }
+            }
+        },
+        "/Address/{address}/OracleVotingContracts": {
+            "get": {
+                "tags": [
+                    "Address",
+                    "Contracts"
+                ],
+                "operationId": "AddressOracleVotingContracts",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "contract author address",
+                        "name": "address",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "description": "filter by voting states",
+                        "name": "states[]",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "oracle address",
+                        "name": "oracle",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "flag to return all voting contracts independently on oracle address",
+                        "name": "all",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "items to take",
+                        "name": "limit",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "continuation token to get next page items",
+                        "name": "continuationToken",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/ResponsePage"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "result": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/OracleVotingContract"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request"
+                    },
+                    "429": {
+                        "description": "Request number limit exceeded"
+                    },
+                    "500": {
+                        "description": "Internal server error"
+                    },
+                    "503": {
+                        "description": "Service unavailable"
+                    }
+                }
+            }
+        },
         "/Address/{address}/Penalties": {
             "get": {
                 "tags": [
@@ -4108,6 +4268,192 @@ var doc = `{
                 }
             }
         },
+        "/OracleVotingContract/{address}": {
+            "get": {
+                "tags": [
+                    "Contracts"
+                ],
+                "operationId": "OracleVotingContract",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "contract address",
+                        "name": "address",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "oracle address",
+                        "name": "oracle",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "result": {
+                                            "$ref": "#/definitions/OracleVotingContract"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request"
+                    },
+                    "429": {
+                        "description": "Request number limit exceeded"
+                    },
+                    "500": {
+                        "description": "Internal server error"
+                    },
+                    "503": {
+                        "description": "Service unavailable"
+                    }
+                }
+            }
+        },
+        "/OracleVotingContracts": {
+            "get": {
+                "tags": [
+                    "Contracts"
+                ],
+                "operationId": "OracleVotingContracts",
+                "parameters": [
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "description": "filter by voting states",
+                        "name": "states[]",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "oracle address",
+                        "name": "oracle",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "flag to return all voting contracts independently on oracle address",
+                        "name": "all",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "items to take",
+                        "name": "limit",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "continuation token to get next page items",
+                        "name": "continuationToken",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/ResponsePage"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "result": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/OracleVotingContract"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request"
+                    },
+                    "429": {
+                        "description": "Request number limit exceeded"
+                    },
+                    "500": {
+                        "description": "Internal server error"
+                    },
+                    "503": {
+                        "description": "Service unavailable"
+                    }
+                }
+            }
+        },
+        "/OracleVotingContracts/EstimatedOracleRewards": {
+            "get": {
+                "tags": [
+                    "Contracts"
+                ],
+                "operationId": "EstimatedOracleRewards",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "committee size",
+                        "name": "committeeSize",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "result": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/EstimatedOracleReward"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request"
+                    },
+                    "429": {
+                        "description": "Request number limit exceeded"
+                    },
+                    "500": {
+                        "description": "Internal server error"
+                    },
+                    "503": {
+                        "description": "Service unavailable"
+                    }
+                }
+            }
+        },
         "/Search": {
             "get": {
                 "tags": [
@@ -4617,6 +4963,60 @@ var doc = `{
                 }
             }
         },
+        "ContractTxBalanceUpdate": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "amount": {
+                    "type": "string"
+                },
+                "balanceChange": {
+                    "type": "string"
+                },
+                "contractAddress": {
+                    "type": "string"
+                },
+                "contractCallMethod": {
+                    "type": "string"
+                },
+                "contractType": {
+                    "type": "string"
+                },
+                "fee": {
+                    "type": "string"
+                },
+                "from": {
+                    "type": "string"
+                },
+                "hash": {
+                    "type": "string"
+                },
+                "maxFee": {
+                    "type": "string"
+                },
+                "timestamp": {
+                    "type": "string",
+                    "example": "2020-01-01T00:00:00Z"
+                },
+                "tips": {
+                    "type": "string"
+                },
+                "to": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "SendTx",
+                        "DeployContract",
+                        "CallContract",
+                        "TerminateContract"
+                    ]
+                }
+            }
+        },
         "Entity": {
             "type": "object",
             "properties": {
@@ -4792,6 +5192,24 @@ var doc = `{
             "properties": {
                 "message": {
                     "type": "string"
+                }
+            }
+        },
+        "EstimatedOracleReward": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "min",
+                        "slow",
+                        "medium",
+                        "fast",
+                        "fastest"
+                    ]
                 }
             }
         },
@@ -5146,6 +5564,126 @@ var doc = `{
                 },
                 "value": {
                     "type": "boolean"
+                }
+            }
+        },
+        "OracleVotingContract": {
+            "type": "object",
+            "properties": {
+                "author": {
+                    "type": "string"
+                },
+                "balance": {
+                    "type": "string"
+                },
+                "committeeEpoch": {
+                    "type": "integer"
+                },
+                "committeeSize": {
+                    "type": "integer"
+                },
+                "contractAddress": {
+                    "type": "string"
+                },
+                "createTime": {
+                    "type": "string",
+                    "example": "2020-01-01T00:00:00Z"
+                },
+                "estimatedOracleReward": {
+                    "type": "string"
+                },
+                "estimatedPublicVotingFinishTime": {
+                    "type": "string",
+                    "example": "2020-01-01T00:00:00Z"
+                },
+                "estimatedTerminationTime": {
+                    "type": "string",
+                    "example": "2020-01-01T00:00:00Z"
+                },
+                "estimatedVotingFinishTime": {
+                    "type": "string",
+                    "example": "2020-01-01T00:00:00Z"
+                },
+                "fact": {
+                    "type": "string"
+                },
+                "finishTime": {
+                    "type": "string",
+                    "example": "2020-01-01T00:00:00Z"
+                },
+                "isOracle": {
+                    "type": "boolean"
+                },
+                "minPayment": {
+                    "type": "string"
+                },
+                "ownerFee": {
+                    "type": "integer"
+                },
+                "publicVotingDuration": {
+                    "type": "integer"
+                },
+                "publishVotingFinishTime": {
+                    "type": "string",
+                    "example": "2020-01-01T00:00:00Z"
+                },
+                "quorum": {
+                    "type": "integer"
+                },
+                "startTime": {
+                    "type": "string",
+                    "example": "2020-01-01T00:00:00Z"
+                },
+                "state": {
+                    "type": "string",
+                    "enum": [
+                        "Pending",
+                        "Open",
+                        "Voted",
+                        "Counting",
+                        "Archive",
+                        "Terminated"
+                    ]
+                },
+                "terminationTime": {
+                    "type": "string",
+                    "example": "2020-01-01T00:00:00Z"
+                },
+                "totalReward": {
+                    "type": "string"
+                },
+                "voteProofsCount": {
+                    "type": "integer"
+                },
+                "votes": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/OracleVotingContractOptionVotes"
+                    }
+                },
+                "votesCount": {
+                    "type": "integer"
+                },
+                "votingDuration": {
+                    "type": "integer"
+                },
+                "votingFinishTime": {
+                    "type": "string",
+                    "example": "2020-01-01T00:00:00Z"
+                },
+                "winnerThreshold": {
+                    "type": "integer"
+                }
+            }
+        },
+        "OracleVotingContractOptionVotes": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "option": {
+                    "type": "integer"
                 }
             }
         },
@@ -5554,7 +6092,10 @@ var doc = `{
                         "ChangeGodAddressTx",
                         "BurnTx",
                         "ChangeProfileTx",
-                        "DeleteFlipTx"
+                        "DeleteFlipTx",
+                        "DeployContract",
+                        "CallContract",
+                        "TerminateContract"
                     ]
                 }
             }
@@ -5621,7 +6162,10 @@ var doc = `{
                         "ChangeGodAddressTx",
                         "BurnTx",
                         "ChangeProfileTx",
-                        "DeleteFlipTx"
+                        "DeleteFlipTx",
+                        "DeployContract",
+                        "CallContract",
+                        "TerminateContract"
                     ]
                 }
             }

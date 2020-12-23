@@ -9,6 +9,15 @@ import (
 type BurntCoinsReason = uint8
 type BalanceUpdateReason = uint8
 
+type ContractType = uint8
+
+type ContractCallMethod = uint8
+type TimeLockCall = ContractCallMethod
+type OracleVotingCall = ContractCallMethod
+type OracleLockCall = ContractCallMethod
+type MultisigCall = ContractCallMethod
+type RefundableOracleLockCall = ContractCallMethod
+
 const (
 	PenaltyBurntCoins      BurntCoinsReason = 0x0
 	InviteBurntCoins       BurntCoinsReason = 0x1
@@ -17,15 +26,37 @@ const (
 	BurnTxBurntCoins       BurntCoinsReason = 0x5
 	DustClearingBurntCoins BurntCoinsReason = 0x6
 
-	TxReason                    BalanceUpdateReason = 0x0
-	VerifiedStakeTransferReason BalanceUpdateReason = 0x1
-	ProposerRewardReason        BalanceUpdateReason = 0x2
-	CommitteeRewardReason       BalanceUpdateReason = 0x3
-	EpochRewardReason           BalanceUpdateReason = 0x4
-	FailedValidationReason      BalanceUpdateReason = 0x5
-	PenaltyReason               BalanceUpdateReason = 0x6
-	EpochPenaltyResetReason     BalanceUpdateReason = 0x7
-	DustClearingReason          BalanceUpdateReason = 0x9
+	TxReason                          BalanceUpdateReason = 0x0
+	VerifiedStakeTransferReason       BalanceUpdateReason = 0x1
+	ProposerRewardReason              BalanceUpdateReason = 0x2
+	CommitteeRewardReason             BalanceUpdateReason = 0x3
+	EpochRewardReason                 BalanceUpdateReason = 0x4
+	FailedValidationReason            BalanceUpdateReason = 0x5
+	PenaltyReason                     BalanceUpdateReason = 0x6
+	EpochPenaltyResetReason           BalanceUpdateReason = 0x7
+	DustClearingReason                BalanceUpdateReason = 0x9
+	EmbeddedContractReason            BalanceUpdateReason = 0xA
+	EmbeddedContractTerminationReason BalanceUpdateReason = 0xB
+
+	TimeLockCallTransfer TimeLockCall = 0
+
+	OracleVotingCallStart     OracleVotingCall = 0
+	OracleVotingCallVoteProof OracleVotingCall = 1
+	OracleVotingCallVote      OracleVotingCall = 2
+	OracleVotingCallFinish    OracleVotingCall = 3
+	OracleVotingCallProlong   OracleVotingCall = 4
+	OracleVotingCallAddStake  OracleVotingCall = 5
+
+	OracleLockCallPush              OracleLockCall = 0
+	OracleLockCallCheckOracleVoting OracleLockCall = 1
+
+	MultisigCallAdd  MultisigCall = 0
+	MultisigCallSend MultisigCall = 1
+	MultisigCallPush MultisigCall = 2
+
+	RefundableOracleLockCallDeposit RefundableOracleLockCall = 0
+	RefundableOracleLockCallPush    RefundableOracleLockCall = 1
+	RefundableOracleLockCallRefund  RefundableOracleLockCall = 2
 )
 
 type RestoredData struct {
@@ -34,30 +65,57 @@ type RestoredData struct {
 }
 
 type Data struct {
-	Epoch                  uint64
-	ValidationTime         big.Int
-	Block                  Block
-	ActivationTxTransfers  []ActivationTxTransfer
-	KillTxTransfers        []KillTxTransfer
-	KillInviteeTxTransfers []KillInviteeTxTransfer
-	ActivationTxs          []ActivationTx
-	KillInviteeTxs         []KillInviteeTx
-	BecomeOnlineTxs        []string
-	BecomeOfflineTxs       []string
-	SubmittedFlips         []Flip
-	DeletedFlips           []DeletedFlip
-	FlipKeys               []FlipKey
-	FlipsWords             []FlipWords
-	Addresses              []Address
-	ChangedBalances        []Balance
-	Coins                  Coins
-	Penalty                *Penalty
-	BurntPenalties         []Penalty
-	MiningRewards          []*MiningReward
-	BurntCoinsPerAddr      map[common.Address][]*BurntCoins
-	BalanceUpdates         []*BalanceUpdate
-	CommitteeRewardShare   *big.Int
-	EpochResult            *EpochResult
+	Epoch                                    uint64
+	ValidationTime                           big.Int
+	Block                                    Block
+	ActivationTxTransfers                    []ActivationTxTransfer
+	KillTxTransfers                          []KillTxTransfer
+	KillInviteeTxTransfers                   []KillInviteeTxTransfer
+	ActivationTxs                            []ActivationTx
+	KillInviteeTxs                           []KillInviteeTx
+	BecomeOnlineTxs                          []string
+	BecomeOfflineTxs                         []string
+	SubmittedFlips                           []Flip
+	DeletedFlips                             []DeletedFlip
+	FlipKeys                                 []FlipKey
+	FlipsWords                               []FlipWords
+	Addresses                                []Address
+	ChangedBalances                          []Balance
+	Coins                                    Coins
+	Penalty                                  *Penalty
+	BurntPenalties                           []Penalty
+	MiningRewards                            []*MiningReward
+	BurntCoinsPerAddr                        map[common.Address][]*BurntCoins
+	BalanceUpdates                           []*BalanceUpdate
+	CommitteeRewardShare                     *big.Int
+	OracleVotingContracts                    []*OracleVotingContract
+	OracleVotingContractCallStarts           []*OracleVotingContractCallStart
+	OracleVotingContractCallVoteProofs       []*OracleVotingContractCallVoteProof
+	OracleVotingContractCallVotes            []*OracleVotingContractCallVote
+	OracleVotingContractCallFinishes         []*OracleVotingContractCallFinish
+	OracleVotingContractCallProlongations    []*OracleVotingContractCallProlongation
+	OracleVotingContractCallAddStakes        []*OracleVotingContractCallAddStake
+	OracleVotingContractTerminations         []*OracleVotingContractTermination
+	OracleLockContracts                      []*OracleLockContract
+	OracleLockContractCallCheckOracleVotings []*OracleLockContractCallCheckOracleVoting
+	OracleLockContractCallPushes             []*OracleLockContractCallPush
+	OracleLockContractTerminations           []*OracleLockContractTermination
+	RefundableOracleLockContracts            []*RefundableOracleLockContract
+	RefundableOracleLockContractCallDeposits []*RefundableOracleLockContractCallDeposit
+	RefundableOracleLockContractCallPushes   []*RefundableOracleLockContractCallPush
+	RefundableOracleLockContractCallRefunds  []*RefundableOracleLockContractCallRefund
+	RefundableOracleLockContractTerminations []*RefundableOracleLockContractTermination
+	MultisigContracts                        []*MultisigContract
+	MultisigContractCallAdds                 []*MultisigContractCallAdd
+	MultisigContractCallSends                []*MultisigContractCallSend
+	MultisigContractCallPushes               []*MultisigContractCallPush
+	MultisigContractTerminations             []*MultisigContractTermination
+	TimeLockContracts                        []*TimeLockContract
+	TimeLockContractCallTransfers            []*TimeLockContractCallTransfer
+	TimeLockContractTerminations             []*TimeLockContractTermination
+	TxReceipts                               []*TxReceipt
+	ContractTxsBalanceUpdates                []*ContractTxBalanceUpdates
+	EpochResult                              *EpochResult
 }
 
 type EpochRewards struct {
@@ -342,4 +400,211 @@ type EpochResult struct {
 	FailedValidation  bool
 	EpochRewards      *EpochRewards
 	MinScoreForInvite float32
+}
+
+type OracleVotingContract struct {
+	TxHash               common.Hash
+	ContractAddress      common.Address
+	Stake                *big.Int
+	StartTime            uint64
+	VotingDuration       uint64
+	VotingMinPayment     *big.Int
+	Fact                 []byte
+	State                byte
+	PublicVotingDuration uint64
+	WinnerThreshold      byte
+	Quorum               byte
+	CommitteeSize        uint64
+	OwnerFee             byte
+}
+
+type OracleVotingContractCallStart struct {
+	TxHash           common.Hash
+	State            byte
+	StartHeight      uint64
+	Epoch            uint16
+	VotingMinPayment *big.Int
+	VrfSeed          []byte
+	Committee        []common.Address
+}
+
+type OracleVotingContractCallVoteProof struct {
+	TxHash   common.Hash
+	VoteHash []byte
+	Votes    uint64
+}
+
+type OracleVotingContractCallVote struct {
+	TxHash common.Hash
+	Vote   byte
+	Salt   []byte
+}
+
+type OracleVotingContractCallFinish struct {
+	TxHash       common.Hash
+	State        byte
+	Result       *byte
+	Fund         *big.Int
+	OracleReward *big.Int
+	OwnerReward  *big.Int
+}
+
+type OracleVotingContractCallProlongation struct {
+	TxHash     common.Hash
+	Epoch      uint16
+	StartBlock *uint64
+	VrfSeed    []byte
+	Committee  []common.Address
+}
+
+type OracleVotingContractCallAddStake struct {
+	TxHash common.Hash
+}
+
+type OracleVotingContractTermination struct {
+	TxHash       common.Hash
+	Fund         *big.Int
+	OracleReward *big.Int
+	OwnerReward  *big.Int
+}
+
+type OracleLockContract struct {
+	TxHash              common.Hash
+	ContractAddress     common.Address
+	Stake               *big.Int
+	OracleVotingAddress common.Address
+	ExpectedValue       byte
+	SuccessAddress      common.Address
+	FailAddress         common.Address
+}
+
+type OracleLockContractCallCheckOracleVoting struct {
+	TxHash             common.Hash
+	OracleVotingResult *byte
+}
+
+type OracleLockContractCallPush struct {
+	TxHash             common.Hash
+	Success            bool
+	OracleVotingResult byte
+	Transfer           *big.Int
+}
+
+type OracleLockContractTermination struct {
+	TxHash common.Hash
+	Dest   common.Address
+}
+
+type RefundableOracleLockContract struct {
+	TxHash              common.Hash
+	ContractAddress     common.Address
+	Stake               *big.Int
+	OracleVotingAddress common.Address
+	ExpectedValue       byte
+	SuccessAddress      *common.Address
+	FailAddress         *common.Address
+	RefundDelay         uint64
+	DepositDeadline     uint64
+	OracleVotingFee     byte
+}
+
+type RefundableOracleLockContractCallDeposit struct {
+	TxHash common.Hash
+	OwnSum *big.Int
+	Sum    *big.Int
+	Fee    *big.Int
+}
+
+type RefundableOracleLockContractCallPush struct {
+	TxHash             common.Hash
+	State              byte
+	OracleVotingExists bool
+	OracleVotingResult *byte
+	Transfer           *big.Int
+	RefundBlock        uint64
+}
+
+type RefundableOracleLockContractCallRefund struct {
+	TxHash  common.Hash
+	Balance *big.Int
+	Coef    float64
+}
+
+type RefundableOracleLockContractTermination struct {
+	TxHash common.Hash
+	Dest   common.Address
+}
+
+type MultisigContract struct {
+	TxHash          common.Hash
+	ContractAddress common.Address
+	Stake           *big.Int
+	MinVotes        byte
+	MaxVotes        byte
+	State           byte
+}
+
+type MultisigContractCallAdd struct {
+	TxHash   common.Hash
+	Address  common.Address
+	NewState *byte
+}
+
+type MultisigContractCallSend struct {
+	TxHash common.Hash
+	Dest   common.Address
+	Amount *big.Int
+}
+
+type MultisigContractCallPush struct {
+	TxHash         common.Hash
+	Dest           common.Address
+	Amount         *big.Int
+	VoteAddressCnt byte
+	VoteAmountCnt  byte
+}
+
+type MultisigContractTermination struct {
+	TxHash common.Hash
+	Dest   common.Address
+}
+
+type TimeLockContract struct {
+	TxHash          common.Hash
+	ContractAddress common.Address
+	Stake           *big.Int
+	Timestamp       uint64
+}
+
+type TimeLockContractCallTransfer struct {
+	TxHash common.Hash
+	Dest   common.Address
+	Amount *big.Int
+}
+
+type TimeLockContractTermination struct {
+	TxHash common.Hash
+	Dest   common.Address
+}
+
+type TxReceipt struct {
+	TxHash  common.Hash
+	Success bool
+	GasUsed uint64
+	GasCost *big.Int
+	Method  string
+	Error   string
+}
+
+type ContractTxBalanceUpdates struct {
+	TxHash             common.Hash
+	ContractAddress    common.Address
+	ContractCallMethod *ContractCallMethod
+	Updates            []*ContractTxBalanceUpdate
+}
+
+type ContractTxBalanceUpdate struct {
+	Address    common.Address
+	BalanceOld *big.Int
+	BalanceNew *big.Int
 }

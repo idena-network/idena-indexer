@@ -204,6 +204,43 @@ definitions:
       totalStake:
         type: string
     type: object
+  ContractTxBalanceUpdate:
+    properties:
+      address:
+        type: string
+      amount:
+        type: string
+      balanceChange:
+        type: string
+      contractAddress:
+        type: string
+      contractCallMethod:
+        type: string
+      contractType:
+        type: string
+      fee:
+        type: string
+      from:
+        type: string
+      hash:
+        type: string
+      maxFee:
+        type: string
+      timestamp:
+        example: "2020-01-01T00:00:00Z"
+        type: string
+      tips:
+        type: string
+      to:
+        type: string
+      type:
+        enum:
+        - SendTx
+        - DeployContract
+        - CallContract
+        - TerminateContract
+        type: string
+    type: object
   Entity:
     properties:
       name:
@@ -328,6 +365,19 @@ definitions:
   Error:
     properties:
       message:
+        type: string
+    type: object
+  EstimatedOracleReward:
+    properties:
+      amount:
+        type: string
+      type:
+        enum:
+        - min
+        - slow
+        - medium
+        - fast
+        - fastest
         type: string
     type: object
   Flip:
@@ -577,6 +627,90 @@ definitions:
         type: integer
       value:
         type: boolean
+    type: object
+  OracleVotingContract:
+    properties:
+      author:
+        type: string
+      balance:
+        type: string
+      committeeEpoch:
+        type: integer
+      committeeSize:
+        type: integer
+      contractAddress:
+        type: string
+      createTime:
+        example: "2020-01-01T00:00:00Z"
+        type: string
+      estimatedOracleReward:
+        type: string
+      estimatedPublicVotingFinishTime:
+        example: "2020-01-01T00:00:00Z"
+        type: string
+      estimatedTerminationTime:
+        example: "2020-01-01T00:00:00Z"
+        type: string
+      estimatedVotingFinishTime:
+        example: "2020-01-01T00:00:00Z"
+        type: string
+      fact:
+        type: string
+      finishTime:
+        example: "2020-01-01T00:00:00Z"
+        type: string
+      isOracle:
+        type: boolean
+      minPayment:
+        type: string
+      ownerFee:
+        type: integer
+      publicVotingDuration:
+        type: integer
+      publishVotingFinishTime:
+        example: "2020-01-01T00:00:00Z"
+        type: string
+      quorum:
+        type: integer
+      startTime:
+        example: "2020-01-01T00:00:00Z"
+        type: string
+      state:
+        enum:
+        - Pending
+        - Open
+        - Voted
+        - Counting
+        - Archive
+        - Terminated
+        type: string
+      terminationTime:
+        example: "2020-01-01T00:00:00Z"
+        type: string
+      totalReward:
+        type: string
+      voteProofsCount:
+        type: integer
+      votes:
+        items:
+          $ref: '#/definitions/OracleVotingContractOptionVotes'
+        type: array
+      votesCount:
+        type: integer
+      votingDuration:
+        type: integer
+      votingFinishTime:
+        example: "2020-01-01T00:00:00Z"
+        type: string
+      winnerThreshold:
+        type: integer
+    type: object
+  OracleVotingContractOptionVotes:
+    properties:
+      count:
+        type: integer
+      option:
+        type: integer
     type: object
   Penalty:
     properties:
@@ -868,6 +1002,9 @@ definitions:
         - BurnTx
         - ChangeProfileTx
         - DeleteFlipTx
+        - DeployContract
+        - CallContract
+        - TerminateContract
         type: string
     type: object
   TransactionSpecificData:
@@ -917,6 +1054,9 @@ definitions:
         - BurnTx
         - ChangeProfileTx
         - DeleteFlipTx
+        - DeployContract
+        - CallContract
+        - TerminateContract
         type: string
     type: object
 info:
@@ -976,6 +1116,107 @@ paths:
           description: Service unavailable
       tags:
       - Address
+  /Address/{address}/Contract/{contractAddress}/BalanceUpdates:
+    get:
+      operationId: AddressContractTxBalanceUpdates
+      parameters:
+      - description: address
+        in: path
+        name: address
+        required: true
+        type: string
+      - description: contract address
+        in: path
+        name: contractAddress
+        required: true
+        type: string
+      - description: items to take
+        in: query
+        name: limit
+        required: true
+        type: integer
+      - description: continuation token to get next page items
+        in: query
+        name: continuationToken
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/ResponsePage'
+            - properties:
+                result:
+                  items:
+                    $ref: '#/definitions/ContractTxBalanceUpdate'
+                  type: array
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Address
+      - Contracts
+  /Address/{address}/OracleVotingContracts:
+    get:
+      operationId: AddressOracleVotingContracts
+      parameters:
+      - description: contract author address
+        in: path
+        name: address
+        required: true
+        type: string
+      - description: filter by voting states
+        in: query
+        items:
+          type: string
+        name: states[]
+        type: array
+      - description: oracle address
+        in: query
+        name: oracle
+        type: string
+      - description: flag to return all voting contracts independently on oracle address
+        in: query
+        name: all
+        type: boolean
+      - description: items to take
+        in: query
+        name: limit
+        required: true
+        type: integer
+      - description: continuation token to get next page items
+        in: query
+        name: continuationToken
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/ResponsePage'
+            - properties:
+                result:
+                  items:
+                    $ref: '#/definitions/OracleVotingContract'
+                  type: array
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Address
+      - Contracts
   /Address/{address}/Penalties:
     get:
       operationId: AddressPenalties
@@ -3377,6 +3618,119 @@ paths:
           description: Service unavailable
       tags:
       - Identity
+  /OracleVotingContract/{address}:
+    get:
+      operationId: OracleVotingContract
+      parameters:
+      - description: contract address
+        in: path
+        name: address
+        required: true
+        type: string
+      - description: oracle address
+        in: query
+        name: oracle
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/Response'
+            - properties:
+                result:
+                  $ref: '#/definitions/OracleVotingContract'
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Contracts
+  /OracleVotingContracts:
+    get:
+      operationId: OracleVotingContracts
+      parameters:
+      - description: filter by voting states
+        in: query
+        items:
+          type: string
+        name: states[]
+        type: array
+      - description: oracle address
+        in: query
+        name: oracle
+        type: string
+      - description: flag to return all voting contracts independently on oracle address
+        in: query
+        name: all
+        type: boolean
+      - description: items to take
+        in: query
+        name: limit
+        required: true
+        type: integer
+      - description: continuation token to get next page items
+        in: query
+        name: continuationToken
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/ResponsePage'
+            - properties:
+                result:
+                  items:
+                    $ref: '#/definitions/OracleVotingContract'
+                  type: array
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Contracts
+  /OracleVotingContracts/EstimatedOracleRewards:
+    get:
+      operationId: EstimatedOracleRewards
+      parameters:
+      - description: committee size
+        in: query
+        name: committeeSize
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/Response'
+            - properties:
+                result:
+                  items:
+                    $ref: '#/definitions/EstimatedOracleReward'
+                  type: array
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Contracts
   /Search:
     get:
       operationId: Search

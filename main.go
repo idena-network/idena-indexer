@@ -2,7 +2,10 @@ package main
 
 import (
 	"fmt"
+	"github.com/idena-network/idena-go/blockchain/types"
+	"github.com/idena-network/idena-go/common/eventbus"
 	"github.com/idena-network/idena-go/core/state"
+	"github.com/idena-network/idena-go/events"
 	nodeLog "github.com/idena-network/idena-go/log"
 	"github.com/idena-network/idena-indexer/config"
 	"github.com/idena-network/idena-indexer/core/api"
@@ -12,6 +15,7 @@ import (
 	"github.com/idena-network/idena-indexer/core/mempool"
 	"github.com/idena-network/idena-indexer/core/restore"
 	"github.com/idena-network/idena-indexer/core/server"
+	"github.com/idena-network/idena-indexer/core/stats"
 	"github.com/idena-network/idena-indexer/db"
 	"github.com/idena-network/idena-indexer/explorer"
 	explorerConfig "github.com/idena-network/idena-indexer/explorer/config"
@@ -23,6 +27,7 @@ import (
 	runtimeMigration "github.com/idena-network/idena-indexer/migration/runtime"
 	runtimeMigrationDb "github.com/idena-network/idena-indexer/migration/runtime/db"
 	"github.com/idena-network/idena-indexer/monitoring"
+	"github.com/pkg/errors"
 	"gopkg.in/urfave/cli.v1"
 	"io/ioutil"
 	"os"
@@ -56,20 +61,24 @@ func main() {
 		initLog(conf.Verbosity, conf.NodeVerbosity)
 		log.Info("Starting app...")
 
+		// Indexer
+		indxr, listener, contractsMemPool := initIndexer(conf)
+		defer indxr.Destroy()
+
 		// Explorer
 		explorerConf := explorerConfig.LoadConfig(context.String("explorerConfig"))
-		e := explorer.NewExplorer(explorerConf)
+		networkSizeLoader := &networkSizeLoader{}
+		e := explorer.NewExplorer(explorerConf, contractsMemPool, networkSizeLoader)
 		defer e.Destroy()
 
-		// Indexer
-		indxr, listener := initIndexer(conf)
-		defer indxr.Destroy()
+		// Start indexer
 		indxr.Start()
 
 		// Server for explorer & indexer api
 		currentOnlineIdentitiesHolder := online.NewCurrentOnlineIdentitiesCache(listener.AppState(),
 			listener.NodeCtx().Blockchain,
 			listener.NodeCtx().OfflineDetector)
+		networkSizeLoader.holder = currentOnlineIdentitiesHolder
 
 		upgradesVoting := upgrade.NewUpgradesVotingHolder(listener.NodeCtx().Upgrader)
 
@@ -115,10 +124,30 @@ func initLog(verbosity int, nodeVerbosity int) {
 	}
 }
 
-func initIndexer(config *config.Config) (*indexer.Indexer, incoming.Listener) {
+const removedMemPoolTxEventId = eventbus.EventID("removed-mem-pool-tx")
+
+type removedMemPoolTxEvent struct {
+	tx *types.Transaction
+}
+
+func (removedMemPoolTxEvent) EventID() eventbus.EventID {
+	return removedMemPoolTxEventId
+}
+
+func initIndexer(config *config.Config) (*indexer.Indexer, incoming.Listener, mempool.Contracts) {
+	contractsMemPoolBus := eventbus.New()
+	statsCollectorEventBus := eventbus.New()
+	statsCollectorEventBus.Subscribe(stats.RemovedMemPoolTxEventID, func(e eventbus.Event) {
+		tx := e.(*stats.RemovedMemPoolTxEvent).Tx
+		contractsMemPoolBus.Publish(&removedMemPoolTxEvent{tx: tx})
+	})
+
 	performanceMonitor := initPerformanceMonitor(config.PerformanceMonitor)
 	wordsLoader := words.NewLoader(config.WordsFile)
-	listener := incoming.NewListener(config.NodeConfigFile, performanceMonitor)
+
+	statsCollector := stats.NewStatsCollector(statsCollectorEventBus)
+
+	listener := incoming.NewListener(config.NodeConfigFile, performanceMonitor, statsCollector)
 	dbAccessor := db.NewPostgresAccessor(config.Postgres.ConnStr, config.Postgres.ScriptsDir, wordsLoader,
 		performanceMonitor, config.CommitteeRewardBlocksCount, config.MiningRewards)
 	restorer := restore.NewRestorer(dbAccessor, listener.AppState(), listener.NodeCtx().Blockchain)
@@ -164,6 +193,19 @@ func initIndexer(config *config.Config) (*indexer.Indexer, incoming.Listener) {
 		log.New("component", "flipContentLoader"),
 	)
 
+	contractsMemPoolLogger := log.New("component", "contractsMemPool")
+	contractsMemPool := mempool.NewContracts(listener.NodeCtx().AppState, listener.NodeCtx().Blockchain, contractsMemPoolLogger)
+	listener.NodeEventBus().Subscribe(events.NewTxEventID, func(e eventbus.Event) {
+		newTxEvent := e.(*events.NewTxEvent)
+
+		if err := contractsMemPool.ProcessTx(newTxEvent.Tx); err != nil {
+			contractsMemPoolLogger.Error(fmt.Sprintf("Unable to process tx: %v", err))
+		}
+	})
+	contractsMemPoolBus.Subscribe(removedMemPoolTxEventId, func(e eventbus.Event) {
+		contractsMemPool.RemoveTx(e.(*removedMemPoolTxEvent).tx)
+	})
+
 	enabled := config.Enabled == nil || *config.Enabled
 	return indexer.NewIndexer(
 			enabled,
@@ -176,7 +218,7 @@ func initIndexer(config *config.Config) (*indexer.Indexer, incoming.Listener) {
 			performanceMonitor,
 			flipLoader,
 		),
-		listener
+		listener, contractsMemPool
 }
 
 func initPerformanceMonitor(config config.PerformanceMonitorConfig) monitoring.PerformanceMonitor {
@@ -199,4 +241,15 @@ func migrateDataIfNeeded(config *config.Config) (bool, error) {
 	}
 	log.Info("Data migration has been completed")
 	return true, nil
+}
+
+type networkSizeLoader struct {
+	holder online.CurrentOnlineIdentitiesHolder
+}
+
+func (l *networkSizeLoader) Load() (uint64, error) {
+	if l.holder == nil {
+		return 0, errors.New("loader has not been initialized")
+	}
+	return uint64(len(l.holder.GetAll())), nil
 }

@@ -16,12 +16,12 @@ import (
 )
 
 type postgresAccessor struct {
-	db                         *sql.DB
-	pm                         monitoring.PerformanceMonitor
-	queries                    map[string]string
-	mutex                      sync.Mutex
-	committeeRewardBlocksCount int
-	miningRewards              bool
+	db                        *sql.DB
+	pm                        monitoring.PerformanceMonitor
+	queries                   map[string]string
+	mutex                     sync.Mutex
+	changesHistoryBlocksCount int
+	miningRewards             bool
 }
 
 const (
@@ -65,7 +65,7 @@ func (a *postgresAccessor) GetLastHeight() (uint64, error) {
 
 func (a *postgresAccessor) ResetTo(height uint64) error {
 	_, err := a.db.Exec(a.getQuery(resetToBlockQuery), height)
-	return err
+	return getResultError(err)
 }
 
 func (a *postgresAccessor) Save(data *Data) error {
@@ -75,7 +75,7 @@ func (a *postgresAccessor) Save(data *Data) error {
 	a.pm.Start("InitTx")
 	tx, err := a.db.Begin()
 	if err != nil {
-		return err
+		return getResultError(err)
 	}
 	defer tx.Rollback()
 
@@ -85,19 +85,19 @@ func (a *postgresAccessor) Save(data *Data) error {
 
 	a.pm.Start("saveEpoch")
 	if err = a.saveEpoch(ctx, data.Epoch, data.ValidationTime); err != nil {
-		return err
+		return getResultError(err)
 	}
 	a.pm.Complete("saveEpoch")
 
 	a.pm.Start("saveBlock")
 	if err = a.saveBlock(ctx, data.Block); err != nil {
-		return err
+		return getResultError(err)
 	}
 	a.pm.Complete("saveBlock")
 
 	a.pm.Start("saveBlockFlags")
 	if err = a.saveBlockFlags(ctx, data.Block.Flags); err != nil {
-		return err
+		return getResultError(err)
 	}
 	a.pm.Complete("saveBlockFlags")
 
@@ -114,82 +114,109 @@ func (a *postgresAccessor) Save(data *Data) error {
 		data.KillInviteeTxs,
 		data.BecomeOnlineTxs,
 		data.BecomeOfflineTxs,
+		data.OracleVotingContracts,
+		data.OracleVotingContractCallStarts,
+		data.OracleVotingContractCallVoteProofs,
+		data.OracleVotingContractCallVotes,
+		data.OracleVotingContractCallFinishes,
+		data.OracleVotingContractCallProlongations,
+		data.OracleVotingContractCallAddStakes,
+		data.OracleVotingContractTerminations,
+		data.OracleLockContracts,
+		data.OracleLockContractCallCheckOracleVotings,
+		data.OracleLockContractCallPushes,
+		data.OracleLockContractTerminations,
+		data.RefundableOracleLockContracts,
+		data.RefundableOracleLockContractCallDeposits,
+		data.RefundableOracleLockContractCallPushes,
+		data.RefundableOracleLockContractCallRefunds,
+		data.RefundableOracleLockContractTerminations,
+		data.MultisigContracts,
+		data.MultisigContractCallAdds,
+		data.MultisigContractCallSends,
+		data.MultisigContractCallPushes,
+		data.MultisigContractTerminations,
+		data.TimeLockContracts,
+		data.TimeLockContractCallTransfers,
+		data.TimeLockContractTerminations,
+		data.ContractTxsBalanceUpdates,
+		data.TxReceipts,
 	); err != nil {
-		return err
+		return getResultError(err)
 	}
 	a.pm.Complete("saveAddressesAndTransactions")
 
 	a.pm.Start("saveProposer")
 	if err = a.saveProposer(ctx, data.Block.Proposer); err != nil {
-		return err
+		return getResultError(err)
 	}
 	a.pm.Complete("saveProposer")
 
 	a.pm.Start("saveProposerVrfScore")
 	if err = a.saveProposerVrfScore(ctx, data.Block.ProposerVrfScore); err != nil {
-		return err
+		return getResultError(err)
 	}
 	a.pm.Complete("saveProposerVrfScore")
 
 	a.pm.Start("saveCoins")
 	if err := a.saveCoins(ctx, data.Coins); err != nil {
-		return err
+		return getResultError(err)
 	}
 	a.pm.Complete("saveCoins")
 
 	a.pm.Start("saveBalances")
 	if err := a.saveBalances(ctx.tx, ctx.blockHeight, data.ChangedBalances, data.BalanceUpdates, data.CommitteeRewardShare); err != nil {
-		return err
+		return getResultError(err)
 	}
 	a.pm.Complete("saveBalances")
 
 	a.pm.Start("saveSubmittedFlips")
 	if err := a.saveSubmittedFlips(ctx, data.SubmittedFlips); err != nil {
-		return err
+		return getResultError(err)
 	}
 	a.pm.Complete("saveSubmittedFlips")
 
 	a.pm.Start("saveFlipKeys")
 	if err := a.saveFlipKeys(ctx, data.FlipKeys); err != nil {
-		return err
+		return getResultError(err)
 	}
 	a.pm.Complete("saveFlipKeys")
 
 	a.pm.Start("saveFlipsWords")
 	if err := a.saveFlipsWords(ctx, data.FlipsWords); err != nil {
-		return err
+		return getResultError(err)
 	}
 	a.pm.Complete("saveFlipsWords")
 
 	a.pm.Start("savePaidPenalties")
 	if err = a.savePaidPenalties(ctx, data.BurntPenalties); err != nil {
-		return err
+		return getResultError(err)
 	}
 	a.pm.Complete("savePaidPenalties")
 
 	a.pm.Start("savePenalty")
 	if err = a.savePenalty(ctx, data.Penalty); err != nil {
-		return err
+		return getResultError(err)
 	}
 	a.pm.Complete("savePenalty")
 
 	if a.miningRewards {
 		a.pm.Start("saveMiningRewards")
 		if err = a.saveMiningRewards(ctx, data.MiningRewards); err != nil {
-			return err
+			return getResultError(err)
 		}
 		a.pm.Complete("saveMiningRewards")
 	}
 
 	a.pm.Start("saveBurntCoins")
 	if err = a.saveBurntCoins(ctx, data.BurntCoinsPerAddr); err != nil {
-		return err
+		return getResultError(err)
 	}
 	a.pm.Complete("saveBurntCoins")
 
 	a.pm.Start("saveEpochResult")
 	if err = a.saveEpochResult(ctx.tx, ctx.epoch, ctx.blockHeight, data.EpochResult); err != nil {
-		return err
+		return getResultError(err)
 	}
 	a.pm.Complete("saveEpochResult")
 
@@ -332,7 +359,7 @@ func (a *postgresAccessor) saveBalances(tx *sql.Tx, blockHeight uint64, balances
 		blockHeight,
 		pq.Array(balances),
 		pq.Array(balanceUpdates),
-		a.committeeRewardBlocksCount,
+		a.changesHistoryBlocksCount,
 		blockchain.ConvertToFloat(committeeRewardShare),
 	); err != nil {
 		return err
@@ -362,16 +389,40 @@ func (a *postgresAccessor) saveAddressesAndTransactions(
 	killInviteeTxs []KillInviteeTx,
 	becomeOnlineTxs []string,
 	becomeOfflineTxs []string,
+	oracleVotingContracts []*OracleVotingContract,
+	oracleVotingContractCallStarts []*OracleVotingContractCallStart,
+	oracleVotingContractCallVoteProofs []*OracleVotingContractCallVoteProof,
+	oracleVotingContractCallVotes []*OracleVotingContractCallVote,
+	oracleVotingContractCallFinishes []*OracleVotingContractCallFinish,
+	oracleVotingContractCallProlongations []*OracleVotingContractCallProlongation,
+	oracleVotingContractCallAddStakes []*OracleVotingContractCallAddStake,
+	oracleVotingContractTerminations []*OracleVotingContractTermination,
+	oracleLockContracts []*OracleLockContract,
+	oracleLockContractCallCheckOracleVotings []*OracleLockContractCallCheckOracleVoting,
+	oracleLockContractCallPushes []*OracleLockContractCallPush,
+	oracleLockContractTerminations []*OracleLockContractTermination,
+	refundableOracleLockContracts []*RefundableOracleLockContract,
+	refundableOracleLockContractCallDeposits []*RefundableOracleLockContractCallDeposit,
+	refundableOracleLockContractCallPushes []*RefundableOracleLockContractCallPush,
+	refundableOracleLockContractCallRefunds []*RefundableOracleLockContractCallRefund,
+	refundableOracleLockContractTerminations []*RefundableOracleLockContractTermination,
+	multisigContracts []*MultisigContract,
+	multisigContractCallAdds []*MultisigContractCallAdd,
+	multisigContractCallSends []*MultisigContractCallSend,
+	multisigContractCallPushes []*MultisigContractCallPush,
+	multisigContractTerminations []*MultisigContractTermination,
+	timeLockContracts []*TimeLockContract,
+	timeLockContractCallTransfers []*TimeLockContractCallTransfer,
+	timeLockContractTerminations []*TimeLockContractTermination,
+	contractTxsBalanceUpdates []*ContractTxBalanceUpdates,
+	txReceipts []*TxReceipt,
 ) (map[string]int64, error) {
-
-	if len(addresses)+len(txs) == 0 {
-		return nil, nil
-	}
 
 	addressesArray, addressStateChangesArray := getPostgresAddressesAndAddressStateChangesArrays(addresses)
 	var txHashIds []txHashId
 	err := ctx.tx.QueryRow(a.getQuery(insertAddressesAndTransactionsQuery),
 		ctx.blockHeight,
+		a.changesHistoryBlocksCount,
 		addressesArray,
 		pq.Array(txs),
 		pq.Array(activationTxTransfers),
@@ -383,6 +434,33 @@ func (a *postgresAccessor) saveAddressesAndTransactions(
 		pq.Array(killInviteeTxs),
 		pq.Array(becomeOnlineTxs),
 		pq.Array(becomeOfflineTxs),
+		pq.Array(oracleVotingContracts),
+		pq.Array(oracleVotingContractCallStarts),
+		pq.Array(oracleVotingContractCallVoteProofs),
+		pq.Array(oracleVotingContractCallVotes),
+		pq.Array(oracleVotingContractCallFinishes),
+		pq.Array(oracleVotingContractCallProlongations),
+		pq.Array(oracleVotingContractCallAddStakes),
+		pq.Array(oracleVotingContractTerminations),
+		pq.Array(oracleLockContracts),
+		pq.Array(oracleLockContractCallCheckOracleVotings),
+		pq.Array(oracleLockContractCallPushes),
+		pq.Array(oracleLockContractTerminations),
+		pq.Array(refundableOracleLockContracts),
+		pq.Array(refundableOracleLockContractCallDeposits),
+		pq.Array(refundableOracleLockContractCallPushes),
+		pq.Array(refundableOracleLockContractCallRefunds),
+		pq.Array(refundableOracleLockContractTerminations),
+		pq.Array(timeLockContracts),
+		pq.Array(timeLockContractCallTransfers),
+		pq.Array(timeLockContractTerminations),
+		pq.Array(multisigContracts),
+		pq.Array(multisigContractCallAdds),
+		pq.Array(multisigContractCallSends),
+		pq.Array(multisigContractCallPushes),
+		pq.Array(multisigContractTerminations),
+		pq.Array(contractTxsBalanceUpdates),
+		pq.Array(txReceipts),
 	).Scan(pq.Array(&txHashIds))
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to save addresses and transactions")
@@ -487,4 +565,32 @@ func (a *postgresAccessor) Destroy() {
 	if err != nil {
 		log.Error("Unable to close db: %v", err)
 	}
+}
+
+func getResultError(err error) error {
+	if pgErr, ok := errors.Cause(err).(*pq.Error); ok {
+		return errors.Wrap(errors.New(pgErrDetails(pgErr)), err.Error())
+	}
+	return err
+}
+
+func pgErrDetails(err *pq.Error) string {
+	return fmt.Sprintf("Severity: %v, Code: %v, Message: %v, Detail: %v, Hint: %v, Position: %v, InternalPosition: %v, InternalQuery: %v, Where: %v, Schema: %v, Table: %v, Column: %v, DataTypeName: %v, Constraint: %v, File: %v, Line: %v, Routine: %v", err.Severity,
+		err.Code,
+		err.Message,
+		err.Detail,
+		err.Hint,
+		err.Position,
+		err.InternalPosition,
+		err.InternalQuery,
+		err.Where,
+		err.Schema,
+		err.Table,
+		err.Column,
+		err.DataTypeName,
+		err.Constraint,
+		err.File,
+		err.Line,
+		err.Routine,
+	)
 }

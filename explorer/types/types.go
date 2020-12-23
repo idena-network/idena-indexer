@@ -179,7 +179,7 @@ type EpochIdentity struct {
 
 type TransactionSummary struct {
 	Hash      string          `json:"hash"`
-	Type      string          `json:"type" enums:"SendTx,ActivationTx,InviteTx,KillTx,SubmitFlipTx,SubmitAnswersHashTx,SubmitShortAnswersTx,SubmitLongAnswersTx,EvidenceTx,OnlineStatusTx,KillInviteeTx,ChangeGodAddressTx,BurnTx,ChangeProfileTx,DeleteFlipTx"`
+	Type      string          `json:"type" enums:"SendTx,ActivationTx,InviteTx,KillTx,SubmitFlipTx,SubmitAnswersHashTx,SubmitShortAnswersTx,SubmitLongAnswersTx,EvidenceTx,OnlineStatusTx,KillInviteeTx,ChangeGodAddressTx,BurnTx,ChangeProfileTx,DeleteFlipTx,DeployContract,CallContract,TerminateContract"`
 	Timestamp time.Time       `json:"timestamp" example:"2020-01-01T00:00:00Z"`
 	From      string          `json:"from"`
 	To        string          `json:"to,omitempty"`
@@ -204,7 +204,7 @@ type TransactionDetail struct {
 	BlockHeight uint64          `json:"blockHeight"`
 	BlockHash   string          `json:"blockHash"`
 	Hash        string          `json:"hash"`
-	Type        string          `json:"type" enums:"SendTx,ActivationTx,InviteTx,KillTx,SubmitFlipTx,SubmitAnswersHashTx,SubmitShortAnswersTx,SubmitLongAnswersTx,EvidenceTx,OnlineStatusTx,KillInviteeTx,ChangeGodAddressTx,BurnTx,ChangeProfileTx,DeleteFlipTx"`
+	Type        string          `json:"type" enums:"SendTx,ActivationTx,InviteTx,KillTx,SubmitFlipTx,SubmitAnswersHashTx,SubmitShortAnswersTx,SubmitLongAnswersTx,EvidenceTx,OnlineStatusTx,KillInviteeTx,ChangeGodAddressTx,BurnTx,ChangeProfileTx,DeleteFlipTx,DeployContract,CallContract,TerminateContract"`
 	Timestamp   time.Time       `json:"timestamp" example:"2020-01-01T00:00:00Z"`
 	From        string          `json:"from"`
 	To          string          `json:"to,omitempty"`
@@ -458,3 +458,62 @@ type StrValueCount struct {
 	Value string `json:"value"`
 	Count uint32 `json:"count"`
 }
+
+type OracleVotingContract struct {
+	ContractAddress                 string                            `json:"contractAddress"`
+	Author                          string                            `json:"author"`
+	Balance                         decimal.Decimal                   `json:"balance" swaggertype:"string"`
+	Fact                            hexutil.Bytes                     `json:"fact"`
+	VoteProofsCount                 uint64                            `json:"voteProofsCount"`
+	VotesCount                      uint64                            `json:"votesCount"`
+	Votes                           []OracleVotingContractOptionVotes `json:"votes,omitempty"`
+	State                           string                            `json:"state" enums:"Pending,Open,Voted,Counting,Archive,Terminated"`
+	CreateTime                      time.Time                         `json:"createTime" example:"2020-01-01T00:00:00Z"`
+	StartTime                       time.Time                         `json:"startTime" example:"2020-01-01T00:00:00Z"`
+	EstimatedVotingFinishTime       *time.Time                        `json:"estimatedVotingFinishTime,omitempty" example:"2020-01-01T00:00:00Z"`
+	EstimatedPublicVotingFinishTime *time.Time                        `json:"estimatedPublicVotingFinishTime,omitempty" example:"2020-01-01T00:00:00Z"`
+	EstimatedTerminationTime        *time.Time                        `json:"estimatedTerminationTime,omitempty" example:"2020-01-01T00:00:00Z"`
+	EstimatedOracleReward           *decimal.Decimal                  `json:"estimatedOracleReward,omitempty" swaggertype:"string"`
+	VotingFinishTime                *time.Time                        `json:"votingFinishTime,omitempty" example:"2020-01-01T00:00:00Z"`
+	PublishVotingFinishTime         *time.Time                        `json:"publishVotingFinishTime,omitempty" example:"2020-01-01T00:00:00Z"`
+	FinishTime                      *time.Time                        `json:"finishTime,omitempty" example:"2020-01-01T00:00:00Z"`
+	TerminationTime                 *time.Time                        `json:"terminationTime,omitempty" example:"2020-01-01T00:00:00Z"`
+	MinPayment                      *decimal.Decimal                  `json:"minPayment,omitempty" swaggertype:"string"`
+	Quorum                          byte                              `json:"quorum"`
+	CommitteeSize                   uint64                            `json:"committeeSize"`
+	VotingDuration                  uint64                            `json:"votingDuration"`
+	PublicVotingDuration            uint64                            `json:"publicVotingDuration"`
+	WinnerThreshold                 byte                              `json:"winnerThreshold"`
+	OwnerFee                        uint8                             `json:"ownerFee"`
+	IsOracle                        bool                              `json:"isOracle"`
+	CommitteeEpoch                  *uint64                           `json:"committeeEpoch,omitempty"`
+	TotalReward                     *decimal.Decimal                  `json:"totalReward,omitempty" swaggertype:"string"`
+} // @Name OracleVotingContract
+
+type OracleVotingContractOptionVotes struct {
+	Option byte   `json:"option"`
+	Count  uint64 `json:"count"`
+} // @Name OracleVotingContractOptionVotes
+
+type EstimatedOracleReward struct {
+	Amount decimal.Decimal `json:"amount" swaggertype:"string"`
+	Type   string          `json:"type" enums:"min,slow,medium,fast,fastest"`
+} // @Name EstimatedOracleReward
+
+type ContractTxBalanceUpdate struct {
+	Hash      string          `json:"hash"`
+	Type      string          `json:"type" enums:"SendTx,DeployContract,CallContract,TerminateContract"`
+	Timestamp time.Time       `json:"timestamp" example:"2020-01-01T00:00:00Z"`
+	From      string          `json:"from"`
+	To        string          `json:"to,omitempty"`
+	Amount    decimal.Decimal `json:"amount" swaggertype:"string"`
+	Tips      decimal.Decimal `json:"tips" swaggertype:"string"`
+	MaxFee    decimal.Decimal `json:"maxFee" swaggertype:"string"`
+	Fee       decimal.Decimal `json:"fee" swaggertype:"string"`
+
+	Address            string           `json:"address"`
+	ContractAddress    string           `json:"contractAddress"`
+	ContractType       string           `json:"contractType"`
+	ContractCallMethod string           `json:"contractCallMethod,omitempty"`
+	BalanceChange      *decimal.Decimal `json:"balanceChange,omitempty" swaggertype:"string"`
+} // @Name ContractTxBalanceUpdate

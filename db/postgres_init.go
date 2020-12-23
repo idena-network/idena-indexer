@@ -13,7 +13,7 @@ func NewPostgresAccessor(
 	scriptsDirPath string,
 	wordsLoader words.Loader,
 	pm monitoring.PerformanceMonitor,
-	committeeRewardBlocksCount int,
+	changesHistoryBlocksCount int,
 	miningRewards bool,
 ) Accessor {
 	db, err := sql.Open("postgres", connStr)
@@ -22,11 +22,11 @@ func NewPostgresAccessor(
 	}
 
 	a := &postgresAccessor{
-		db:                         db,
-		pm:                         pm,
-		queries:                    ReadQueries(scriptsDirPath),
-		committeeRewardBlocksCount: committeeRewardBlocksCount,
-		miningRewards:              miningRewards,
+		db:                        db,
+		pm:                        pm,
+		queries:                   ReadQueries(scriptsDirPath),
+		changesHistoryBlocksCount: changesHistoryBlocksCount,
+		miningRewards:             miningRewards,
 	}
 	for {
 		if err := a.init(wordsLoader); err != nil {
