@@ -50,7 +50,12 @@ type pending struct {
 	epochRewardBalanceUpdatesByAddr map[common.Address]*db.BalanceUpdate
 	identityStates                  []state.IdentityState
 	tx                              *pendingTx
-	identityPubKeysByAddr           map[common.Address][]byte
+	identitiesByAddr                map[common.Address]*identityInfo
+}
+
+type identityInfo struct {
+	pubKey []byte
+	state  state.IdentityState
 }
 
 type pendingTx struct {
@@ -1274,7 +1279,10 @@ func (c *statsCollector) AddTxReceipt(txReceipt *types.TxReceipt, appState *apps
 
 func (c *statsCollector) getOracleVotingCommittee(committeeSize uint64, networkSize int, vrfSeed []byte, appState *appstate.AppState) []common.Address {
 	var res []common.Address
-	checkAndAdd := func(addr common.Address, pubKey []byte) {
+	checkAndAdd := func(addr common.Address, pubKey []byte, state state.IdentityState) {
+		if !state.NewbieOrBetter() {
+			return
+		}
 		selectionHash := crypto.Hash(append(pubKey, vrfSeed...))
 		v := new(big.Float).SetInt(new(big.Int).SetBytes(selectionHash[:]))
 		q := new(big.Float).Quo(v, maxOracleVotingHash)
@@ -1287,16 +1295,19 @@ func (c *statsCollector) getOracleVotingCommittee(committeeSize uint64, networkS
 		}
 		res = append(res, addr)
 	}
-	if len(c.pending.identityPubKeysByAddr) > 0 {
-		for addr, pubKey := range c.pending.identityPubKeysByAddr {
-			checkAndAdd(addr, pubKey)
+	if len(c.pending.identitiesByAddr) > 0 {
+		for addr, identity := range c.pending.identitiesByAddr {
+			checkAndAdd(addr, identity.pubKey, identity.state)
 		}
 		return res
 	}
-	c.pending.identityPubKeysByAddr = make(map[common.Address][]byte)
+	c.pending.identitiesByAddr = make(map[common.Address]*identityInfo)
 	appState.State.IterateOverIdentities(func(addr common.Address, identity state.Identity) {
-		c.pending.identityPubKeysByAddr[addr] = identity.PubKey
-		checkAndAdd(addr, identity.PubKey)
+		c.pending.identitiesByAddr[addr] = &identityInfo{
+			pubKey: identity.PubKey,
+			state:  identity.State,
+		}
+		checkAndAdd(addr, identity.PubKey, identity.State)
 	})
 	return res
 }
