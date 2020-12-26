@@ -60,6 +60,7 @@ func InitIndexer(
 	listener := NewTestListener(nodeEventBus, stats.NewStatsCollector(collectorEventBus), appState, nodeCtx)
 	restorer := restore.NewRestorer(dbAccessor, appState, chain.Blockchain)
 	testIndexer := indexer.NewIndexer(
+		true,
 		listener,
 		memPoolIndexer,
 		dbAccessor,
