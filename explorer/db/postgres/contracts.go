@@ -159,7 +159,6 @@ func (a *postgresAccessor) readOracleVotingContracts(rows *sql.Rows) ([]types.Or
 		var createTime, startTime, headBlockTimestamp int64
 		var votingFinishTime, publicVotingFinishTime, finishTime, terminationTime sql.NullInt64
 		var minPayment, totalReward NullDecimal
-		var stake decimal.Decimal
 		var headBlockHeight uint64
 		if err := rows.Scan(
 			&lastContinuationToken,
@@ -191,7 +190,7 @@ func (a *postgresAccessor) readOracleVotingContracts(rows *sql.Rows) ([]types.Or
 			&finishTime,
 			&terminationTime,
 			&totalReward,
-			&stake,
+			&item.Stake,
 		); err != nil {
 			return nil, nil, err
 		}
@@ -225,7 +224,7 @@ func (a *postgresAccessor) readOracleVotingContracts(rows *sql.Rows) ([]types.Or
 					}
 					networkSize = &size
 				}
-				d, _ := stake.Mul(decimal.NewFromInt(int64(*networkSize))).Div(decimal.NewFromInt(100)).Float64()
+				d, _ := item.Stake.Mul(decimal.NewFromInt(int64(*networkSize))).Div(decimal.NewFromInt(100)).Float64()
 				terminationDays := uint64(math.Round(math.Pow(d, 1.0/3)))
 				const blocksInDay = 4320
 

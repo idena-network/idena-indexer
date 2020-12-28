@@ -672,6 +672,8 @@ definitions:
         type: string
       quorum:
         type: integer
+      stake:
+        type: string
       startTime:
         example: "2020-01-01T00:00:00Z"
         type: string

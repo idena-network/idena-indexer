@@ -5630,6 +5630,9 @@ var doc = `{
                 "quorum": {
                     "type": "integer"
                 },
+                "stake": {
+                    "type": "string"
+                },
                 "startTime": {
                     "type": "string",
                     "example": "2020-01-01T00:00:00Z"

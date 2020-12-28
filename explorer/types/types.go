@@ -463,6 +463,7 @@ type OracleVotingContract struct {
 	ContractAddress                 string                            `json:"contractAddress"`
 	Author                          string                            `json:"author"`
 	Balance                         decimal.Decimal                   `json:"balance" swaggertype:"string"`
+	Stake                           decimal.Decimal                   `json:"stake" swaggertype:"string"`
 	Fact                            hexutil.Bytes                     `json:"fact"`
 	VoteProofsCount                 uint64                            `json:"voteProofsCount"`
 	VotesCount                      uint64                            `json:"votesCount"`
