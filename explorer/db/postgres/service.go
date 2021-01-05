@@ -11,21 +11,17 @@ import (
 type estimatedOracleRewardsService struct {
 	cache         *estimatedOracleRewardsServiceCache
 	mutex         sync.Mutex
-	feeRateFn     func() (decimal.Decimal, error)
 	networkSizeFn func() (uint64, error)
 }
 
 type estimatedOracleRewardsServiceCache struct {
-	feeRate     decimal.Decimal
 	networkSize uint64
 }
 
 func newEstimatedOracleRewardsCache(
-	feeRateFn func() (decimal.Decimal, error),
 	networkSizeFn func() (uint64, error),
 ) *estimatedOracleRewardsService {
 	res := &estimatedOracleRewardsService{
-		feeRateFn:     feeRateFn,
 		networkSizeFn: networkSizeFn,
 	}
 	go func() {
@@ -52,25 +48,20 @@ func (c *estimatedOracleRewardsService) get(committeeSize uint64) ([]types.Estim
 		}
 		c.mutex.Unlock()
 	}
-	return createEstimatedOracleRewardsService(committeeSize, data.networkSize, data.feeRate), nil
+	return createEstimatedOracleRewardsService(committeeSize, data.networkSize), nil
 }
 
 func (c *estimatedOracleRewardsService) loadData() (*estimatedOracleRewardsServiceCache, error) {
-	feeRate, err := c.feeRateFn()
-	if err != nil {
-		return nil, err
-	}
 	networkSize, err := c.networkSizeFn()
 	if err != nil {
 		return nil, err
 	}
 	return &estimatedOracleRewardsServiceCache{
-		feeRate:     feeRate,
 		networkSize: networkSize,
 	}, nil
 }
 
-func createEstimatedOracleRewardsService(committeeSize, networkSize uint64, feeRate decimal.Decimal) []types.EstimatedOracleReward {
+func createEstimatedOracleRewardsService(committeeSize, networkSize uint64) []types.EstimatedOracleReward {
 	if networkSize == 0 {
 		networkSize = 1
 	}
@@ -81,20 +72,20 @@ func createEstimatedOracleRewardsService(committeeSize, networkSize uint64, feeR
 			Type:   "min",
 		},
 		{
-			Amount: decimal.RequireFromString("250000").Mul(feeRate),
-			Type:   "slow",
+			Amount: decimal.NewFromFloat(2).Mul(minOracleReward),
+			Type:   "low",
 		},
 		{
-			Amount: decimal.RequireFromString("500000").Mul(feeRate),
+			Amount: decimal.NewFromFloat(4).Mul(minOracleReward),
 			Type:   "medium",
 		},
 		{
-			Amount: decimal.RequireFromString("2500000").Mul(feeRate),
-			Type:   "fast",
+			Amount: decimal.NewFromFloat(10).Mul(minOracleReward),
+			Type:   "high",
 		},
 		{
-			Amount: decimal.RequireFromString("5000000").Mul(feeRate),
-			Type:   "fastest",
+			Amount: decimal.NewFromFloat(20).Mul(minOracleReward),
+			Type:   "highest",
 		},
 	}
 }

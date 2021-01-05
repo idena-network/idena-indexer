@@ -28,7 +28,7 @@ func NewPostgresAccessor(connStr string, scriptsDirPath string, networkSizeLoade
 		networkSizeLoader: networkSizeLoader,
 		log:               logger,
 	}
-	res.estimatedOracleRewardsCache = newEstimatedOracleRewardsCache(res.lastBlockFeeRate, networkSizeLoader.Load)
+	res.estimatedOracleRewardsCache = newEstimatedOracleRewardsCache(networkSizeLoader.Load)
 	return res
 }
 

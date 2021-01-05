@@ -475,6 +475,8 @@ type OracleVotingContract struct {
 	EstimatedPublicVotingFinishTime *time.Time                        `json:"estimatedPublicVotingFinishTime,omitempty" example:"2020-01-01T00:00:00Z"`
 	EstimatedTerminationTime        *time.Time                        `json:"estimatedTerminationTime,omitempty" example:"2020-01-01T00:00:00Z"`
 	EstimatedOracleReward           *decimal.Decimal                  `json:"estimatedOracleReward,omitempty" swaggertype:"string"`
+	EstimatedMaxOracleReward        *decimal.Decimal                  `json:"estimatedMaxOracleReward,omitempty" swaggertype:"string"`
+	EstimatedTotalReward            *decimal.Decimal                  `json:"estimatedTotalReward,omitempty" swaggertype:"string"`
 	VotingFinishTime                *time.Time                        `json:"votingFinishTime,omitempty" example:"2020-01-01T00:00:00Z"`
 	PublishVotingFinishTime         *time.Time                        `json:"publishVotingFinishTime,omitempty" example:"2020-01-01T00:00:00Z"`
 	FinishTime                      *time.Time                        `json:"finishTime,omitempty" example:"2020-01-01T00:00:00Z"`
@@ -498,7 +500,7 @@ type OracleVotingContractOptionVotes struct {
 
 type EstimatedOracleReward struct {
 	Amount decimal.Decimal `json:"amount" swaggertype:"string"`
-	Type   string          `json:"type" enums:"min,slow,medium,fast,fastest"`
+	Type   string          `json:"type" enums:"min,low,medium,high,highest"`
 } // @Name EstimatedOracleReward
 
 type ContractTxBalanceUpdate struct {

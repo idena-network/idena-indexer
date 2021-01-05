@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"database/sql"
+	math2 "github.com/idena-network/idena-go/common/math"
 	"github.com/idena-network/idena-indexer/explorer/types"
 	"github.com/pkg/errors"
 	"github.com/shopspring/decimal"
@@ -269,6 +270,8 @@ func (a *postgresAccessor) readOracleVotingContracts(rows *sql.Rows) ([]types.Or
 
 		if itemState == oracleVotingStatePending || itemState == oracleVotingStateOpen || itemState == oracleVotingStateVoted || itemState == oracleVotingStateCounting {
 			item.EstimatedOracleReward = calculateEstimatedOracleReward(item.Balance, item.MinPayment, item.OwnerFee, item.CommitteeSize, item.VoteProofsCount)
+			item.EstimatedMaxOracleReward = calculateEstimatedMaxOracleReward(item.Balance, item.MinPayment, item.OwnerFee, item.CommitteeSize, item.Quorum, item.WinnerThreshold, item.VoteProofsCount)
+			item.EstimatedTotalReward = calculateEstimatedTotalReward(item.Balance, item.MinPayment, item.OwnerFee, item.VoteProofsCount)
 		}
 
 		isFirst = false
@@ -298,8 +301,47 @@ func calculateEstimatedOracleReward(balance decimal.Decimal, votingMinPaymentP *
 	if ownerFee > 0 {
 		ownerReward = potentialBalance.Sub(votingMinPayment.Mul(committeeSizeD)).Mul(decimal.NewFromFloat(float64(ownerFee) / 100.0))
 	}
-	oracleReward := potentialBalance.Sub(ownerReward).Div(committeeSizeD).Sub(votingMinPayment)
+	oracleReward := potentialBalance.Sub(ownerReward).Div(committeeSizeD)
 	return &oracleReward
+}
+
+func calculateEstimatedMaxOracleReward(balance decimal.Decimal, votingMinPaymentP *decimal.Decimal, ownerFee uint8, committeeSize uint64, quorum, winnerThreshold byte, votesCnt uint64) *decimal.Decimal {
+	quorumSizeF := float64(committeeSize) * float64(quorum) / 100.0
+	quorumSize := uint64(quorumSizeF)
+	if quorumSizeF > float64(quorumSize) || quorumSize == 0 {
+		quorumSize += 1
+	}
+	minVotesCnt := math2.Max(quorumSize, votesCnt)
+
+	var votingMinPayment decimal.Decimal
+	if votingMinPaymentP != nil {
+		votingMinPayment = *votingMinPaymentP
+	}
+
+	potentialBalance := balance
+	if minVotesCnt > votesCnt && votingMinPayment.Sign() == 1 {
+		potentialBalance = potentialBalance.Add(votingMinPayment.Mul(decimal.NewFromInt(int64(minVotesCnt - votesCnt))))
+	}
+
+	var ownerReward decimal.Decimal
+	minVotesCntD := decimal.NewFromInt(int64(minVotesCnt))
+	if ownerFee > 0 {
+		ownerReward = potentialBalance.Sub(votingMinPayment.Mul(minVotesCntD)).Mul(decimal.NewFromFloat(float64(ownerFee) / 100.0))
+	}
+
+	oracleReward := potentialBalance.Sub(ownerReward).Div(minVotesCntD.Mul(decimal.New(int64(winnerThreshold), -2)))
+	return &oracleReward
+}
+
+func calculateEstimatedTotalReward(balance decimal.Decimal, votingMinPaymentP *decimal.Decimal, ownerFee uint8, votesCnt uint64) *decimal.Decimal {
+	var votingMinPayment decimal.Decimal
+	if votingMinPaymentP != nil {
+		votingMinPayment = *votingMinPaymentP
+	}
+	votesCntD := decimal.NewFromInt(int64(votesCnt))
+	ownerReward := balance.Sub(votingMinPayment.Mul(votesCntD)).Mul(decimal.NewFromFloat(float64(ownerFee) / 100.0))
+	totalReward := balance.Sub(ownerReward)
+	return &totalReward
 }
 
 func (a *postgresAccessor) EstimatedOracleRewards(committeeSize uint64) ([]types.EstimatedOracleReward, error) {

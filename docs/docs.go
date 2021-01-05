@@ -5205,10 +5205,10 @@ var doc = `{
                     "type": "string",
                     "enum": [
                         "min",
-                        "slow",
+                        "low",
                         "medium",
-                        "fast",
-                        "fastest"
+                        "high",
+                        "highest"
                     ]
                 }
             }
@@ -5589,6 +5589,9 @@ var doc = `{
                     "type": "string",
                     "example": "2020-01-01T00:00:00Z"
                 },
+                "estimatedMaxOracleReward": {
+                    "type": "string"
+                },
                 "estimatedOracleReward": {
                     "type": "string"
                 },
@@ -5599,6 +5602,9 @@ var doc = `{
                 "estimatedTerminationTime": {
                     "type": "string",
                     "example": "2020-01-01T00:00:00Z"
+                },
+                "estimatedTotalReward": {
+                    "type": "string"
                 },
                 "estimatedVotingFinishTime": {
                     "type": "string",
