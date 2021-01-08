@@ -232,7 +232,7 @@ BEGIN
 
             SELECt "timestamp" INTO l_block_timestamp FROM blocks WHERE height = p_block_height;
             call update_oracle_voting_contract_summaries(p_block_height, l_contract_tx_id, 0, 0, l_block_timestamp,
-                                                         null, l_item.fund - l_item.owner_reward, l_item.owner_reward);
+                                                         null, l_item.fund - l_item.owner_reward, 0);
             call update_sorted_oracle_voting_contracts(p_block_height, l_contract_tx_id, null, SOVC_STATE_COMPLETED,
                                                        l_tx_id, null, null);
             call update_sorted_oracle_voting_contract_committees(p_block_height, l_contract_tx_id, null, null,
