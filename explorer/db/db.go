@@ -157,7 +157,7 @@ type Accessor interface {
 	TotalLatestBurntCoinsCount(afterTime time.Time) (uint64, error)
 	TotalLatestBurntCoins(afterTime time.Time, startIndex uint64, count uint64) ([]types.AddressBurntCoins, error)
 
-	OracleVotingContracts(authorAddress, oracleAddress string, states []string, all bool, count uint64, continuationToken *string) ([]types.OracleVotingContract, *string, error)
+	OracleVotingContracts(authorAddress, oracleAddress string, states []string, all bool, sortBy *string, count uint64, continuationToken *string) ([]types.OracleVotingContract, *string, error)
 	OracleVotingContract(address, oracle string) (types.OracleVotingContract, error)
 	EstimatedOracleRewards(committeeSize uint64) ([]types.EstimatedOracleReward, error)
 

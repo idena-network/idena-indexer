@@ -2284,6 +2284,7 @@ func getOffsetUTC(hours int) time.Time {
 // @Param states[] query []string false "filter by voting states"
 // @Param oracle query string false "oracle address"
 // @Param all query boolean false "flag to return all voting contracts independently on oracle address"
+// @Param sortBy query string false "value to sort" ENUMS(reward,timestamp)
 // @Param limit query integer true "items to take"
 // @Param continuationToken query string false "continuation token to get next page items"
 // @Success 200 {object} server.ResponsePage{result=[]types.OracleVotingContract}
@@ -2314,8 +2315,12 @@ func (s *httpServer) oracleVotingContracts(w http.ResponseWriter, r *http.Reques
 		return res
 	}
 	states := convertStates(r.Form["states[]"])
+	var sortBy *string
+	if v := r.Form.Get("sortby"); len(v) > 0 {
+		sortBy = &v
+	}
 	resp, nextContinuationToken, err := s.contractsService.OracleVotingContracts(address, getFormValue(r.Form, "oracle"),
-		states, all, count, continuationToken)
+		states, all, sortBy, count, continuationToken)
 	server.WriteResponsePage(w, resp, nextContinuationToken, err, s.log)
 }
 
@@ -2326,6 +2331,7 @@ func (s *httpServer) oracleVotingContracts(w http.ResponseWriter, r *http.Reques
 // @Param states[] query []string false "filter by voting states"
 // @Param oracle query string false "oracle address"
 // @Param all query boolean false "flag to return all voting contracts independently on oracle address"
+// @Param sortBy query string false "value to sort" ENUMS(reward,timestamp)
 // @Param limit query integer true "items to take"
 // @Param continuationToken query string false "continuation token to get next page items"
 // @Success 200 {object} server.ResponsePage{result=[]types.OracleVotingContract}

@@ -41,7 +41,7 @@ type contractsFilter struct {
 	all             bool
 }
 
-func createContractsFilter(authorAddress string, states []string, all bool, continuationToken *string) (*contractsFilter, error) {
+func createContractsFilter(authorAddress string, states []string, all bool, sortBy, continuationToken *string) (*contractsFilter, error) {
 	res := &contractsFilter{}
 	for _, state := range states {
 		switch strings.ToLower(state) {
@@ -62,6 +62,14 @@ func createContractsFilter(authorAddress string, states []string, all bool, cont
 		}
 	}
 	res.sortByReward = (res.stateOpen || res.statePending) && !(res.stateVoted || res.stateCounting || res.stateArchive || res.stateTerminated)
+	if sortBy != nil {
+		if !res.sortByReward && *sortBy == "reward" {
+			return nil, errors.New("invalid combination of values 'states[]' and 'sortBy'")
+		}
+		if res.sortByReward && *sortBy == "timestamp" {
+			res.sortByReward = false
+		}
+	}
 	if len(authorAddress) > 0 {
 		res.authorAddress = &authorAddress
 	}
@@ -74,8 +82,8 @@ func createContractsFilter(authorAddress string, states []string, all bool, cont
 	return res, nil
 }
 
-func (a *postgresAccessor) OracleVotingContracts(authorAddress, oracleAddress string, states []string, all bool, count uint64, continuationToken *string) ([]types.OracleVotingContract, *string, error) {
-	filter, err := createContractsFilter(authorAddress, states, all, continuationToken)
+func (a *postgresAccessor) OracleVotingContracts(authorAddress, oracleAddress string, states []string, all bool, sortBy *string, count uint64, continuationToken *string) ([]types.OracleVotingContract, *string, error) {
+	filter, err := createContractsFilter(authorAddress, states, all, sortBy, continuationToken)
 	if err != nil {
 		return nil, nil, err
 	}

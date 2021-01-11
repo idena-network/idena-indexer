@@ -11,7 +11,7 @@ import (
 )
 
 type Contracts interface {
-	OracleVotingContracts(authorAddress, oracleAddress string, states []string, all bool, count uint64, continuationToken *string) ([]types.OracleVotingContract, *string, error)
+	OracleVotingContracts(authorAddress, oracleAddress string, states []string, all bool, sortBy *string, count uint64, continuationToken *string) ([]types.OracleVotingContract, *string, error)
 	OracleVotingContract(address, oracle string) (types.OracleVotingContract, error)
 	AddressContractTxBalanceUpdates(address string, contractAddress string, count uint64, continuationToken *string) ([]types.ContractTxBalanceUpdate, *string, error)
 }
@@ -33,7 +33,7 @@ func NewContracts(dbAccessor db.Accessor, contractsMemPool ContractsMemPool) Con
 	}
 }
 
-func (c *contractsImpl) OracleVotingContracts(authorAddress, oracleAddress string, states []string, all bool, count uint64, continuationToken *string) ([]types.OracleVotingContract, *string, error) {
+func (c *contractsImpl) OracleVotingContracts(authorAddress, oracleAddress string, states []string, all bool, sortBy *string, count uint64, continuationToken *string) ([]types.OracleVotingContract, *string, error) {
 	var res []types.OracleVotingContract
 
 	const pending = "Pending"
@@ -74,7 +74,7 @@ func (c *contractsImpl) OracleVotingContracts(authorAddress, oracleAddress strin
 	var err error
 	if count > 0 {
 		var dbRes []types.OracleVotingContract
-		dbRes, nextContinuationToken, err = c.dbAccessor.OracleVotingContracts(authorAddress, oracleAddress, states, all, count, continuationToken)
+		dbRes, nextContinuationToken, err = c.dbAccessor.OracleVotingContracts(authorAddress, oracleAddress, states, all, sortBy, count, continuationToken)
 		res = append(res, dbRes...)
 	}
 	return res, nextContinuationToken, err

@@ -1191,6 +1191,13 @@ paths:
         in: query
         name: all
         type: boolean
+      - description: value to sort
+        enum:
+        - reward
+        - timestamp
+        in: query
+        name: sortBy
+        type: string
       - description: items to take
         in: query
         name: limit
@@ -3675,6 +3682,13 @@ paths:
         in: query
         name: all
         type: boolean
+      - description: value to sort
+        enum:
+        - reward
+        - timestamp
+        in: query
+        name: sortBy
+        type: string
       - description: items to take
         in: query
         name: limit

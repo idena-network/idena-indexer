@@ -1059,11 +1059,8 @@ func (a *cachedAccessor) TotalLatestBurntCoins(afterTime time.Time, startIndex u
 	return res.([]types.AddressBurntCoins), err
 }
 
-func (a *cachedAccessor) OracleVotingContracts(authorAddress, oracleAddress string, states []string, all bool, count uint64, continuationToken *string) ([]types.OracleVotingContract, *string, error) {
-	//res, nextContinuationToken, err := a.getOrLoadWithConToken("OracleVotingContracts", func() (interface{}, *string, error) {
-	return a.accessor.OracleVotingContracts(authorAddress, oracleAddress, states, all, count, continuationToken)
-	//}, authorAddress, oracleAddress, states, all, count, continuationToken)
-	//return res.([]types.OracleVotingContract), nextContinuationToken, err
+func (a *cachedAccessor) OracleVotingContracts(authorAddress, oracleAddress string, states []string, all bool, sortBy *string, count uint64, continuationToken *string) ([]types.OracleVotingContract, *string, error) {
+	return a.accessor.OracleVotingContracts(authorAddress, oracleAddress, states, all, sortBy, count, continuationToken)
 }
 
 func (a *cachedAccessor) OracleVotingContract(address, oracle string) (types.OracleVotingContract, error) {
@@ -1071,17 +1068,11 @@ func (a *cachedAccessor) OracleVotingContract(address, oracle string) (types.Ora
 }
 
 func (a *cachedAccessor) EstimatedOracleRewards(networkSize uint64) ([]types.EstimatedOracleReward, error) {
-	//res, err := a.getOrLoad("EstimatedOracleRewards", func() (interface{}, error) {
 	return a.accessor.EstimatedOracleRewards(networkSize)
-	//})
-	//return res.([]types.EstimatedOracleReward), err
 }
 
 func (a *cachedAccessor) AddressContractTxBalanceUpdates(address, contractAddress string, count uint64, continuationToken *string) ([]types.ContractTxBalanceUpdate, *string, error) {
-	//res, nextContinuationToken, err := a.getOrLoadWithConToken("AddressContractTxBalanceUpdates", func() (interface{}, *string, error) {
 	return a.accessor.AddressContractTxBalanceUpdates(address, contractAddress, count, continuationToken)
-	//}, address, contractAddress, count, continuationToken)
-	//return res.([]types.ContractTxBalanceUpdate), nextContinuationToken, err
 }
 
 func (a *cachedAccessor) Upgrades(count uint64, continuationToken *string) ([]types.BlockSummary, *string, error) {

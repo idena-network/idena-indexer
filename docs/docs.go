@@ -226,6 +226,16 @@ var doc = `{
                         "in": "query"
                     },
                     {
+                        "enum": [
+                            "reward",
+                            "timestamp"
+                        ],
+                        "type": "string",
+                        "description": "value to sort",
+                        "name": "sortBy",
+                        "in": "query"
+                    },
+                    {
                         "type": "integer",
                         "description": "items to take",
                         "name": "limit",
@@ -4349,6 +4359,16 @@ var doc = `{
                         "type": "boolean",
                         "description": "flag to return all voting contracts independently on oracle address",
                         "name": "all",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "reward",
+                            "timestamp"
+                        ],
+                        "type": "string",
+                        "description": "value to sort",
+                        "name": "sortBy",
                         "in": "query"
                     },
                     {
