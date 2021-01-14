@@ -14,6 +14,7 @@ type Contracts interface {
 	OracleVotingContracts(authorAddress, oracleAddress string, states []string, all bool, sortBy *string, count uint64, continuationToken *string) ([]types.OracleVotingContract, *string, error)
 	OracleVotingContract(address, oracle string) (types.OracleVotingContract, error)
 	AddressContractTxBalanceUpdates(address string, contractAddress string, count uint64, continuationToken *string) ([]types.ContractTxBalanceUpdate, *string, error)
+	ContractTxBalanceUpdates(contractAddress string, count uint64, continuationToken *string) ([]types.ContractTxBalanceUpdate, *string, error)
 }
 
 type ContractsMemPool interface {
@@ -119,4 +120,8 @@ func (c *contractsImpl) AddressContractTxBalanceUpdates(address string, contract
 		res = append(res, dbRes...)
 	}
 	return res, nextContinuationToken, err
+}
+
+func (c *contractsImpl) ContractTxBalanceUpdates(contractAddress string, count uint64, continuationToken *string) ([]types.ContractTxBalanceUpdate, *string, error) {
+	return c.dbAccessor.ContractTxBalanceUpdates(contractAddress, count, continuationToken)
 }

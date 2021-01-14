@@ -1632,6 +1632,7 @@ func GetSortedOracleVotingContractCommitteeChanges(db *sql.DB) ([]SortedOracleVo
 }
 
 type ContractTxBalanceUpdate struct {
+	Id           int
 	ContractTxId int
 	Address      string
 	ContractType int
@@ -1642,7 +1643,7 @@ type ContractTxBalanceUpdate struct {
 }
 
 func GetContractTxBalanceUpdates(db *sql.DB) ([]ContractTxBalanceUpdate, error) {
-	rows, err := db.Query(`select t.contract_tx_id, a.address, t.contract_type, t.tx_id, t.call_method, t.balance_old, t.balance_new from contract_tx_balance_updates t join addresses a on a.id=t.address_id order by t.tx_id, t.address_id`)
+	rows, err := db.Query(`select t.id, t.contract_tx_id, a.address, t.contract_type, t.tx_id, t.call_method, t.balance_old, t.balance_new from contract_tx_balance_updates t join addresses a on a.id=t.address_id order by t.tx_id, t.address_id`)
 	if err != nil {
 		return nil, err
 	}
@@ -1653,6 +1654,7 @@ func GetContractTxBalanceUpdates(db *sql.DB) ([]ContractTxBalanceUpdate, error) 
 		var balanceOld, balanceNew postgres.NullDecimal
 		var callMethod sql.NullInt32
 		err := rows.Scan(
+			&item.Id,
 			&item.ContractTxId,
 			&item.Address,
 			&item.ContractType,

@@ -584,8 +584,16 @@ CREATE TABLE IF NOT EXISTS multisig_contract_terminations
 
 --------------------- CONTRACT SUMMARIES -------------------------
 
+CREATE SEQUENCE IF NOT EXISTS contract_tx_balance_updates_id_seq
+    INCREMENT 1
+    START 1
+    MINVALUE 1
+    MAXVALUE 9223372036854775807
+    CACHE 1;
+
 CREATE TABLE IF NOT EXISTS contract_tx_balance_updates
 (
+    id             bigint NOT NULL DEFAULT nextval('contract_tx_balance_updates_id_seq'::regclass),
     contract_tx_id bigint NOT NULL,
     address_id     bigint NOT NULL,
     contract_type  bigint NOT NULL,
@@ -611,7 +619,8 @@ CREATE TABLE IF NOT EXISTS contract_tx_balance_updates
         ON UPDATE NO ACTION
         ON DELETE NO ACTION
 );
-CREATE INDEX IF NOT EXISTS contract_tx_balance_updates_api_idx on contract_tx_balance_updates (tx_id desc, address_id, contract_tx_id);
+CREATE INDEX IF NOT EXISTS contract_tx_balance_updates_api_idx_1 on contract_tx_balance_updates (contract_tx_id, address_id, tx_id desc);
+CREATE INDEX IF NOT EXISTS contract_tx_balance_updates_api_idx_2 on contract_tx_balance_updates (contract_tx_id, id desc);
 
 CREATE TABLE IF NOT EXISTS sorted_oracle_voting_contracts
 (

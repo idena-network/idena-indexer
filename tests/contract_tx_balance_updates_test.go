@@ -121,6 +121,7 @@ func Test_ContractTxBalanceUpdates(t *testing.T) {
 	require.Nil(t, err)
 	require.Equal(t, 8, len(balanceUpdates))
 
+	require.Equal(t, 4, balanceUpdates[2].Id)
 	require.Equal(t, 1, balanceUpdates[2].ContractTxId)
 	require.Equal(t, addressToUpdateBalance.Hex(), balanceUpdates[2].Address)
 	require.Equal(t, 2, balanceUpdates[2].ContractType)
@@ -129,6 +130,7 @@ func Test_ContractTxBalanceUpdates(t *testing.T) {
 	require.Equal(t, "0.0000000000000003", balanceUpdates[2].BalanceOld.String())
 	require.Equal(t, "0.0000000000000004", balanceUpdates[2].BalanceNew.String())
 
+	require.Equal(t, 3, balanceUpdates[3].Id)
 	require.Equal(t, 1, balanceUpdates[3].ContractTxId)
 	require.Equal(t, senderAddress.Hex(), balanceUpdates[3].Address)
 	require.Equal(t, 2, balanceUpdates[3].ContractType)
@@ -137,6 +139,7 @@ func Test_ContractTxBalanceUpdates(t *testing.T) {
 	require.Equal(t, "0.0000000000000005", balanceUpdates[3].BalanceOld.String())
 	require.Equal(t, "0.0000000000000006", balanceUpdates[3].BalanceNew.String())
 
+	require.Equal(t, 5, balanceUpdates[4].Id)
 	require.Equal(t, 1, balanceUpdates[4].ContractTxId)
 	require.Equal(t, senderAddress.Hex(), balanceUpdates[4].Address)
 	require.Equal(t, 2, balanceUpdates[4].ContractType)
@@ -145,6 +148,7 @@ func Test_ContractTxBalanceUpdates(t *testing.T) {
 	require.Equal(t, "0.0000000000000009", balanceUpdates[4].BalanceOld.String())
 	require.Equal(t, "0.000000000000001", balanceUpdates[4].BalanceNew.String())
 
+	require.Equal(t, 6, balanceUpdates[5].Id)
 	require.Equal(t, 1, balanceUpdates[5].ContractTxId)
 	require.Equal(t, unknownAddressToUpdateBalance.Hex(), balanceUpdates[5].Address)
 	require.Equal(t, 2, balanceUpdates[5].ContractType)
@@ -153,6 +157,7 @@ func Test_ContractTxBalanceUpdates(t *testing.T) {
 	require.Equal(t, "0.0000000000000007", balanceUpdates[5].BalanceOld.String())
 	require.Equal(t, "0.0000000000000008", balanceUpdates[5].BalanceNew.String())
 
+	require.Equal(t, 7, balanceUpdates[6].Id)
 	require.Equal(t, 1, balanceUpdates[6].ContractTxId)
 	require.Equal(t, senderAddress.Hex(), balanceUpdates[6].Address)
 	require.Equal(t, 2, balanceUpdates[6].ContractType)
@@ -161,6 +166,7 @@ func Test_ContractTxBalanceUpdates(t *testing.T) {
 	require.Nil(t, balanceUpdates[6].BalanceOld)
 	require.Nil(t, balanceUpdates[6].BalanceNew)
 
+	require.Equal(t, 8, balanceUpdates[7].Id)
 	require.Equal(t, 1, balanceUpdates[7].ContractTxId)
 	require.Equal(t, senderAddress.Hex(), balanceUpdates[7].Address)
 	require.Equal(t, 2, balanceUpdates[7].ContractType)

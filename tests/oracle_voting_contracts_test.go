@@ -644,7 +644,7 @@ func Test_OracleVotingContractCallFinish(t *testing.T) {
 	require.Nil(t, err)
 	require.Equal(t, 2, len(summaries))
 	require.Equal(t, "-0.0000000000000003", summaries[0].TotalReward.String())
-	require.Equal(t, "0.0000000000000131", summaries[0].Stake.String())
+	require.Equal(t, "0.0000000000000123", summaries[0].Stake.String())
 	require.Equal(t, "0", summaries[1].TotalReward.String())
 	require.Equal(t, "0.0000000000000123", summaries[1].Stake.String())
 
