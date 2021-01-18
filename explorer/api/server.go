@@ -311,7 +311,9 @@ func (s *httpServer) InitRouter(router *mux.Router) {
 	router.Path(strings.ToLower("/Address/{address}/OracleVotingContracts")).HandlerFunc(s.addressOracleVotingContracts)
 	router.Path(strings.ToLower("/Address/{address}/Contract/{contractAddress}/BalanceUpdates")).HandlerFunc(s.addressContractTxBalanceUpdates)
 	router.Path(strings.ToLower("/OracleVotingContracts/EstimatedOracleRewards")).HandlerFunc(s.estimatedOracleRewards)
-	router.Path(strings.ToLower("/Contract/{contractAddress}/BalanceUpdates")).HandlerFunc(s.contractTxBalanceUpdates)
+
+	router.Path(strings.ToLower("/Contract/{address}")).HandlerFunc(s.contract)
+	router.Path(strings.ToLower("/Contract/{address}/BalanceUpdates")).HandlerFunc(s.contractTxBalanceUpdates)
 
 	router.Path(strings.ToLower("/MemPool/Txs")).HandlerFunc(s.memPoolTxs)
 }
@@ -2432,8 +2434,25 @@ func (s *httpServer) addressContractTxBalanceUpdates(w http.ResponseWriter, r *h
 }
 
 // @Tags Contracts
+// @Id Contract
+// @Param address path string true "contract address"
+// @Success 200 {object} server.ResponsePage{result=types.Contract}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Contract/{address} [get]
+func (s *httpServer) contract(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("contract", r.RequestURI)
+	defer s.pm.Complete(id)
+
+	resp, err := s.service.Contract(mux.Vars(r)["address"])
+	server.WriteResponse(w, resp, err, s.log)
+}
+
+// @Tags Contracts
 // @Id ContractTxBalanceUpdates
-// @Param contractAddress path string true "contract address"
+// @Param address path string true "contract address"
 // @Param limit query integer true "items to take"
 // @Param continuationToken query string false "continuation token to get next page items"
 // @Success 200 {object} server.ResponsePage{result=[]types.ContractTxBalanceUpdate}
@@ -2441,7 +2460,7 @@ func (s *httpServer) addressContractTxBalanceUpdates(w http.ResponseWriter, r *h
 // @Failure 429 "Request number limit exceeded"
 // @Failure 500 "Internal server error"
 // @Failure 503 "Service unavailable"
-// @Router /Contract/{contractAddress}/BalanceUpdates [get]
+// @Router /Contract/{address}/BalanceUpdates [get]
 func (s *httpServer) contractTxBalanceUpdates(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("contractTxBalanceUpdates", r.RequestURI)
 	defer s.pm.Complete(id)
@@ -2451,6 +2470,6 @@ func (s *httpServer) contractTxBalanceUpdates(w http.ResponseWriter, r *http.Req
 		return
 	}
 	vars := mux.Vars(r)
-	resp, nextContinuationToken, err := s.contractsService.ContractTxBalanceUpdates(vars["contractaddress"], count, continuationToken)
+	resp, nextContinuationToken, err := s.contractsService.ContractTxBalanceUpdates(vars["address"], count, continuationToken)
 	server.WriteResponsePage(w, resp, nextContinuationToken, err, s.log)
 }

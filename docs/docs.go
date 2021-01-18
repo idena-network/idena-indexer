@@ -888,7 +888,56 @@ var doc = `{
                 }
             }
         },
-        "/Contract/{contractAddress}/BalanceUpdates": {
+        "/Contract/{address}": {
+            "get": {
+                "tags": [
+                    "Contracts"
+                ],
+                "operationId": "Contract",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "contract address",
+                        "name": "address",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/ResponsePage"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "result": {
+                                            "$ref": "#/definitions/types.Contract"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request"
+                    },
+                    "429": {
+                        "description": "Request number limit exceeded"
+                    },
+                    "500": {
+                        "description": "Internal server error"
+                    },
+                    "503": {
+                        "description": "Service unavailable"
+                    }
+                }
+            }
+        },
+        "/Contract/{address}/BalanceUpdates": {
             "get": {
                 "tags": [
                     "Contracts"
@@ -898,7 +947,7 @@ var doc = `{
                     {
                         "type": "string",
                         "description": "contract address",
-                        "name": "contractAddress",
+                        "name": "address",
                         "in": "path",
                         "required": true
                     },
@@ -6324,6 +6373,24 @@ var doc = `{
                         "DeployContract",
                         "CallContract",
                         "TerminateContract"
+                    ]
+                }
+            }
+        },
+        "types.Contract": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "TimeLock",
+                        "OracleVoting",
+                        "OracleLock",
+                        "Multisig",
+                        "RefundableOracleLock"
                     ]
                 }
             }
