@@ -46,7 +46,7 @@ type listenerImpl struct {
 	handleBlock     func(block *types.Block)
 }
 
-func NewListener(nodeConfigFile string, pm monitoring.PerformanceMonitor, statsCollector collector.StatsCollector) Listener {
+func NewListener(nodeConfigFile string, bus eventbus.Bus, statsCollector collector.StatsCollector, pm monitoring.PerformanceMonitor) Listener {
 	l := &listenerImpl{}
 
 	cfg, err := config.MakeConfigFromFile(nodeConfigFile)
@@ -63,8 +63,6 @@ func NewListener(nodeConfigFile string, pm monitoring.PerformanceMonitor, statsC
 	cfg.Sync.FastSync = false
 
 	cfgTransform(cfg)
-
-	bus := eventbus.New()
 
 	pm.Start("Full")
 	pm.Start("Node")

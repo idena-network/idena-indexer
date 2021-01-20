@@ -3631,6 +3631,42 @@ paths:
           description: Service unavailable
       tags:
       - Identity
+  /MemPool/Txs:
+    get:
+      operationId: MemPoolTxs
+      parameters:
+      - description: items to take
+        in: query
+        name: limit
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/ResponsePage'
+            - properties:
+                result:
+                  items:
+                    allOf:
+                    - $ref: '#/definitions/TransactionSummary'
+                    - properties:
+                        data:
+                          $ref: '#/definitions/TransactionSpecificData'
+                      type: object
+                  type: array
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - MemPool
   /OracleVotingContract/{address}:
     get:
       operationId: OracleVotingContract

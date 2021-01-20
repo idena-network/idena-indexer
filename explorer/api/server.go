@@ -6,9 +6,8 @@ import (
 	"github.com/idena-network/idena-go/blockchain"
 	"github.com/idena-network/idena-go/crypto"
 	"github.com/idena-network/idena-indexer/core/server"
-	"github.com/idena-network/idena-indexer/explorer/db"
 	"github.com/idena-network/idena-indexer/explorer/monitoring"
-	"github.com/idena-network/idena-indexer/explorer/service"
+	service2 "github.com/idena-network/idena-indexer/explorer/service"
 	"github.com/idena-network/idena-indexer/log"
 	"github.com/pkg/errors"
 	"net/http"
@@ -29,8 +28,8 @@ func NewServer(
 	activeAddrHours int,
 	frozenBalanceAddrs []string,
 	getDumpLink func() string,
-	db db.Accessor,
-	contractsService service.Contracts,
+	service Service,
+	contractsService service2.Contracts,
 	logger log.Logger,
 	pm monitoring.PerformanceMonitor,
 ) Server {
@@ -40,7 +39,7 @@ func NewServer(
 	}
 	return &httpServer{
 		port:               port,
-		db:                 db,
+		service:            service,
 		contractsService:   contractsService,
 		log:                logger,
 		latestHours:        latestHours,
@@ -56,8 +55,8 @@ type httpServer struct {
 	latestHours        int
 	activeAddrHours    int
 	frozenBalanceAddrs []string
-	db                 db.Accessor
-	contractsService   service.Contracts
+	service            Service
+	contractsService   service2.Contracts
 	log                log.Logger
 	pm                 monitoring.PerformanceMonitor
 	counter            int
@@ -283,25 +282,21 @@ func (s *httpServer) InitRouter(router *mux.Router) {
 	// Deprecated path
 	router.Path(strings.ToLower("/Address/{address}/Flips")).HandlerFunc(s.identityFlips)
 
-	router.Path(strings.ToLower("/Address/{address}/States/Count")).
-		HandlerFunc(s.addressStatesCount)
-	router.Path(strings.ToLower("/Address/{address}/States")).
-		HandlerFunc(s.addressStates)
+	router.Path(strings.ToLower("/Address/{address}/States/Count")).HandlerFunc(s.addressStatesCount)
+	router.Path(strings.ToLower("/Address/{address}/States")).HandlerFunc(s.addressStates)
 	router.Path(strings.ToLower("/Address/{address}/TotalLatestMiningReward")).
 		HandlerFunc(s.addressTotalLatestMiningReward)
 	router.Path(strings.ToLower("/Address/{address}/TotalLatestBurntCoins")).
 		HandlerFunc(s.addressTotalLatestBurntCoins)
 
 	//router.Path(strings.ToLower("/Address/{address}/Balance/Changes/Count")).HandlerFunc(s.addressBalanceUpdatesCount)
-	router.Path(strings.ToLower("/Address/{address}/Balance/Changes")).
-		HandlerFunc(s.addressBalanceUpdates)
+	router.Path(strings.ToLower("/Address/{address}/Balance/Changes")).HandlerFunc(s.addressBalanceUpdates)
 
 	//router.Path(strings.ToLower("/Balances/Count")).HandlerFunc(s.balancesCount)
 	router.Path(strings.ToLower("/Balances")).
 		Queries("skip", "{skip}", "limit", "{limit}").
 		HandlerFunc(s.balancesOld)
-	router.Path(strings.ToLower("/Balances")).
-		HandlerFunc(s.balances)
+	router.Path(strings.ToLower("/Balances")).HandlerFunc(s.balances)
 
 	//router.Path(strings.ToLower("/TotalLatestMiningRewards/Count")).HandlerFunc(s.totalLatestMiningRewardsCount)
 	//router.Path(strings.ToLower("/TotalLatestMiningRewards")).HandlerFunc(s.totalLatestMiningRewards)
@@ -316,6 +311,8 @@ func (s *httpServer) InitRouter(router *mux.Router) {
 	router.Path(strings.ToLower("/Address/{address}/OracleVotingContracts")).HandlerFunc(s.addressOracleVotingContracts)
 	router.Path(strings.ToLower("/Address/{address}/Contract/{contractAddress}/BalanceUpdates")).HandlerFunc(s.addressContractTxBalanceUpdates)
 	router.Path(strings.ToLower("/OracleVotingContracts/EstimatedOracleRewards")).HandlerFunc(s.estimatedOracleRewards)
+
+	router.Path(strings.ToLower("/MemPool/Txs")).HandlerFunc(s.memPoolTxs)
 }
 
 func (s *httpServer) dumpLink(w http.ResponseWriter, r *http.Request) {
@@ -341,7 +338,7 @@ func (s *httpServer) search(w http.ResponseWriter, r *http.Request) {
 	if addr := keyToAddrOrEmpty(value); len(addr) > 0 {
 		value = addr
 	}
-	resp, err := s.db.Search(value)
+	resp, err := s.service.Search(value)
 	server.WriteResponse(w, resp, err, s.log)
 }
 
@@ -369,7 +366,7 @@ func (s *httpServer) coins(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("coins", r.RequestURI)
 	defer s.pm.Complete(id)
 
-	resp, err := s.db.Coins()
+	resp, err := s.service.Coins()
 	server.WriteResponse(w, resp, err, s.log)
 }
 
@@ -377,7 +374,7 @@ func (s *httpServer) txtTotalSupply(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("coins", r.RequestURI)
 	defer s.pm.Complete(id)
 
-	coins, err := s.db.Coins()
+	coins, err := s.service.Coins()
 	var resp string
 	if err == nil {
 		resp = coins.TotalBalance.Add(coins.TotalStake).String()
@@ -407,7 +404,7 @@ func (s *httpServer) circulatingSupply(w http.ResponseWriter, r *http.Request) {
 
 	full := "full" == strings.ToLower(vars["format"])
 
-	resp, err := s.db.CirculatingSupply(s.frozenBalanceAddrs)
+	resp, err := s.service.CirculatingSupply(s.frozenBalanceAddrs)
 	if err == nil && full {
 		server.WriteResponse(w, blockchain.ConvertToInt(resp).String(), err, s.log)
 		return
@@ -419,7 +416,7 @@ func (s *httpServer) txtCirculatingSupply(w http.ResponseWriter, r *http.Request
 	id := s.pm.Start("circulatingSupply", r.RequestURI)
 	defer s.pm.Complete(id)
 
-	amount, err := s.db.CirculatingSupply(s.frozenBalanceAddrs)
+	amount, err := s.service.CirculatingSupply(s.frozenBalanceAddrs)
 	var resp string
 	if err == nil {
 		resp = amount.String()
@@ -439,7 +436,7 @@ func (s *httpServer) activeAddressesCount(w http.ResponseWriter, r *http.Request
 	id := s.pm.Start("activeAddressesCount", r.RequestURI)
 	defer s.pm.Complete(id)
 
-	resp, err := s.db.ActiveAddressesCount(getOffsetUTC(s.activeAddrHours))
+	resp, err := s.service.ActiveAddressesCount(getOffsetUTC(s.activeAddrHours))
 	server.WriteResponse(w, resp, err, s.log)
 }
 
@@ -462,7 +459,7 @@ func (s *httpServer) upgrades(w http.ResponseWriter, r *http.Request) {
 		server.WriteErrorResponse(w, err, s.log)
 		return
 	}
-	resp, nextContinuationToken, err := s.db.Upgrades(count, continuationToken)
+	resp, nextContinuationToken, err := s.service.Upgrades(count, continuationToken)
 	server.WriteResponsePage(w, resp, nextContinuationToken, err, s.log)
 }
 
@@ -478,7 +475,7 @@ func (s *httpServer) epochsCount(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("epochsCount", r.RequestURI)
 	defer s.pm.Complete(id)
 
-	resp, err := s.db.EpochsCount()
+	resp, err := s.service.EpochsCount()
 	server.WriteResponse(w, resp, err, s.log)
 }
 
@@ -501,7 +498,7 @@ func (s *httpServer) epochs(w http.ResponseWriter, r *http.Request) {
 		server.WriteErrorResponse(w, err, s.log)
 		return
 	}
-	resp, nextContinuationToken, err := s.db.Epochs(count, continuationToken)
+	resp, nextContinuationToken, err := s.service.Epochs(count, continuationToken)
 	server.WriteResponsePage(w, resp, nextContinuationToken, err, s.log)
 }
 
@@ -517,7 +514,7 @@ func (s *httpServer) lastEpoch(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("lastEpoch", r.RequestURI)
 	defer s.pm.Complete(id)
 
-	resp, err := s.db.LastEpoch()
+	resp, err := s.service.LastEpoch()
 	server.WriteResponse(w, resp, err, s.log)
 }
 
@@ -539,7 +536,7 @@ func (s *httpServer) epoch(w http.ResponseWriter, r *http.Request) {
 		server.WriteErrorResponse(w, err, s.log)
 		return
 	}
-	resp, err := s.db.Epoch(epoch)
+	resp, err := s.service.Epoch(epoch)
 	server.WriteResponse(w, resp, err, s.log)
 }
 
@@ -561,7 +558,7 @@ func (s *httpServer) epochBlocksCount(w http.ResponseWriter, r *http.Request) {
 		server.WriteErrorResponse(w, err, s.log)
 		return
 	}
-	resp, err := s.db.EpochBlocksCount(epoch)
+	resp, err := s.service.EpochBlocksCount(epoch)
 	server.WriteResponse(w, resp, err, s.log)
 }
 
@@ -591,7 +588,7 @@ func (s *httpServer) epochBlocks(w http.ResponseWriter, r *http.Request) {
 		server.WriteErrorResponse(w, err, s.log)
 		return
 	}
-	resp, nextContinuationToken, err := s.db.EpochBlocks(epoch, count, continuationToken)
+	resp, nextContinuationToken, err := s.service.EpochBlocks(epoch, count, continuationToken)
 	server.WriteResponsePage(w, resp, nextContinuationToken, err, s.log)
 }
 
@@ -613,7 +610,7 @@ func (s *httpServer) epochFlipsCount(w http.ResponseWriter, r *http.Request) {
 		server.WriteErrorResponse(w, err, s.log)
 		return
 	}
-	resp, err := s.db.EpochFlipsCount(epoch)
+	resp, err := s.service.EpochFlipsCount(epoch)
 	server.WriteResponse(w, resp, err, s.log)
 }
 
@@ -643,7 +640,7 @@ func (s *httpServer) epochFlips(w http.ResponseWriter, r *http.Request) {
 		server.WriteErrorResponse(w, err, s.log)
 		return
 	}
-	resp, nextContinuationToken, err := s.db.EpochFlips(epoch, count, continuationToken)
+	resp, nextContinuationToken, err := s.service.EpochFlips(epoch, count, continuationToken)
 	server.WriteResponsePage(w, resp, nextContinuationToken, err, s.log)
 }
 
@@ -666,7 +663,7 @@ func (s *httpServer) epochFlipAnswersSummary(w http.ResponseWriter, r *http.Requ
 		server.WriteErrorResponse(w, err, s.log)
 		return
 	}
-	resp, err := s.db.EpochFlipAnswersSummary(epoch)
+	resp, err := s.service.EpochFlipAnswersSummary(epoch)
 	server.WriteResponse(w, resp, err, s.log)
 }
 
@@ -689,7 +686,7 @@ func (s *httpServer) epochFlipStatesSummary(w http.ResponseWriter, r *http.Reque
 		server.WriteErrorResponse(w, err, s.log)
 		return
 	}
-	resp, err := s.db.EpochFlipStatesSummary(epoch)
+	resp, err := s.service.EpochFlipStatesSummary(epoch)
 	server.WriteResponse(w, resp, err, s.log)
 }
 
@@ -712,7 +709,7 @@ func (s *httpServer) epochFlipWrongWordsSummary(w http.ResponseWriter, r *http.R
 		server.WriteErrorResponse(w, err, s.log)
 		return
 	}
-	resp, err := s.db.EpochFlipWrongWordsSummary(epoch)
+	resp, err := s.service.EpochFlipWrongWordsSummary(epoch)
 	server.WriteResponse(w, resp, err, s.log)
 }
 
@@ -736,7 +733,7 @@ func (s *httpServer) epochIdentitiesCount(w http.ResponseWriter, r *http.Request
 		server.WriteErrorResponse(w, err, s.log)
 		return
 	}
-	resp, err := s.db.EpochIdentitiesCount(epoch, convertStates(r.Form["prevstates[]"]),
+	resp, err := s.service.EpochIdentitiesCount(epoch, convertStates(r.Form["prevstates[]"]),
 		convertStates(r.Form["states[]"]))
 	server.WriteResponse(w, resp, err, s.log)
 }
@@ -769,7 +766,7 @@ func (s *httpServer) epochIdentities(w http.ResponseWriter, r *http.Request) {
 		server.WriteErrorResponse(w, err, s.log)
 		return
 	}
-	resp, nextContinuationToken, err := s.db.EpochIdentities(epoch, convertStates(r.Form["prevstates[]"]),
+	resp, nextContinuationToken, err := s.service.EpochIdentities(epoch, convertStates(r.Form["prevstates[]"]),
 		convertStates(r.Form["states[]"]), count, continuationToken)
 	server.WriteResponsePage(w, resp, nextContinuationToken, err, s.log)
 }
@@ -817,7 +814,7 @@ func (s *httpServer) epochIdentityStatesSummary(w http.ResponseWriter, r *http.R
 		server.WriteErrorResponse(w, err, s.log)
 		return
 	}
-	resp, err := s.db.EpochIdentityStatesSummary(epoch)
+	resp, err := s.service.EpochIdentityStatesSummary(epoch)
 	server.WriteResponse(w, resp, err, s.log)
 }
 
@@ -840,7 +837,7 @@ func (s *httpServer) epochIdentityStatesInterimSummary(w http.ResponseWriter, r 
 		server.WriteErrorResponse(w, err, s.log)
 		return
 	}
-	resp, err := s.db.EpochIdentityStatesInterimSummary(epoch)
+	resp, err := s.service.EpochIdentityStatesInterimSummary(epoch)
 	server.WriteResponse(w, resp, err, s.log)
 }
 
@@ -863,7 +860,7 @@ func (s *httpServer) epochInvitesSummary(w http.ResponseWriter, r *http.Request)
 		server.WriteErrorResponse(w, err, s.log)
 		return
 	}
-	resp, err := s.db.EpochInvitesSummary(epoch)
+	resp, err := s.service.EpochInvitesSummary(epoch)
 	server.WriteResponse(w, resp, err, s.log)
 }
 
@@ -886,7 +883,7 @@ func (s *httpServer) epochInviteStatesSummary(w http.ResponseWriter, r *http.Req
 		server.WriteErrorResponse(w, err, s.log)
 		return
 	}
-	resp, err := s.db.EpochInviteStatesSummary(epoch)
+	resp, err := s.service.EpochInviteStatesSummary(epoch)
 	server.WriteResponse(w, resp, err, s.log)
 }
 
@@ -908,7 +905,7 @@ func (s *httpServer) epochInvitesCount(w http.ResponseWriter, r *http.Request) {
 		server.WriteErrorResponse(w, err, s.log)
 		return
 	}
-	resp, err := s.db.EpochInvitesCount(epoch)
+	resp, err := s.service.EpochInvitesCount(epoch)
 	server.WriteResponse(w, resp, err, s.log)
 }
 
@@ -938,7 +935,7 @@ func (s *httpServer) epochInvites(w http.ResponseWriter, r *http.Request) {
 		server.WriteErrorResponse(w, err, s.log)
 		return
 	}
-	resp, nextContinuationToken, err := s.db.EpochInvites(epoch, count, continuationToken)
+	resp, nextContinuationToken, err := s.service.EpochInvites(epoch, count, continuationToken)
 	server.WriteResponsePage(w, resp, nextContinuationToken, err, s.log)
 }
 
@@ -960,7 +957,7 @@ func (s *httpServer) epochTxsCount(w http.ResponseWriter, r *http.Request) {
 		server.WriteErrorResponse(w, err, s.log)
 		return
 	}
-	resp, err := s.db.EpochTxsCount(epoch)
+	resp, err := s.service.EpochTxsCount(epoch)
 	server.WriteResponse(w, resp, err, s.log)
 }
 
@@ -990,7 +987,7 @@ func (s *httpServer) epochTxs(w http.ResponseWriter, r *http.Request) {
 		server.WriteErrorResponse(w, err, s.log)
 		return
 	}
-	resp, nextContinuationToken, err := s.db.EpochTxs(epoch, count, continuationToken)
+	resp, nextContinuationToken, err := s.service.EpochTxs(epoch, count, continuationToken)
 	server.WriteResponsePage(w, resp, nextContinuationToken, err, s.log)
 }
 
@@ -1013,7 +1010,7 @@ func (s *httpServer) epochCoins(w http.ResponseWriter, r *http.Request) {
 		server.WriteErrorResponse(w, err, s.log)
 		return
 	}
-	resp, err := s.db.EpochCoins(epoch)
+	resp, err := s.service.EpochCoins(epoch)
 	server.WriteResponse(w, resp, err, s.log)
 }
 
@@ -1036,7 +1033,7 @@ func (s *httpServer) epochRewardsSummary(w http.ResponseWriter, r *http.Request)
 		server.WriteErrorResponse(w, err, s.log)
 		return
 	}
-	resp, err := s.db.EpochRewardsSummary(epoch)
+	resp, err := s.service.EpochRewardsSummary(epoch)
 	server.WriteResponse(w, resp, err, s.log)
 }
 
@@ -1055,7 +1052,7 @@ func (s *httpServer) epochBadAuthorsCount(w http.ResponseWriter, r *http.Request
 		server.WriteErrorResponse(w, err, s.log)
 		return
 	}
-	resp, err := s.db.EpochBadAuthorsCount(epoch)
+	resp, err := s.service.EpochBadAuthorsCount(epoch)
 	server.WriteResponse(w, resp, err, s.log)
 }
 
@@ -1085,7 +1082,7 @@ func (s *httpServer) epochBadAuthors(w http.ResponseWriter, r *http.Request) {
 		server.WriteErrorResponse(w, err, s.log)
 		return
 	}
-	resp, nextContinuationToken, err := s.db.EpochBadAuthors(epoch, count, continuationToken)
+	resp, nextContinuationToken, err := s.service.EpochBadAuthors(epoch, count, continuationToken)
 	server.WriteResponsePage(w, resp, nextContinuationToken, err, s.log)
 }
 
@@ -1098,7 +1095,7 @@ func (s *httpServer) epochRewardsCount(w http.ResponseWriter, r *http.Request) {
 		server.WriteErrorResponse(w, err, s.log)
 		return
 	}
-	resp, err := s.db.EpochRewardsCount(epoch)
+	resp, err := s.service.EpochRewardsCount(epoch)
 	server.WriteResponse(w, resp, err, s.log)
 }
 
@@ -1120,7 +1117,7 @@ func (s *httpServer) epochIdentitiesRewardsCount(w http.ResponseWriter, r *http.
 		server.WriteErrorResponse(w, err, s.log)
 		return
 	}
-	resp, err := s.db.EpochIdentitiesRewardsCount(epoch)
+	resp, err := s.service.EpochIdentitiesRewardsCount(epoch)
 	server.WriteResponse(w, resp, err, s.log)
 }
 
@@ -1150,7 +1147,7 @@ func (s *httpServer) epochIdentitiesRewards(w http.ResponseWriter, r *http.Reque
 		server.WriteErrorResponse(w, err, s.log)
 		return
 	}
-	resp, nextContinuationToken, err := s.db.EpochIdentitiesRewards(epoch, count, continuationToken)
+	resp, nextContinuationToken, err := s.service.EpochIdentitiesRewards(epoch, count, continuationToken)
 	server.WriteResponsePage(w, resp, nextContinuationToken, err, s.log)
 }
 
@@ -1173,7 +1170,7 @@ func (s *httpServer) epochFundPayments(w http.ResponseWriter, r *http.Request) {
 		server.WriteErrorResponse(w, err, s.log)
 		return
 	}
-	resp, err := s.db.EpochFundPayments(epoch)
+	resp, err := s.service.EpochFundPayments(epoch)
 	server.WriteResponse(w, resp, err, s.log)
 }
 
@@ -1197,7 +1194,7 @@ func (s *httpServer) epochIdentity(w http.ResponseWriter, r *http.Request) {
 		server.WriteErrorResponse(w, err, s.log)
 		return
 	}
-	resp, err := s.db.EpochIdentity(epoch, vars["address"])
+	resp, err := s.service.EpochIdentity(epoch, vars["address"])
 	server.WriteResponse(w, resp, err, s.log)
 }
 
@@ -1221,7 +1218,7 @@ func (s *httpServer) epochIdentityShortFlipsToSolve(w http.ResponseWriter, r *ht
 		server.WriteErrorResponse(w, err, s.log)
 		return
 	}
-	resp, err := s.db.EpochIdentityShortFlipsToSolve(epoch, vars["address"])
+	resp, err := s.service.EpochIdentityShortFlipsToSolve(epoch, vars["address"])
 	server.WriteResponse(w, resp, err, s.log)
 }
 
@@ -1245,7 +1242,7 @@ func (s *httpServer) epochIdentityLongFlipsToSolve(w http.ResponseWriter, r *htt
 		server.WriteErrorResponse(w, err, s.log)
 		return
 	}
-	resp, err := s.db.EpochIdentityLongFlipsToSolve(epoch, vars["address"])
+	resp, err := s.service.EpochIdentityLongFlipsToSolve(epoch, vars["address"])
 	server.WriteResponse(w, resp, err, s.log)
 }
 
@@ -1269,7 +1266,7 @@ func (s *httpServer) epochIdentityShortAnswers(w http.ResponseWriter, r *http.Re
 		server.WriteErrorResponse(w, err, s.log)
 		return
 	}
-	resp, err := s.db.EpochIdentityShortAnswers(epoch, vars["address"])
+	resp, err := s.service.EpochIdentityShortAnswers(epoch, vars["address"])
 	server.WriteResponse(w, resp, err, s.log)
 }
 
@@ -1293,7 +1290,7 @@ func (s *httpServer) epochIdentityLongAnswers(w http.ResponseWriter, r *http.Req
 		server.WriteErrorResponse(w, err, s.log)
 		return
 	}
-	resp, err := s.db.EpochIdentityLongAnswers(epoch, vars["address"])
+	resp, err := s.service.EpochIdentityLongAnswers(epoch, vars["address"])
 	server.WriteResponse(w, resp, err, s.log)
 }
 
@@ -1317,7 +1314,7 @@ func (s *httpServer) epochIdentityFlips(w http.ResponseWriter, r *http.Request) 
 		server.WriteErrorResponse(w, err, s.log)
 		return
 	}
-	resp, err := s.db.EpochIdentityFlips(epoch, vars["address"])
+	resp, err := s.service.EpochIdentityFlips(epoch, vars["address"])
 	server.WriteResponse(w, resp, err, s.log)
 }
 
@@ -1341,7 +1338,7 @@ func (s *httpServer) epochIdentityFlipsWithRewardFlag(w http.ResponseWriter, r *
 		server.WriteErrorResponse(w, err, s.log)
 		return
 	}
-	resp, err := s.db.EpochIdentityFlipsWithRewardFlag(epoch, vars["address"])
+	resp, err := s.service.EpochIdentityFlipsWithRewardFlag(epoch, vars["address"])
 	server.WriteResponse(w, resp, err, s.log)
 }
 
@@ -1365,7 +1362,7 @@ func (s *httpServer) epochIdentityReportedFlipRewards(w http.ResponseWriter, r *
 		server.WriteErrorResponse(w, err, s.log)
 		return
 	}
-	resp, err := s.db.EpochIdentityReportedFlipRewards(epoch, vars["address"])
+	resp, err := s.service.EpochIdentityReportedFlipRewards(epoch, vars["address"])
 	server.WriteResponse(w, resp, err, s.log)
 }
 
@@ -1389,7 +1386,7 @@ func (s *httpServer) epochIdentityBadAuthor(w http.ResponseWriter, r *http.Reque
 		server.WriteErrorResponse(w, err, s.log)
 		return
 	}
-	resp, err := s.db.EpochIdentityBadAuthor(epoch, vars["address"])
+	resp, err := s.service.EpochIdentityBadAuthor(epoch, vars["address"])
 	server.WriteResponse(w, resp, err, s.log)
 }
 
@@ -1413,7 +1410,7 @@ func (s *httpServer) epochIdentityValidationTxs(w http.ResponseWriter, r *http.R
 		server.WriteErrorResponse(w, err, s.log)
 		return
 	}
-	resp, err := s.db.EpochIdentityValidationTxs(epoch, vars["address"])
+	resp, err := s.service.EpochIdentityValidationTxs(epoch, vars["address"])
 	server.WriteResponse(w, resp, err, s.log)
 }
 
@@ -1437,7 +1434,7 @@ func (s *httpServer) epochIdentityRewards(w http.ResponseWriter, r *http.Request
 		server.WriteErrorResponse(w, err, s.log)
 		return
 	}
-	resp, err := s.db.EpochIdentityRewards(epoch, vars["address"])
+	resp, err := s.service.EpochIdentityRewards(epoch, vars["address"])
 	server.WriteResponse(w, resp, err, s.log)
 }
 
@@ -1461,7 +1458,7 @@ func (s *httpServer) epochIdentityInvitesWithRewardFlag(w http.ResponseWriter, r
 		server.WriteErrorResponse(w, err, s.log)
 		return
 	}
-	resp, err := s.db.EpochIdentityInvitesWithRewardFlag(epoch, vars["address"])
+	resp, err := s.service.EpochIdentityInvitesWithRewardFlag(epoch, vars["address"])
 	server.WriteResponse(w, resp, err, s.log)
 }
 
@@ -1485,7 +1482,7 @@ func (s *httpServer) epochIdentitySavedInviteRewards(w http.ResponseWriter, r *h
 		server.WriteErrorResponse(w, err, s.log)
 		return
 	}
-	resp, err := s.db.EpochIdentitySavedInviteRewards(epoch, vars["address"])
+	resp, err := s.service.EpochIdentitySavedInviteRewards(epoch, vars["address"])
 	server.WriteResponse(w, resp, err, s.log)
 }
 
@@ -1509,7 +1506,7 @@ func (s *httpServer) epochIdentityAvailableInvites(w http.ResponseWriter, r *htt
 		server.WriteErrorResponse(w, err, s.log)
 		return
 	}
-	resp, err := s.db.EpochIdentityAvailableInvites(epoch, vars["address"])
+	resp, err := s.service.EpochIdentityAvailableInvites(epoch, vars["address"])
 	server.WriteResponse(w, resp, err, s.log)
 }
 
@@ -1530,9 +1527,9 @@ func (s *httpServer) block(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	height, err := server.ReadUint(vars, "id")
 	if err != nil {
-		resp, err = s.db.BlockByHash(vars["id"])
+		resp, err = s.service.BlockByHash(vars["id"])
 	} else {
-		resp, err = s.db.BlockByHeight(height)
+		resp, err = s.service.BlockByHeight(height)
 	}
 	server.WriteResponse(w, resp, err, s.log)
 }
@@ -1554,9 +1551,9 @@ func (s *httpServer) blockTxsCount(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	height, err := server.ReadUint(vars, "id")
 	if err != nil {
-		resp, err = s.db.BlockTxsCountByHash(vars["id"])
+		resp, err = s.service.BlockTxsCountByHash(vars["id"])
 	} else {
-		resp, err = s.db.BlockTxsCountByHeight(height)
+		resp, err = s.service.BlockTxsCountByHeight(height)
 	}
 	server.WriteResponse(w, resp, err, s.log)
 }
@@ -1586,9 +1583,9 @@ func (s *httpServer) blockTxs(w http.ResponseWriter, r *http.Request) {
 	var resp interface{}
 	var nextContinuationToken *string
 	if err != nil {
-		resp, nextContinuationToken, err = s.db.BlockTxsByHash(vars["id"], count, continuationToken)
+		resp, nextContinuationToken, err = s.service.BlockTxsByHash(vars["id"], count, continuationToken)
 	} else {
-		resp, nextContinuationToken, err = s.db.BlockTxsByHeight(height, count, continuationToken)
+		resp, nextContinuationToken, err = s.service.BlockTxsByHeight(height, count, continuationToken)
 	}
 	server.WriteResponsePage(w, resp, nextContinuationToken, err, s.log)
 }
@@ -1610,9 +1607,9 @@ func (s *httpServer) blockCoins(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	height, err := server.ReadUint(vars, "id")
 	if err != nil {
-		resp, err = s.db.BlockCoinsByHash(vars["id"])
+		resp, err = s.service.BlockCoinsByHash(vars["id"])
 	} else {
-		resp, err = s.db.BlockCoinsByHeight(height)
+		resp, err = s.service.BlockCoinsByHeight(height)
 	}
 	server.WriteResponse(w, resp, err, s.log)
 }
@@ -1630,7 +1627,7 @@ func (s *httpServer) identity(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("identity", r.RequestURI)
 	defer s.pm.Complete(id)
 
-	resp, err := s.db.Identity(mux.Vars(r)["address"])
+	resp, err := s.service.Identity(mux.Vars(r)["address"])
 	server.WriteResponse(w, resp, err, s.log)
 }
 
@@ -1647,7 +1644,7 @@ func (s *httpServer) identityAge(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("identityAge", r.RequestURI)
 	defer s.pm.Complete(id)
 
-	resp, err := s.db.IdentityAge(mux.Vars(r)["address"])
+	resp, err := s.service.IdentityAge(mux.Vars(r)["address"])
 	server.WriteResponse(w, resp, err, s.log)
 }
 
@@ -1664,7 +1661,7 @@ func (s *httpServer) identityCurrentFlipCids(w http.ResponseWriter, r *http.Requ
 	id := s.pm.Start("identityCurrentFlipCids", r.RequestURI)
 	defer s.pm.Complete(id)
 
-	resp, err := s.db.IdentityCurrentFlipCids(mux.Vars(r)["address"])
+	resp, err := s.service.IdentityCurrentFlipCids(mux.Vars(r)["address"])
 	server.WriteResponse(w, resp, err, s.log)
 }
 
@@ -1681,7 +1678,7 @@ func (s *httpServer) identityEpochsCount(w http.ResponseWriter, r *http.Request)
 	id := s.pm.Start("identityEpochsCount", r.RequestURI)
 	defer s.pm.Complete(id)
 
-	resp, err := s.db.IdentityEpochsCount(mux.Vars(r)["address"])
+	resp, err := s.service.IdentityEpochsCount(mux.Vars(r)["address"])
 	server.WriteResponse(w, resp, err, s.log)
 }
 
@@ -1705,7 +1702,7 @@ func (s *httpServer) identityEpochs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	vars := mux.Vars(r)
-	resp, nextContinuationToken, err := s.db.IdentityEpochs(vars["address"], count, continuationToken)
+	resp, nextContinuationToken, err := s.service.IdentityEpochs(vars["address"], count, continuationToken)
 	server.WriteResponsePage(w, resp, nextContinuationToken, err, s.log)
 }
 
@@ -1722,7 +1719,7 @@ func (s *httpServer) identityFlipsCount(w http.ResponseWriter, r *http.Request) 
 	id := s.pm.Start("identityFlipsCount", r.RequestURI)
 	defer s.pm.Complete(id)
 
-	resp, err := s.db.IdentityFlipsCount(mux.Vars(r)["address"])
+	resp, err := s.service.IdentityFlipsCount(mux.Vars(r)["address"])
 	server.WriteResponse(w, resp, err, s.log)
 }
 
@@ -1746,7 +1743,7 @@ func (s *httpServer) identityFlips(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	vars := mux.Vars(r)
-	resp, nextContinuationToken, err := s.db.IdentityFlips(vars["address"], count, continuationToken)
+	resp, nextContinuationToken, err := s.service.IdentityFlips(vars["address"], count, continuationToken)
 	server.WriteResponsePage(w, resp, nextContinuationToken, err, s.log)
 }
 
@@ -1763,7 +1760,7 @@ func (s *httpServer) identityFlipStates(w http.ResponseWriter, r *http.Request) 
 	id := s.pm.Start("identityFlipStates", r.RequestURI)
 	defer s.pm.Complete(id)
 
-	resp, err := s.db.IdentityFlipStates(mux.Vars(r)["address"])
+	resp, err := s.service.IdentityFlipStates(mux.Vars(r)["address"])
 	server.WriteResponse(w, resp, err, s.log)
 }
 
@@ -1780,7 +1777,7 @@ func (s *httpServer) identityFlipRightAnswers(w http.ResponseWriter, r *http.Req
 	id := s.pm.Start("identityFlipRightAnswers", r.RequestURI)
 	defer s.pm.Complete(id)
 
-	resp, err := s.db.IdentityFlipQualifiedAnswers(mux.Vars(r)["address"])
+	resp, err := s.service.IdentityFlipQualifiedAnswers(mux.Vars(r)["address"])
 	server.WriteResponse(w, resp, err, s.log)
 }
 
@@ -1797,7 +1794,7 @@ func (s *httpServer) identityInvitesCount(w http.ResponseWriter, r *http.Request
 	id := s.pm.Start("identityInvitesCount", r.RequestURI)
 	defer s.pm.Complete(id)
 
-	resp, err := s.db.IdentityInvitesCount(mux.Vars(r)["address"])
+	resp, err := s.service.IdentityInvitesCount(mux.Vars(r)["address"])
 	server.WriteResponse(w, resp, err, s.log)
 }
 
@@ -1821,7 +1818,7 @@ func (s *httpServer) identityInvites(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	vars := mux.Vars(r)
-	resp, nextContinuationToken, err := s.db.IdentityInvites(vars["address"], count, continuationToken)
+	resp, nextContinuationToken, err := s.service.IdentityInvites(vars["address"], count, continuationToken)
 	server.WriteResponsePage(w, resp, nextContinuationToken, err, s.log)
 }
 
@@ -1838,7 +1835,7 @@ func (s *httpServer) identityTxsCount(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("identityTxsCount", r.RequestURI)
 	defer s.pm.Complete(id)
 
-	resp, err := s.db.IdentityTxsCount(mux.Vars(r)["address"])
+	resp, err := s.service.IdentityTxsCount(mux.Vars(r)["address"])
 	server.WriteResponse(w, resp, err, s.log)
 }
 
@@ -1862,7 +1859,7 @@ func (s *httpServer) identityTxs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	vars := mux.Vars(r)
-	resp, nextContinuationToken, err := s.db.IdentityTxs(vars["address"], count, continuationToken)
+	resp, nextContinuationToken, err := s.service.IdentityTxs(vars["address"], count, continuationToken)
 	server.WriteResponsePage(w, resp, nextContinuationToken, err, s.log)
 }
 
@@ -1879,7 +1876,7 @@ func (s *httpServer) identityRewardsCount(w http.ResponseWriter, r *http.Request
 	id := s.pm.Start("identityRewardsCount", r.RequestURI)
 	defer s.pm.Complete(id)
 
-	resp, err := s.db.IdentityRewardsCount(mux.Vars(r)["address"])
+	resp, err := s.service.IdentityRewardsCount(mux.Vars(r)["address"])
 	server.WriteResponse(w, resp, err, s.log)
 }
 
@@ -1903,7 +1900,7 @@ func (s *httpServer) identityRewards(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	vars := mux.Vars(r)
-	resp, nextContinuationToken, err := s.db.IdentityRewards(vars["address"], count, continuationToken)
+	resp, nextContinuationToken, err := s.service.IdentityRewards(vars["address"], count, continuationToken)
 	server.WriteResponsePage(w, resp, nextContinuationToken, err, s.log)
 }
 
@@ -1920,7 +1917,7 @@ func (s *httpServer) identityEpochRewardsCount(w http.ResponseWriter, r *http.Re
 	id := s.pm.Start("identityEpochRewardsCount", r.RequestURI)
 	defer s.pm.Complete(id)
 
-	resp, err := s.db.IdentityEpochRewardsCount(mux.Vars(r)["address"])
+	resp, err := s.service.IdentityEpochRewardsCount(mux.Vars(r)["address"])
 	server.WriteResponse(w, resp, err, s.log)
 }
 
@@ -1944,7 +1941,7 @@ func (s *httpServer) identityEpochRewards(w http.ResponseWriter, r *http.Request
 		return
 	}
 	vars := mux.Vars(r)
-	resp, nextContinuationToken, err := s.db.IdentityEpochRewards(vars["address"], count, continuationToken)
+	resp, nextContinuationToken, err := s.service.IdentityEpochRewards(vars["address"], count, continuationToken)
 	server.WriteResponsePage(w, resp, nextContinuationToken, err, s.log)
 }
 
@@ -1961,7 +1958,7 @@ func (s *httpServer) flip(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("flip", r.RequestURI)
 	defer s.pm.Complete(id)
 
-	resp, err := s.db.Flip(mux.Vars(r)["hash"])
+	resp, err := s.service.Flip(mux.Vars(r)["hash"])
 	server.WriteResponse(w, resp, err, s.log)
 }
 
@@ -1978,7 +1975,7 @@ func (s *httpServer) flipContent(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("flipContent", r.RequestURI)
 	defer s.pm.Complete(id)
 
-	resp, err := s.db.FlipContent(mux.Vars(r)["hash"])
+	resp, err := s.service.FlipContent(mux.Vars(r)["hash"])
 	server.WriteResponse(w, resp, err, s.log)
 }
 
@@ -2016,7 +2013,7 @@ func (s *httpServer) flipLongAnswers(w http.ResponseWriter, r *http.Request) {
 
 func (s *httpServer) flipAnswers(w http.ResponseWriter, r *http.Request, isShort bool) {
 	vars := mux.Vars(r)
-	resp, err := s.db.FlipAnswers(vars["hash"], isShort)
+	resp, err := s.service.FlipAnswers(vars["hash"], isShort)
 	server.WriteResponse(w, resp, err, s.log)
 }
 
@@ -2024,7 +2021,7 @@ func (s *httpServer) flipEpochAdjacentFlips(w http.ResponseWriter, r *http.Reque
 	id := s.pm.Start("flipEpochAdjacentFlips", r.RequestURI)
 	defer s.pm.Complete(id)
 
-	resp, err := s.db.FlipEpochAdjacentFlips(mux.Vars(r)["hash"])
+	resp, err := s.service.FlipEpochAdjacentFlips(mux.Vars(r)["hash"])
 	server.WriteResponse(w, resp, err, s.log)
 }
 
@@ -2041,7 +2038,7 @@ func (s *httpServer) address(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("address", r.RequestURI)
 	defer s.pm.Complete(id)
 
-	resp, err := s.db.Address(mux.Vars(r)["address"])
+	resp, err := s.service.Address(mux.Vars(r)["address"])
 	server.WriteResponse(w, resp, err, s.log)
 }
 
@@ -2058,7 +2055,7 @@ func (s *httpServer) addressPenaltiesCount(w http.ResponseWriter, r *http.Reques
 	id := s.pm.Start("addressPenaltiesCount", r.RequestURI)
 	defer s.pm.Complete(id)
 
-	resp, err := s.db.AddressPenaltiesCount(mux.Vars(r)["address"])
+	resp, err := s.service.AddressPenaltiesCount(mux.Vars(r)["address"])
 	server.WriteResponse(w, resp, err, s.log)
 }
 
@@ -2082,7 +2079,7 @@ func (s *httpServer) addressPenalties(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	vars := mux.Vars(r)
-	resp, nextContinuationToken, err := s.db.AddressPenalties(vars["address"], count, continuationToken)
+	resp, nextContinuationToken, err := s.service.AddressPenalties(vars["address"], count, continuationToken)
 	server.WriteResponsePage(w, resp, nextContinuationToken, err, s.log)
 }
 
@@ -2090,7 +2087,7 @@ func (s *httpServer) addressStatesCount(w http.ResponseWriter, r *http.Request) 
 	id := s.pm.Start("addressStatesCount", r.RequestURI)
 	defer s.pm.Complete(id)
 
-	resp, err := s.db.AddressStatesCount(mux.Vars(r)["address"])
+	resp, err := s.service.AddressStatesCount(mux.Vars(r)["address"])
 	server.WriteResponse(w, resp, err, s.log)
 }
 
@@ -2103,7 +2100,7 @@ func (s *httpServer) addressStates(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	vars := mux.Vars(r)
-	resp, nextContinuationToken, err := s.db.AddressStates(vars["address"], count, continuationToken)
+	resp, nextContinuationToken, err := s.service.AddressStates(vars["address"], count, continuationToken)
 	server.WriteResponsePage(w, resp, nextContinuationToken, err, s.log)
 }
 
@@ -2111,7 +2108,7 @@ func (s *httpServer) addressTotalLatestMiningReward(w http.ResponseWriter, r *ht
 	id := s.pm.Start("addressTotalLatestMiningReward", r.RequestURI)
 	defer s.pm.Complete(id)
 
-	resp, err := s.db.AddressTotalLatestMiningReward(s.getOffsetUTC(), mux.Vars(r)["address"])
+	resp, err := s.service.AddressTotalLatestMiningReward(s.getOffsetUTC(), mux.Vars(r)["address"])
 	server.WriteResponse(w, resp, err, s.log)
 }
 
@@ -2119,7 +2116,7 @@ func (s *httpServer) addressTotalLatestBurntCoins(w http.ResponseWriter, r *http
 	id := s.pm.Start("addressTotalLatestBurntCoins", r.RequestURI)
 	defer s.pm.Complete(id)
 
-	resp, err := s.db.AddressTotalLatestBurntCoins(s.getOffsetUTC(), mux.Vars(r)["address"])
+	resp, err := s.service.AddressTotalLatestBurntCoins(s.getOffsetUTC(), mux.Vars(r)["address"])
 	server.WriteResponse(w, resp, err, s.log)
 }
 
@@ -2127,7 +2124,7 @@ func (s *httpServer) addressBadAuthorsCount(w http.ResponseWriter, r *http.Reque
 	id := s.pm.Start("addressBadAuthorsCount", r.RequestURI)
 	defer s.pm.Complete(id)
 
-	resp, err := s.db.AddressBadAuthorsCount(mux.Vars(r)["address"])
+	resp, err := s.service.AddressBadAuthorsCount(mux.Vars(r)["address"])
 	server.WriteResponse(w, resp, err, s.log)
 }
 
@@ -2140,7 +2137,7 @@ func (s *httpServer) addressBadAuthors(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	vars := mux.Vars(r)
-	resp, nextContinuationToken, err := s.db.AddressBadAuthors(vars["address"], count, continuationToken)
+	resp, nextContinuationToken, err := s.service.AddressBadAuthors(vars["address"], count, continuationToken)
 	server.WriteResponsePage(w, resp, nextContinuationToken, err, s.log)
 }
 
@@ -2148,7 +2145,7 @@ func (s *httpServer) addressBalanceUpdatesCount(w http.ResponseWriter, r *http.R
 	id := s.pm.Start("addressBalanceUpdatesCount", r.RequestURI)
 	defer s.pm.Complete(id)
 
-	resp, err := s.db.AddressBalanceUpdatesCount(mux.Vars(r)["address"])
+	resp, err := s.service.AddressBalanceUpdatesCount(mux.Vars(r)["address"])
 	server.WriteResponse(w, resp, err, s.log)
 }
 
@@ -2161,7 +2158,7 @@ func (s *httpServer) addressBalanceUpdates(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	vars := mux.Vars(r)
-	resp, nextContinuationToken, err := s.db.AddressBalanceUpdates(vars["address"], count, continuationToken)
+	resp, nextContinuationToken, err := s.service.AddressBalanceUpdates(vars["address"], count, continuationToken)
 	server.WriteResponsePage(w, resp, nextContinuationToken, err, s.log)
 }
 
@@ -2178,7 +2175,7 @@ func (s *httpServer) transaction(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("transaction", r.RequestURI)
 	defer s.pm.Complete(id)
 
-	resp, err := s.db.Transaction(mux.Vars(r)["hash"])
+	resp, err := s.service.Transaction(mux.Vars(r)["hash"])
 	server.WriteResponse(w, resp, err, s.log)
 }
 
@@ -2195,7 +2192,7 @@ func (s *httpServer) transactionRaw(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("transactionRaw", r.RequestURI)
 	defer s.pm.Complete(id)
 
-	resp, err := s.db.TransactionRaw(mux.Vars(r)["hash"])
+	resp, err := s.service.TransactionRaw(mux.Vars(r)["hash"])
 	server.WriteResponse(w, resp, err, s.log)
 }
 
@@ -2203,7 +2200,7 @@ func (s *httpServer) balancesCount(w http.ResponseWriter, r *http.Request) {
 	id := s.pm.Start("balancesCount", r.RequestURI)
 	defer s.pm.Complete(id)
 
-	resp, err := s.db.BalancesCount()
+	resp, err := s.service.BalancesCount()
 	server.WriteResponse(w, resp, err, s.log)
 }
 
@@ -2225,7 +2222,7 @@ func (s *httpServer) balances(w http.ResponseWriter, r *http.Request) {
 		server.WriteErrorResponse(w, err, s.log)
 		return
 	}
-	resp, nextContinuationToken, err := s.db.Balances(count, continuationToken)
+	resp, nextContinuationToken, err := s.service.Balances(count, continuationToken)
 	server.WriteResponsePage(w, resp, nextContinuationToken, err, s.log)
 }
 
@@ -2233,7 +2230,7 @@ func (s *httpServer) totalLatestMiningRewardsCount(w http.ResponseWriter, r *htt
 	id := s.pm.Start("totalLatestMiningRewardsCount", r.RequestURI)
 	defer s.pm.Complete(id)
 
-	resp, err := s.db.TotalLatestMiningRewardsCount(s.getOffsetUTC())
+	resp, err := s.service.TotalLatestMiningRewardsCount(s.getOffsetUTC())
 	server.WriteResponse(w, resp, err, s.log)
 }
 
@@ -2246,7 +2243,7 @@ func (s *httpServer) totalLatestMiningRewards(w http.ResponseWriter, r *http.Req
 		server.WriteErrorResponse(w, err, s.log)
 		return
 	}
-	resp, err := s.db.TotalLatestMiningRewards(s.getOffsetUTC(), startIndex, count)
+	resp, err := s.service.TotalLatestMiningRewards(s.getOffsetUTC(), startIndex, count)
 	server.WriteResponse(w, resp, err, s.log)
 }
 
@@ -2254,7 +2251,7 @@ func (s *httpServer) totalLatestBurntCoinsCount(w http.ResponseWriter, r *http.R
 	id := s.pm.Start("totalLatestBurntCoinsCount", r.RequestURI)
 	defer s.pm.Complete(id)
 
-	resp, err := s.db.TotalLatestBurntCoinsCount(s.getOffsetUTC())
+	resp, err := s.service.TotalLatestBurntCoinsCount(s.getOffsetUTC())
 	server.WriteResponse(w, resp, err, s.log)
 }
 
@@ -2267,7 +2264,29 @@ func (s *httpServer) totalLatestBurntCoins(w http.ResponseWriter, r *http.Reques
 		server.WriteErrorResponse(w, err, s.log)
 		return
 	}
-	resp, err := s.db.TotalLatestBurntCoins(s.getOffsetUTC(), startIndex, count)
+	resp, err := s.service.TotalLatestBurntCoins(s.getOffsetUTC(), startIndex, count)
+	server.WriteResponse(w, resp, err, s.log)
+}
+
+// @Tags MemPool
+// @Id MemPoolTxs
+// @Param limit query integer true "items to take"
+// @Success 200 {object} server.ResponsePage{result=[]types.TransactionSummary{data=types.TransactionSpecificData}}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /MemPool/Txs [get]
+func (s *httpServer) memPoolTxs(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("memPoolTxs", r.RequestURI)
+	defer s.pm.Complete(id)
+
+	count, _, err := server.ReadPaginatorParams(r.Form)
+	if err != nil {
+		server.WriteErrorResponse(w, err, s.log)
+		return
+	}
+	resp, err := s.service.MemPoolTxs(count)
 	server.WriteResponse(w, resp, err, s.log)
 }
 
@@ -2381,7 +2400,7 @@ func (s *httpServer) estimatedOracleRewards(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	resp, err := s.db.EstimatedOracleRewards(committeeSize)
+	resp, err := s.service.EstimatedOracleRewards(committeeSize)
 	server.WriteResponse(w, resp, err, s.log)
 }
 

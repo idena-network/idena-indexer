@@ -9,7 +9,7 @@ import (
 	"github.com/idena-network/idena-indexer/explorer/db/cached"
 	"github.com/idena-network/idena-indexer/explorer/db/postgres"
 	"github.com/idena-network/idena-indexer/explorer/monitoring"
-	"github.com/idena-network/idena-indexer/explorer/service"
+	service2 "github.com/idena-network/idena-indexer/explorer/service"
 	"github.com/idena-network/idena-indexer/log"
 	"time"
 )
@@ -21,7 +21,7 @@ type Explorer interface {
 	Destroy()
 }
 
-func NewExplorer(c *config.Config, contractsMemPool service.ContractsMemPool, networkSizeLoader service.NetworkSizeLoader) Explorer {
+func NewExplorer(c *config.Config, memPool api.MemPool, contractsMemPool service2.ContractsMemPool, networkSizeLoader service2.NetworkSizeLoader) Explorer {
 	logger, err := initLog(c.Verbosity)
 	if err != nil {
 		panic(err)
@@ -41,7 +41,8 @@ func NewExplorer(c *config.Config, contractsMemPool service.ContractsMemPool, ne
 		time.Second*time.Duration(c.DefaultCacheItemLifeTimeSec),
 		logger.New("component", "cachedDbAccessor"),
 	)
-	contractsService := service.NewContracts(accessor, contractsMemPool)
+	service := api.NewService(accessor, memPool)
+	contractsService := service2.NewContracts(accessor, contractsMemPool)
 	dynamicConfigHolder := config.NewDynamicConfigHolder(c.DynamicConfigFile, logger.New("component", "dConfHolder"))
 	e := &explorer{
 		server: api.NewServer(
@@ -56,7 +57,7 @@ func NewExplorer(c *config.Config, contractsMemPool service.ContractsMemPool, ne
 				}
 				return fmt.Sprintf("https://ipfs.io/ipfs/%s", c.DumpCid)
 			},
-			accessor,
+			service,
 			contractsService,
 			logger,
 			pm,

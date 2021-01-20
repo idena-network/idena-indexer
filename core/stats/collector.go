@@ -107,11 +107,6 @@ func NewStatsCollector(bus eventbus.Bus) collector.StatsCollector {
 	}
 }
 
-func (c *statsCollector) EnableCollecting() {
-	c.stats = &Stats{}
-	c.pending = &pending{}
-}
-
 func (c *statsCollector) RemoveMemPoolTx(tx *types.Transaction) {
 	if tx == nil {
 		return
@@ -119,6 +114,11 @@ func (c *statsCollector) RemoveMemPoolTx(tx *types.Transaction) {
 	c.bus.Publish(&RemovedMemPoolTxEvent{
 		Tx: tx,
 	})
+}
+
+func (c *statsCollector) EnableCollecting() {
+	c.stats = &Stats{}
+	c.pending = &pending{}
 }
 
 func (c *statsCollector) initRewardStats() {

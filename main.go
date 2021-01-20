@@ -11,6 +11,7 @@ import (
 	"github.com/idena-network/idena-indexer/core/api"
 	"github.com/idena-network/idena-indexer/core/flip"
 	"github.com/idena-network/idena-indexer/core/holder/online"
+	"github.com/idena-network/idena-indexer/core/holder/transaction"
 	"github.com/idena-network/idena-indexer/core/holder/upgrade"
 	"github.com/idena-network/idena-indexer/core/mempool"
 	"github.com/idena-network/idena-indexer/core/restore"
@@ -61,14 +62,16 @@ func main() {
 		initLog(conf.Verbosity, conf.NodeVerbosity)
 		log.Info("Starting app...")
 
+		txMemPool := transaction.NewMemPool(log.New("component", "txMemPool"))
+
 		// Indexer
-		indxr, listener, contractsMemPool := initIndexer(conf)
+		indxr, listener, contractsMemPool := initIndexer(conf, txMemPool)
 		defer indxr.Destroy()
 
 		// Explorer
 		explorerConf := explorerConfig.LoadConfig(context.String("explorerConfig"))
 		networkSizeLoader := &networkSizeLoader{}
-		e := explorer.NewExplorer(explorerConf, contractsMemPool, networkSizeLoader)
+		e := explorer.NewExplorer(explorerConf, txMemPool, contractsMemPool, networkSizeLoader)
 		defer e.Destroy()
 
 		// Start indexer
@@ -134,20 +137,32 @@ func (removedMemPoolTxEvent) EventID() eventbus.EventID {
 	return removedMemPoolTxEventId
 }
 
-func initIndexer(config *config.Config) (*indexer.Indexer, incoming.Listener, mempool.Contracts) {
+func initIndexer(config *config.Config, txMemPool transaction.MemPool) (*indexer.Indexer, incoming.Listener, mempool.Contracts) {
 	contractsMemPoolBus := eventbus.New()
 	statsCollectorEventBus := eventbus.New()
 	statsCollectorEventBus.Subscribe(stats.RemovedMemPoolTxEventID, func(e eventbus.Event) {
 		tx := e.(*stats.RemovedMemPoolTxEvent).Tx
 		contractsMemPoolBus.Publish(&removedMemPoolTxEvent{tx: tx})
+		if err := txMemPool.RemoveTransaction(tx); err != nil {
+			log.Warn("Unable to remove tx from tx mem pool", "hash", tx.Hash().Hex())
+		}
 	})
+
+	nodeEventBus := eventbus.New()
+	nodeEventBus.Subscribe(events.NewTxEventID,
+		func(e eventbus.Event) {
+			newTxEvent := e.(*events.NewTxEvent)
+			contractsMemPoolBus.Publish(newTxEvent)
+			tx := newTxEvent.Tx
+			if err := txMemPool.AddTransaction(tx); err != nil {
+				log.Warn("Unable to add new tx to tx mem pool", "hash", tx.Hash().Hex())
+			}
+		})
 
 	performanceMonitor := initPerformanceMonitor(config.PerformanceMonitor)
 	wordsLoader := words.NewLoader(config.WordsFile)
-
 	statsCollector := stats.NewStatsCollector(statsCollectorEventBus)
-
-	listener := incoming.NewListener(config.NodeConfigFile, performanceMonitor, statsCollector)
+	listener := incoming.NewListener(config.NodeConfigFile, nodeEventBus, statsCollector, performanceMonitor)
 	dbAccessor := db.NewPostgresAccessor(config.Postgres.ConnStr, config.Postgres.ScriptsDir, wordsLoader,
 		performanceMonitor, config.CommitteeRewardBlocksCount, config.MiningRewards)
 	restorer := restore.NewRestorer(dbAccessor, listener.AppState(), listener.NodeCtx().Blockchain)
@@ -195,9 +210,8 @@ func initIndexer(config *config.Config) (*indexer.Indexer, incoming.Listener, me
 
 	contractsMemPoolLogger := log.New("component", "contractsMemPool")
 	contractsMemPool := mempool.NewContracts(listener.NodeCtx().AppState, listener.NodeCtx().Blockchain, contractsMemPoolLogger)
-	listener.NodeEventBus().Subscribe(events.NewTxEventID, func(e eventbus.Event) {
+	contractsMemPoolBus.Subscribe(events.NewTxEventID, func(e eventbus.Event) {
 		newTxEvent := e.(*events.NewTxEvent)
-
 		if err := contractsMemPool.ProcessTx(newTxEvent.Tx); err != nil {
 			contractsMemPoolLogger.Error(fmt.Sprintf("Unable to process tx: %v", err))
 		}
