@@ -334,6 +334,7 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) (*result
 
 	indexer.pm.Complete("InitCtx")
 	indexer.pm.Start("ConvertBlock")
+	isFirstEpochBlock := incomingBlock.Height() == prevState.State.EpochBlock()+1
 	block, err := indexer.convertBlock(incomingBlock, ctx, collector)
 	if err != nil {
 		return nil, err
@@ -393,6 +394,7 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) (*result
 		OracleLockContractCallCheckOracleVotings: collectorStats.OracleLockContractCallCheckOracleVotings,
 		OracleLockContractCallPushes:             collectorStats.OracleLockContractCallPushes,
 		OracleLockContractTerminations:           collectorStats.OracleLockContractTerminations,
+		ClearOldEpochCommittees:                  isFirstEpochBlock,
 		RefundableOracleLockContracts:            collectorStats.RefundableOracleLockContracts,
 		RefundableOracleLockContractCallDeposits: collectorStats.RefundableOracleLockContractCallDeposits,
 		RefundableOracleLockContractCallPushes:   collectorStats.RefundableOracleLockContractCallPushes,

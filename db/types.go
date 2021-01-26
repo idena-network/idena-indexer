@@ -96,6 +96,7 @@ type Data struct {
 	OracleVotingContractCallProlongations    []*OracleVotingContractCallProlongation
 	OracleVotingContractCallAddStakes        []*OracleVotingContractCallAddStake
 	OracleVotingContractTerminations         []*OracleVotingContractTermination
+	ClearOldEpochCommittees                  bool
 	OracleLockContracts                      []*OracleLockContract
 	OracleLockContractCallCheckOracleVotings []*OracleLockContractCallCheckOracleVoting
 	OracleLockContractCallPushes             []*OracleLockContractCallPush

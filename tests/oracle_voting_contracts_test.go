@@ -988,3 +988,131 @@ func Test_OracleVotingContractSetNewCommitteeAndSwitchToCountingState(t *testing
 	require.Equal(t, 1, sortedFeContractCommittees[0].State)
 	require.Equal(t, "000000000000000000000000000000.0000000000000000000000000000000000003", *sortedFeContractCommittees[0].SortKey)
 }
+
+func Test_ClearOldEpochNotVotedCommittee(t *testing.T) {
+	db, _, listener, dbAccessor, bus := testCommon.InitIndexer(true, 10, testCommon.PostgresSchema, "..")
+
+	appState := listener.NodeCtx().AppState
+	respondentKey, _ := crypto.GenerateKey()
+	respondentAddress := crypto.PubkeyToAddress(respondentKey.PublicKey)
+	addr2 := tests.GetRandAddr()
+	appState.State.SetState(respondentAddress, state.Verified)
+	appState.State.SetPubKey(respondentAddress, []byte{0x1, 0x2})
+	appState.State.SetState(addr2, state.Verified)
+	appState.State.SetPubKey(addr2, []byte{0x2, 0x3})
+
+	// Deploy contract
+	startTime := time.Now().UTC()
+	contractAddress := tests.GetRandAddr()
+	deployOracleVotingContracts(t, listener, bus, startTime, contractAddress, tests.GetRandAddr())
+
+	statsCollector := listener.StatsCollector()
+	// Start voting
+	statsCollector.EnableCollecting()
+	height := uint64(3)
+	block := buildBlock(height)
+	tx := &types.Transaction{AccountNonce: 4, To: &contractAddress}
+	statsCollector.BeginApplyingTx(tx, appState)
+	statsCollector.AddOracleVotingCallStart(1, 123, 2, nil, []byte{0x2, 0x3}, 50, 100)
+	statsCollector.AddTxReceipt(&types.TxReceipt{Success: true, TxHash: tx.Hash(), ContractAddress: contractAddress}, appState)
+	statsCollector.BeginTxBalanceUpdate(tx, appState)
+	appState.State.AddBalance(contractAddress, big.NewInt(54321000))
+	statsCollector.CompleteBalanceUpdate(appState)
+	statsCollector.CompleteApplyingTx(appState)
+	block.Body.Transactions = append(block.Body.Transactions, tx)
+	require.Nil(t, applyBlock(bus, block, appState))
+	statsCollector.CompleteCollecting()
+
+	// Send vote proof
+	statsCollector.EnableCollecting()
+	height = uint64(4)
+	block = buildBlock(height)
+	tx, _ = types.SignTx(&types.Transaction{AccountNonce: 5, To: &contractAddress}, respondentKey)
+	statsCollector.BeginApplyingTx(tx, appState)
+	statsCollector.AddOracleVotingCallVoteProof([]byte{0x3, 0x4})
+	statsCollector.AddTxReceipt(&types.TxReceipt{Success: true, TxHash: tx.Hash(), ContractAddress: contractAddress}, appState)
+	statsCollector.BeginTxBalanceUpdate(tx, appState)
+	appState.State.SetBalance(respondentAddress, big.NewInt(2000))
+	appState.State.AddBalance(contractAddress, big.NewInt(3000))
+	statsCollector.CompleteBalanceUpdate(appState)
+	statsCollector.CompleteApplyingTx(appState)
+	block.Body.Transactions = append(block.Body.Transactions, tx)
+	require.Nil(t, applyBlock(bus, block, appState))
+	statsCollector.CompleteCollecting()
+
+	// Then
+	sortedFeContractCommittees, err := testCommon.GetSortedOracleVotingContractCommittees(db)
+	require.Nil(t, err)
+	require.Equal(t, 2, len(sortedFeContractCommittees))
+	for _, committeeMember := range sortedFeContractCommittees {
+		require.Contains(t, []string{respondentAddress.Hex(), addr2.Hex()}, committeeMember.Address)
+		if respondentAddress.Hex() == committeeMember.Address {
+			require.Equal(t, 5, committeeMember.State)
+			require.Nil(t, committeeMember.SortKey)
+		} else {
+			require.Equal(t, 1, committeeMember.State)
+			require.Equal(t, "000000000000000000000000000000.0000000000101059020000000000000000001", *committeeMember.SortKey)
+		}
+		require.Equal(t, 1, committeeMember.TxId)
+		require.Equal(t, respondentAddress.Hex() == committeeMember.Address, committeeMember.Voted)
+	}
+
+	statsCollector.EnableCollecting()
+	require.Nil(t, applyBlock(bus, buildBlock(5), appState))
+	statsCollector.CompleteCollecting()
+
+	statsCollector.EnableCollecting()
+	appState.State.SetEpochBlock(6)
+	appState.State.SetGlobalEpoch(3)
+	require.Nil(t, applyBlock(bus, buildBlock(6), appState))
+	statsCollector.CompleteCollecting()
+
+	sortedFeContractCommittees, err = testCommon.GetSortedOracleVotingContractCommittees(db)
+	require.Nil(t, err)
+	require.Equal(t, 2, len(sortedFeContractCommittees))
+	for _, committeeMember := range sortedFeContractCommittees {
+		require.Contains(t, []string{respondentAddress.Hex(), addr2.Hex()}, committeeMember.Address)
+		if respondentAddress.Hex() == committeeMember.Address {
+			require.Equal(t, 5, committeeMember.State)
+			require.Nil(t, committeeMember.SortKey)
+		} else {
+			require.Equal(t, 1, committeeMember.State)
+			require.Equal(t, "000000000000000000000000000000.0000000000101059020000000000000000001", *committeeMember.SortKey)
+		}
+		require.Equal(t, 1, committeeMember.TxId)
+		require.Equal(t, respondentAddress.Hex() == committeeMember.Address, committeeMember.Voted)
+	}
+
+	statsCollector.EnableCollecting()
+	require.Nil(t, applyBlock(bus, buildBlock(7), appState))
+	statsCollector.CompleteCollecting()
+
+	sortedFeContractCommittees, err = testCommon.GetSortedOracleVotingContractCommittees(db)
+	require.Nil(t, err)
+	require.Equal(t, 1, len(sortedFeContractCommittees))
+	for _, committeeMember := range sortedFeContractCommittees {
+		require.Equal(t, respondentAddress.Hex(), committeeMember.Address)
+		require.Equal(t, 5, committeeMember.State)
+		require.Nil(t, committeeMember.SortKey)
+		require.Equal(t, 1, committeeMember.TxId)
+		require.Equal(t, respondentAddress.Hex() == committeeMember.Address, committeeMember.Voted)
+	}
+
+	// Reset
+	require.Nil(t, dbAccessor.ResetTo(6))
+	sortedFeContractCommittees, err = testCommon.GetSortedOracleVotingContractCommittees(db)
+	require.Nil(t, err)
+	require.Equal(t, 2, len(sortedFeContractCommittees))
+	for _, committeeMember := range sortedFeContractCommittees {
+		require.Contains(t, []string{respondentAddress.Hex(), addr2.Hex()}, committeeMember.Address)
+		if respondentAddress.Hex() == committeeMember.Address {
+			require.Equal(t, 5, committeeMember.State)
+			require.Nil(t, committeeMember.SortKey)
+		} else {
+			require.Equal(t, 1, committeeMember.State)
+			require.Equal(t, "000000000000000000000000000000.0000000000101059020000000000000000001", *committeeMember.SortKey)
+		}
+		require.Equal(t, 1, committeeMember.TxId)
+		require.Equal(t, respondentAddress.Hex() == committeeMember.Address, committeeMember.Voted)
+	}
+}

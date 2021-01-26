@@ -334,6 +334,61 @@ BEGIN
 END
 $$;
 
+CREATE OR REPLACE PROCEDURE delete_old_epoch_not_voted_committee_from_sovcc(p_block_height bigint)
+    LANGUAGE 'plpgsql'
+AS
+$$
+DECLARE
+    CHANGE_TYPE_SORTED_ORACLE_VOTING_COMMITTEE CONSTANT smallint = 4;
+    SOVC_STATE_VOTING                          CONSTANT smallint = 1;
+    l_change_id                                         bigint;
+    l_cur_epoch                                         bigint;
+BEGIN
+    SELECT max(epoch) INTO l_cur_epoch FROM epochs;
+
+    if NOT (SELECT exists(SELECT 1
+                          FROM sorted_oracle_voting_contract_committees
+                          WHERE contract_tx_id IN (SELECT contract_tx_id
+                                                   FROM sorted_oracle_voting_contracts
+                                                   WHERE state = SOVC_STATE_VOTING
+                                                     AND epoch < l_cur_epoch)
+                            AND NOT voted)) then
+        return;
+    end if;
+
+    INSERT INTO changes (block_height, type)
+    VALUES (p_block_height, CHANGE_TYPE_SORTED_ORACLE_VOTING_COMMITTEE)
+    RETURNING id INTO l_change_id;
+
+    INSERT INTO sorted_oracle_voting_contract_committees_changes (change_id, contract_tx_id, author_address_id,
+                                                                  address_id, sort_key, state, state_tx_id, voted,
+                                                                  deleted)
+        (SELECT l_change_id,
+                contract_tx_id,
+                author_address_id,
+                address_id,
+                sort_key,
+                state,
+                state_tx_id,
+                voted,
+                true
+         FROM sorted_oracle_voting_contract_committees
+         WHERE contract_tx_id IN (SELECT contract_tx_id
+                                  FROM sorted_oracle_voting_contracts
+                                  WHERE state = SOVC_STATE_VOTING
+                                    AND epoch < l_cur_epoch)
+           AND NOT voted);
+
+    DELETE
+    FROM sorted_oracle_voting_contract_committees
+    WHERE contract_tx_id IN (SELECT contract_tx_id
+                             FROM sorted_oracle_voting_contracts
+                             WHERE state = SOVC_STATE_VOTING
+                               AND epoch < l_cur_epoch)
+      AND NOT voted;
+END
+$$;
+
 CREATE OR REPLACE PROCEDURE update_oracle_voting_contract_summaries(p_block_height bigint,
                                                                     p_contract_tx_id bigint,
                                                                     p_vote_proofs_diff bigint,
@@ -354,7 +409,7 @@ DECLARE
     l_prev_termination_timestamp                 bigint;
     l_prev_total_reward                          numeric;
     l_new_total_reward                           numeric;
-    l_prev_stake                           numeric;
+    l_prev_stake                                 numeric;
 BEGIN
 
     SELECT vote_proofs, votes, finish_timestamp, termination_timestamp, total_reward, stake
@@ -429,7 +484,8 @@ BEGIN
 END
 $$;
 
-CREATE OR REPLACE PROCEDURE apply_block_on_sorted_contracts(p_height bigint)
+CREATE OR REPLACE PROCEDURE apply_block_on_sorted_contracts(p_height bigint,
+                                                            p_clear_old_ovc_committees boolean)
     LANGUAGE 'plpgsql'
 AS
 $$
@@ -446,6 +502,10 @@ BEGIN
             call update_sorted_oracle_voting_contract_state(p_height, l_rec.contract_tx_id,
                                                             SOVC_STATE_COUNTING, null);
         end loop;
+
+    if p_clear_old_ovc_committees then
+        call delete_old_epoch_not_voted_committee_from_sovcc(p_height);
+    end if;
 END
 $$;
 

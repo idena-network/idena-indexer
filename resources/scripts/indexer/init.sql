@@ -2741,6 +2741,7 @@ CREATE OR REPLACE FUNCTION save_addrs_and_txs(height bigint,
                                               p_oracle_voting_contract_call_prolongations jsonb[],
                                               p_oracle_voting_contract_call_add_stakes tp_oracle_voting_contract_call_add_stake[],
                                               p_oracle_voting_contract_terminations tp_oracle_voting_contract_termination[],
+                                              p_clear_old_ovc_committees boolean,
                                               p_oracle_lock_contracts tp_oracle_lock_contract[],
                                               p_oracle_lock_contract_call_check_oracle_votings tp_oracle_lock_contract_call_check_oracle_voting[],
                                               p_oracle_lock_contract_call_pushes tp_oracle_lock_contract_call_push[],
@@ -3002,7 +3003,7 @@ BEGIN
         call save_tx_receipts(p_tx_receipts);
     end if;
 
-    call apply_block_on_sorted_contracts(height);
+    call apply_block_on_sorted_contracts(height, p_clear_old_ovc_committees);
 
     DELETE FROM changes WHERE block_height <= height - p_changes_blocks_count;
 
