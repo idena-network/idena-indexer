@@ -610,7 +610,7 @@ func Test_ResetOracleVotingContracts(t *testing.T) {
 			heightToReset: 21,
 			assert: func() {
 				assertOracleVotingLens(t, db, &OracleVotingLens{receipts: 16, contracts: 3, ovContracts: 3, callStarts: 2,
-					committees: 12, addresses: 8, sorted: 3, sortedCommittees: 5, sortedChanges: 9, sortedCommitteesChanges: 35,
+					committees: 12, addresses: 8, sorted: 3, sortedCommittees: 3, sortedChanges: 9, sortedCommitteesChanges: 35,
 					callVoteProofs: 4, callVotes: 1, callFinishes: 2, callProlongations: 2, terminations: 1, summaries: 3, summariesChanges: 7})
 				sovc, _ = testCommon.GetSortedOracleVotingContracts(db)
 				require.Nil(t, sovc[0].SortKey)
@@ -619,7 +619,7 @@ func Test_ResetOracleVotingContracts(t *testing.T) {
 		}}
 
 	indexData()
-	for i := len(assertions) - 4; i >= 0; i-- {
+	for i := len(assertions) - 1; i >= 0; i-- {
 		require.Nil(t, dbAccessor.ResetTo(assertions[i].heightToReset))
 		assertions[i].assert()
 	}
