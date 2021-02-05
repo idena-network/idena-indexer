@@ -671,7 +671,7 @@ definitions:
         type: integer
       publicVotingDuration:
         type: integer
-      publishVotingFinishTime:
+      publicVotingFinishTime:
         example: "2020-01-01T00:00:00Z"
         type: string
       quorum:

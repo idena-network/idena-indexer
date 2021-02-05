@@ -262,7 +262,7 @@ func (a *postgresAccessor) readOracleVotingContracts(rows *sql.Rows) ([]types.Or
 		}
 		if publicVotingFinishTime.Valid {
 			v := timestampToTimeUTC(publicVotingFinishTime.Int64)
-			item.PublishVotingFinishTime = &v
+			item.PublicVotingFinishTime = &v
 		}
 		if finishTime.Valid {
 			v := timestampToTimeUTC(finishTime.Int64)

@@ -483,7 +483,7 @@ type OracleVotingContract struct {
 	EstimatedMaxOracleReward        *decimal.Decimal                  `json:"estimatedMaxOracleReward,omitempty" swaggertype:"string"`
 	EstimatedTotalReward            *decimal.Decimal                  `json:"estimatedTotalReward,omitempty" swaggertype:"string"`
 	VotingFinishTime                *time.Time                        `json:"votingFinishTime,omitempty" example:"2020-01-01T00:00:00Z"`
-	PublishVotingFinishTime         *time.Time                        `json:"publishVotingFinishTime,omitempty" example:"2020-01-01T00:00:00Z"`
+	PublicVotingFinishTime          *time.Time                        `json:"publicVotingFinishTime,omitempty" example:"2020-01-01T00:00:00Z"`
 	FinishTime                      *time.Time                        `json:"finishTime,omitempty" example:"2020-01-01T00:00:00Z"`
 	TerminationTime                 *time.Time                        `json:"terminationTime,omitempty" example:"2020-01-01T00:00:00Z"`
 	MinPayment                      *decimal.Decimal                  `json:"minPayment,omitempty" swaggertype:"string"`

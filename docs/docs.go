@@ -5827,7 +5827,7 @@ var doc = `{
                 "publicVotingDuration": {
                     "type": "integer"
                 },
-                "publishVotingFinishTime": {
+                "publicVotingFinishTime": {
                     "type": "string",
                     "example": "2020-01-01T00:00:00Z"
                 },
