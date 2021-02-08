@@ -6383,6 +6383,9 @@ var doc = `{
                 "address": {
                     "type": "string"
                 },
+                "author": {
+                    "type": "string"
+                },
                 "type": {
                     "type": "string",
                     "enum": [

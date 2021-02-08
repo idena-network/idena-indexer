@@ -12,7 +12,7 @@ const (
 
 func (a *postgresAccessor) Contract(address string) (types.Contract, error) {
 	res := types.Contract{}
-	err := a.db.QueryRow(a.getQuery(contractQuery), address).Scan(&res.Type)
+	err := a.db.QueryRow(a.getQuery(contractQuery), address).Scan(&res.Type, &res.Author)
 	if err == sql.ErrNoRows {
 		err = NoDataFound
 	}

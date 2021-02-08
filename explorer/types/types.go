@@ -462,6 +462,7 @@ type StrValueCount struct {
 type Contract struct {
 	Address string `json:"address"`
 	Type    string `json:"type" enums:"TimeLock,OracleVoting,OracleLock,Multisig,RefundableOracleLock"`
+	Author  string `json:"author"`
 }
 
 type OracleVotingContract struct {

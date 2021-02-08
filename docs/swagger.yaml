@@ -1069,6 +1069,8 @@ definitions:
     properties:
       address:
         type: string
+      author:
+        type: string
       type:
         enum:
         - TimeLock
