@@ -4704,6 +4704,55 @@ var doc = `{
                 }
             }
         },
+        "/TimeLockContract/{address}": {
+            "get": {
+                "tags": [
+                    "Contracts"
+                ],
+                "operationId": "TimeLockContract",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "contract address",
+                        "name": "address",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "result": {
+                                            "$ref": "#/definitions/types.TimeLockContract"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request"
+                    },
+                    "429": {
+                        "description": "Request number limit exceeded"
+                    },
+                    "500": {
+                        "description": "Internal server error"
+                    },
+                    "503": {
+                        "description": "Service unavailable"
+                    }
+                }
+            }
+        },
         "/Transaction/{hash}": {
             "get": {
                 "tags": [
@@ -6386,6 +6435,14 @@ var doc = `{
                 "author": {
                     "type": "string"
                 },
+                "deployTx": {
+                    "type": "object",
+                    "$ref": "#/definitions/TransactionSummary"
+                },
+                "terminationTx": {
+                    "type": "object",
+                    "$ref": "#/definitions/TransactionSummary"
+                },
                 "type": {
                     "type": "string",
                     "enum": [
@@ -6395,6 +6452,15 @@ var doc = `{
                         "Multisig",
                         "RefundableOracleLock"
                     ]
+                }
+            }
+        },
+        "types.TimeLockContract": {
+            "type": "object",
+            "properties": {
+                "timestamp": {
+                    "type": "string",
+                    "example": "2020-01-01T00:00:00Z"
                 }
             }
         }

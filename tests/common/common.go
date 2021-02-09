@@ -44,7 +44,7 @@ func InitIndexer(
 	dbConnector, dbAccessor := InitPostgres(clearDb, changesHistoryBlocksCount, schema, scriptsPathPrefix, pm)
 	memPoolIndexer := mempool.NewIndexer(dbAccessor, log.New("component", "mpi"))
 	memDb := db2.NewMemDB()
-	appState := appstate.NewAppState(memDb, eventbus.New())
+	appState, _ := appstate.NewAppState(memDb, eventbus.New())
 	nodeEventBus := eventbus.New()
 	collectorEventBus := eventbus.New()
 

@@ -178,16 +178,16 @@ type EpochIdentity struct {
 } // @Name EpochIdentity
 
 type TransactionSummary struct {
-	Hash      string          `json:"hash"`
-	Type      string          `json:"type" enums:"SendTx,ActivationTx,InviteTx,KillTx,SubmitFlipTx,SubmitAnswersHashTx,SubmitShortAnswersTx,SubmitLongAnswersTx,EvidenceTx,OnlineStatusTx,KillInviteeTx,ChangeGodAddressTx,BurnTx,ChangeProfileTx,DeleteFlipTx,DeployContract,CallContract,TerminateContract"`
-	Timestamp time.Time       `json:"timestamp" example:"2020-01-01T00:00:00Z"`
-	From      string          `json:"from"`
-	To        string          `json:"to,omitempty"`
-	Amount    decimal.Decimal `json:"amount" swaggertype:"string"`
-	Tips      decimal.Decimal `json:"tips" swaggertype:"string"`
-	MaxFee    decimal.Decimal `json:"maxFee" swaggertype:"string"`
-	Fee       decimal.Decimal `json:"fee" swaggertype:"string"`
-	Size      uint32          `json:"size"`
+	Hash      string           `json:"hash"`
+	Type      string           `json:"type,omitempty" enums:"SendTx,ActivationTx,InviteTx,KillTx,SubmitFlipTx,SubmitAnswersHashTx,SubmitShortAnswersTx,SubmitLongAnswersTx,EvidenceTx,OnlineStatusTx,KillInviteeTx,ChangeGodAddressTx,BurnTx,ChangeProfileTx,DeleteFlipTx,DeployContract,CallContract,TerminateContract"`
+	Timestamp time.Time        `json:"timestamp" example:"2020-01-01T00:00:00Z"`
+	From      string           `json:"from,omitempty"`
+	To        string           `json:"to,omitempty"`
+	Amount    *decimal.Decimal `json:"amount,omitempty" swaggertype:"string"`
+	Tips      *decimal.Decimal `json:"tips,omitempty" swaggertype:"string"`
+	MaxFee    *decimal.Decimal `json:"maxFee,omitempty" swaggertype:"string"`
+	Fee       *decimal.Decimal `json:"fee,omitempty" swaggertype:"string"`
+	Size      uint32           `json:"size,omitempty"`
 	// Deprecated
 	Transfer *decimal.Decimal `json:"transfer,omitempty" swaggerignore:"true"`
 	Data     interface{}      `json:"data,omitempty"`
@@ -460,10 +460,16 @@ type StrValueCount struct {
 }
 
 type Contract struct {
-	Address string `json:"address"`
-	Type    string `json:"type" enums:"TimeLock,OracleVoting,OracleLock,Multisig,RefundableOracleLock"`
-	Author  string `json:"author"`
-}
+	Address       string              `json:"address"`
+	Type          string              `json:"type" enums:"TimeLock,OracleVoting,OracleLock,Multisig,RefundableOracleLock"`
+	Author        string              `json:"author"`
+	DeployTx      TransactionSummary  `json:"deployTx"`
+	TerminationTx *TransactionSummary `json:"terminationTx,omitempty"`
+} // @Contract
+
+type TimeLockContract struct {
+	Timestamp time.Time `json:"timestamp" example:"2020-01-01T00:00:00Z"`
+} // @TimeLockContract
 
 type OracleVotingContract struct {
 	ContractAddress                 string                            `json:"contractAddress"`

@@ -18,7 +18,6 @@ const (
 	ovcAllSortedByDtQuery              = "ovcAllSortedByDt.sql"
 	ovcAllOpenSortedByDtQuery          = "ovcAllOpenSortedByDt.sql"
 	ovcByOracleSortedByDtQuery         = "ovcByOracleSortedByDt.sql"
-	oracleVotingContractQuery          = "oracleVotingContract.sql"
 	lastBlockFeeRateQuery              = "lastBlockFeeRate.sql"
 
 	oracleVotingStateOpen       = "open"
@@ -138,22 +137,6 @@ func (a *postgresAccessor) OracleVotingContracts(authorAddress, oracleAddress st
 		res = res[:len(res)-1]
 	}
 	return res, nextContinuationToken, nil
-}
-
-func (a *postgresAccessor) OracleVotingContract(address, oracle string) (types.OracleVotingContract, error) {
-	rows, err := a.db.Query(a.getQuery(oracleVotingContractQuery), address, oracle)
-	if err != nil {
-		return types.OracleVotingContract{}, err
-	}
-	defer rows.Close()
-	contracts, _, err := a.readOracleVotingContracts(rows)
-	if err != nil {
-		return types.OracleVotingContract{}, err
-	}
-	if len(contracts) == 0 {
-		return types.OracleVotingContract{}, NoDataFound
-	}
-	return contracts[0], nil
 }
 
 func (a *postgresAccessor) readOracleVotingContracts(rows *sql.Rows) ([]types.OracleVotingContract, *string, error) {

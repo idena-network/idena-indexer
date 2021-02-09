@@ -276,14 +276,17 @@ func toTransactionSummary(tx *types.Transaction) *apiTypes.TransactionSummary {
 	if tx.To != nil {
 		to = conversion.ConvertAddress(*tx.To)
 	}
+	amount := blockchain.ConvertToFloat(tx.Amount)
+	tips := blockchain.ConvertToFloat(tx.Tips)
+	maxFee := blockchain.ConvertToFloat(tx.MaxFee)
 	return &apiTypes.TransactionSummary{
 		Hash:   conversion.ConvertHash(tx.Hash()),
 		Type:   conversion.ConvertTxType(tx.Type),
 		From:   from,
 		To:     to,
-		Amount: blockchain.ConvertToFloat(tx.Amount),
-		Tips:   blockchain.ConvertToFloat(tx.Tips),
-		MaxFee: blockchain.ConvertToFloat(tx.MaxFee),
+		Amount: &amount,
+		Tips:   &tips,
+		MaxFee: &maxFee,
 		Size:   uint32(tx.Size()),
 	}
 }

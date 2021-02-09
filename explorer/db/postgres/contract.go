@@ -7,12 +7,24 @@ import (
 
 const (
 	contractQuery                 = "contract.sql"
+	timeLockContractQuery         = "timeLockContract.sql"
+	oracleVotingContractQuery     = "oracleVotingContract.sql"
 	contractTxBalanceUpdatesQuery = "contractTxBalanceUpdates.sql"
 )
 
 func (a *postgresAccessor) Contract(address string) (types.Contract, error) {
 	res := types.Contract{}
-	err := a.db.QueryRow(a.getQuery(contractQuery), address).Scan(&res.Type, &res.Author)
+	var terminationTxTime sql.NullInt64
+	var terminationTxHash sql.NullString
+	var deployTxTimestamp int64
+	err := a.db.QueryRow(a.getQuery(contractQuery), address).Scan(
+		&res.Type,
+		&res.Author,
+		&res.DeployTx.Hash,
+		&deployTxTimestamp,
+		&terminationTxHash,
+		&terminationTxTime,
+	)
 	if err == sql.ErrNoRows {
 		err = NoDataFound
 	}
@@ -20,6 +32,13 @@ func (a *postgresAccessor) Contract(address string) (types.Contract, error) {
 		return types.Contract{}, err
 	}
 	res.Address = address
+	res.DeployTx.Timestamp = timestampToTimeUTC(deployTxTimestamp)
+	if terminationTxHash.Valid {
+		res.TerminationTx = &types.TransactionSummary{
+			Hash:      terminationTxHash.String,
+			Timestamp: timestampToTimeUTC(terminationTxTime.Int64),
+		}
+	}
 	return res, nil
 }
 
@@ -69,4 +88,47 @@ func (a *postgresAccessor) ContractTxBalanceUpdates(contractAddress string, coun
 		return nil, nil, err
 	}
 	return res.([]types.ContractTxBalanceUpdate), nextContinuationToken, nil
+}
+
+func (a *postgresAccessor) TimeLockContract(address string) (types.TimeLockContract, error) {
+	res := types.TimeLockContract{}
+	var timestamp int64
+	err := a.db.QueryRow(a.getQuery(timeLockContractQuery), address).Scan(&timestamp)
+	if err == sql.ErrNoRows {
+		err = NoDataFound
+	}
+	if err != nil {
+		return types.TimeLockContract{}, err
+	}
+	res.Timestamp = timestampToTimeUTC(timestamp)
+	return res, nil
+}
+
+func (a *postgresAccessor) readTimeLockContracts(rows *sql.Rows) ([]types.TimeLockContract, *string, error) {
+	var res []types.TimeLockContract
+	for rows.Next() {
+		item := types.TimeLockContract{}
+		var timestamp int64
+		if err := rows.Scan(&timestamp); err != nil {
+			return nil, nil, err
+		}
+		item.Timestamp = timestampToTimeUTC(timestamp)
+	}
+	return res, nil, nil
+}
+
+func (a *postgresAccessor) OracleVotingContract(address, oracle string) (types.OracleVotingContract, error) {
+	rows, err := a.db.Query(a.getQuery(oracleVotingContractQuery), address, oracle)
+	if err != nil {
+		return types.OracleVotingContract{}, err
+	}
+	defer rows.Close()
+	contracts, _, err := a.readOracleVotingContracts(rows)
+	if err != nil {
+		return types.OracleVotingContract{}, err
+	}
+	if len(contracts) == 0 {
+		return types.OracleVotingContract{}, NoDataFound
+	}
+	return contracts[0], nil
 }

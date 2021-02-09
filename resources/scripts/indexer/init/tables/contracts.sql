@@ -248,6 +248,7 @@ CREATE TABLE IF NOT EXISTS oracle_voting_contract_terminations
         ON UPDATE NO ACTION
         ON DELETE NO ACTION
 );
+CREATE INDEX IF NOT EXISTS oracle_voting_contract_terminations_api_idx ON oracle_voting_contract_terminations (ov_contract_tx_id);
 
 CREATE TABLE IF NOT EXISTS oracle_lock_contracts
 (
@@ -328,6 +329,7 @@ CREATE TABLE IF NOT EXISTS oracle_lock_contract_terminations
         ON UPDATE NO ACTION
         ON DELETE NO ACTION
 );
+CREATE INDEX IF NOT EXISTS oracle_lock_contract_terminations_api_idx ON oracle_lock_contract_terminations (ol_contract_tx_id);
 
 CREATE TABLE IF NOT EXISTS refundable_oracle_lock_contracts
 (
@@ -431,6 +433,7 @@ CREATE TABLE IF NOT EXISTS refundable_oracle_lock_contract_terminations
         ON UPDATE NO ACTION
         ON DELETE NO ACTION
 );
+CREATE INDEX IF NOT EXISTS rol_contract_terminations_api_idx ON refundable_oracle_lock_contract_terminations (ol_contract_tx_id);
 
 CREATE TABLE IF NOT EXISTS time_lock_contracts
 (
@@ -483,6 +486,7 @@ CREATE TABLE IF NOT EXISTS time_lock_contract_terminations
         ON UPDATE NO ACTION
         ON DELETE NO ACTION
 );
+CREATE INDEX IF NOT EXISTS time_lock_contract_terminations_api_idx ON time_lock_contract_terminations (tl_contract_tx_id);
 
 CREATE TABLE IF NOT EXISTS multisig_contracts
 (
@@ -581,6 +585,7 @@ CREATE TABLE IF NOT EXISTS multisig_contract_terminations
         ON UPDATE NO ACTION
         ON DELETE NO ACTION
 );
+CREATE INDEX IF NOT EXISTS multisig_contract_terminations_api_idx ON multisig_contract_terminations (ms_contract_tx_id);
 
 --------------------- CONTRACT SUMMARIES -------------------------
 

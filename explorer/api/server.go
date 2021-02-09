@@ -306,14 +306,16 @@ func (s *httpServer) InitRouter(router *mux.Router) {
 	//	Queries("skip", "{skip}", "limit", "{limit}").
 	//	HandlerFunc(s.totalLatestBurntCoins)
 
+	router.Path(strings.ToLower("/Contract/{address}")).HandlerFunc(s.contract)
+	router.Path(strings.ToLower("/Contract/{address}/BalanceUpdates")).HandlerFunc(s.contractTxBalanceUpdates)
+
+	router.Path(strings.ToLower("/TimeLockContract/{address}")).HandlerFunc(s.timeLockContract)
+
 	router.Path(strings.ToLower("/OracleVotingContracts")).HandlerFunc(s.oracleVotingContracts)
 	router.Path(strings.ToLower("/OracleVotingContract/{address}")).HandlerFunc(s.oracleVotingContract)
 	router.Path(strings.ToLower("/Address/{address}/OracleVotingContracts")).HandlerFunc(s.addressOracleVotingContracts)
 	router.Path(strings.ToLower("/Address/{address}/Contract/{contractAddress}/BalanceUpdates")).HandlerFunc(s.addressContractTxBalanceUpdates)
 	router.Path(strings.ToLower("/OracleVotingContracts/EstimatedOracleRewards")).HandlerFunc(s.estimatedOracleRewards)
-
-	router.Path(strings.ToLower("/Contract/{address}")).HandlerFunc(s.contract)
-	router.Path(strings.ToLower("/Contract/{address}/BalanceUpdates")).HandlerFunc(s.contractTxBalanceUpdates)
 
 	router.Path(strings.ToLower("/MemPool/Txs")).HandlerFunc(s.memPoolTxs)
 }
@@ -2364,6 +2366,23 @@ func (s *httpServer) oracleVotingContracts(w http.ResponseWriter, r *http.Reques
 // @Router /Address/{address}/OracleVotingContracts [get]
 func (s *httpServer) addressOracleVotingContracts(w http.ResponseWriter, r *http.Request) {
 	s.oracleVotingContracts(w, r)
+}
+
+// @Tags Contracts
+// @Id TimeLockContract
+// @Param address path string true "contract address"
+// @Success 200 {object} server.Response{result=types.TimeLockContract}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /TimeLockContract/{address} [get]
+func (s *httpServer) timeLockContract(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("timeLockContract", r.RequestURI)
+	defer s.pm.Complete(id)
+
+	resp, err := s.service.TimeLockContract(mux.Vars(r)["address"])
+	server.WriteResponse(w, resp, err, s.log)
 }
 
 // @Tags Contracts
