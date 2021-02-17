@@ -125,8 +125,10 @@ func readTxs(rows *sql.Rows) ([]types.TransactionSummary, uint64, error) {
 	for rows.Next() {
 		item := types.TransactionSummary{}
 		var timestamp int64
-		var transfer NullDecimal
-		var becomeOnline sql.NullBool
+		var gasCost, transfer NullDecimal
+		var success, becomeOnline sql.NullBool
+		var gasUsed sql.NullInt64
+		var method, errorMsg sql.NullString
 		if err := rows.Scan(
 			&id,
 			&item.Hash,
@@ -141,6 +143,11 @@ func readTxs(rows *sql.Rows) ([]types.TransactionSummary, uint64, error) {
 			&item.Size,
 			&transfer,
 			&becomeOnline,
+			&success,
+			&gasUsed,
+			&gasCost,
+			&method,
+			&errorMsg,
 		); err != nil {
 			return nil, 0, err
 		}
@@ -149,6 +156,15 @@ func readTxs(rows *sql.Rows) ([]types.TransactionSummary, uint64, error) {
 			item.Transfer = &transfer.Decimal
 		}
 		item.Data = readTxSpecificData(item.Type, transfer, becomeOnline)
+		if success.Valid {
+			item.TxReceipt = &types.TxReceipt{
+				Success:  success.Bool,
+				GasUsed:  uint64(gasUsed.Int64),
+				GasCost:  gasCost.Decimal,
+				Method:   method.String,
+				ErrorMsg: errorMsg.String,
+			}
+		}
 		res = append(res, item)
 	}
 	return res, id, nil
@@ -160,8 +176,10 @@ func readTxsOld(rows *sql.Rows) ([]types.TransactionSummary, error) {
 	for rows.Next() {
 		item := types.TransactionSummary{}
 		var timestamp int64
-		var transfer NullDecimal
-		var becomeOnline sql.NullBool
+		var gasCost, transfer NullDecimal
+		var success, becomeOnline sql.NullBool
+		var gasUsed sql.NullInt64
+		var method, errorMsg sql.NullString
 		if err := rows.Scan(
 			&item.Hash,
 			&item.Type,
@@ -175,6 +193,11 @@ func readTxsOld(rows *sql.Rows) ([]types.TransactionSummary, error) {
 			&item.Size,
 			&transfer,
 			&becomeOnline,
+			&success,
+			&gasUsed,
+			&gasCost,
+			&method,
+			&errorMsg,
 		); err != nil {
 			return nil, err
 		}
@@ -183,6 +206,15 @@ func readTxsOld(rows *sql.Rows) ([]types.TransactionSummary, error) {
 			item.Transfer = &transfer.Decimal
 		}
 		item.Data = readTxSpecificData(item.Type, transfer, becomeOnline)
+		if success.Valid {
+			item.TxReceipt = &types.TxReceipt{
+				Success:  success.Bool,
+				GasUsed:  uint64(gasUsed.Int64),
+				GasCost:  gasCost.Decimal,
+				Method:   method.String,
+				ErrorMsg: errorMsg.String,
+			}
+		}
 		res = append(res, item)
 	}
 	return res, nil

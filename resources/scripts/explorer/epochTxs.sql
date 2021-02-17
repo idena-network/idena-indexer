@@ -12,7 +12,12 @@ select t.id,
        coalesce(atxs.balance_transfer,
                 coalesce(ktxs.stake_transfer,
                          kitxs.stake_transfer))                                                     transfer,
-       (case when online.tx_id is not null then true when offline.tx_id is not null then false end) become_online
+       (case when online.tx_id is not null then true when offline.tx_id is not null then false end) become_online,
+       tr.success                                                                                   tx_receipt_success,
+       tr.gas_used                                                                                  tx_receipt_gas_used,
+       tr.gas_cost                                                                                  tx_receipt_gas_cost,
+       tr.method                                                                                    tx_receipt_method,
+       tr.error_msg                                                                                 tx_receipt_error_msg
 from transactions t
          join blocks b on b.height = t.block_height and b.epoch = $1
          join addresses afrom on afrom.id = t.from
@@ -23,6 +28,7 @@ from transactions t
          left join kill_invitee_tx_transfers kitxs on kitxs.tx_id = t.id and t.type = 10
          left join become_online_txs online on online.tx_id = t.id and t.type = 9
          left join become_offline_txs offline on offline.tx_id = t.id and t.type = 9
+         LEFT JOIN tx_receipts tr on t.type in (15, 16, 17) and tr.tx_id = t.id
 WHERE $3::bigint IS NULL
    OR t.id <= $3
 order by t.id desc

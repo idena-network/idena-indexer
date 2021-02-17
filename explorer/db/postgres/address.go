@@ -258,7 +258,10 @@ func (a *postgresAccessor) AddressContractTxBalanceUpdates(address string, contr
 			item := types.ContractTxBalanceUpdate{}
 			var timestamp int64
 			var callMethod sql.NullInt32
-			var balanceOld, balanceNew NullDecimal
+			var balanceOld, balanceNew, gasCost NullDecimal
+			var success sql.NullBool
+			var gasUsed sql.NullInt64
+			var method, errorMsg sql.NullString
 			if err := rows.Scan(
 				&id,
 				&item.Hash,
@@ -276,6 +279,11 @@ func (a *postgresAccessor) AddressContractTxBalanceUpdates(address string, contr
 				&callMethod,
 				&balanceOld,
 				&balanceNew,
+				&success,
+				&gasUsed,
+				&gasCost,
+				&method,
+				&errorMsg,
 			); err != nil {
 				return nil, 0, err
 			}
@@ -286,6 +294,15 @@ func (a *postgresAccessor) AddressContractTxBalanceUpdates(address string, contr
 			if balanceOld.Valid && balanceNew.Valid {
 				change := balanceNew.Decimal.Sub(balanceOld.Decimal)
 				item.BalanceChange = &change
+			}
+			if success.Valid {
+				item.TxReceipt = &types.TxReceipt{
+					Success:  success.Bool,
+					GasUsed:  uint64(gasUsed.Int64),
+					GasCost:  gasCost.Decimal,
+					Method:   method.String,
+					ErrorMsg: errorMsg.String,
+				}
 			}
 			res = append(res, item)
 		}

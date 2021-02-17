@@ -197,11 +197,32 @@ func (a *postgresAccessor) getQuery(name string) string {
 func (a *postgresAccessor) Transaction(hash string) (types.TransactionDetail, error) {
 	res := types.TransactionDetail{}
 	var timestamp int64
-	var transfer NullDecimal
-	var becomeOnline sql.NullBool
-	err := a.db.QueryRow(a.getQuery(transactionQuery), hash).Scan(&res.Epoch, &res.BlockHeight, &res.BlockHash,
-		&res.Hash, &res.Type, &timestamp, &res.From, &res.To, &res.Amount, &res.Tips, &res.MaxFee, &res.Fee, &res.Size,
-		&transfer, &becomeOnline)
+	var gasCost, transfer NullDecimal
+	var success, becomeOnline sql.NullBool
+	var gasUsed sql.NullInt64
+	var method, errorMsg sql.NullString
+	err := a.db.QueryRow(a.getQuery(transactionQuery), hash).Scan(
+		&res.Epoch,
+		&res.BlockHeight,
+		&res.BlockHash,
+		&res.Hash,
+		&res.Type,
+		&timestamp,
+		&res.From,
+		&res.To,
+		&res.Amount,
+		&res.Tips,
+		&res.MaxFee,
+		&res.Fee,
+		&res.Size,
+		&transfer,
+		&becomeOnline,
+		&success,
+		&gasUsed,
+		&gasCost,
+		&method,
+		&errorMsg,
+	)
 	if err == sql.ErrNoRows {
 		err = NoDataFound
 	}
@@ -213,6 +234,15 @@ func (a *postgresAccessor) Transaction(hash string) (types.TransactionDetail, er
 		res.Transfer = &transfer.Decimal
 	}
 	res.Data = readTxSpecificData(res.Type, transfer, becomeOnline)
+	if success.Valid {
+		res.TxReceipt = &types.TxReceipt{
+			Success:  success.Bool,
+			GasUsed:  uint64(gasUsed.Int64),
+			GasCost:  gasCost.Decimal,
+			Method:   method.String,
+			ErrorMsg: errorMsg.String,
+		}
+	}
 	return res, nil
 }
 

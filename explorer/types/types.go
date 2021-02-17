@@ -191,6 +191,8 @@ type TransactionSummary struct {
 	// Deprecated
 	Transfer *decimal.Decimal `json:"transfer,omitempty" swaggerignore:"true"`
 	Data     interface{}      `json:"data,omitempty"`
+
+	TxReceipt *TxReceipt `json:"txReceipt,omitempty"`
 } // @Name TransactionSummary
 
 // mock type for swagger
@@ -216,6 +218,8 @@ type TransactionDetail struct {
 	// Deprecated
 	Transfer *decimal.Decimal `json:"transfer,omitempty" swaggertype:"string"`
 	Data     interface{}      `json:"data,omitempty"`
+
+	TxReceipt *TxReceipt `json:"txReceipt,omitempty"`
 } // @Name Transaction
 
 type ActivationTxSpecificData struct {
@@ -531,4 +535,14 @@ type ContractTxBalanceUpdate struct {
 	ContractType       string           `json:"contractType"`
 	ContractCallMethod string           `json:"contractCallMethod,omitempty"`
 	BalanceChange      *decimal.Decimal `json:"balanceChange,omitempty" swaggertype:"string"`
+
+	TxReceipt *TxReceipt `json:"txReceipt,omitempty"`
 } // @Name ContractTxBalanceUpdate
+
+type TxReceipt struct {
+	Success  bool            `json:"success"`
+	GasUsed  uint64          `json:"gasUsed"`
+	GasCost  decimal.Decimal `json:"gasCost" swaggertype:"string"`
+	Method   string          `json:"method,omitempty"`
+	ErrorMsg string          `json:"errorMsg,omitempty"`
+} // @Name TxReceipt

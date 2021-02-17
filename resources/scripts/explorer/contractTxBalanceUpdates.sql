@@ -13,7 +13,12 @@ SELECT bu.id,
        dct.name                                                        contract_type,
        bu.call_method,
        bu.balance_old,
-       bu.balance_new
+       bu.balance_new,
+       tr.success                                                      tx_receipt_success,
+       tr.gas_used                                                     tx_receipt_gas_used,
+       tr.gas_cost                                                     tx_receipt_gas_cost,
+       tr.method                                                       tx_receipt_method,
+       tr.error_msg                                                    tx_receipt_error_msg
 FROM contract_tx_balance_updates bu
          JOIN transactions t on t.id = bu.tx_id
          JOIN blocks b on b.height = t.block_height
