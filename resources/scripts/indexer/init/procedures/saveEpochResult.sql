@@ -24,6 +24,8 @@ DECLARE
     l_start timestamp;
     l_end   timestamp;
 BEGIN
+    SET session_replication_role = replica;
+
     select clock_timestamp() into l_start;
     if p_birthdays is not null then
         call save_birthdays(p_birthdays);
@@ -84,6 +86,8 @@ BEGIN
     call update_flips_queue();
     select clock_timestamp() into l_end;
     call log_performance('update_flips_queue', l_start, l_end);
+
+    SET session_replication_role = DEFAULT;
 END
 $BODY$;
 
@@ -111,10 +115,12 @@ CREATE OR REPLACE PROCEDURE save_epoch_identities(p_epoch bigint,
 AS
 $BODY$
 DECLARE
-    identity        tp_epoch_identity;
-    l_address_id    bigint;
-    l_prev_state_id bigint;
-    l_state_id      bigint;
+    identity           tp_epoch_identity;
+    l_address_id       bigint;
+    l_prev_state_id    bigint;
+    l_state_id         bigint;
+    l_min_epoch_height bigint;
+    l_max_epoch_height bigint;
 BEGIN
 
     CREATE TEMP TABLE cur_epoch_identities
@@ -122,7 +128,6 @@ BEGIN
         address          character(42),
         address_state_id bigint
     ) ON COMMIT DROP;
-    CREATE UNIQUE INDEX ON cur_epoch_identities (lower(address));
 
     for i in 1..cardinality(p_identities)
         loop
@@ -164,13 +169,19 @@ BEGIN
 
         end loop;
 
+    CREATE UNIQUE INDEX ON cur_epoch_identities (lower(address));
+    CREATE UNIQUE INDEX ON cur_epoch_identities (address_state_id);
+
+    SELECT min(height), max(height) INTO l_min_epoch_height, l_max_epoch_height FROM blocks WHERE epoch = p_epoch;
+
     insert into epoch_identity_interim_states (
         select s.id, p_height
         from address_states s
-                 join blocks b on b.height = s.block_height and b.epoch = p_epoch
                  left join temporary_identities ti on ti.address_id = s.address_id
                  left join cur_epoch_identities ei on ei.address_state_id = s.id
-        where s.is_actual
+        where s.block_height >= l_min_epoch_height
+          and s.block_height <= l_max_epoch_height
+          and s.is_actual
           and s.state in (0, 5)
           and ti.address_id is null -- exclude temporary identities
           and ei.address_state_id is null -- exclude epoch identities (at least god node if it was killed before validation)
@@ -182,32 +193,14 @@ CREATE OR REPLACE PROCEDURE save_flips_to_solve(p_flips_to_solve tp_flip_to_solv
     LANGUAGE 'plpgsql'
 AS
 $BODY$
-DECLARE
-    l_flip_to_solve    tp_flip_to_solve;
-    l_address_state_id bigint;
-    l_flip_tx_id       bigint;
 BEGIN
-    for i in 1..cardinality(p_flips_to_solve)
-        loop
-            l_flip_to_solve := p_flips_to_solve[i];
-
-            if char_length(l_flip_to_solve.address) > 0 then
-                select address_state_id
-                into l_address_state_id
-                from cur_epoch_identities
-                where lower(address) = lower(l_flip_to_solve.address);
-            end if;
-
-            select tx_id into l_flip_tx_id from flips where lower(cid) = lower(l_flip_to_solve.cid);
-            if l_flip_tx_id is null then
-                continue;
-            end if;
-
-            insert into flips_to_solve (ei_address_state_id, flip_tx_id, is_short)
-            values (l_address_state_id,
-                    l_flip_tx_id,
-                    l_flip_to_solve.is_short);
-        end loop;
+    INSERT INTO flips_to_solve (ei_address_state_id, flip_tx_id, is_short)
+    SELECT cei.address_state_id,
+           f.tx_id,
+           flips_to_solve_arr.is_short
+    FROM unnest(p_flips_to_solve) AS flips_to_solve_arr
+             JOIN flips f ON lower(f.cid) = lower(flips_to_solve_arr.cid)
+             JOIN cur_epoch_identities cei ON lower(cei.address) = lower(flips_to_solve_arr.address);
 END
 $BODY$;
 
@@ -237,29 +230,28 @@ CREATE OR REPLACE PROCEDURE save_flip_stats(block_height bigint,
 AS
 $BODY$
 DECLARE
-    answer       tp_answer;
-    state        tp_flip_state;
-    l_flip_tx_id bigint;
+    state   tp_flip_state;
+    l_start timestamp;
+    l_end   timestamp;
 BEGIN
-    if answers is not null then
-        for i in 1..cardinality(answers)
-            loop
-                answer := answers[i];
-                IF char_length(answer.flip_cid) > 0 THEN
-                    select tx_id into l_flip_tx_id from flips where lower(cid) = lower(answer.flip_cid);
-                end if;
-                if l_flip_tx_id is null then
-                    continue;
-                end if;
-                INSERT INTO ANSWERS (FLIP_TX_ID, ei_address_state_id, IS_SHORT, ANSWER, POINT, GRADE)
-                VALUES (l_flip_tx_id,
-                        (select address_state_id
-                         from cur_epoch_identities
-                         where lower(address) = lower(answer.address)),
-                        answer.is_short, answer.answer, answer.point, answer.grade);
-            end loop;
-    end if;
 
+    select clock_timestamp() into l_start;
+    if answers is not null then
+        INSERT INTO answers (flip_tx_id, ei_address_state_id, is_short, answer, point, grade)
+        SELECT f.tx_id,
+               cei.address_state_id,
+               answers_arr.is_short,
+               answers_arr.answer,
+               answers_arr.point,
+               answers_arr.grade
+        FROM unnest(answers) AS answers_arr
+                 JOIN flips f ON lower(f.cid) = lower(answers_arr.flip_cid)
+                 JOIN cur_epoch_identities cei ON lower(cei.address) = lower(answers_arr.address);
+    end if;
+    select clock_timestamp() into l_end;
+    call log_performance('save_flip_answers', l_start, l_end);
+
+    select clock_timestamp() into l_start;
     if states is not null then
         for i in 1..cardinality(states)
             loop
@@ -272,6 +264,8 @@ BEGIN
                 WHERE lower(CID) = lower(state.flip_cid);
             end loop;
     end if;
+    select clock_timestamp() into l_end;
+    call log_performance('save_flip_states', l_start, l_end);
 END
 $BODY$;
 

@@ -19,7 +19,7 @@ import (
 func TestStatsCollector_PenaltyBalanceUpdate(t *testing.T) {
 	c := &statsCollector{}
 	addr := tests.GetRandAddr()
-	appState := appstate.NewAppState(db.NewMemDB(), eventbus.New())
+	appState, _ := appstate.NewAppState(db.NewMemDB(), eventbus.New())
 
 	// when
 	c.EnableCollecting()
@@ -83,7 +83,7 @@ func TestStatsCollector_ProposerRewardBalanceUpdate(t *testing.T) {
 	c := &statsCollector{}
 	c.EnableCollecting()
 	addr := tests.GetRandAddr()
-	appState := appstate.NewAppState(db.NewMemDB(), eventbus.New())
+	appState, _ := appstate.NewAppState(db.NewMemDB(), eventbus.New())
 
 	// when
 	c.BeginProposerRewardBalanceUpdate(addr, appState)
@@ -132,7 +132,7 @@ func TestStatsCollector_TxBalanceUpdate(t *testing.T) {
 	c.EnableCollecting()
 	key, _ := crypto.GenerateKey()
 	sender := crypto.PubkeyToAddress(key.PublicKey)
-	appState := appstate.NewAppState(db.NewMemDB(), eventbus.New())
+	appState, _ := appstate.NewAppState(db.NewMemDB(), eventbus.New())
 
 	// when
 	recipient := tests.GetRandAddr()
@@ -198,7 +198,7 @@ func TestStatsCollector_EpochRewardBalanceUpdate(t *testing.T) {
 	c := &statsCollector{}
 	c.EnableCollecting()
 	addr := tests.GetRandAddr()
-	appState := appstate.NewAppState(db.NewMemDB(), eventbus.New())
+	appState, _ := appstate.NewAppState(db.NewMemDB(), eventbus.New())
 
 	// when
 	c.BeginEpochRewardBalanceUpdate(addr, appState)
@@ -255,7 +255,7 @@ func TestStatsCollector_DustClearingBalanceUpdate(t *testing.T) {
 	c := &statsCollector{}
 	c.EnableCollecting()
 	addr := tests.GetRandAddr()
-	appState := appstate.NewAppState(db.NewMemDB(), eventbus.New())
+	appState, _ := appstate.NewAppState(db.NewMemDB(), eventbus.New())
 	appState.State.SetBalance(addr, big.NewInt(100))
 
 	// When
@@ -282,7 +282,7 @@ func TestStatsCollector_contractBalanceUpdate(t *testing.T) {
 	c := &statsCollector{}
 	c.EnableCollecting()
 
-	appState := appstate.NewAppState(db.NewMemDB(), eventbus.New())
+	appState, _ := appstate.NewAppState(db.NewMemDB(), eventbus.New())
 
 	key, _ := crypto.GenerateKey()
 	sender := crypto.PubkeyToAddress(key.PublicKey)

@@ -663,7 +663,6 @@ func getFlipStatsArrays(stats []FlipStats) (answersArray, statesArray interface 
 	shortAnswerCountsByAddr, longAnswerCountsByAddr, wrongWordsFlipsCountsByAddr = make(map[string]int), make(map[string]int), make(map[string]int)
 	var convertedAnswers []postgresAnswer
 	var convertedStates []postgresFlipsState
-	var isFirst bool
 	var convertAndAddAnswer = func(isShort bool, flipCid string, answer Answer) {
 		convertedAnswer := postgresAnswer{
 			address: answer.Address,
@@ -671,15 +670,11 @@ func getFlipStatsArrays(stats []FlipStats) (answersArray, statesArray interface 
 			point:   answer.Point,
 			isShort: isShort,
 			grade:   answer.Grade,
-		}
-		if isFirst {
-			convertedAnswer.flipCid = flipCid
-			isFirst = false
+			flipCid: flipCid,
 		}
 		convertedAnswers = append(convertedAnswers, convertedAnswer)
 	}
 	for _, s := range stats {
-		isFirst = true
 		for _, answer := range s.ShortAnswers {
 			convertAndAddAnswer(true, s.Cid, answer)
 			shortAnswerCountsByAddr[answer.Address]++
@@ -771,20 +766,15 @@ func getEpochIdentitiesArrays(
 }) {
 	var convertedIdentities []postgresEpochIdentity
 	var convertedFlipsToSolve []postgresFlipToSolve
-	var isFirst bool
 	var convertAndAddFlipToSolve = func(address string, flipCid string, isShort bool) {
 		converted := postgresFlipToSolve{
 			cid:     flipCid,
 			isShort: isShort,
-		}
-		if isFirst {
-			converted.address = address
-			isFirst = false
+			address: address,
 		}
 		convertedFlipsToSolve = append(convertedFlipsToSolve, converted)
 	}
 	for _, identity := range identities {
-		isFirst = true
 		for _, flipCid := range identity.ShortFlipCidsToSolve {
 			convertAndAddFlipToSolve(identity.Address, flipCid, true)
 		}

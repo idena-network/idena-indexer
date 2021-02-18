@@ -39,7 +39,19 @@ CREATE OR REPLACE PROCEDURE generate_epoch_flips_summary(p_epoch bigint)
 AS
 $$
 DECLARE
+    l_epoch_min_tx_id bigint;
+    l_max_tx_id       bigint;
 BEGIN
+    SELECT max(id) INTO l_max_tx_id FROM transactions;
+
+    SELECT min(id)
+    INTO l_epoch_min_tx_id
+    FROM transactions
+    WHERE block_height = (SELECT min(block_height)
+                          FROM transactions
+                          WHERE block_height >=
+                                (SELECT min(height) FROM blocks WHERE epoch = p_epoch));
+
     insert into flip_summaries (
         select f.tx_id,
                COALESCE(ww.cnt, 0),
@@ -47,25 +59,31 @@ BEGIN
                COALESCE(long.answers, 0),
                false
         from flips f
-                 join transactions t on t.id = f.tx_id
-                 join blocks b on b.height = t.block_height and b.epoch = p_epoch
                  left join (select a.flip_tx_id, count(*) answers
                             from answers a
                             where a.is_short
+                              and a.flip_tx_id >= l_epoch_min_tx_id
+                              and a.flip_tx_id <= l_max_tx_id
                             group by a.flip_tx_id) short
                            on short.flip_tx_id = f.tx_id
                  left join (select a.flip_tx_id, count(*) answers
                             from answers a
                             where not a.is_short
+                              and a.flip_tx_id >= l_epoch_min_tx_id
+                              and a.flip_tx_id <= l_max_tx_id
                             group by a.flip_tx_id) long
                            on long.flip_tx_id = f.tx_id
                  left join (select a.flip_tx_id, count(*) cnt
                             from answers a
                             where not a.is_short
                               and a.grade = 1 -- reported
+                              and a.flip_tx_id >= l_epoch_min_tx_id
+                              and a.flip_tx_id <= l_max_tx_id
                             group by a.flip_tx_id) ww
                            on ww.flip_tx_id = f.tx_id
-        where f.delete_tx_id is null
+        where f.tx_id >= l_epoch_min_tx_id
+          AND f.tx_id <= l_max_tx_id
+          AND f.delete_tx_id is null
     );
 END
 $$;

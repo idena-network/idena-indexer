@@ -3170,42 +3170,57 @@ CREATE OR REPLACE PROCEDURE update_flips_queue()
 AS
 $BODY$
 DECLARE
-    l_epoch                bigint;
-    l_min_height           bigint;
-    l_max_height           bigint;
-    l_last_block_timestamp bigint;
+    l_epoch                      bigint;
+    l_max_height                 bigint;
+    l_last_block_timestamp       bigint;
+    l_epoch_min_tx_id            bigint;
+    l_max_tx_id                  bigint;
+    l_epoch_min_address_state_id bigint;
+    l_epoch_max_address_state_id bigint;
 BEGIN
     select max(epoch) into l_epoch from epochs;
 
-    SELECT min(height), max(height)
-    INTO l_min_height, l_max_height
-    FROM blocks
-    WHERE epoch = l_epoch;
+    SELECT max(id) INTO l_max_tx_id FROM transactions;
 
+    SELECT min(id)
+    INTO l_epoch_min_tx_id
+    FROM transactions
+    WHERE block_height = (SELECT min(block_height)
+                          FROM transactions
+                          WHERE block_height >=
+                                (SELECT min(height) FROM blocks WHERE epoch = l_epoch));
+
+    SELECT max(height) INTO l_max_height FROM blocks WHERE epoch = l_epoch;
     SELECT "timestamp" INTO l_last_block_timestamp FROM blocks WHERE height = l_max_height;
+
+    SELECT min(address_state_id),
+           max(address_state_id)
+    INTO l_epoch_min_address_state_id, l_epoch_max_address_state_id
+    FROM cur_epoch_identities;
 
     insert into flips_queue
         (
             select f.cid, coalesce(fk.key, mpfk.key) "key", 0, l_last_block_timestamp + 30 * 60
             from flips f
 
-                     join transactions t
-                          on f.tx_id = t.id AND t.block_height >= l_min_height and t.block_height <= l_max_height
+                     join transactions t on f.tx_id = t.id
 
                      left join (select distinct on (t.from) fk.key, t.from
                                 from flip_keys fk
-                                         join transactions t
-                                              on t.id = fk.tx_id AND t.block_height >= l_min_height and
-                                                 t.block_height <= l_max_height) fk on t.from = fk.from
+                                         join transactions t on t.id = fk.tx_id
+                                WHERE fk.tx_id >= l_epoch_min_tx_id
+                                  AND fk.tx_id <= l_max_tx_id) fk on t.from = fk.from
 
                      left join (select mpfk.key, s.address_id
                                 from mem_pool_flip_keys mpfk
-                                         join epoch_identities ei
-                                              on ei.address_state_id = mpfk.ei_address_state_id and ei.epoch = l_epoch
-                                         join address_states s on s.id = ei.address_state_id) mpfk
+                                         join address_states s on s.id = mpfk.ei_address_state_id
+                                WHERE mpfk.ei_address_state_id >= l_epoch_min_address_state_id
+                                  AND mpfk.ei_address_state_id <= l_epoch_max_address_state_id) mpfk
                                on t.from = mpfk.address_id
 
-            where (fk.key is not null or mpfk.key is not null)
+            where f.tx_id >= l_epoch_min_tx_id
+              AND f.tx_id <= l_max_tx_id
+              AND (fk.key is not null or mpfk.key is not null)
         );
 END
 $BODY$;
