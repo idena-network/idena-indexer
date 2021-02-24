@@ -6,6 +6,16 @@ import (
 	"time"
 )
 
+type JSONTime time.Time
+
+func (t JSONTime) MarshalJSON() ([]byte, error) {
+	b := make([]byte, 0, len(time.RFC3339Nano)+2)
+	b = append(b, '"')
+	b = time.Time(t).AppendFormat(b, time.RFC3339Nano)
+	b = append(b, '"')
+	return b, nil
+}
+
 type Entity struct {
 	NameOld  string `json:"Name" swaggerignore:"true"`  // todo deprecated
 	ValueOld string `json:"Value" swaggerignore:"true"` // todo deprecated
@@ -472,7 +482,7 @@ type Contract struct {
 } // @Contract
 
 type TimeLockContract struct {
-	Timestamp time.Time `json:"timestamp" example:"2020-01-01T00:00:00Z"`
+	Timestamp JSONTime `json:"timestamp" swaggertype:"string" example:"2020-01-01T00:00:00Z"`
 } // @TimeLockContract
 
 type OracleVotingContract struct {

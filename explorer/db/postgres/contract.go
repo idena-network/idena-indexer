@@ -117,7 +117,7 @@ func (a *postgresAccessor) TimeLockContract(address string) (types.TimeLockContr
 	if err != nil {
 		return types.TimeLockContract{}, err
 	}
-	res.Timestamp = timestampToTimeUTC(timestamp)
+	res.Timestamp = types.JSONTime(timestampToTimeUTC(timestamp))
 	return res, nil
 }
 
@@ -129,7 +129,7 @@ func (a *postgresAccessor) readTimeLockContracts(rows *sql.Rows) ([]types.TimeLo
 		if err := rows.Scan(&timestamp); err != nil {
 			return nil, nil, err
 		}
-		item.Timestamp = timestampToTimeUTC(timestamp)
+		item.Timestamp = types.JSONTime(timestampToTimeUTC(timestamp))
 	}
 	return res, nil, nil
 }

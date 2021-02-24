@@ -5253,6 +5253,10 @@ var doc = `{
                 "to": {
                     "type": "string"
                 },
+                "txReceipt": {
+                    "type": "object",
+                    "$ref": "#/definitions/TxReceipt"
+                },
                 "type": {
                     "type": "string",
                     "enum": [
@@ -6331,6 +6335,10 @@ var doc = `{
                     "description": "Deprecated",
                     "type": "string"
                 },
+                "txReceipt": {
+                    "type": "object",
+                    "$ref": "#/definitions/TxReceipt"
+                },
                 "type": {
                     "type": "string",
                     "enum": [
@@ -6401,6 +6409,10 @@ var doc = `{
                 "to": {
                     "type": "string"
                 },
+                "txReceipt": {
+                    "type": "object",
+                    "$ref": "#/definitions/TxReceipt"
+                },
                 "type": {
                     "type": "string",
                     "enum": [
@@ -6423,6 +6435,26 @@ var doc = `{
                         "CallContract",
                         "TerminateContract"
                     ]
+                }
+            }
+        },
+        "TxReceipt": {
+            "type": "object",
+            "properties": {
+                "errorMsg": {
+                    "type": "string"
+                },
+                "gasCost": {
+                    "type": "string"
+                },
+                "gasUsed": {
+                    "type": "integer"
+                },
+                "method": {
+                    "type": "string"
+                },
+                "success": {
+                    "type": "boolean"
                 }
             }
         },

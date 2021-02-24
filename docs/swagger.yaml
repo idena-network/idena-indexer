@@ -233,6 +233,9 @@ definitions:
         type: string
       to:
         type: string
+      txReceipt:
+        $ref: '#/definitions/TxReceipt'
+        type: object
       type:
         enum:
         - SendTx
@@ -991,6 +994,9 @@ definitions:
       transfer:
         description: Deprecated
         type: string
+      txReceipt:
+        $ref: '#/definitions/TxReceipt'
+        type: object
       type:
         enum:
         - SendTx
@@ -1043,6 +1049,9 @@ definitions:
         type: string
       to:
         type: string
+      txReceipt:
+        $ref: '#/definitions/TxReceipt'
+        type: object
       type:
         enum:
         - SendTx
@@ -1064,6 +1073,19 @@ definitions:
         - CallContract
         - TerminateContract
         type: string
+    type: object
+  TxReceipt:
+    properties:
+      errorMsg:
+        type: string
+      gasCost:
+        type: string
+      gasUsed:
+        type: integer
+      method:
+        type: string
+      success:
+        type: boolean
     type: object
   types.Contract:
     properties:
