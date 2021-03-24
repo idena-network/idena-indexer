@@ -6,6 +6,7 @@ import (
 	"github.com/idena-network/idena-indexer/log"
 	"net/http"
 	"strings"
+	"time"
 )
 
 type RouterInitializer interface {
@@ -41,6 +42,8 @@ func (ri *routerInitializer) InitRouter(router *mux.Router) {
 		HandlerFunc(ri.signatureAddress)
 
 	router.Path(strings.ToLower("/UpgradeVoting")).HandlerFunc(ri.upgradeVoting)
+
+	router.Path(strings.ToLower("/Now")).HandlerFunc(ri.now)
 }
 
 func (ri *routerInitializer) onlineIdentitiesCount(w http.ResponseWriter, r *http.Request) {
@@ -89,4 +92,8 @@ func (ri *routerInitializer) signatureAddress(w http.ResponseWriter, r *http.Req
 func (ri *routerInitializer) upgradeVoting(w http.ResponseWriter, r *http.Request) {
 	resp := ri.api.UpgradeVoting()
 	WriteResponse(w, resp, nil, ri.logger)
+}
+
+func (ri *routerInitializer) now(w http.ResponseWriter, r *http.Request) {
+	WriteResponse(w, time.Now().UTC().Truncate(time.Second), nil, ri.logger)
 }
