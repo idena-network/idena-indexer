@@ -181,21 +181,22 @@ type MiningReward struct {
 }
 
 type Block struct {
-	ValidationFinished   bool
-	Height               uint64
-	Hash                 string
-	Transactions         []Transaction
-	Time                 int64
-	Proposer             string
-	Flags                []string
-	IsEmpty              bool
-	BodySize             int
-	FullSize             int
-	VrfProposerThreshold float64
-	ValidatorsCount      int
-	ProposerVrfScore     float64
-	FeeRate              decimal.Decimal
-	Upgrade              *uint32
+	ValidationFinished      bool
+	Height                  uint64
+	Hash                    string
+	Transactions            []Transaction
+	Time                    int64
+	Proposer                string
+	Flags                   []string
+	IsEmpty                 bool
+	BodySize                int
+	FullSize                int
+	VrfProposerThreshold    float64
+	OriginalValidatorsCount int
+	PoolValidatorsCount     int
+	ProposerVrfScore        float64
+	FeeRate                 decimal.Decimal
+	Upgrade                 *uint32
 }
 
 type Transaction struct {
@@ -255,6 +256,7 @@ type EpochIdentity struct {
 	BirthEpoch           uint64
 	ShortFlipCidsToSolve []string
 	LongFlipCidsToSolve  []string
+	DelegateeAddress     string
 }
 
 type Flip struct {
@@ -430,15 +432,22 @@ type OracleVotingContractCallStart struct {
 }
 
 type OracleVotingContractCallVoteProof struct {
-	TxHash   common.Hash
-	VoteHash []byte
-	Votes    uint64
+	TxHash              common.Hash
+	VoteHash            []byte
+	Votes               uint64
+	NewSecretVotesCount *uint64
 }
 
 type OracleVotingContractCallVote struct {
-	TxHash common.Hash
-	Vote   byte
-	Salt   []byte
+	TxHash           common.Hash
+	Vote             byte
+	Salt             []byte
+	OptionVotes      *uint64
+	OptionAllVotes   *uint64 // TODO make non-pointer after deprecated AddOracleVotingCallVoteOld is removed
+	SecretVotesCount *uint64
+	Delegatee        *common.Address
+	PrevPoolVote     *byte
+	PrevOptionVotes  *uint64
 }
 
 type OracleVotingContractCallFinish struct {
@@ -451,11 +460,13 @@ type OracleVotingContractCallFinish struct {
 }
 
 type OracleVotingContractCallProlongation struct {
-	TxHash     common.Hash
-	Epoch      uint16
-	StartBlock *uint64
-	VrfSeed    []byte
-	Committee  []common.Address
+	TxHash             common.Hash
+	Epoch              uint16
+	StartBlock         *uint64
+	VrfSeed            []byte
+	EpochWithoutGrowth *byte
+	ProlongVoteCount   *uint64
+	Committee          []common.Address
 }
 
 type OracleVotingContractCallAddStake struct {

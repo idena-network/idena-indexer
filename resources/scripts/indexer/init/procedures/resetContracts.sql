@@ -57,12 +57,13 @@ CREATE OR REPLACE PROCEDURE reset_oracle_voting_contract_results_changes(p_chang
 AS
 $$
 DECLARE
-    l_contract_tx_id bigint;
-    l_option         smallint;
-    l_votes_count    bigint;
+    l_contract_tx_id  bigint;
+    l_option          smallint;
+    l_votes_count     bigint;
+    l_all_votes_count bigint;
 BEGIN
-    SELECT contract_tx_id, option, votes_count
-    INTO l_contract_tx_id, l_option, l_votes_count
+    SELECT contract_tx_id, option, votes_count, all_votes_count
+    INTO l_contract_tx_id, l_option, l_votes_count, l_all_votes_count
     FROM oracle_voting_contract_results_changes
     WHERE change_id = p_change_id;
 
@@ -73,7 +74,8 @@ BEGIN
           AND option = l_option;
     else
         UPDATE oracle_voting_contract_results
-        SET votes_count = l_votes_count
+        SET votes_count     = l_votes_count,
+            all_votes_count = l_all_votes_count
         WHERE contract_tx_id = l_contract_tx_id
           AND option = l_option;
     end if;
@@ -93,8 +95,18 @@ BEGIN
         finish_timestamp      = t.finish_timestamp,
         termination_timestamp = t.termination_timestamp,
         total_reward          = t.total_reward,
-        stake                 = t.stake
-    FROM (SELECT contract_tx_id, vote_proofs, votes, finish_timestamp, termination_timestamp, total_reward, stake
+        stake                 = t.stake,
+        secret_votes_count    = t.secret_votes_count,
+        epoch_without_growth  = t.epoch_without_growth
+    FROM (SELECT contract_tx_id,
+                 vote_proofs,
+                 votes,
+                 finish_timestamp,
+                 termination_timestamp,
+                 total_reward,
+                 stake,
+                 secret_votes_count,
+                 epoch_without_growth
           FROM oracle_voting_contract_summaries_changes
           WHERE change_id = p_change_id) t
     WHERE ovcs.contract_tx_id = t.contract_tx_id;

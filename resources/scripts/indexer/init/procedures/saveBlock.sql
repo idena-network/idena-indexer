@@ -3,7 +3,8 @@ CREATE OR REPLACE PROCEDURE save_block(p_height bigint,
                                        p_epoch bigint,
                                        p_timestamp bigint,
                                        p_is_empty boolean,
-                                       p_validators_count integer,
+                                       p_original_validators_count integer,
+                                       p_pool_validators_count integer,
                                        p_body_size integer,
                                        p_vrf_proposer_threshold double precision,
                                        p_full_size integer,
@@ -15,11 +16,10 @@ $BODY$
 DECLARE
     l_empty_count smallint;
 BEGIN
-    INSERT INTO blocks (height, hash, epoch, timestamp, is_empty, validators_count, body_size, vrf_proposer_threshold,
+    INSERT INTO blocks (height, hash, epoch, timestamp, is_empty, validators_count, pool_validators_count, body_size, vrf_proposer_threshold,
                         full_size, fee_rate, upgrade)
-    VALUES (p_height, p_hash, p_epoch, p_timestamp, p_is_empty, p_validators_count, p_body_size,
-            p_vrf_proposer_threshold,
-            p_full_size, p_fee_rate, p_upgrade);
+    VALUES (p_height, p_hash, p_epoch, p_timestamp, p_is_empty, p_original_validators_count, p_pool_validators_count,
+            p_body_size, p_vrf_proposer_threshold, p_full_size, p_fee_rate, p_upgrade);
 
     if p_is_empty then
         l_empty_count = 1;

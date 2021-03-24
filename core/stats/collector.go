@@ -13,6 +13,7 @@ import (
 	"github.com/idena-network/idena-go/crypto"
 	"github.com/idena-network/idena-go/stats/collector"
 	statsTypes "github.com/idena-network/idena-go/stats/types"
+	"github.com/idena-network/idena-go/vm/helpers"
 	"github.com/idena-network/idena-indexer/core/conversion"
 	"github.com/idena-network/idena-indexer/db"
 	"github.com/idena-network/idena-indexer/log"
@@ -44,13 +45,13 @@ type statsCollector struct {
 }
 
 type pending struct {
-	invitationRewardsByAddrAndType  map[common.Address]map[RewardType]*RewardStats
-	reportedFlipRewardsByAddr       map[common.Address]*RewardStats
-	balanceUpdates                  []*db.BalanceUpdate
-	epochRewardBalanceUpdatesByAddr map[common.Address]*db.BalanceUpdate
-	identityStates                  []state.IdentityState
-	tx                              *pendingTx
-	identitiesByAddr                map[common.Address]*identityInfo
+	epochRewardsByTypeAndAddr     map[RewardType]map[common.Address]*RewardStats
+	balanceUpdates                []*db.BalanceUpdate
+	balanceUpdatesByReasonAndAddr map[db.BalanceUpdateReason]map[common.Address]*db.BalanceUpdate
+	identityStates                []state.IdentityState
+	tx                            *pendingTx
+	identitiesByAddr              map[common.Address]*identityInfo
+	finalCommitteeRewardsByAddr   map[common.Address]*MiningReward
 }
 
 type identityInfo struct {
@@ -128,20 +129,6 @@ func (c *statsCollector) initRewardStats() {
 	c.stats.RewardsStats = &RewardsStats{}
 }
 
-func (c *statsCollector) initInvitationRewardsByAddrAndType() {
-	if c.pending.invitationRewardsByAddrAndType != nil {
-		return
-	}
-	c.pending.invitationRewardsByAddrAndType = make(map[common.Address]map[RewardType]*RewardStats)
-}
-
-func (c *statsCollector) initReportedFlipRewardsByAddr() {
-	if c.pending.reportedFlipRewardsByAddr != nil {
-		return
-	}
-	c.pending.reportedFlipRewardsByAddr = make(map[common.Address]*RewardStats)
-}
-
 func (c *statsCollector) SetValidation(validation *statsTypes.ValidationStats) {
 	c.stats.ValidationStats = validation
 }
@@ -188,17 +175,29 @@ func (c *statsCollector) SetTotalZeroWalletFund(amount *big.Int) {
 	c.stats.RewardsStats.ZeroWalletFund = amount
 }
 
-func (c *statsCollector) AddValidationReward(addr common.Address, age uint16, balance *big.Int, stake *big.Int) {
-	c.addReward(addr, balance, stake, Validation)
+func (c *statsCollector) AddValidationReward(balanceDest, stakeDest common.Address, age uint16, balance, stake *big.Int) {
+	if balanceDest == stakeDest {
+		c.addReward(balanceDest, balance, stake, Validation)
+	} else {
+		c.addReward(balanceDest, balance, big.NewInt(0), Validation)
+		c.addReward(stakeDest, big.NewInt(0), stake, Validation)
+	}
+
+	c.initRewardStats()
 	if c.stats.RewardsStats.AgesByAddress == nil {
 		c.stats.RewardsStats.AgesByAddress = make(map[string]uint16)
 	}
-	c.stats.RewardsStats.AgesByAddress[conversion.ConvertAddress(addr)] = age + 1
+	baseRewardRecipient := stakeDest
+	c.stats.RewardsStats.AgesByAddress[conversion.ConvertAddress(baseRewardRecipient)] = age + 1
 }
 
-func (c *statsCollector) AddFlipsReward(addr common.Address, balance *big.Int, stake *big.Int,
-	flipsToReward []*types.FlipToReward) {
-	c.addReward(addr, balance, stake, Flips)
+func (c *statsCollector) AddFlipsReward(balanceDest, stakeDest common.Address, balance, stake *big.Int, flipsToReward []*types.FlipToReward) {
+	if balanceDest == stakeDest {
+		c.addReward(balanceDest, balance, stake, Flips)
+	} else {
+		c.addReward(balanceDest, balance, big.NewInt(0), Flips)
+		c.addReward(stakeDest, big.NewInt(0), stake, Flips)
+	}
 	c.addRewardedFlips(flipsToReward)
 }
 
@@ -213,9 +212,15 @@ func (c *statsCollector) addRewardedFlips(flipsToReward []*types.FlipToReward) {
 	}
 }
 
-func (c *statsCollector) AddReportedFlipsReward(addr common.Address, flipIdx int, balance *big.Int, stake *big.Int) {
-	c.addReward(addr, balance, stake, ReportedFlips)
-	c.addReportedFlipReward(addr, flipIdx, balance, stake)
+func (c *statsCollector) AddReportedFlipsReward(balanceDest, stakeDest common.Address, flipIdx int, balance *big.Int, stake *big.Int) {
+	if balanceDest == stakeDest {
+		c.addReward(balanceDest, balance, stake, ReportedFlips)
+	} else {
+		c.addReward(balanceDest, balance, big.NewInt(0), ReportedFlips)
+		c.addReward(stakeDest, big.NewInt(0), stake, ReportedFlips)
+	}
+	baseRewardRecipient := stakeDest
+	c.addReportedFlipReward(baseRewardRecipient, flipIdx, balance, stake)
 }
 
 func (c *statsCollector) addReportedFlipReward(addr common.Address, flipIdx int, balance *big.Int, stake *big.Int) {
@@ -235,21 +240,27 @@ func (c *statsCollector) addReportedFlipReward(addr common.Address, flipIdx int,
 }
 
 func (c *statsCollector) getFlipCid(flipIdx int) ([]byte, bool) {
-	if flipIdx >= len(c.stats.ValidationStats.FlipCids) {
+	if flipIdx < 0 || flipIdx >= len(c.stats.ValidationStats.FlipCids) {
 		return nil, false
 	}
 	return c.stats.ValidationStats.FlipCids[flipIdx], true
 }
 
-func (c *statsCollector) AddInvitationsReward(addr common.Address, balance *big.Int, stake *big.Int, age uint16,
+func (c *statsCollector) AddInvitationsReward(balanceDest, stakeDest common.Address, balance *big.Int, stake *big.Int, age uint16,
 	txHash *common.Hash, isSavedInviteWinner bool) {
 	rewardType, err := determineInvitationsRewardType(age, isSavedInviteWinner)
 	if err != nil {
 		log.Warn(err.Error())
 		return
 	}
-	c.addReward(addr, balance, stake, rewardType)
-	c.addRewardedInvite(addr, txHash, rewardType)
+	if balanceDest == stakeDest {
+		c.addReward(balanceDest, balance, stake, rewardType)
+	} else {
+		c.addReward(balanceDest, balance, big.NewInt(0), rewardType)
+		c.addReward(stakeDest, big.NewInt(0), stake, rewardType)
+	}
+	baseRewardRecipient := stakeDest
+	c.addRewardedInvite(baseRewardRecipient, txHash, rewardType)
 }
 
 func determineInvitationsRewardType(age uint16, isSavedInviteWinner bool) (RewardType, error) {
@@ -272,6 +283,7 @@ func determineInvitationsRewardType(age uint16, isSavedInviteWinner bool) (Rewar
 
 func (c *statsCollector) addRewardedInvite(addr common.Address, txHash *common.Hash, rewardType RewardType) {
 	if rewardType == SavedInviteWin || rewardType == SavedInvite {
+		c.initRewardStats()
 		if c.stats.RewardsStats.SavedInviteRewardsCountByAddrAndType == nil {
 			c.stats.RewardsStats.SavedInviteRewardsCountByAddrAndType = make(map[common.Address]map[RewardType]uint8)
 		}
@@ -285,6 +297,7 @@ func (c *statsCollector) addRewardedInvite(addr common.Address, txHash *common.H
 		log.Warn(fmt.Sprintf("wrong value txHash=nil for rewardType=%v", rewardType))
 		return
 	}
+	c.initRewardStats()
 	c.stats.RewardsStats.RewardedInvites = append(c.stats.RewardsStats.RewardedInvites, &db.RewardedInvite{
 		TxHash: conversion.ConvertHash(*txHash),
 		Type:   byte(rewardType),
@@ -310,67 +323,95 @@ func (c *statsCollector) addReward(addr common.Address, balance *big.Int, stake 
 		Stake:   stake,
 		Type:    rewardType,
 	}
-	if c.increaseInvitationRewardIfExists(rewardsStats) {
+	if c.increaseEpochRewardIfExists(rewardsStats) {
 		return
 	}
-	if c.increaseReportedFlipRewardIfExists(rewardsStats) {
-		return
-	}
+
 	c.stats.RewardsStats.Rewards = append(c.stats.RewardsStats.Rewards, rewardsStats)
 }
 
-func (c *statsCollector) increaseInvitationRewardIfExists(rewardsStats *RewardStats) bool {
+func (c *statsCollector) increaseEpochRewardIfExists(rewardsStats *RewardStats) bool {
 	if rewardsStats.Type != Invitations && rewardsStats.Type != Invitations2 && rewardsStats.Type != Invitations3 &&
-		rewardsStats.Type != SavedInvite && rewardsStats.Type != SavedInviteWin {
+		rewardsStats.Type != SavedInvite && rewardsStats.Type != SavedInviteWin && rewardsStats.Type != ReportedFlips &&
+		rewardsStats.Type != Flips && rewardsStats.Type != Validation {
 		return false
 	}
-	c.initInvitationRewardsByAddrAndType()
-	addrInvitationRewardsByType, ok := c.pending.invitationRewardsByAddrAndType[rewardsStats.Address]
+	if c.pending.epochRewardsByTypeAndAddr == nil {
+		c.pending.epochRewardsByTypeAndAddr = make(map[RewardType]map[common.Address]*RewardStats)
+	}
+	rewardsByAddr, ok := c.pending.epochRewardsByTypeAndAddr[rewardsStats.Type]
 	if ok {
-		if ir, ok := addrInvitationRewardsByType[rewardsStats.Type]; ok {
-			ir.Balance.Add(ir.Balance, rewardsStats.Balance)
-			ir.Stake.Add(ir.Stake, rewardsStats.Stake)
+		if reward, ok := rewardsByAddr[rewardsStats.Address]; ok {
+			reward.Balance.Add(reward.Balance, rewardsStats.Balance)
+			reward.Stake.Add(reward.Stake, rewardsStats.Stake)
 			return true
 		}
 	} else {
-		addrInvitationRewardsByType = make(map[RewardType]*RewardStats)
+		rewardsByAddr = make(map[common.Address]*RewardStats)
 	}
-	addrInvitationRewardsByType[rewardsStats.Type] = rewardsStats
-	c.pending.invitationRewardsByAddrAndType[rewardsStats.Address] = addrInvitationRewardsByType
+	rewardsByAddr[rewardsStats.Address] = rewardsStats
+	c.pending.epochRewardsByTypeAndAddr[rewardsStats.Type] = rewardsByAddr
 	return false
 }
 
-func (c *statsCollector) increaseReportedFlipRewardIfExists(rewardsStats *RewardStats) bool {
-	if rewardsStats.Type != ReportedFlips {
-		return false
+func (c *statsCollector) AddProposerReward(balanceDest, stakeDest common.Address, balance, stake *big.Int) {
+	if balanceDest == stakeDest {
+		c.addMiningReward(balanceDest, balance, stake, true)
+		return
 	}
-	c.initReportedFlipRewardsByAddr()
-	reportedFlipRewards, ok := c.pending.reportedFlipRewardsByAddr[rewardsStats.Address]
+	c.addMiningReward(balanceDest, balance, new(big.Int), true)
+	c.addMiningReward(stakeDest, new(big.Int), stake, true)
+}
+
+func (c *statsCollector) AddFinalCommitteeReward(balanceDest, stakeDest common.Address, balance *big.Int, stake *big.Int) {
+	if balanceDest == stakeDest {
+		c.addFinalCommitteeReward(balanceDest, balance, stake)
+	} else {
+		c.addFinalCommitteeReward(balanceDest, balance, new(big.Int))
+		c.addFinalCommitteeReward(stakeDest, new(big.Int), stake)
+	}
+	if c.stats.OriginalFinalCommittee == nil {
+		c.stats.OriginalFinalCommittee = make(map[common.Address]struct{})
+	}
+	c.stats.OriginalFinalCommittee[stakeDest] = struct{}{}
+	if c.stats.PoolFinalCommittee == nil {
+		c.stats.PoolFinalCommittee = make(map[common.Address]struct{})
+	}
+	c.stats.PoolFinalCommittee[balanceDest] = struct{}{}
+}
+
+func (c *statsCollector) initFinalCommitteeRewardsByAddr() {
+	if c.pending.finalCommitteeRewardsByAddr != nil {
+		return
+	}
+	c.pending.finalCommitteeRewardsByAddr = make(map[common.Address]*MiningReward)
+}
+
+func (c *statsCollector) addFinalCommitteeReward(addr common.Address, balance *big.Int, stake *big.Int) {
+	c.initFinalCommitteeRewardsByAddr()
+	reward, ok := c.pending.finalCommitteeRewardsByAddr[addr]
 	if ok {
-		reportedFlipRewards.Balance.Add(reportedFlipRewards.Balance, rewardsStats.Balance)
-		reportedFlipRewards.Stake.Add(reportedFlipRewards.Stake, rewardsStats.Stake)
-		return true
+		reward.Balance.Add(reward.Balance, balance)
+		reward.Stake.Add(reward.Stake, stake)
+		return
 	}
-	c.pending.reportedFlipRewardsByAddr[rewardsStats.Address] = rewardsStats
-	return false
+	if reward = c.addMiningReward(addr, balance, stake, false); reward != nil {
+		c.pending.finalCommitteeRewardsByAddr[addr] = reward
+	}
 }
 
-func (c *statsCollector) AddProposerReward(addr common.Address, balance *big.Int, stake *big.Int) {
-	c.addMiningReward(addr, balance, stake, true)
-}
-
-func (c *statsCollector) AddFinalCommitteeReward(addr common.Address, balance *big.Int, stake *big.Int) {
-	c.addMiningReward(addr, balance, stake, false)
-	c.stats.FinalCommittee = append(c.stats.FinalCommittee, addr)
-}
-
-func (c *statsCollector) addMiningReward(addr common.Address, balance *big.Int, stake *big.Int, isProposerReward bool) {
-	c.stats.MiningRewards = append(c.stats.MiningRewards, &db.MiningReward{
-		Address:  conversion.ConvertAddress(addr),
-		Balance:  blockchain.ConvertToFloat(balance),
-		Stake:    blockchain.ConvertToFloat(stake),
+func (c *statsCollector) addMiningReward(addr common.Address, balance *big.Int, stake *big.Int, isProposerReward bool) *MiningReward {
+	if (balance == nil || balance.Sign() == 0) && (stake == nil || stake.Sign() == 0) {
+		return nil
+	}
+	res := &MiningReward{
+		Address:  addr,
+		Balance:  new(big.Int).Set(balance),
+		Stake:    new(big.Int).Set(stake),
 		Proposer: isProposerReward,
-	})
+	}
+	c.stats.MiningRewards = append(c.stats.MiningRewards, res)
+	return res
 }
 
 func (c *statsCollector) AfterSubPenalty(addr common.Address, amount *big.Int, appState *appstate.AppState) {
@@ -527,8 +568,11 @@ func (c *statsCollector) AddKillInviteeTxStakeTransfer(tx *types.Transaction, am
 	})
 }
 
-func (c *statsCollector) BeginVerifiedStakeTransferBalanceUpdate(addr common.Address, appState *appstate.AppState) {
-	c.addPendingBalanceUpdate(addr, appState, db.VerifiedStakeTransferReason, nil)
+func (c *statsCollector) BeginVerifiedStakeTransferBalanceUpdate(addrFrom, addrTo common.Address, appState *appstate.AppState) {
+	c.addPendingBalanceUpdate(addrFrom, appState, db.VerifiedStakeTransferReason, nil)
+	if addrFrom != addrTo {
+		c.addPendingBalanceUpdate(addrTo, appState, db.VerifiedStakeTransferReason, nil)
+	}
 }
 
 func (c *statsCollector) BeginTxBalanceUpdate(tx *types.Transaction, appState *appstate.AppState) {
@@ -540,16 +584,25 @@ func (c *statsCollector) BeginTxBalanceUpdate(tx *types.Transaction, appState *a
 	}
 }
 
-func (c *statsCollector) BeginProposerRewardBalanceUpdate(addr common.Address, appState *appstate.AppState) {
-	c.addPendingBalanceUpdate(addr, appState, db.ProposerRewardReason, nil)
+func (c *statsCollector) BeginProposerRewardBalanceUpdate(balanceDest, stakeDest common.Address, appState *appstate.AppState) {
+	c.addPendingBalanceUpdate(balanceDest, appState, db.ProposerRewardReason, nil)
+	if balanceDest != stakeDest {
+		c.addPendingBalanceUpdate(stakeDest, appState, db.ProposerRewardReason, nil)
+	}
 }
 
-func (c *statsCollector) BeginCommitteeRewardBalanceUpdate(addr common.Address, appState *appstate.AppState) {
-	c.addPendingBalanceUpdate(addr, appState, db.CommitteeRewardReason, nil)
+func (c *statsCollector) BeginCommitteeRewardBalanceUpdate(balanceDest, stakeDest common.Address, appState *appstate.AppState) {
+	c.addPendingBalanceUpdate(balanceDest, appState, db.CommitteeRewardReason, nil)
+	if balanceDest != stakeDest {
+		c.addPendingBalanceUpdate(stakeDest, appState, db.CommitteeRewardReason, nil)
+	}
 }
 
-func (c *statsCollector) BeginEpochRewardBalanceUpdate(addr common.Address, appState *appstate.AppState) {
-	c.addPendingBalanceUpdate(addr, appState, db.EpochRewardReason, nil)
+func (c *statsCollector) BeginEpochRewardBalanceUpdate(balanceDest, stakeDest common.Address, appState *appstate.AppState) {
+	c.addPendingBalanceUpdate(balanceDest, appState, db.EpochRewardReason, nil)
+	if balanceDest != stakeDest {
+		c.addPendingBalanceUpdate(stakeDest, appState, db.EpochRewardReason, nil)
+	}
 }
 
 func (c *statsCollector) BeginFailedValidationBalanceUpdate(addr common.Address, appState *appstate.AppState) {
@@ -577,18 +630,26 @@ func (c *statsCollector) CompleteBalanceUpdate(appState *appstate.AppState) {
 		if balanceUpdate.Reason == db.DustClearingReason {
 			c.addBurntCoins(balanceUpdate.Address, balanceUpdate.BalanceOld, db.DustClearingBurntCoins, nil)
 		}
-		if balanceUpdate.Reason == db.EpochRewardReason {
-			if c.pending.epochRewardBalanceUpdatesByAddr == nil {
-				c.pending.epochRewardBalanceUpdatesByAddr = map[common.Address]*db.BalanceUpdate{
+		if balanceUpdate.Reason == db.EpochRewardReason || balanceUpdate.Reason == db.CommitteeRewardReason || balanceUpdate.Reason == db.VerifiedStakeTransferReason {
+			if c.pending.balanceUpdatesByReasonAndAddr == nil {
+				c.pending.balanceUpdatesByReasonAndAddr = make(map[db.BalanceUpdateReason]map[common.Address]*db.BalanceUpdate)
+			}
+			balanceUpdatesByAddr, ok := c.pending.balanceUpdatesByReasonAndAddr[balanceUpdate.Reason]
+			if !ok {
+				balanceUpdatesByAddr = make(map[common.Address]*db.BalanceUpdate)
+				c.pending.balanceUpdatesByReasonAndAddr[balanceUpdate.Reason] = balanceUpdatesByAddr
+			}
+			if balanceUpdatesByAddr == nil {
+				balanceUpdatesByAddr = map[common.Address]*db.BalanceUpdate{
 					balanceUpdate.Address: balanceUpdate,
 				}
-			} else if bu, ok := c.pending.epochRewardBalanceUpdatesByAddr[balanceUpdate.Address]; ok {
+			} else if bu, ok := balanceUpdatesByAddr[balanceUpdate.Address]; ok {
 				bu.BalanceNew = balanceUpdate.BalanceNew
 				bu.StakeNew = balanceUpdate.StakeNew
 				bu.PenaltyNew = balanceUpdate.PenaltyNew
 				continue
 			} else {
-				c.pending.epochRewardBalanceUpdatesByAddr[balanceUpdate.Address] = balanceUpdate
+				balanceUpdatesByAddr[balanceUpdate.Address] = balanceUpdate
 			}
 		}
 		c.stats.BalanceUpdates = append(c.stats.BalanceUpdates, balanceUpdate)
@@ -849,20 +910,46 @@ func (c *statsCollector) AddOracleVotingCallStart(state byte, startBlock uint64,
 	}
 }
 
-func (c *statsCollector) AddOracleVotingCallVoteProof(voteHash []byte) {
+func (c *statsCollector) AddOracleVotingCallVoteProofOld(voteHash []byte) {
+	c.AddOracleVotingCallVoteProof(voteHash, nil)
+}
+
+func (c *statsCollector) AddOracleVotingCallVoteProof(voteHash []byte, newSecretVotesCount *uint64) {
 	tx := c.pending.tx.tx
 	c.pending.tx.oracleVotingContractCallVoteProof = &db.OracleVotingContractCallVoteProof{
-		TxHash:   tx.Hash(),
-		VoteHash: voteHash,
+		TxHash:              tx.Hash(),
+		VoteHash:            voteHash,
+		NewSecretVotesCount: newSecretVotesCount,
 	}
 }
 
-func (c *statsCollector) AddOracleVotingCallVote(vote byte, salt []byte) {
+func (c *statsCollector) AddOracleVotingCallVoteOld(vote byte, salt []byte) {
 	tx := c.pending.tx.tx
 	c.pending.tx.oracleVotingContractCallVote = &db.OracleVotingContractCallVote{
 		TxHash: tx.Hash(),
 		Vote:   vote,
 		Salt:   salt,
+	}
+}
+
+func (c *statsCollector) AddOracleVotingCallVote(vote byte, salt []byte, newOptionVotes *uint64, newOptionAllVotes uint64,
+	newSecretVotesCount *uint64, delegatee *common.Address, prevPoolVote []byte, newPrevOptionVotes *uint64) {
+	tx := c.pending.tx.tx
+	var prevPoolVoteByte *byte
+	if prevPoolVote != nil {
+		v, _ := helpers.ExtractByte(0, prevPoolVote)
+		prevPoolVoteByte = &v
+	}
+	c.pending.tx.oracleVotingContractCallVote = &db.OracleVotingContractCallVote{
+		TxHash:           tx.Hash(),
+		Vote:             vote,
+		Salt:             salt,
+		OptionVotes:      newOptionVotes,
+		OptionAllVotes:   &newOptionAllVotes,
+		SecretVotesCount: newSecretVotesCount,
+		Delegatee:        delegatee,
+		PrevPoolVote:     prevPoolVoteByte,
+		PrevOptionVotes:  newPrevOptionVotes,
 	}
 }
 
@@ -878,13 +965,20 @@ func (c *statsCollector) AddOracleVotingCallFinish(state byte, result *byte, fun
 	}
 }
 
-func (c *statsCollector) AddOracleVotingCallProlongation(startBlock *uint64, epoch uint16, vrfSeed []byte, committeeSize, networkSize uint64) {
+func (c *statsCollector) AddOracleVotingCallProlongationOld(startBlock *uint64, epoch uint16, vrfSeed []byte, committeeSize, networkSize uint64) {
+	c.AddOracleVotingCallProlongation(startBlock, epoch, vrfSeed, committeeSize, networkSize, nil, nil)
+}
+
+func (c *statsCollector) AddOracleVotingCallProlongation(startBlock *uint64, epoch uint16, vrfSeed []byte, committeeSize, networkSize uint64,
+	newEpochWithoutGrowth *byte, newProlongVoteCount *uint64) {
 	tx := c.pending.tx.tx
 	c.pending.tx.oracleVotingContractCallProlongation = &db.OracleVotingContractCallProlongation{
-		TxHash:     tx.Hash(),
-		Epoch:      epoch,
-		StartBlock: startBlock,
-		VrfSeed:    vrfSeed,
+		TxHash:             tx.Hash(),
+		Epoch:              epoch,
+		StartBlock:         startBlock,
+		EpochWithoutGrowth: newEpochWithoutGrowth,
+		ProlongVoteCount:   newProlongVoteCount,
+		VrfSeed:            vrfSeed,
 	}
 	c.pending.tx.oracleVotingCommitteeStartCtx = &oracleVotingCommitteeStartCtx{
 		committeeSize: committeeSize,

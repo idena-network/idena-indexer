@@ -141,10 +141,11 @@ CREATE INDEX IF NOT EXISTS oracle_voting_contract_call_starts_ov_contract_tx_id_
 
 CREATE TABLE IF NOT EXISTS oracle_voting_contract_call_vote_proofs
 (
-    call_tx_id        bigint NOT NULL,
-    ov_contract_tx_id bigint NOT NULL,
-    address_id        bigint NOT NULL,
-    vote_hash         bytea,
+    call_tx_id         bigint NOT NULL,
+    ov_contract_tx_id  bigint NOT NULL,
+    address_id         bigint NOT NULL,
+    vote_hash          bytea,
+    secret_votes_count bigint,
     CONSTRAINT oracle_voting_contract_call_vote_proofs_pkey PRIMARY KEY (call_tx_id),
     CONSTRAINT oracle_voting_contract_call_vote_proofs_call_tx_fkey FOREIGN KEY (call_tx_id)
         REFERENCES transactions (id) MATCH SIMPLE
@@ -163,10 +164,16 @@ CREATE INDEX IF NOT EXISTS oracle_voting_contract_call_vote_proofs_contract_addr
 
 CREATE TABLE IF NOT EXISTS oracle_voting_contract_call_votes
 (
-    call_tx_id        bigint   NOT NULL,
-    ov_contract_tx_id bigint   NOT NULL,
-    vote              smallint NOT NULL,
-    salt              bytea,
+    call_tx_id           bigint   NOT NULL,
+    ov_contract_tx_id    bigint   NOT NULL,
+    vote                 smallint NOT NULL,
+    salt                 bytea,
+    option_votes         bigint,
+    option_all_votes     bigint,
+    secret_votes_count   bigint,
+    delegatee_address_id bigint,
+    prev_pool_vote       smallint,
+    prev_option_votes    bigint,
     CONSTRAINT oracle_voting_contract_call_votes_pkey PRIMARY KEY (call_tx_id),
     CONSTRAINT oracle_voting_contract_call_votes_call_tx_fkey FOREIGN KEY (call_tx_id)
         REFERENCES transactions (id) MATCH SIMPLE
@@ -200,11 +207,13 @@ CREATE TABLE IF NOT EXISTS oracle_voting_contract_call_finishes
 
 CREATE TABLE IF NOT EXISTS oracle_voting_contract_call_prolongations
 (
-    call_tx_id        bigint NOT NULL,
-    ov_contract_tx_id bigint NOT NULL,
-    epoch             bigint,
-    start_block       bigint,
-    vrf_seed          bytea,
+    call_tx_id           bigint NOT NULL,
+    ov_contract_tx_id    bigint NOT NULL,
+    epoch                bigint,
+    start_block          bigint,
+    vrf_seed             bytea,
+    epoch_without_growth smallint,
+    prolong_vote_count   bigint,
     CONSTRAINT oracle_voting_contract_call_prolongations_pkey PRIMARY KEY (call_tx_id),
     CONSTRAINT oracle_voting_contract_call_prolongations_call_tx_fkey FOREIGN KEY (call_tx_id)
         REFERENCES transactions (id) MATCH SIMPLE
@@ -732,6 +741,8 @@ CREATE TABLE IF NOT EXISTS oracle_voting_contract_summaries
     termination_timestamp bigint,
     total_reward          numeric(30, 18),
     stake                 numeric(30, 18) NOT NULL,
+    secret_votes_count    bigint,
+    epoch_without_growth  smallint,
     CONSTRAINT oracle_voting_contract_summaries_pkey PRIMARY KEY (contract_tx_id),
     CONSTRAINT oracle_voting_contract_summaries_contract_tx_id_fkey FOREIGN KEY (contract_tx_id)
         REFERENCES oracle_voting_contracts (contract_tx_id) MATCH SIMPLE
@@ -749,6 +760,8 @@ CREATE TABLE IF NOT EXISTS oracle_voting_contract_summaries_changes
     termination_timestamp bigint,
     total_reward          numeric(30, 18),
     stake                 numeric(30, 18),
+    secret_votes_count    bigint,
+    epoch_without_growth  smallint,
     CONSTRAINT oracle_voting_contract_summaries_changes_pkey PRIMARY KEY (change_id),
     CONSTRAINT oracle_voting_contract_summaries_changes_change_id_fkey FOREIGN KEY (change_id)
         REFERENCES changes (id) MATCH SIMPLE
@@ -758,9 +771,10 @@ CREATE TABLE IF NOT EXISTS oracle_voting_contract_summaries_changes
 
 CREATE TABLE IF NOT EXISTS oracle_voting_contract_results
 (
-    contract_tx_id bigint   NOT NULL,
-    option         smallint NOT NULL,
-    votes_count    bigint   NOT NULL,
+    contract_tx_id  bigint   NOT NULL,
+    option          smallint NOT NULL,
+    votes_count     bigint   NOT NULL,
+    all_votes_count bigint,
     CONSTRAINT oracle_voting_contract_results_pkey PRIMARY KEY (contract_tx_id, option),
     CONSTRAINT oracle_voting_contract_results_contract_tx_id_fkey FOREIGN KEY (contract_tx_id)
         REFERENCES oracle_voting_contracts (contract_tx_id) MATCH SIMPLE
@@ -769,10 +783,11 @@ CREATE TABLE IF NOT EXISTS oracle_voting_contract_results
 );
 CREATE TABLE IF NOT EXISTS oracle_voting_contract_results_changes
 (
-    change_id      bigint   NOT NULL,
-    contract_tx_id bigint   NOT NULL,
-    option         smallint NOT NULL,
-    votes_count    bigint   NOT NULL,
+    change_id       bigint   NOT NULL,
+    contract_tx_id  bigint   NOT NULL,
+    option          smallint NOT NULL,
+    votes_count     bigint   NOT NULL,
+    all_votes_count bigint,
     CONSTRAINT oracle_voting_contract_results_changes_pkey PRIMARY KEY (change_id),
     CONSTRAINT oracle_voting_contract_results_changes_change_id_fkey FOREIGN KEY (change_id)
         REFERENCES changes (id) MATCH SIMPLE

@@ -444,7 +444,9 @@ CREATE OR REPLACE PROCEDURE update_oracle_voting_contract_summaries(p_block_heig
                                                                     p_finish_timestamp bigint,
                                                                     p_termination_timestamp bigint,
                                                                     p_total_reward_diff numeric,
-                                                                    p_stake_diff numeric)
+                                                                    p_stake_diff numeric,
+                                                                    p_secret_votes_count bigint,
+                                                                    p_epoch_without_growth smallint)
     LANGUAGE 'plpgsql'
 AS
 $$
@@ -458,10 +460,20 @@ DECLARE
     l_prev_total_reward                          numeric;
     l_new_total_reward                           numeric;
     l_prev_stake                                 numeric;
+    l_prev_secret_votes_count                    bigint;
+    l_prev_epoch_without_growth                  smallint;
 BEGIN
 
-    SELECT vote_proofs, votes, finish_timestamp, termination_timestamp, total_reward, stake
-    INTO l_prev_vote_proofs, l_prev_votes, l_prev_finish_timestamp, l_prev_termination_timestamp, l_prev_total_reward, l_prev_stake
+    SELECT vote_proofs,
+           votes,
+           finish_timestamp,
+           termination_timestamp,
+           total_reward,
+           stake,
+           secret_votes_count,
+           epoch_without_growth
+    INTO l_prev_vote_proofs, l_prev_votes, l_prev_finish_timestamp, l_prev_termination_timestamp, l_prev_total_reward,
+        l_prev_stake, l_prev_secret_votes_count, l_prev_epoch_without_growth
     FROM oracle_voting_contract_summaries
     WHERE contract_tx_id = p_contract_tx_id;
 
@@ -477,7 +489,9 @@ BEGIN
         finish_timestamp      = coalesce(p_finish_timestamp, finish_timestamp),
         termination_timestamp = coalesce(p_termination_timestamp, termination_timestamp),
         total_reward          = l_new_total_reward,
-        stake                 = stake + p_stake_diff
+        stake                 = stake + p_stake_diff,
+        secret_votes_count    = coalesce(p_secret_votes_count, secret_votes_count),
+        epoch_without_growth  = coalesce(p_epoch_without_growth, epoch_without_growth)
     WHERE contract_tx_id = p_contract_tx_id;
 
     INSERT INTO changes (block_height, type)
@@ -485,9 +499,11 @@ BEGIN
     RETURNING id INTO l_change_id;
 
     INSERT INTO oracle_voting_contract_summaries_changes (change_id, contract_tx_id, vote_proofs, votes,
-                                                          finish_timestamp, termination_timestamp, total_reward, stake)
+                                                          finish_timestamp, termination_timestamp, total_reward, stake,
+                                                          secret_votes_count, epoch_without_growth)
     VALUES (l_change_id, p_contract_tx_id, l_prev_vote_proofs, l_prev_votes, l_prev_finish_timestamp,
-            l_prev_termination_timestamp, l_prev_total_reward, l_prev_stake);
+            l_prev_termination_timestamp, l_prev_total_reward, l_prev_stake, l_prev_secret_votes_count,
+            l_prev_epoch_without_growth);
 END
 $$;
 
@@ -591,6 +607,48 @@ BEGIN
 
     INSERT INTO oracle_voting_contract_results_changes (change_id, contract_tx_id, option, votes_count)
     VALUES (l_change_id, p_contract_tx_id, p_option, l_votes_count);
+END
+$$;
+
+CREATE OR REPLACE PROCEDURE update_oracle_voting_contract_result(p_block_height bigint,
+                                                                 p_contract_tx_id bigint,
+                                                                 p_option smallint,
+                                                                 p_votes bigint,
+                                                                 p_all_votes bigint)
+    LANGUAGE 'plpgsql'
+AS
+$$
+DECLARE
+    CHANGE_TYPE_ORACLE_VOTING_RESULTS CONSTANT smallint = 1;
+    l_votes_count                              bigint;
+    l_all_votes_cnt                            bigint;
+    l_change_id                                bigint;
+BEGIN
+    SELECT votes_count, all_votes_count
+    INTO l_votes_count, l_all_votes_cnt
+    FROM oracle_voting_contract_results
+    WHERE contract_tx_id = p_contract_tx_id
+      AND option = p_option;
+
+    if l_votes_count is null then
+        l_votes_count = 0;
+        l_all_votes_cnt = 0;
+        INSERT INTO oracle_voting_contract_results (contract_tx_id, "option", votes_count, all_votes_count)
+        VALUES (p_contract_tx_id, p_option, coalesce(p_votes, 0), coalesce(p_all_votes, 0));
+    else
+        UPDATE oracle_voting_contract_results
+        SET votes_count     = coalesce(p_votes, votes_count),
+            all_votes_count = coalesce(p_all_votes, all_votes_count)
+        WHERE contract_tx_id = p_contract_tx_id
+          AND option = p_option;
+    end if;
+
+    INSERT INTO changes (block_height, type)
+    VALUES (p_block_height, CHANGE_TYPE_ORACLE_VOTING_RESULTS)
+    RETURNING id INTO l_change_id;
+
+    INSERT INTO oracle_voting_contract_results_changes (change_id, contract_tx_id, option, votes_count, all_votes_count)
+    VALUES (l_change_id, p_contract_tx_id, p_option, l_votes_count, l_all_votes_cnt);
 END
 $$;
 

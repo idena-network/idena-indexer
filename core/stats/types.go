@@ -29,8 +29,9 @@ type Stats struct {
 	ValidationStats                          *statsTypes.ValidationStats
 	MinScoreForInvite                        *float32
 	RewardsStats                             *RewardsStats
-	MiningRewards                            []*db.MiningReward
-	FinalCommittee                           []common.Address
+	MiningRewards                            []*MiningReward
+	OriginalFinalCommittee                   map[common.Address]struct{}
+	PoolFinalCommittee                       map[common.Address]struct{}
 	BurntPenaltiesByAddr                     map[common.Address]*big.Int
 	BurntCoins                               *big.Int
 	BurntCoinsByAddr                         map[common.Address][]*db.BurntCoins
@@ -101,4 +102,11 @@ type RewardStats struct {
 type IdentityStateChange struct {
 	PrevState state.IdentityState
 	NewState  state.IdentityState
+}
+
+type MiningReward struct {
+	Address  common.Address
+	Balance  *big.Int
+	Stake    *big.Int
+	Proposer bool
 }

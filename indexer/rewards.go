@@ -98,3 +98,19 @@ func convertSavedInviteRewards(savedInviteRewardsCountByAddrAndType map[common.A
 	}
 	return res
 }
+
+func convertMiningRewards(rewards []*stats.MiningReward) []*db.MiningReward {
+	if len(rewards) == 0 {
+		return nil
+	}
+	res := make([]*db.MiningReward, len(rewards))
+	for idx, reward := range rewards {
+		res[idx] = &db.MiningReward{
+			Address:  conversion.ConvertAddress(reward.Address),
+			Balance:  blockchain.ConvertToFloat(reward.Balance),
+			Stake:    blockchain.ConvertToFloat(reward.Stake),
+			Proposer: reward.Proposer,
+		}
+	}
+	return res
+}

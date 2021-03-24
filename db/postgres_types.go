@@ -173,6 +173,13 @@ func negativeIfNilByte(v *byte) int64 {
 	return int64(*v)
 }
 
+func negativeIfNilUint64(v *uint64) int64 {
+	if v == nil {
+		return -1
+	}
+	return int64(*v)
+}
+
 func (v *OracleVotingContract) Value() (driver.Value, error) {
 	return fmt.Sprintf("(%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v)",
 		conversion.ConvertHash(v.TxHash),
@@ -222,17 +229,28 @@ func (v *OracleVotingContractCallStart) Value() (driver.Value, error) {
 }
 
 func (v *OracleVotingContractCallVoteProof) Value() (driver.Value, error) {
-	return fmt.Sprintf("(%v,%v)",
+	return fmt.Sprintf("(%v,%v,%v)",
 		conversion.ConvertHash(v.TxHash),
 		hex.EncodeToString(v.VoteHash),
+		negativeIfNilUint64(v.NewSecretVotesCount),
 	), nil
 }
 
 func (v *OracleVotingContractCallVote) Value() (driver.Value, error) {
-	return fmt.Sprintf("(%v,%v,%v)",
+	var delegatee string
+	if v.Delegatee != nil && !v.Delegatee.IsEmpty() {
+		delegatee = conversion.ConvertAddress(*v.Delegatee)
+	}
+	return fmt.Sprintf("(%v,%v,%v,%v,%v,%v,%v,%v,%v)",
 		conversion.ConvertHash(v.TxHash),
 		v.Vote,
 		hex.EncodeToString(v.Salt),
+		negativeIfNilUint64(v.OptionVotes),
+		negativeIfNilUint64(v.OptionAllVotes),
+		negativeIfNilUint64(v.SecretVotesCount),
+		delegatee,
+		negativeIfNilByte(v.PrevPoolVote),
+		negativeIfNilUint64(v.PrevOptionVotes),
 	), nil
 }
 
@@ -248,11 +266,13 @@ func (v *OracleVotingContractCallFinish) Value() (driver.Value, error) {
 }
 
 type oracleVotingContractCallProlongation struct {
-	TxHash      string   `json:"txHash"`
-	Epoch       uint16   `json:"epoch"`
-	StartHeight *uint64  `json:"startBlockHeight"`
-	VrfSeed     bytes    `json:"vrfSeed"`
-	Committee   []string `json:"committee,omitempty"`
+	TxHash             string   `json:"txHash"`
+	Epoch              uint16   `json:"epoch"`
+	StartHeight        *uint64  `json:"startBlockHeight"`
+	VrfSeed            bytes    `json:"vrfSeed"`
+	EpochWithoutGrowth *byte    `json:"epochWithoutGrowth"`
+	ProlongVoteCount   *uint64  `json:"prolongVoteCount"`
+	Committee          []string `json:"committee,omitempty"`
 }
 
 func (v *OracleVotingContractCallProlongation) Value() (driver.Value, error) {
@@ -261,6 +281,8 @@ func (v *OracleVotingContractCallProlongation) Value() (driver.Value, error) {
 	res.Epoch = v.Epoch
 	res.StartHeight = v.StartBlock
 	res.VrfSeed = v.VrfSeed
+	res.EpochWithoutGrowth = v.EpochWithoutGrowth
+	res.ProlongVoteCount = v.ProlongVoteCount
 	if len(v.Committee) > 0 {
 		res.Committee = make([]string, len(v.Committee))
 		for i, addr := range v.Committee {
@@ -716,10 +738,11 @@ type postgresEpochIdentity struct {
 	shortAnswers     uint32
 	longAnswers      uint32
 	wrongWordsFlips  uint8
+	delegateeAddress string
 }
 
 func (v postgresEpochIdentity) Value() (driver.Value, error) {
-	return fmt.Sprintf("(%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v)",
+	return fmt.Sprintf("(%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v)",
 		v.address,
 		v.state,
 		v.shortPoint,
@@ -738,6 +761,7 @@ func (v postgresEpochIdentity) Value() (driver.Value, error) {
 		v.shortAnswers,
 		v.longAnswers,
 		v.wrongWordsFlips,
+		v.delegateeAddress,
 	), nil
 }
 
@@ -811,6 +835,7 @@ func getEpochIdentitiesArrays(
 			shortAnswers:     shortAnswers,
 			longAnswers:      longAnswers,
 			wrongWordsFlips:  wrongWordsFlips,
+			delegateeAddress: identity.DelegateeAddress,
 		})
 	}
 	return pq.Array(convertedIdentities), pq.Array(convertedFlipsToSolve)

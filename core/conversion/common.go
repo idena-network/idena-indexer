@@ -25,6 +25,9 @@ var (
 		types.DeployContract:       "DeployContract",
 		types.CallContract:         "CallContract",
 		types.TerminateContract:    "TerminateContract",
+		types.DelegateTx:           "DelegateTx",
+		types.UndelegateTx:         "UndelegateTx",
+		types.KillDelegatorTx:      "KillDelegatorTx",
 	}
 )
 

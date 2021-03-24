@@ -130,6 +130,8 @@ DECLARE
     l_contract_address_id      bigint;
     l_contract_tx_id           bigint;
     l_is_first                 boolean;
+    l_secret_votes_count       bigint;
+    l_vote_proofs_diff         bigint;
 BEGIN
     for i in 1..cardinality(p_items)
         loop
@@ -150,14 +152,24 @@ BEGIN
                                             WHERE address_id = l_address_id
                                               AND ov_contract_tx_id = l_contract_tx_id));
 
-            INSERT INTO oracle_voting_contract_call_vote_proofs (call_tx_id, ov_contract_tx_id, address_id, vote_hash)
-            VALUES (l_tx_id, l_contract_tx_id, l_address_id, decode(l_item.vote_hash, 'hex'));
+            l_secret_votes_count = null_if_negative_bigint(l_item.secret_votes_count);
+
+            INSERT INTO oracle_voting_contract_call_vote_proofs (call_tx_id, ov_contract_tx_id, address_id, vote_hash,
+                                                                 secret_votes_count)
+            VALUES (l_tx_id, l_contract_tx_id, l_address_id, decode(l_item.vote_hash, 'hex'), l_secret_votes_count);
 
             if l_is_first then
                 call update_sorted_oracle_voting_contract_committees(p_block_height, l_contract_tx_id, l_address_id,
                                                                      null, SOVCC_STATE_VOTED, null, true);
-                call update_oracle_voting_contract_summaries(p_block_height, l_contract_tx_id, 1, 0, null, null, null,
-                                                             0);
+                l_vote_proofs_diff = 1;
+            else
+                l_vote_proofs_diff = 0;
+            end if;
+
+            if l_vote_proofs_diff > 0 or l_secret_votes_count IS NOT NULL then
+                call update_oracle_voting_contract_summaries(p_block_height, l_contract_tx_id, l_vote_proofs_diff, 0,
+                                                             null, null, null,
+                                                             0, l_secret_votes_count, null);
             end if;
         end loop;
 END
@@ -169,10 +181,15 @@ CREATE OR REPLACE PROCEDURE save_oracle_voting_contract_call_votes(p_block_heigh
 AS
 $$
 DECLARE
-    l_item                tp_oracle_voting_contract_call_vote;
-    l_tx_id               bigint;
-    l_contract_address_id bigint;
-    l_contract_tx_id      bigint;
+    l_item                 tp_oracle_voting_contract_call_vote;
+    l_tx_id                bigint;
+    l_contract_address_id  bigint;
+    l_contract_tx_id       bigint;
+    l_delegatee_address_id bigint;
+    l_option_all_votes     bigint;
+    l_option_votes         bigint;
+    l_prev_option_votes    bigint;
+    l_prev_pool_vote       smallint;
 BEGIN
     for i in 1..cardinality(p_items)
         loop
@@ -188,12 +205,42 @@ BEGIN
             FROM contracts
             WHERE contract_address_id = l_contract_address_id;
 
-            INSERT INTO oracle_voting_contract_call_votes (call_tx_id, ov_contract_tx_id, vote, salt)
-            VALUES (l_tx_id, l_contract_tx_id, l_item.vote, decode(l_item.salt, 'hex'));
+            if l_item.delegatee is not null then
+                l_delegatee_address_id = get_address_id_or_insert(p_block_height, l_item.delegatee);
+            else
+                l_delegatee_address_id = null;
+            end if;
 
-            call update_oracle_voting_contract_summaries(p_block_height, l_contract_tx_id, 0, 1, null, null, null, 0);
+            l_option_all_votes = null_if_negative_bigint(l_item.option_all_votes);
+            l_option_votes = null_if_negative_bigint(l_item.option_votes);
+            l_prev_option_votes = null_if_negative_bigint(l_item.prev_option_votes);
+            l_prev_pool_vote = null_if_negative_bigint(l_item.prev_pool_vote)::smallint;
+            INSERT INTO oracle_voting_contract_call_votes (call_tx_id, ov_contract_tx_id, vote, salt, option_votes,
+                                                           option_all_votes, secret_votes_count, delegatee_address_id,
+                                                           prev_pool_vote, prev_option_votes)
+            VALUES (l_tx_id, l_contract_tx_id, l_item.vote, decode(l_item.salt, 'hex'),
+                    l_option_votes,
+                    l_option_all_votes,
+                    null_if_negative_bigint(l_item.secret_votes_count),
+                    l_delegatee_address_id,
+                    l_prev_pool_vote,
+                    l_prev_option_votes);
 
-            call add_vote_to_oracle_voting_contract_result(p_block_height, l_contract_tx_id, l_item.vote);
+            call update_oracle_voting_contract_summaries(p_block_height, l_contract_tx_id, 0, 1, null, null, null, 0,
+                                                         l_item.secret_votes_count, null);
+
+            if l_option_all_votes is null then
+                -- TODO needed to support old contracts version
+                call add_vote_to_oracle_voting_contract_result(p_block_height, l_contract_tx_id, l_item.vote);
+            else
+                call update_oracle_voting_contract_result(p_block_height, l_contract_tx_id, l_item.vote,
+                                                          l_option_votes, l_option_all_votes);
+
+                if l_prev_option_votes is not null then
+                    call update_oracle_voting_contract_result(p_block_height, l_contract_tx_id, l_prev_pool_vote,
+                                                              l_prev_option_votes, null);
+                end if;
+            end if;
         end loop;
 END
 $$;
@@ -232,7 +279,7 @@ BEGIN
 
             SELECt "timestamp" INTO l_block_timestamp FROM blocks WHERE height = p_block_height;
             call update_oracle_voting_contract_summaries(p_block_height, l_contract_tx_id, 0, 0, l_block_timestamp,
-                                                         null, l_item.fund - l_item.owner_reward, 0);
+                                                         null, l_item.fund - l_item.owner_reward, 0, null, null);
             call update_sorted_oracle_voting_contracts(p_block_height, l_contract_tx_id, null, SOVC_STATE_COMPLETED,
                                                        l_tx_id, null, null);
             call update_sorted_oracle_voting_contract_committees(p_block_height, l_contract_tx_id, null, null,
@@ -247,12 +294,14 @@ CREATE OR REPLACE PROCEDURE save_oracle_voting_contract_call_prolongations(p_blo
 AS
 $$
 DECLARE
-    l_item                jsonb;
-    l_tx_id               bigint;
-    l_contract_address_id bigint;
-    l_contract_tx_id      bigint;
-    l_start_block_height  bigint;
-    l_epoch               bigint;
+    l_item                 jsonb;
+    l_tx_id                bigint;
+    l_contract_address_id  bigint;
+    l_contract_tx_id       bigint;
+    l_start_block_height   bigint;
+    l_epoch                bigint;
+    l_epoch_without_growth smallint;
+    l_prolong_vote_count   bigint;
 BEGIN
     for i in 1..cardinality(p_items)
         loop
@@ -270,15 +319,23 @@ BEGIN
 
             l_start_block_height = (l_item ->> 'startBlockHeight')::bigint;
             l_epoch = (l_item ->> 'epoch')::bigint;
+            l_epoch_without_growth = (l_item ->> 'epochWithoutGrowth')::smallint;
+            l_prolong_vote_count = (l_item ->> 'prolongVoteCount')::bigint;
 
-            INSERT INTO oracle_voting_contract_call_prolongations (call_tx_id, ov_contract_tx_id, epoch, start_block, vrf_seed)
+            INSERT INTO oracle_voting_contract_call_prolongations (call_tx_id, ov_contract_tx_id, epoch, start_block,
+                                                                   vrf_seed, epoch_without_growth, prolong_vote_count)
             VALUES (l_tx_id, l_contract_tx_id, l_epoch, l_start_block_height,
-                    decode(l_item ->> 'vrfSeed', 'hex'));
+                    decode(l_item ->> 'vrfSeed', 'hex'), l_epoch_without_growth, l_prolong_vote_count);
 
             call apply_prolongation_on_sorted_contracts(p_block_height, l_tx_id, l_contract_tx_id, l_start_block_height,
                                                         l_epoch);
 
             call save_oracle_voting_committee(p_block_height, l_contract_tx_id, l_item -> 'committee');
+
+            if l_epoch_without_growth IS NOT NULL then
+                call update_oracle_voting_contract_summaries(p_block_height, l_contract_tx_id, 0, 0, null, null, null,
+                                                             0, null, l_epoch_without_growth);
+            end if;
         end loop;
 END
 $$;
@@ -313,7 +370,7 @@ BEGIN
             VALUES (l_tx_id, l_contract_tx_id);
 
             call update_oracle_voting_contract_summaries(p_block_height, l_contract_tx_id, 0, 0, null, null, null,
-                                                         l_amount);
+                                                         l_amount, null, null);
         end loop;
 END
 $$;
@@ -356,7 +413,7 @@ BEGIN
 
             SELECT "timestamp" INTO l_block_timestamp FROM blocks WHERE height = p_block_height;
             call update_oracle_voting_contract_summaries(p_block_height, l_contract_tx_id, 0, 0, null,
-                                                         l_block_timestamp, l_fund - l_owner_reward, 0);
+                                                         l_block_timestamp, l_fund - l_owner_reward, 0, null, null);
             call update_sorted_oracle_voting_contract_state(p_block_height, l_contract_tx_id, SOVC_STATE_TERMINATED,
                                                             l_tx_id);
         end loop;

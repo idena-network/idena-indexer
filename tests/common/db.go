@@ -500,6 +500,8 @@ type OracleVotingSummary struct {
 	TerminationTimestamp *int64
 	TotalReward          *decimal.Decimal
 	Stake                decimal.Decimal
+	SecretVotesCount     *int
+	EpochWithoutGrowth   *int
 }
 
 func GetOracleVotingSummaries(db *sql.DB) ([]OracleVotingSummary, error) {
@@ -511,7 +513,7 @@ func GetOracleVotingSummaries(db *sql.DB) ([]OracleVotingSummary, error) {
 	var res []OracleVotingSummary
 	for rows.Next() {
 		item := OracleVotingSummary{}
-		var finishTimestamp, terminationTimestamp sql.NullInt64
+		var finishTimestamp, terminationTimestamp, secretVotesCount, epochWithoutGrowth sql.NullInt64
 		var totalReward postgres.NullDecimal
 		err := rows.Scan(
 			&item.ContractTxId,
@@ -521,6 +523,8 @@ func GetOracleVotingSummaries(db *sql.DB) ([]OracleVotingSummary, error) {
 			&terminationTimestamp,
 			&totalReward,
 			&item.Stake,
+			&secretVotesCount,
+			&epochWithoutGrowth,
 		)
 		if err != nil {
 			return nil, err
@@ -534,6 +538,14 @@ func GetOracleVotingSummaries(db *sql.DB) ([]OracleVotingSummary, error) {
 		if totalReward.Valid {
 			item.TotalReward = &totalReward.Decimal
 		}
+		if secretVotesCount.Valid {
+			v := int(secretVotesCount.Int64)
+			item.SecretVotesCount = &v
+		}
+		if epochWithoutGrowth.Valid {
+			v := int(epochWithoutGrowth.Int64)
+			item.EpochWithoutGrowth = &v
+		}
 		res = append(res, item)
 	}
 	return res, nil
@@ -543,6 +555,7 @@ type OracleVotingResult struct {
 	ContractTxId int
 	Option       int
 	Count        int
+	AllCount     *int
 }
 
 func GetOracleVotingResults(db *sql.DB) ([]OracleVotingResult, error) {
@@ -554,13 +567,19 @@ func GetOracleVotingResults(db *sql.DB) ([]OracleVotingResult, error) {
 	var res []OracleVotingResult
 	for rows.Next() {
 		item := OracleVotingResult{}
+		var allCount sql.NullInt32
 		err := rows.Scan(
 			&item.ContractTxId,
 			&item.Option,
 			&item.Count,
+			&allCount,
 		)
 		if err != nil {
 			return nil, err
+		}
+		if allCount.Valid {
+			v := int(allCount.Int32)
+			item.AllCount = &v
 		}
 		res = append(res, item)
 	}
@@ -681,29 +700,69 @@ func GetOracleVotingContractCallVoteProofs(db *sql.DB) ([]OracleVotingContractCa
 }
 
 type OracleVotingContractCallVote struct {
-	TxId         int
-	ContractTxId int
-	Vote         byte
-	Salt         []byte
+	TxId             int
+	ContractTxId     int
+	Vote             byte
+	Salt             []byte
+	OptionVotes      *int
+	OptionAllVotes   *int
+	SecretVotesCount *int
+	Delegatee        *string
+	PrevPoolVote     *int
+	PrevOptionVotes  *int
 }
 
 func GetOracleVotingContractCallVotes(db *sql.DB) ([]OracleVotingContractCallVote, error) {
-	rows, err := db.Query(`select * from oracle_voting_contract_call_votes order by call_tx_id`)
+	rows, err := db.Query(`select t.call_tx_id, t.ov_contract_tx_id, t.vote, t.salt, t.option_votes, t.option_all_votes, 
+       t.secret_votes_count, a.address, t.prev_pool_vote, t.prev_option_votes from oracle_voting_contract_call_votes  t
+           left join addresses a on a.id=t.delegatee_address_id
+order by call_tx_id`)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	var res []OracleVotingContractCallVote
 	for rows.Next() {
+		var optionVotes, optionAllVotes, secretVotesCount, prevPoolVote, prevOptionVotes sql.NullInt32
+		var delegatee sql.NullString
 		item := OracleVotingContractCallVote{}
 		err := rows.Scan(
 			&item.TxId,
 			&item.ContractTxId,
 			&item.Vote,
 			&item.Salt,
+			&optionVotes,
+			&optionAllVotes,
+			&secretVotesCount,
+			&delegatee,
+			&prevPoolVote,
+			&prevOptionVotes,
 		)
 		if err != nil {
 			return nil, err
+		}
+		if optionVotes.Valid {
+			v := int(optionVotes.Int32)
+			item.OptionVotes = &v
+		}
+		if optionAllVotes.Valid {
+			v := int(optionAllVotes.Int32)
+			item.OptionAllVotes = &v
+		}
+		if secretVotesCount.Valid {
+			v := int(secretVotesCount.Int32)
+			item.SecretVotesCount = &v
+		}
+		if delegatee.Valid {
+			item.Delegatee = &delegatee.String
+		}
+		if prevPoolVote.Valid {
+			v := int(prevPoolVote.Int32)
+			item.PrevPoolVote = &v
+		}
+		if prevOptionVotes.Valid {
+			v := int(prevOptionVotes.Int32)
+			item.PrevOptionVotes = &v
 		}
 		res = append(res, item)
 	}
@@ -752,11 +811,13 @@ func GetOracleVotingContractCallFinishes(db *sql.DB) ([]OracleVotingContractCall
 }
 
 type OracleVotingContractCallProlongation struct {
-	TxId         int
-	ContractTxId int
-	Epoch        int
-	StartBlock   *int
-	VrfSeed      []byte
+	TxId               int
+	ContractTxId       int
+	Epoch              int
+	StartBlock         *int
+	VrfSeed            []byte
+	EpochWithoutGrowth *int
+	ProlongVoteCount   *int
 }
 
 func GetOracleVotingContractCallProlongations(db *sql.DB) ([]OracleVotingContractCallProlongation, error) {
@@ -768,13 +829,15 @@ func GetOracleVotingContractCallProlongations(db *sql.DB) ([]OracleVotingContrac
 	var res []OracleVotingContractCallProlongation
 	for rows.Next() {
 		item := OracleVotingContractCallProlongation{}
-		var startBlock sql.NullInt32
+		var startBlock, epochWithoutGrowth, prolongVoteCount sql.NullInt32
 		err := rows.Scan(
 			&item.TxId,
 			&item.ContractTxId,
 			&item.Epoch,
 			&startBlock,
 			&item.VrfSeed,
+			&epochWithoutGrowth,
+			&prolongVoteCount,
 		)
 		if err != nil {
 			return nil, err
@@ -782,6 +845,14 @@ func GetOracleVotingContractCallProlongations(db *sql.DB) ([]OracleVotingContrac
 		if startBlock.Valid {
 			v := int(startBlock.Int32)
 			item.StartBlock = &v
+		}
+		if epochWithoutGrowth.Valid {
+			v := int(epochWithoutGrowth.Int32)
+			item.EpochWithoutGrowth = &v
+		}
+		if prolongVoteCount.Valid {
+			v := int(prolongVoteCount.Int32)
+			item.ProlongVoteCount = &v
 		}
 		res = append(res, item)
 	}

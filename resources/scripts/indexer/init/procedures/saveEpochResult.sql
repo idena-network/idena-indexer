@@ -115,12 +115,13 @@ CREATE OR REPLACE PROCEDURE save_epoch_identities(p_epoch bigint,
 AS
 $BODY$
 DECLARE
-    identity           tp_epoch_identity;
-    l_address_id       bigint;
-    l_prev_state_id    bigint;
-    l_state_id         bigint;
-    l_min_epoch_height bigint;
-    l_max_epoch_height bigint;
+    l_identity             tp_epoch_identity;
+    l_address_id           bigint;
+    l_prev_state_id        bigint;
+    l_state_id             bigint;
+    l_min_epoch_height     bigint;
+    l_max_epoch_height     bigint;
+    l_delegatee_address_id bigint;
 BEGIN
 
     CREATE TEMP TABLE cur_epoch_identities
@@ -131,9 +132,9 @@ BEGIN
 
     for i in 1..cardinality(p_identities)
         loop
-            identity := p_identities[i];
+            l_identity := p_identities[i];
 
-            select id into l_address_id from addresses where lower(address) = lower(identity.address);
+            select id into l_address_id from addresses where lower(address) = lower(l_identity.address);
 
             update address_states
             set is_actual = false
@@ -142,25 +143,36 @@ BEGIN
             returning id into l_prev_state_id;
 
             insert into address_states (address_id, state, is_actual, block_height, prev_id)
-            values (l_address_id, identity.state, true, p_height, l_prev_state_id)
+            values (l_address_id, l_identity.state, true, p_height, l_prev_state_id)
             returning id into l_state_id;
 
-            insert into epoch_identities (epoch, address_state_id, short_point, short_flips, total_short_point,
-                                          total_short_flips, long_point, long_flips, approved, missed,
-                                          required_flips, available_flips, made_flips, next_epoch_invites, birth_epoch,
-                                          total_validation_reward, short_answers, long_answers, wrong_words_flips)
-            values (p_epoch, l_state_id, identity.short_point, identity.short_flips, identity.total_short_point,
-                    identity.total_short_flips, identity.long_point, identity.long_flips, identity.approved,
-                    identity.missed, identity.required_flips, identity.available_flips, identity.made_flips,
-                    identity.next_epoch_invites, identity.birth_epoch, 0, identity.short_answers, identity.long_answers,
-                    identity.wrong_words_flips);
-
-            if identity.wrong_words_flips > 0 then
-                CALL update_address_summary(p_address_id => l_address_id,
-                                            p_wrong_words_flips_diff => identity.wrong_words_flips);
+            if char_length(l_identity.delegatee_address) > 0 then
+                SELECT id
+                INTO l_delegatee_address_id
+                FROM addresses
+                WHERE lower(address) = lower(l_identity.delegatee_address);
+            else
+                l_delegatee_address_id = null;
             end if;
 
-            insert into cur_epoch_identities values (identity.address, l_state_id);
+            insert into epoch_identities (epoch, address_state_id, short_point, short_flips, total_short_point,
+                                          total_short_flips, long_point, long_flips, approved, missed, required_flips,
+                                          available_flips, made_flips, next_epoch_invites, birth_epoch,
+                                          total_validation_reward, short_answers, long_answers, wrong_words_flips,
+                                          delegatee_address_id)
+            values (p_epoch, l_state_id, l_identity.short_point, l_identity.short_flips, l_identity.total_short_point,
+                    l_identity.total_short_flips, l_identity.long_point, l_identity.long_flips, l_identity.approved,
+                    l_identity.missed, l_identity.required_flips, l_identity.available_flips, l_identity.made_flips,
+                    l_identity.next_epoch_invites, l_identity.birth_epoch, 0, l_identity.short_answers,
+                    l_identity.long_answers,
+                    l_identity.wrong_words_flips, l_delegatee_address_id);
+
+            if l_identity.wrong_words_flips > 0 then
+                CALL update_address_summary(p_address_id => l_address_id,
+                                            p_wrong_words_flips_diff => l_identity.wrong_words_flips);
+            end if;
+
+            insert into cur_epoch_identities values (l_identity.address, l_state_id);
 
             if l_prev_state_id is not null then
                 insert into epoch_identity_interim_states (address_state_id, block_height)

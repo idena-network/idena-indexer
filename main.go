@@ -209,7 +209,7 @@ func initIndexer(config *config.Config, txMemPool transaction.MemPool) (*indexer
 	)
 
 	contractsMemPoolLogger := log.New("component", "contractsMemPool")
-	contractsMemPool := mempool.NewContracts(listener.NodeCtx().AppState, listener.NodeCtx().Blockchain, contractsMemPoolLogger)
+	contractsMemPool := mempool.NewContracts(listener.NodeCtx().AppState, listener.NodeCtx().Blockchain, listener.Config(), contractsMemPoolLogger)
 	contractsMemPoolBus.Subscribe(events.NewTxEventID, func(e eventbus.Event) {
 		newTxEvent := e.(*events.NewTxEvent)
 		if err := contractsMemPool.ProcessTx(newTxEvent.Tx); err != nil {

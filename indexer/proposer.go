@@ -1,16 +1,15 @@
 package indexer
 
 import (
-	"github.com/idena-network/idena-go/blockchain"
 	"github.com/idena-network/idena-go/blockchain/types"
 	"github.com/idena-network/idena-go/common"
+	"github.com/idena-network/idena-go/core/validators"
 	"github.com/idena-network/idena-go/crypto"
 	"github.com/idena-network/idena-go/crypto/vrf"
 	"github.com/idena-network/idena-go/pengings"
 	"github.com/idena-network/idena-indexer/core/conversion"
 	"github.com/idena-network/idena-indexer/log"
 	"github.com/idena-network/idena-indexer/migration/runtime"
-	"math/big"
 	"sync"
 )
 
@@ -26,6 +25,7 @@ func getProposerVrfScore(
 	proposerByRound pengings.ProposerByRound,
 	pendingProofs *sync.Map,
 	secondaryStorage *runtime.SecondaryStorage,
+	validatorsCache *validators.ValidatorsCache,
 ) (float64, bool) {
 	if block.Header.ProposedHeader == nil {
 		return 0, false
@@ -41,13 +41,14 @@ func getProposerVrfScore(
 	}
 	var hash common.Hash
 	var ok bool
-	if hash, ok = getProposerScoreByRound(block.Height(), block.Header.Coinbase(), proposerByRound); !ok {
-		if hash, ok = searchProofsByHashVrfScore(block.Height(), block.Header.Coinbase(), pendingProofs); !ok {
+	coinbase := block.Header.Coinbase()
+	if hash, ok = getProposerScoreByRound(block.Height(), coinbase, proposerByRound); !ok {
+		if hash, ok = searchProofsByHashVrfScore(block.Height(), coinbase, pendingProofs); !ok {
 			return 0, false
 		}
 	}
-	v := new(big.Float).SetInt(new(big.Int).SetBytes(hash[:]))
-	q := new(big.Float).Quo(v, blockchain.MaxHash)
+	modifier := int64(validatorsCache.PoolSize(coinbase))
+	q := common.HashToFloat(hash, modifier)
 	f, _ := q.Float64()
 	return f, true
 }

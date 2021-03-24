@@ -49,7 +49,7 @@ func Test_ContractTxBalanceUpdates(t *testing.T) {
 		return big.NewInt(500)
 	}, big.NewInt(600), appState)
 
-	statsCollector.AddOracleVotingCallVote(7, []byte{0x4, 0x5})
+	statsCollector.AddOracleVotingCallVote(7, []byte{0x4, 0x5}, nil, 1, nil, nil, nil, nil)
 	statsCollector.AddTxReceipt(&types.TxReceipt{Success: true, TxHash: tx.Hash(), ContractAddress: contractAddress}, appState)
 	statsCollector.CompleteApplyingTx(appState)
 	block.Body.Transactions = append(block.Body.Transactions, tx)
@@ -88,7 +88,7 @@ func Test_ContractTxBalanceUpdates(t *testing.T) {
 		return big.NewInt(900)
 	}, big.NewInt(1000), appState)
 
-	statsCollector.AddOracleVotingCallVote(7, []byte{0x4, 0x5})
+	statsCollector.AddOracleVotingCallVote(7, []byte{0x4, 0x5}, nil, 1, nil, nil, nil, nil)
 
 	// Rollback tx balance updates
 	statsCollector.BeginTxBalanceUpdate(tx, appState)

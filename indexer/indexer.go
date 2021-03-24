@@ -11,6 +11,7 @@ import (
 	"github.com/idena-network/idena-go/core/appstate"
 	"github.com/idena-network/idena-go/core/ceremony"
 	"github.com/idena-network/idena-go/core/state"
+	"github.com/idena-network/idena-go/core/validators"
 	"github.com/idena-network/idena-go/crypto"
 	"github.com/idena-network/idena-go/crypto/vrf"
 	statsTypes "github.com/idena-network/idena-go/stats/types"
@@ -335,7 +336,7 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) (*result
 	indexer.pm.Complete("InitCtx")
 	indexer.pm.Start("ConvertBlock")
 	isFirstEpochBlock := incomingBlock.Height() == prevState.State.EpochBlock()+1
-	block, err := indexer.convertBlock(incomingBlock, ctx, collector)
+	block, err := indexer.convertBlock(incomingBlock, ctx, collector, prevState.ValidatorsCache)
 	if err != nil {
 		return nil, err
 	}
@@ -378,7 +379,7 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) (*result
 		Coins:                                    coins,
 		Penalty:                                  detectChargedPenalty(incomingBlock, ctx.newStateReadOnly),
 		BurntPenalties:                           convertBurntPenalties(collectorStats.BurntPenaltiesByAddr),
-		MiningRewards:                            collectorStats.MiningRewards,
+		MiningRewards:                            convertMiningRewards(collectorStats.MiningRewards),
 		BurntCoinsPerAddr:                        collectorStats.BurntCoinsByAddr,
 		BalanceUpdates:                           collectorStats.BalanceUpdates,
 		CommitteeRewardShare:                     collectorStats.CommitteeRewardShare,
@@ -518,6 +519,7 @@ func (indexer *Indexer) convertBlock(
 	incomingBlock *types.Block,
 	ctx *conversionContext,
 	collector *conversionCollector,
+	prevValidatorsCache *validators.ValidatorsCache,
 ) (db.Block, error) {
 	var txs []db.Transaction
 	if len(incomingBlock.Body.Transactions) > 0 {
@@ -530,6 +532,7 @@ func (indexer *Indexer) convertBlock(
 		indexer.listener.NodeCtx().ProposerByRound,
 		indexer.listener.NodeCtx().PendingProofs,
 		indexer.secondaryStorage,
+		prevValidatorsCache,
 	)
 	encodedBlock, _ := incomingBlock.ToBytes()
 	var upgrade *uint32
@@ -537,20 +540,21 @@ func (indexer *Indexer) convertBlock(
 		upgrade = &incomingBlock.Header.ProposedHeader.Upgrade
 	}
 	return db.Block{
-		Height:               incomingBlock.Height(),
-		Hash:                 conversion.ConvertHash(incomingBlock.Hash()),
-		Time:                 incomingBlock.Header.Time(),
-		Transactions:         txs,
-		Proposer:             getProposer(incomingBlock),
-		Flags:                convertFlags(incomingBlock.Header.Flags()),
-		IsEmpty:              incomingBlock.IsEmpty(),
-		BodySize:             len(incomingBlock.Body.ToBytes()),
-		FullSize:             len(encodedBlock),
-		ValidatorsCount:      len(indexer.statsHolder().GetStats().FinalCommittee),
-		VrfProposerThreshold: ctx.prevStateReadOnly.State.VrfProposerThreshold(),
-		ProposerVrfScore:     proposerVrfScore,
-		FeeRate:              blockchain.ConvertToFloat(ctx.prevStateReadOnly.State.FeePerGas()),
-		Upgrade:              upgrade,
+		Height:                  incomingBlock.Height(),
+		Hash:                    conversion.ConvertHash(incomingBlock.Hash()),
+		Time:                    incomingBlock.Header.Time(),
+		Transactions:            txs,
+		Proposer:                getProposer(incomingBlock),
+		Flags:                   convertFlags(incomingBlock.Header.Flags()),
+		IsEmpty:                 incomingBlock.IsEmpty(),
+		BodySize:                len(incomingBlock.Body.ToBytes()),
+		FullSize:                len(encodedBlock),
+		OriginalValidatorsCount: len(indexer.statsHolder().GetStats().OriginalFinalCommittee),
+		PoolValidatorsCount:     len(indexer.statsHolder().GetStats().PoolFinalCommittee),
+		VrfProposerThreshold:    ctx.prevStateReadOnly.State.VrfProposerThreshold(),
+		ProposerVrfScore:        proposerVrfScore,
+		FeeRate:                 blockchain.ConvertToFloat(ctx.prevStateReadOnly.State.FeePerGas()),
+		Upgrade:                 upgrade,
 	}, nil
 }
 
@@ -791,6 +795,9 @@ func (indexer *Indexer) detectEpochResult(block *types.Block, ctx *conversionCon
 		convertedIdentity.AvailableFlips = identityPrevState.GetMaximumAvailableFlips()
 		convertedIdentity.MadeFlips = ctx.prevStateReadOnly.State.GetMadeFlips(addr)
 		convertedIdentity.NextEpochInvites = ctx.newStateReadOnly.State.GetInvites(addr)
+		if identity.Delegatee != nil {
+			convertedIdentity.DelegateeAddress = conversion.ConvertAddress(*identity.Delegatee)
+		}
 		if identityStats, present := validationStats.IdentitiesPerAddr[addr]; present {
 			convertedIdentity.ShortPoint = identityStats.ShortPoint
 			convertedIdentity.ShortFlips = identityStats.ShortFlips

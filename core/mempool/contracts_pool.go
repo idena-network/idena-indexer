@@ -6,6 +6,7 @@ import (
 	"github.com/idena-network/idena-go/blockchain/types"
 	"github.com/idena-network/idena-go/common"
 	"github.com/idena-network/idena-go/common/eventbus"
+	"github.com/idena-network/idena-go/config"
 	"github.com/idena-network/idena-go/core/appstate"
 	"github.com/idena-network/idena-go/stats/collector"
 	"github.com/idena-network/idena-go/vm"
@@ -25,10 +26,11 @@ type Contracts interface {
 	RemoveTx(tx *types.Transaction)
 }
 
-func NewContracts(appState *appstate.AppState, chain *blockchain.Blockchain, logger log.Logger) Contracts {
+func NewContracts(appState *appstate.AppState, chain *blockchain.Blockchain, nodeConfig *config.Config, logger log.Logger) Contracts {
 	c := &contractsImpl{
 		appState:            appState,
 		chain:               chain,
+		nodeConfig:          nodeConfig,
 		logger:              logger,
 		statsCollector:      stats.NewStatsCollector(eventbus.New()),
 		txChan:              make(chan *types.Transaction, 10000),
@@ -42,9 +44,10 @@ func NewContracts(appState *appstate.AppState, chain *blockchain.Blockchain, log
 }
 
 type contractsImpl struct {
-	appState *appstate.AppState
-	chain    *blockchain.Blockchain
-	logger   log.Logger
+	appState   *appstate.AppState
+	chain      *blockchain.Blockchain
+	nodeConfig *config.Config
+	logger     log.Logger
 
 	statsCollector collector.StatsCollector
 	appStateCache  *appStateCache
@@ -245,7 +248,7 @@ func (c *contractsImpl) processContractTx(tx *types.Transaction) error {
 	defer statsCollector.CompleteCollecting()
 	statsCollector.BeginApplyingTx(tx, appState)
 	defer statsCollector.CompleteApplyingTx(appState)
-	cvm := vm.NewVmImpl(appState, c.chain.Head, nil, statsCollector)
+	cvm := vm.NewVmImpl(appState, c.chain.Head, nil, statsCollector, c.nodeConfig)
 	txReceipt := cvm.Run(tx, -1)
 	c.applyDeployTx(tx.Hash(), txReceipt, appState)
 	c.applyContractTx(tx, txReceipt)

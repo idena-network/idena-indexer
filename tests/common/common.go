@@ -6,6 +6,7 @@ import (
 	"github.com/idena-network/idena-go/common"
 	"github.com/idena-network/idena-go/common/eventbus"
 	"github.com/idena-network/idena-go/core/appstate"
+	"github.com/idena-network/idena-go/core/validators"
 	"github.com/idena-network/idena-go/node"
 	"github.com/idena-network/idena-indexer/core/mempool"
 	"github.com/idena-network/idena-indexer/core/restore"
@@ -45,6 +46,9 @@ func InitIndexer(
 	memPoolIndexer := mempool.NewIndexer(dbAccessor, log.New("component", "mpi"))
 	memDb := db2.NewMemDB()
 	appState, _ := appstate.NewAppState(memDb, eventbus.New())
+	appState.ValidatorsCache = validators.NewValidatorsCache(appState.IdentityState, common.Address{})
+	appState.ValidatorsCache.Load()
+
 	nodeEventBus := eventbus.New()
 	collectorEventBus := eventbus.New()
 

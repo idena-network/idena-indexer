@@ -111,6 +111,15 @@ ON CONFLICT DO NOTHING;
 INSERT INTO dic_tx_types
 VALUES (17, 'TerminateContract')
 ON CONFLICT DO NOTHING;
+INSERT INTO dic_tx_types
+VALUES (18, 'DelegateTx')
+ON CONFLICT DO NOTHING;
+INSERT INTO dic_tx_types
+VALUES (19, 'UndelegateTx')
+ON CONFLICT DO NOTHING;
+INSERT INTO dic_tx_types
+VALUES (20, 'KillDelegatorTx')
+ON CONFLICT DO NOTHING;
 
 CREATE TABLE IF NOT EXISTS dic_flip_statuses
 (
@@ -280,6 +289,7 @@ CREATE TABLE IF NOT EXISTS blocks
     full_size              integer                                    NOT NULL,
     fee_rate               numeric(30, 18)                            NOT NULL,
     upgrade                integer,
+    pool_validators_count  integer,
     CONSTRAINT blocks_pkey PRIMARY KEY (height),
     CONSTRAINT blocks_epoch_fkey FOREIGN KEY (epoch)
         REFERENCES epochs (epoch) MATCH SIMPLE
@@ -633,6 +643,7 @@ CREATE TABLE IF NOT EXISTS epoch_identities
     short_answers           integer         NOT NULL,
     long_answers            integer         NOT NULL,
     wrong_words_flips       smallint        NOT NULL,
+    delegatee_address_id    bigint,
     CONSTRAINT epoch_identities_pkey PRIMARY KEY (address_state_id),
     CONSTRAINT epoch_identities_address_state_id_fkey FOREIGN KEY (address_state_id)
         REFERENCES address_states (id) MATCH SIMPLE
@@ -1810,7 +1821,8 @@ $$
             birth_epoch        bigint,
             short_answers      integer,
             long_answers       integer,
-            wrong_words_flips  smallint
+            wrong_words_flips  smallint,
+            delegatee_address  character(42)
         );
 
         ALTER TYPE tp_epoch_identity
@@ -2133,8 +2145,9 @@ $$
     BEGIN
         CREATE TYPE tp_oracle_voting_contract_call_vote_proof AS
         (
-            tx_hash   text,
-            vote_hash text
+            tx_hash            text,
+            vote_hash          text,
+            secret_votes_count bigint
         );
     EXCEPTION
         WHEN duplicate_object THEN null;
@@ -2146,9 +2159,15 @@ $$
     BEGIN
         CREATE TYPE tp_oracle_voting_contract_call_vote AS
         (
-            tx_hash text,
-            vote    smallint,
-            salt    text
+            tx_hash            text,
+            vote               smallint,
+            salt               text,
+            option_votes       bigint,
+            option_all_votes   bigint,
+            secret_votes_count bigint,
+            delegatee          text,
+            prev_pool_vote     smallint,
+            prev_option_votes  bigint
         );
     EXCEPTION
         WHEN duplicate_object THEN null;

@@ -62,9 +62,9 @@ func Test_reportedFlipRewards(t *testing.T) {
 		FlipCids: [][]byte{cid1.Bytes(), cid2.Bytes()},
 	})
 	statsCollector.SetValidationResults(&types2.ValidationResults{})
-	statsCollector.AddReportedFlipsReward(reporter1, 0, new(big.Int).SetInt64(int64(1000_000)), new(big.Int).SetInt64(int64(100_000)))
-	statsCollector.AddReportedFlipsReward(reporter1, 1, new(big.Int).SetInt64(int64(300_000)), new(big.Int).SetInt64(int64(200_000)))
-	statsCollector.AddReportedFlipsReward(reporter2, 1, new(big.Int).SetInt64(int64(200_000)), new(big.Int).SetInt64(int64(300_000)))
+	statsCollector.AddReportedFlipsReward(reporter1, reporter1, 0, new(big.Int).SetInt64(int64(1000_000)), new(big.Int).SetInt64(int64(100_000)))
+	statsCollector.AddReportedFlipsReward(reporter1, reporter1, 1, new(big.Int).SetInt64(int64(300_000)), new(big.Int).SetInt64(int64(200_000)))
+	statsCollector.AddReportedFlipsReward(reporter2, reporter2, 1, new(big.Int).SetInt64(int64(200_000)), new(big.Int).SetInt64(int64(300_000)))
 	height++
 	block = buildBlock(height)
 	block.Header.ProposedHeader.Flags = types2.ValidationFinished
