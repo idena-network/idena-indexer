@@ -35,6 +35,7 @@ const (
 	epochIdentitiesRewardsMethod            = "EpochIdentitiesRewards"
 	epochIdentitiesRewardsOldMethod         = "EpochIdentitiesRewardsOld"
 	epochFundPaymentsMethod                 = "EpochFundPayments"
+	epochRewardBoundsMethod                 = "EpochRewardBounds"
 	flipEpochAdjacentFlipsMethod            = "FlipEpochAdjacentFlips"
 	flipAddressAdjacentFlipsMethod          = "FlipAddressAdjacentFlips"
 	flipEpochIdentityAdjacentFlipsMethod    = "FlipEpochIdentityAdjacentFlips"
@@ -104,6 +105,7 @@ func createMaxItemLifeTimesByMethod() map[string]time.Duration {
 		epochIdentitiesRewardsMethod:            permanentDataLifeTime,
 		epochIdentitiesRewardsOldMethod:         permanentDataLifeTime,
 		epochFundPaymentsMethod:                 permanentDataLifeTime,
+		epochRewardBoundsMethod:                 permanentDataLifeTime,
 	}
 }
 
@@ -551,6 +553,13 @@ func (a *cachedAccessor) EpochFundPayments(epoch uint64) ([]types.FundPayment, e
 		return a.accessor.EpochFundPayments(epoch)
 	}, epoch)
 	return res.([]types.FundPayment), err
+}
+
+func (a *cachedAccessor) EpochRewardBounds(epoch uint64) ([]types.RewardBounds, error) {
+	res, err := a.getOrLoad(epochRewardBoundsMethod, func() (interface{}, error) {
+		return a.accessor.EpochRewardBounds(epoch)
+	}, epoch)
+	return res.([]types.RewardBounds), err
 }
 
 func (a *cachedAccessor) EpochIdentity(epoch uint64, address string) (types.EpochIdentity, error) {

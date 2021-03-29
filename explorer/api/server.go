@@ -173,6 +173,7 @@ func (s *httpServer) InitRouter(router *mux.Router) {
 	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/IdentityRewards")).
 		HandlerFunc(s.epochIdentitiesRewards)
 	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/FundPayments")).HandlerFunc(s.epochFundPayments)
+	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/RewardBounds")).HandlerFunc(s.epochRewardBounds)
 
 	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Identity/{address}")).HandlerFunc(s.epochIdentity)
 	router.Path(strings.ToLower("/Epoch/{epoch:[0-9]+}/Identity/{address}/FlipsToSolve/Short")).
@@ -1176,6 +1177,29 @@ func (s *httpServer) epochFundPayments(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	resp, err := s.service.EpochFundPayments(epoch)
+	server.WriteResponse(w, resp, err, s.log)
+}
+
+// @Tags Epochs
+// @Id EpochRewardBounds
+// @Param epoch path integer true "epoch"
+// @Success 200 {object} server.Response{result=[]types.RewardBounds}
+// @Failure 400 "Bad request"
+// @Failure 429 "Request number limit exceeded"
+// @Failure 500 "Internal server error"
+// @Failure 503 "Service unavailable"
+// @Router /Epoch/{epoch}/RewardBounds [get]
+func (s *httpServer) epochRewardBounds(w http.ResponseWriter, r *http.Request) {
+	id := s.pm.Start("epochRewardBounds", r.RequestURI)
+	defer s.pm.Complete(id)
+
+	vars := mux.Vars(r)
+	epoch, err := server.ReadUint(vars, "epoch")
+	if err != nil {
+		server.WriteErrorResponse(w, err, s.log)
+		return
+	}
+	resp, err := s.service.EpochRewardBounds(epoch)
 	server.WriteResponse(w, resp, err, s.log)
 }
 

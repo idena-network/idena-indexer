@@ -403,6 +403,7 @@ type EpochResult struct {
 	FailedValidation  bool
 	EpochRewards      *EpochRewards
 	MinScoreForInvite float32
+	RewardsBounds     []*RewardBounds
 }
 
 type OracleVotingContract struct {
@@ -619,4 +620,14 @@ type ContractTxBalanceUpdate struct {
 	Address    common.Address
 	BalanceOld *big.Int
 	BalanceNew *big.Int
+}
+
+type RewardBounds struct {
+	Type     byte
+	Min, Max *RewardBound
+}
+
+type RewardBound struct {
+	Amount  *big.Int
+	Address common.Address
 }

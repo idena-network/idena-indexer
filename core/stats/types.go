@@ -90,6 +90,7 @@ type RewardsStats struct {
 	RewardedInvites                      []*db.RewardedInvite
 	SavedInviteRewardsCountByAddrAndType map[common.Address]map[RewardType]uint8
 	ReportedFlipRewards                  []*db.ReportedFlipReward
+	TotalRewardsByAddr                   map[common.Address]*big.Int
 }
 
 type RewardStats struct {

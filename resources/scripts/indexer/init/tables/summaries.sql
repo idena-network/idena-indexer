@@ -55,3 +55,14 @@ CREATE TABLE IF NOT EXISTS address_summaries
         ON UPDATE NO ACTION
         ON DELETE NO ACTION
 );
+
+CREATE TABLE IF NOT EXISTS epoch_reward_bounds
+(
+    epoch          bigint          NOT NULL,
+    bound_type     smallint        NOT NULL,
+    min_amount     numeric(30, 18) NOT NULL,
+    min_address_id bigint          NOT NULL,
+    max_amount     numeric(30, 18) NOT NULL,
+    max_address_id bigint          NOT NULL,
+    CONSTRAINT epoch_reward_bounds_pkey PRIMARY KEY (epoch, bound_type)
+);

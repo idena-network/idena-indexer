@@ -11,6 +11,7 @@ import (
 	testCommon "github.com/idena-network/idena-indexer/tests/common"
 	"github.com/ipfs/go-cid"
 	"github.com/stretchr/testify/require"
+	"math/big"
 	"testing"
 )
 
@@ -271,6 +272,11 @@ func Test_complex(t *testing.T) {
 			},
 		},
 	})
+
+	statsCollector.AddValidationReward(addr, addr, 100, new(big.Int).SetUint64(200), new(big.Int).SetUint64(100))
+	statsCollector.AddFlipsReward(addr, addr, new(big.Int).SetUint64(400), new(big.Int).SetUint64(300), nil)
+	statsCollector.AddInvitationsReward(addr, addr, new(big.Int).SetUint64(600), new(big.Int).SetUint64(500), 2, nil, false)
+
 	height++
 	block = buildBlock(height)
 	block.Header.ProposedHeader.Flags = types2.ValidationFinished
@@ -289,6 +295,15 @@ func Test_complex(t *testing.T) {
 	require.Equal(t, 4, addressSummaries[0].Flips)
 	require.Equal(t, 2, addressSummaries[0].WrongWordsFlips)
 
+	rewardBounds, err := testCommon.GetRewardBounds(dbConnector)
+	require.Nil(t, err)
+	require.Len(t, rewardBounds, 1)
+	require.Equal(t, uint64(1), rewardBounds[0].Epoch)
+	require.Equal(t, addr.Hex(), rewardBounds[0].MinAddress)
+	require.Equal(t, "0.0000000000000021", rewardBounds[0].MinAmount.String())
+	require.Equal(t, addr.Hex(), rewardBounds[0].MaxAddress)
+	require.Equal(t, "0.0000000000000021", rewardBounds[0].MaxAmount.String())
+
 	// When
 	err = dbAccessor.ResetTo(heightToReset)
 	// Then
@@ -298,4 +313,8 @@ func Test_complex(t *testing.T) {
 	require.Equal(t, 1, addressSummaries[0].AddressId)
 	require.Equal(t, 3, addressSummaries[0].Flips)
 	require.Equal(t, 1, addressSummaries[0].WrongWordsFlips)
+
+	rewardBounds, err = testCommon.GetRewardBounds(dbConnector)
+	require.Nil(t, err)
+	require.Empty(t, rewardBounds)
 }

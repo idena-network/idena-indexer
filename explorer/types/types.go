@@ -383,6 +383,17 @@ type FundPayment struct {
 	Type    string          `json:"type" enums:"FoundationPayouts,ZeroWalletFund"`
 } // @Name FundPayment
 
+type RewardBounds struct {
+	Type byte        `json:"type" enums:"1,2,3,4,5,6"`
+	Min  RewardBound `json:"min"`
+	Max  RewardBound `json:"max"`
+} // @Name RewardBounds
+
+type RewardBound struct {
+	Amount  decimal.Decimal `json:"amount" swaggertype:"string"`
+	Address string          `json:"address"`
+} // @Name RewardBound
+
 type AddressState struct {
 	State        string    `json:"state"`
 	Epoch        uint64    `json:"epoch"`

@@ -3093,6 +3093,58 @@ var doc = `{
                 }
             }
         },
+        "/Epoch/{epoch}/RewardBounds": {
+            "get": {
+                "tags": [
+                    "Epochs"
+                ],
+                "operationId": "EpochRewardBounds",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "epoch",
+                        "name": "epoch",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "result": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/RewardBounds"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request"
+                    },
+                    "429": {
+                        "description": "Request number limit exceeded"
+                    },
+                    "500": {
+                        "description": "Internal server error"
+                    },
+                    "503": {
+                        "description": "Service unavailable"
+                    }
+                }
+            }
+        },
         "/Epoch/{epoch}/RewardsSummary": {
             "get": {
                 "tags": [
@@ -6060,6 +6112,41 @@ var doc = `{
                 }
             }
         },
+        "RewardBound": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "amount": {
+                    "type": "string"
+                }
+            }
+        },
+        "RewardBounds": {
+            "type": "object",
+            "properties": {
+                "max": {
+                    "type": "object",
+                    "$ref": "#/definitions/RewardBound"
+                },
+                "min": {
+                    "type": "object",
+                    "$ref": "#/definitions/RewardBound"
+                },
+                "type": {
+                    "type": "integer",
+                    "enum": [
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6
+                    ]
+                }
+            }
+        },
         "RewardedFlip": {
             "type": "object",
             "properties": {
@@ -6359,7 +6446,10 @@ var doc = `{
                         "DeleteFlipTx",
                         "DeployContract",
                         "CallContract",
-                        "TerminateContract"
+                        "TerminateContract",
+                        "DelegateTx",
+                        "UndelegateTx",
+                        "KillDelegatorTx"
                     ]
                 }
             }
@@ -6433,7 +6523,10 @@ var doc = `{
                         "DeleteFlipTx",
                         "DeployContract",
                         "CallContract",
-                        "TerminateContract"
+                        "TerminateContract",
+                        "DelegateTx",
+                        "UndelegateTx",
+                        "KillDelegatorTx"
                     ]
                 }
             }

@@ -1751,3 +1751,39 @@ func GetContractTxBalanceUpdates(db *sql.DB) ([]ContractTxBalanceUpdate, error) 
 	}
 	return res, nil
 }
+
+type RewardBounds struct {
+	Epoch      uint64
+	Type       byte
+	MinAmount  decimal.Decimal
+	MinAddress string
+	MaxAmount  decimal.Decimal
+	MaxAddress string
+}
+
+func GetRewardBounds(db *sql.DB) ([]RewardBounds, error) {
+	rows, err := db.Query(`select t.epoch, t.bound_type, t.min_amount, mina.address, t.max_amount, maxa.address from epoch_reward_bounds t
+  join addresses mina on mina.id=t.min_address_id
+  join addresses maxa on maxa.id=t.max_address_id`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var res []RewardBounds
+	for rows.Next() {
+		item := RewardBounds{}
+		err := rows.Scan(
+			&item.Epoch,
+			&item.Type,
+			&item.MinAmount,
+			&item.MinAddress,
+			&item.MaxAmount,
+			&item.MaxAddress,
+		)
+		if err != nil {
+			return nil, err
+		}
+		res = append(res, item)
+	}
+	return res, nil
+}

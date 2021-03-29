@@ -784,6 +784,16 @@ func (indexer *Indexer) detectEpochResult(block *types.Block, ctx *conversionCon
 
 	authorAddressesByFlipCid := make(map[string]string)
 
+	rewardsBounds := &rewardsBounds{}
+
+	var totalRewardsByAddr map[common.Address]*big.Int
+	if indexer.statsHolder().GetStats().RewardsStats != nil {
+		totalRewardsByAddr = indexer.statsHolder().GetStats().RewardsStats.TotalRewardsByAddr
+	}
+
+	godAddress := ctx.prevStateReadOnly.State.GodAddress()
+	newEpoch := ctx.newStateReadOnly.State.Epoch()
+
 	ctx.prevStateReadOnly.State.IterateOverIdentities(func(addr common.Address, identity state.Identity) {
 		convertedAddress := conversion.ConvertAddress(addr)
 		convertedIdentity := db.EpochIdentity{}
@@ -855,6 +865,15 @@ func (indexer *Indexer) detectEpochResult(block *types.Block, ctx *conversionCon
 			}
 			authorAddressesByFlipCid[convertCid(flipCid)] = convertedAddress
 		}
+
+		if totalRewardsByAddr != nil && addr != godAddress {
+			reward, ok := totalRewardsByAddr[addr]
+			if ok {
+				age := uint64(newEpoch) - convertedIdentity.BirthEpoch
+				rewardsBounds.addIfBound(addr, age, reward)
+			}
+		}
+
 	})
 
 	var flipsStats []db.FlipStats
@@ -891,6 +910,7 @@ func (indexer *Indexer) detectEpochResult(block *types.Block, ctx *conversionCon
 		FailedValidation:  validationStats.Failed,
 		EpochRewards:      indexer.detectEpochRewards(block),
 		MinScoreForInvite: minScoreForInvite,
+		RewardsBounds:     rewardsBounds.getResult(),
 	}
 }
 

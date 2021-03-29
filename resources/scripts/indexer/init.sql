@@ -3336,6 +3336,10 @@ BEGIN
                                      b.epoch + 1 > l_epoch);
 
     delete
+    from epoch_reward_bounds
+    where epoch + 1 > l_epoch;
+
+    delete
     from epoch_identity_interim_states
     where block_height > p_block_height;
 

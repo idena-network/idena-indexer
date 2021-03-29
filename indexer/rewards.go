@@ -7,6 +7,7 @@ import (
 	"github.com/idena-network/idena-indexer/core/conversion"
 	"github.com/idena-network/idena-indexer/core/stats"
 	"github.com/idena-network/idena-indexer/db"
+	"math/big"
 )
 
 func (indexer *Indexer) detectEpochRewards(block *types.Block) *db.EpochRewards {
@@ -20,7 +21,9 @@ func (indexer *Indexer) detectEpochRewards(block *types.Block) *db.EpochRewards 
 	}
 
 	epochRewards := &db.EpochRewards{}
-	epochRewards.BadAuthors = convertBadAuthors(rewardsStats.ValidationResults.BadAuthors)
+	if rewardsStats.ValidationResults != nil {
+		epochRewards.BadAuthors = convertBadAuthors(rewardsStats.ValidationResults.BadAuthors)
+	}
 	epochRewards.ValidationRewards, epochRewards.FundRewards = convertRewards(rewardsStats.Rewards)
 	epochRewards.Total = convertTotalRewards(rewardsStats)
 	epochRewards.AgesByAddress = rewardsStats.AgesByAddress
@@ -113,4 +116,64 @@ func convertMiningRewards(rewards []*stats.MiningReward) []*db.MiningReward {
 		}
 	}
 	return res
+}
+
+type rewardsBounds struct {
+	rewardBoundsByType map[byte]*db.RewardBounds
+}
+
+func (rb *rewardsBounds) getResult() []*db.RewardBounds {
+	if len(rb.rewardBoundsByType) == 0 {
+		return nil
+	}
+	res := make([]*db.RewardBounds, 0, len(rb.rewardBoundsByType))
+	for _, rewardBounds := range rb.rewardBoundsByType {
+		res = append(res, rewardBounds)
+	}
+	return res
+}
+
+func (rb *rewardsBounds) addIfBound(address common.Address, age uint64, amount *big.Int) {
+	if amount == nil || amount.Sign() == 0 {
+		return
+	}
+	if rb.rewardBoundsByType == nil {
+		rb.rewardBoundsByType = make(map[byte]*db.RewardBounds)
+	}
+	boundType := determineRewardBoundType(age)
+	typeRewardBounds, ok := rb.rewardBoundsByType[boundType]
+	if !ok {
+		rb.rewardBoundsByType[boundType] = &db.RewardBounds{
+			Type: boundType,
+			Min: &db.RewardBound{
+				Address: address,
+				Amount:  new(big.Int).Set(amount),
+			},
+			Max: &db.RewardBound{
+				Address: address,
+				Amount:  new(big.Int).Set(amount),
+			},
+		}
+		return
+	}
+
+	if typeRewardBounds.Min.Amount.Cmp(amount) == 1 {
+		typeRewardBounds.Min = &db.RewardBound{
+			Address: address,
+			Amount:  new(big.Int).Set(amount),
+		}
+	}
+	if typeRewardBounds.Max.Amount.Cmp(amount) == -1 {
+		typeRewardBounds.Max = &db.RewardBound{
+			Address: address,
+			Amount:  new(big.Int).Set(amount),
+		}
+	}
+}
+
+func determineRewardBoundType(age uint64) byte {
+	if age <= 5 {
+		return byte(age)
+	}
+	return 6
 }

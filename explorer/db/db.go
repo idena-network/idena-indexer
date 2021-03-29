@@ -65,6 +65,7 @@ type Accessor interface {
 	// Deprecated
 	EpochIdentitiesRewardsOld(epoch uint64, startIndex uint64, count uint64) ([]types.Rewards, error)
 	EpochFundPayments(epoch uint64) ([]types.FundPayment, error)
+	EpochRewardBounds(epoch uint64) ([]types.RewardBounds, error)
 
 	EpochIdentity(epoch uint64, address string) (types.EpochIdentity, error)
 	EpochIdentityShortFlipsToSolve(epoch uint64, address string) ([]string, error)

@@ -44,6 +44,7 @@ const (
 	epochIdentitiesRewardsQuery            = "epochIdentitiesRewards.sql"
 	epochIdentitiesRewardsOldQuery         = "epochIdentitiesRewardsOld.sql"
 	epochFundPaymentsQuery                 = "epochFundPayments.sql"
+	epochRewardBoundsQuery                 = "epochRewardBounds.sql"
 )
 
 var identityStatesByName = map[string]uint8{
@@ -509,6 +510,29 @@ func (a *postgresAccessor) EpochFundPayments(epoch uint64) ([]types.FundPayment,
 	for rows.Next() {
 		item := types.FundPayment{}
 		if err := rows.Scan(&item.Address, &item.Balance, &item.Type); err != nil {
+			return nil, err
+		}
+		res = append(res, item)
+	}
+	return res, nil
+}
+
+func (a *postgresAccessor) EpochRewardBounds(epoch uint64) ([]types.RewardBounds, error) {
+	rows, err := a.db.Query(a.getQuery(epochRewardBoundsQuery), epoch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var res []types.RewardBounds
+	for rows.Next() {
+		item := types.RewardBounds{}
+		if err := rows.Scan(
+			&item.Type,
+			&item.Min.Amount,
+			&item.Min.Address,
+			&item.Max.Amount,
+			&item.Max.Address,
+		); err != nil {
 			return nil, err
 		}
 		res = append(res, item)

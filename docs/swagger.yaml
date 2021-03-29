@@ -798,6 +798,31 @@ definitions:
         - SavedInviteWin
         type: string
     type: object
+  RewardBound:
+    properties:
+      address:
+        type: string
+      amount:
+        type: string
+    type: object
+  RewardBounds:
+    properties:
+      max:
+        $ref: '#/definitions/RewardBound'
+        type: object
+      min:
+        $ref: '#/definitions/RewardBound'
+        type: object
+      type:
+        enum:
+        - 1
+        - 2
+        - 3
+        - 4
+        - 5
+        - 6
+        type: integer
+    type: object
   RewardedFlip:
     properties:
       answer:
@@ -1017,6 +1042,9 @@ definitions:
         - DeployContract
         - CallContract
         - TerminateContract
+        - DelegateTx
+        - UndelegateTx
+        - KillDelegatorTx
         type: string
     type: object
   TransactionSpecificData:
@@ -1072,6 +1100,9 @@ definitions:
         - DeployContract
         - CallContract
         - TerminateContract
+        - DelegateTx
+        - UndelegateTx
+        - KillDelegatorTx
         type: string
     type: object
   TxReceipt:
@@ -2938,6 +2969,37 @@ paths:
             - properties:
                 result:
                   $ref: '#/definitions/InvitesSummary'
+              type: object
+        "400":
+          description: Bad request
+        "429":
+          description: Request number limit exceeded
+        "500":
+          description: Internal server error
+        "503":
+          description: Service unavailable
+      tags:
+      - Epochs
+  /Epoch/{epoch}/RewardBounds:
+    get:
+      operationId: EpochRewardBounds
+      parameters:
+      - description: epoch
+        in: path
+        name: epoch
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/Response'
+            - properties:
+                result:
+                  items:
+                    $ref: '#/definitions/RewardBounds'
+                  type: array
               type: object
         "400":
           description: Bad request

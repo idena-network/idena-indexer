@@ -281,6 +281,7 @@ func (a *postgresAccessor) saveEpochResult(
 		reportedFlipRewards,
 		epochResult.FailedValidation,
 		epochResult.MinScoreForInvite,
+		pq.Array(epochResult.RewardsBounds),
 	); err != nil {
 		return errors.Wrap(err, "unable to save epoch result")
 	}

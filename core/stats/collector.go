@@ -189,6 +189,8 @@ func (c *statsCollector) AddValidationReward(balanceDest, stakeDest common.Addre
 	}
 	baseRewardRecipient := stakeDest
 	c.stats.RewardsStats.AgesByAddress[conversion.ConvertAddress(baseRewardRecipient)] = age + 1
+
+	c.addAddrTotalReward(baseRewardRecipient, balance, stake)
 }
 
 func (c *statsCollector) AddFlipsReward(balanceDest, stakeDest common.Address, balance, stake *big.Int, flipsToReward []*types.FlipToReward) {
@@ -199,6 +201,9 @@ func (c *statsCollector) AddFlipsReward(balanceDest, stakeDest common.Address, b
 		c.addReward(stakeDest, big.NewInt(0), stake, Flips)
 	}
 	c.addRewardedFlips(flipsToReward)
+
+	baseRewardRecipient := stakeDest
+	c.addAddrTotalReward(baseRewardRecipient, balance, stake)
 }
 
 func (c *statsCollector) addRewardedFlips(flipsToReward []*types.FlipToReward) {
@@ -221,6 +226,8 @@ func (c *statsCollector) AddReportedFlipsReward(balanceDest, stakeDest common.Ad
 	}
 	baseRewardRecipient := stakeDest
 	c.addReportedFlipReward(baseRewardRecipient, flipIdx, balance, stake)
+
+	c.addAddrTotalReward(baseRewardRecipient, balance, stake)
 }
 
 func (c *statsCollector) addReportedFlipReward(addr common.Address, flipIdx int, balance *big.Int, stake *big.Int) {
@@ -261,6 +268,8 @@ func (c *statsCollector) AddInvitationsReward(balanceDest, stakeDest common.Addr
 	}
 	baseRewardRecipient := stakeDest
 	c.addRewardedInvite(baseRewardRecipient, txHash, rewardType)
+
+	c.addAddrTotalReward(baseRewardRecipient, balance, stake)
 }
 
 func determineInvitationsRewardType(age uint16, isSavedInviteWinner bool) (RewardType, error) {
@@ -328,6 +337,33 @@ func (c *statsCollector) addReward(addr common.Address, balance *big.Int, stake 
 	}
 
 	c.stats.RewardsStats.Rewards = append(c.stats.RewardsStats.Rewards, rewardsStats)
+}
+
+func (c *statsCollector) initTotalRewardsByAddr() {
+	c.initRewardStats()
+	if c.stats.RewardsStats.TotalRewardsByAddr != nil {
+		return
+	}
+	c.stats.RewardsStats.TotalRewardsByAddr = make(map[common.Address]*big.Int)
+}
+
+func (c *statsCollector) addAddrTotalReward(addr common.Address, balance, stake *big.Int) {
+	if (balance == nil || balance.Sign() == 0) && (stake == nil || stake.Sign() == 0) {
+		return
+	}
+	if balance == nil {
+		balance = new(big.Int)
+	}
+	if stake == nil {
+		stake = new(big.Int)
+	}
+	c.initTotalRewardsByAddr()
+	reward := new(big.Int).Add(balance, stake)
+	if amount, ok := c.stats.RewardsStats.TotalRewardsByAddr[addr]; ok {
+		c.stats.RewardsStats.TotalRewardsByAddr[addr] = new(big.Int).Add(amount, reward)
+	} else {
+		c.stats.RewardsStats.TotalRewardsByAddr[addr] = reward
+	}
 }
 
 func (c *statsCollector) increaseEpochRewardIfExists(rewardsStats *RewardStats) bool {

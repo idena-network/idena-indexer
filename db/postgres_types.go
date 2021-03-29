@@ -866,3 +866,21 @@ func getRewardAgesArray(agesByAddress map[string]uint16) interface {
 	}
 	return pq.Array(converted)
 }
+
+type rewardBounds struct {
+	BoundType  byte            `json:"boundType"`
+	MinAmount  decimal.Decimal `json:"minAmount"`
+	MinAddress string          `json:"minAddress"`
+	MaxAmount  decimal.Decimal `json:"maxAmount"`
+	MaxAddress string          `json:"maxAddress"`
+}
+
+func (v *RewardBounds) Value() (driver.Value, error) {
+	res := rewardBounds{}
+	res.BoundType = v.Type
+	res.MinAmount = blockchain.ConvertToFloat(v.Min.Amount)
+	res.MinAddress = conversion.ConvertAddress(v.Min.Address)
+	res.MaxAmount = blockchain.ConvertToFloat(v.Max.Amount)
+	res.MaxAddress = conversion.ConvertAddress(v.Max.Address)
+	return json.Marshal(res)
+}

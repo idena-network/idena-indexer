@@ -16,7 +16,8 @@ CREATE OR REPLACE PROCEDURE save_epoch_result(p_epoch bigint,
                                               p_saved_invite_rewards tp_saved_invite_rewards[],
                                               p_reported_flip_rewards tp_reported_flip_reward[],
                                               p_failed_validation boolean,
-                                              p_min_score_for_invite real)
+                                              p_min_score_for_invite real,
+                                              p_epoch_rewards_bounds jsonb[])
     LANGUAGE 'plpgsql'
 AS
 $BODY$
@@ -69,6 +70,13 @@ BEGIN
                             p_reported_flip_rewards);
     select clock_timestamp() into l_end;
     call log_performance('save_epoch_rewards', l_start, l_end);
+
+    select clock_timestamp() into l_start;
+    if p_epoch_rewards_bounds is not null then
+        call save_epoch_rewards_bounds(p_epoch, p_height, p_epoch_rewards_bounds);
+    end if;
+    select clock_timestamp() into l_end;
+    call log_performance('save_epoch_rewards_bounds', l_start, l_end);
 
     select clock_timestamp() into l_start;
     if p_failed_validation then
@@ -563,3 +571,27 @@ BEGIN
         end loop;
 END
 $BODY$;
+
+CREATE OR REPLACE PROCEDURE save_epoch_rewards_bounds(p_epoch bigint,
+                                                      p_block_height bigint,
+                                                      p_items jsonb[])
+    LANGUAGE 'plpgsql'
+AS
+$$
+DECLARE
+    l_item           jsonb;
+    l_min_address_id bigint;
+    l_max_address_id bigint;
+BEGIN
+    for i in 1..cardinality(p_items)
+        loop
+            l_item = p_items[i];
+            l_min_address_id = get_address_id_or_insert(p_block_height, lower((l_item ->> 'minAddress')::text));
+            l_max_address_id = get_address_id_or_insert(p_block_height, lower((l_item ->> 'maxAddress')::text));
+            INSERT INTO epoch_reward_bounds (epoch, bound_type, min_amount, min_address_id, max_amount, max_address_id)
+            VALUES (p_epoch, (l_item ->> 'boundType')::smallint, (l_item ->> 'minAmount')::numeric, l_min_address_id,
+                    (l_item ->> 'maxAmount')::numeric,
+                    l_max_address_id);
+        end loop;
+END
+$$;
