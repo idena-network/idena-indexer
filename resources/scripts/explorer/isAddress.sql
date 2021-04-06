@@ -1,1 +1,0 @@
-select exists(select 1 from addresses where lower(address) = lower($1))

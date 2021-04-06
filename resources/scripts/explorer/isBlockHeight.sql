@@ -1,1 +1,0 @@
-select exists(select 1 from blocks where height = $1)

@@ -1,4 +1,0 @@
-{
-  "postgresConnStr": "postgres://postgres@localhost?sslmode=disable",
-  "port": 80
-}

@@ -14,11 +14,9 @@ require (
 	github.com/ipfs/go-cid v0.0.7
 	github.com/ipfs/go-ipfs-pinner v0.1.1 // indirect
 	github.com/lib/pq v1.1.1
-	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/pkg/errors v0.9.1
 	github.com/shopspring/decimal v0.0.0-20200227202807-02e2044944cc
 	github.com/stretchr/testify v1.7.0
-	github.com/swaggo/http-swagger v0.0.0-20200308142732-58ac5e232fba
 	github.com/swaggo/swag v1.6.7
 	github.com/tendermint/tm-db v0.6.4
 	golang.org/x/image v0.0.0-20190802002840-cff245a6509b

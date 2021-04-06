@@ -13,13 +13,12 @@ import (
 	"github.com/idena-network/idena-indexer/core/holder/online"
 	"github.com/idena-network/idena-indexer/core/holder/transaction"
 	"github.com/idena-network/idena-indexer/core/holder/upgrade"
+	logUtil "github.com/idena-network/idena-indexer/core/log"
 	"github.com/idena-network/idena-indexer/core/mempool"
 	"github.com/idena-network/idena-indexer/core/restore"
 	"github.com/idena-network/idena-indexer/core/server"
 	"github.com/idena-network/idena-indexer/core/stats"
 	"github.com/idena-network/idena-indexer/db"
-	"github.com/idena-network/idena-indexer/explorer"
-	explorerConfig "github.com/idena-network/idena-indexer/explorer/config"
 	"github.com/idena-network/idena-indexer/import/words"
 	"github.com/idena-network/idena-indexer/incoming"
 	"github.com/idena-network/idena-indexer/indexer"
@@ -28,9 +27,7 @@ import (
 	runtimeMigration "github.com/idena-network/idena-indexer/migration/runtime"
 	runtimeMigrationDb "github.com/idena-network/idena-indexer/migration/runtime/db"
 	"github.com/idena-network/idena-indexer/monitoring"
-	"github.com/pkg/errors"
 	"gopkg.in/urfave/cli.v1"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -45,20 +42,15 @@ func main() {
 
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
-			Name:  "explorerConfig",
-			Usage: "Explorer config file",
-			Value: filepath.Join("conf", "explorer.json"),
-		},
-		cli.StringFlag{
-			Name:  "indexerConfig",
-			Usage: "Indexer config file",
-			Value: filepath.Join("conf", "indexer.json"),
+			Name:  "config",
+			Usage: "Config file",
+			Value: filepath.Join("conf", "config.json"),
 		},
 	}
 
 	app.Action = func(context *cli.Context) error {
 
-		conf := config.LoadConfig(context.String("indexerConfig"))
+		conf := config.LoadConfig(context.String("config"))
 		initLog(conf.Verbosity, conf.NodeVerbosity)
 		log.Info("Starting app...")
 
@@ -68,12 +60,6 @@ func main() {
 		indxr, listener, contractsMemPool := initIndexer(conf, txMemPool)
 		defer indxr.Destroy()
 
-		// Explorer
-		explorerConf := explorerConfig.LoadConfig(context.String("explorerConfig"))
-		networkSizeLoader := &networkSizeLoader{}
-		e := explorer.NewExplorer(explorerConf, txMemPool, contractsMemPool, networkSizeLoader)
-		defer e.Destroy()
-
 		// Start indexer
 		indxr.Start()
 
@@ -81,28 +67,18 @@ func main() {
 		currentOnlineIdentitiesHolder := online.NewCurrentOnlineIdentitiesCache(listener.AppState(),
 			listener.NodeCtx().Blockchain,
 			listener.NodeCtx().OfflineDetector)
-		networkSizeLoader.holder = currentOnlineIdentitiesHolder
 
 		upgradesVoting := upgrade.NewUpgradesVotingHolder(listener.NodeCtx().Upgrader)
 
-		explorerRi := e.RouterInitializer()
-		indexerApi := api.NewApi(currentOnlineIdentitiesHolder, upgradesVoting, txMemPool, contractsMemPool)
-		ownRi := server.NewRouterInitializer(indexerApi, e.Logger())
-
-		description, err := ioutil.ReadFile(filepath.Join(explorerConf.HtmlDir, "api.html"))
+		apiLogger, err := logUtil.NewFileLogger("api.log", conf.Api.LogFileSize)
 		if err != nil {
-			panic(fmt.Sprintf("Unable to initialize api description: %v", err))
+			panic(err)
 		}
+		indexerApi := api.NewApi(currentOnlineIdentitiesHolder, upgradesVoting, txMemPool, contractsMemPool)
+		ownRi := server.NewRouterInitializer(indexerApi, apiLogger)
 
-		apiServer := server.NewServer(
-			explorerConf.Port,
-			explorerConf.MaxReqCount,
-			time.Second*time.Duration(explorerConf.ReqTimeoutSec),
-			e.Logger(),
-			explorerConf.ReqsPerMinuteLimit,
-			description,
-		)
-		go apiServer.Start(explorerConf.Swagger, explorerRi, ownRi)
+		apiServer := server.NewServer(conf.Api.Port, apiLogger)
+		go apiServer.Start(ownRi)
 
 		indxr.WaitForNodeStop()
 
@@ -255,15 +231,4 @@ func migrateDataIfNeeded(config *config.Config) (bool, error) {
 	}
 	log.Info("Data migration has been completed")
 	return true, nil
-}
-
-type networkSizeLoader struct {
-	holder online.CurrentOnlineIdentitiesHolder
-}
-
-func (l *networkSizeLoader) Load() (uint64, error) {
-	if l.holder == nil {
-		return 0, errors.New("loader has not been initialized")
-	}
-	return uint64(len(l.holder.GetAll())), nil
 }

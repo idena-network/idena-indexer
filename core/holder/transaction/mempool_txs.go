@@ -8,17 +8,17 @@ import (
 	"github.com/idena-network/idena-go/common/hexutil"
 	"github.com/idena-network/idena-go/common/math"
 	"github.com/idena-network/idena-indexer/core/conversion"
-	apiTypes "github.com/idena-network/idena-indexer/explorer/types"
+	types2 "github.com/idena-network/idena-indexer/core/types"
 	"github.com/idena-network/idena-indexer/log"
 	"sync"
 	"time"
 )
 
 type MemPool interface {
-	GetTransaction(hash string) (*apiTypes.TransactionDetail, error)
+	GetTransaction(hash string) (*types2.TransactionDetail, error)
 	GetTransactionRaw(hash string) (hexutil.Bytes, error)
-	GetAddressTransactions(address string, count int) ([]*apiTypes.TransactionSummary, error)
-	GetTransactions(count int) ([]*apiTypes.TransactionSummary, error)
+	GetAddressTransactions(address string, count int) ([]*types2.TransactionSummary, error)
+	GetTransactions(count int) ([]*types2.TransactionSummary, error)
 
 	AddTransaction(tx *types.Transaction) error
 	RemoveTransaction(tx *types.Transaction) error
@@ -207,7 +207,7 @@ func (pool *memPool) RemoveTransaction(tx *types.Transaction) error {
 	return nil
 }
 
-func (pool *memPool) GetTransaction(hash string) (*apiTypes.TransactionDetail, error) {
+func (pool *memPool) GetTransaction(hash string) (*types2.TransactionDetail, error) {
 	txHash := common.HexToHash(hash)
 	tx := pool.txsByHash.get(txHash)
 	if tx == nil {
@@ -225,13 +225,13 @@ func (pool *memPool) GetTransactionRaw(hash string) (hexutil.Bytes, error) {
 	return tx.Payload, nil
 }
 
-func (pool *memPool) GetAddressTransactions(address string, count int) ([]*apiTypes.TransactionSummary, error) {
+func (pool *memPool) GetAddressTransactions(address string, count int) ([]*types2.TransactionSummary, error) {
 	txAddress := common.HexToAddress(address)
 	txs := pool.txsByAddress.get(txAddress, count)
 	return toTransactionSummaries(txs), nil
 }
 
-func (pool *memPool) GetTransactions(count int) ([]*apiTypes.TransactionSummary, error) {
+func (pool *memPool) GetTransactions(count int) ([]*types2.TransactionSummary, error) {
 	txs := pool.txsByHash.all(count)
 	return toTransactionSummaries(txs), nil
 }
@@ -249,14 +249,14 @@ func (pool *memPool) removeTx(tx *types.Transaction) {
 	pool.txsByAddress.remove(tx)
 }
 
-func toTransactionDetail(tx *types.Transaction) *apiTypes.TransactionDetail {
+func toTransactionDetail(tx *types.Transaction) *types2.TransactionDetail {
 	var from, to string
 	sender, _ := types.Sender(tx)
 	from = conversion.ConvertAddress(sender)
 	if tx.To != nil {
 		to = conversion.ConvertAddress(*tx.To)
 	}
-	return &apiTypes.TransactionDetail{
+	return &types2.TransactionDetail{
 		Epoch:  uint64(tx.Epoch),
 		Hash:   conversion.ConvertHash(tx.Hash()),
 		Type:   conversion.ConvertTxType(tx.Type),
@@ -269,7 +269,7 @@ func toTransactionDetail(tx *types.Transaction) *apiTypes.TransactionDetail {
 	}
 }
 
-func toTransactionSummary(tx *types.Transaction) *apiTypes.TransactionSummary {
+func toTransactionSummary(tx *types.Transaction) *types2.TransactionSummary {
 	var from, to string
 	sender, _ := types.Sender(tx)
 	from = conversion.ConvertAddress(sender)
@@ -279,7 +279,7 @@ func toTransactionSummary(tx *types.Transaction) *apiTypes.TransactionSummary {
 	amount := blockchain.ConvertToFloat(tx.Amount)
 	tips := blockchain.ConvertToFloat(tx.Tips)
 	maxFee := blockchain.ConvertToFloat(tx.MaxFee)
-	return &apiTypes.TransactionSummary{
+	return &types2.TransactionSummary{
 		Hash:   conversion.ConvertHash(tx.Hash()),
 		Type:   conversion.ConvertTxType(tx.Type),
 		From:   from,
@@ -291,11 +291,11 @@ func toTransactionSummary(tx *types.Transaction) *apiTypes.TransactionSummary {
 	}
 }
 
-func toTransactionSummaries(txs []*types.Transaction) []*apiTypes.TransactionSummary {
+func toTransactionSummaries(txs []*types.Transaction) []*types2.TransactionSummary {
 	if len(txs) == 0 {
 		return nil
 	}
-	res := make([]*apiTypes.TransactionSummary, 0, len(txs))
+	res := make([]*types2.TransactionSummary, 0, len(txs))
 	for _, tx := range txs {
 		res = append(res, toTransactionSummary(tx))
 	}

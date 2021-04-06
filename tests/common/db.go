@@ -4,9 +4,22 @@ import (
 	"database/sql"
 	"github.com/idena-network/idena-go/common/hexutil"
 	"github.com/idena-network/idena-indexer/db"
-	"github.com/idena-network/idena-indexer/explorer/db/postgres"
 	"github.com/shopspring/decimal"
 )
+
+type NullDecimal struct {
+	Decimal decimal.Decimal
+	Valid   bool
+}
+
+func (n *NullDecimal) Scan(value interface{}) error {
+	n.Valid = value != nil
+	n.Decimal = decimal.Decimal{}
+	if n.Valid {
+		return n.Decimal.Scan(value)
+	}
+	return nil
+}
 
 type BalanceUpdate struct {
 	Address              string
@@ -48,8 +61,8 @@ func GetBalanceUpdates(db *sql.DB) ([]BalanceUpdate, error) {
 	for rows.Next() {
 		item := BalanceUpdate{}
 		var txId, lastBlockHeight, blocksCount sql.NullInt32
-		var committeeRewardShare postgres.NullDecimal
-		var penaltyOld, penaltyNew postgres.NullDecimal
+		var committeeRewardShare NullDecimal
+		var penaltyOld, penaltyNew NullDecimal
 		err := rows.Scan(
 			&item.Address,
 			&item.BalanceOld,
@@ -123,7 +136,7 @@ func GetCommitteeRewardBalanceUpdates(db *sql.DB) ([]CommitteeRewardBalanceUpdat
 	var res []CommitteeRewardBalanceUpdate
 	for rows.Next() {
 		item := CommitteeRewardBalanceUpdate{}
-		var penaltyOld, penaltyNew postgres.NullDecimal
+		var penaltyOld, penaltyNew NullDecimal
 		err := rows.Scan(
 			&item.Address,
 			&item.BalanceOld,
@@ -379,7 +392,7 @@ func GetOracleVotingContracts(db *sql.DB) ([]OracleVotingContract, error) {
 	var res []OracleVotingContract
 	for rows.Next() {
 		item := OracleVotingContract{}
-		var votingMinPayment postgres.NullDecimal
+		var votingMinPayment NullDecimal
 		err := rows.Scan(
 			&item.TxId,
 			&item.StartTime,
@@ -514,7 +527,7 @@ func GetOracleVotingSummaries(db *sql.DB) ([]OracleVotingSummary, error) {
 	for rows.Next() {
 		item := OracleVotingSummary{}
 		var finishTimestamp, terminationTimestamp, secretVotesCount, epochWithoutGrowth sql.NullInt64
-		var totalReward postgres.NullDecimal
+		var totalReward NullDecimal
 		err := rows.Scan(
 			&item.ContractTxId,
 			&item.VoteProofs,
@@ -648,7 +661,7 @@ func GetOracleVotingContractCallStarts(db *sql.DB) ([]OracleVotingContractCallSt
 	var res []OracleVotingContractCallStart
 	for rows.Next() {
 		item := OracleVotingContractCallStart{}
-		var votingMinPayment postgres.NullDecimal
+		var votingMinPayment NullDecimal
 		err := rows.Scan(
 			&item.TxId,
 			&item.ContractTxId,
@@ -901,7 +914,7 @@ func GetOracleVotingContractTerminations(db *sql.DB) ([]OracleVotingContractTerm
 	defer rows.Close()
 	var res []OracleVotingContractTermination
 	for rows.Next() {
-		var fund, oracleReward, ownerReward postgres.NullDecimal
+		var fund, oracleReward, ownerReward NullDecimal
 		item := OracleVotingContractTermination{}
 		err := rows.Scan(
 			&item.TxId,
@@ -1722,7 +1735,7 @@ func GetContractTxBalanceUpdates(db *sql.DB) ([]ContractTxBalanceUpdate, error) 
 	var res []ContractTxBalanceUpdate
 	for rows.Next() {
 		item := ContractTxBalanceUpdate{}
-		var balanceOld, balanceNew postgres.NullDecimal
+		var balanceOld, balanceNew NullDecimal
 		var callMethod sql.NullInt32
 		err := rows.Scan(
 			&item.Id,

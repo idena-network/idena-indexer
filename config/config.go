@@ -22,6 +22,12 @@ type Config struct {
 	CommitteeRewardBlocksCount int
 	MiningRewards              bool
 	Enabled                    *bool
+	Api                        *Api
+}
+
+type Api struct {
+	Port        int
+	LogFileSize int
 }
 
 type PerformanceMonitorConfig struct {
@@ -81,6 +87,10 @@ func newDefaultConfig() *Config {
 			BatchSize:        50,
 			AttemptsLimit:    5,
 			RetryIntervalMin: 10,
+		},
+		Api: &Api{
+			Port:        8080,
+			LogFileSize: 100 * 1024,
 		},
 		CommitteeRewardBlocksCount: 1000,
 	}

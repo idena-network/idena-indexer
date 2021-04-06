@@ -1,1 +1,0 @@
-select coalesce((select block_count from epoch_summaries where epoch = $1), 0)

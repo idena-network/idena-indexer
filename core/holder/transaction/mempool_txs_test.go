@@ -5,7 +5,7 @@ import (
 	"github.com/idena-network/idena-go/common/hexutil"
 	"github.com/idena-network/idena-go/crypto"
 	"github.com/idena-network/idena-go/tests"
-	types2 "github.com/idena-network/idena-indexer/explorer/types"
+	types2 "github.com/idena-network/idena-indexer/core/types"
 	"github.com/idena-network/idena-indexer/log"
 	"github.com/stretchr/testify/require"
 	"sync"

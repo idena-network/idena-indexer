@@ -1,1 +1,0 @@
-select exists(select 1 from epochs where epoch = $1)

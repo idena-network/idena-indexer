@@ -28,7 +28,7 @@ import log "github.com/inconshreveable/log15"
 
 ```go
 // all loggers can have key/value context
-srvlog := log.New("module", api)
+srvlog := log.New("module", "app/server")
 
 // all log messages can have key/value context
 srvlog.Warn("abnormal conn rate", "rate", curRate, "low", lowRate, "high", highRate)

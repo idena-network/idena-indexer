@@ -8,8 +8,8 @@ import (
 	"github.com/idena-network/idena-indexer/core/holder/transaction"
 	"github.com/idena-network/idena-indexer/core/holder/upgrade"
 	"github.com/idena-network/idena-indexer/core/mempool"
+	"github.com/idena-network/idena-indexer/core/types"
 	"github.com/idena-network/idena-indexer/db"
-	"github.com/idena-network/idena-indexer/explorer/types"
 	"github.com/pkg/errors"
 	"strconv"
 )
@@ -39,7 +39,7 @@ func (a *Api) GetOnlineIdentitiesCount() uint64 {
 	return uint64(len(a.onlineIdentities.GetAll()))
 }
 
-func (a *Api) GetOnlineIdentities(count uint64, continuationToken *string) ([]*OnlineIdentity, *string, error) {
+func (a *Api) GetOnlineIdentities(count uint64, continuationToken *string) ([]*types.OnlineIdentity, *string, error) {
 	var startIndex uint64
 	if continuationToken != nil {
 		var err error
@@ -47,7 +47,7 @@ func (a *Api) GetOnlineIdentities(count uint64, continuationToken *string) ([]*O
 			return nil, nil, errors.New("invalid continuation token")
 		}
 	}
-	var res []*OnlineIdentity
+	var res []*types.OnlineIdentity
 	all := a.onlineIdentities.GetAll()
 	var nextContinuationToken *string
 	if len(all) > 0 {
@@ -63,8 +63,8 @@ func (a *Api) GetOnlineIdentities(count uint64, continuationToken *string) ([]*O
 }
 
 // Deprecated
-func (a *Api) GetOnlineIdentitiesOld(startIndex, count uint64) []*OnlineIdentity {
-	var res []*OnlineIdentity
+func (a *Api) GetOnlineIdentitiesOld(startIndex, count uint64) []*types.OnlineIdentity {
+	var res []*types.OnlineIdentity
 	all := a.onlineIdentities.GetAll()
 	if len(all) > 0 {
 		for i := startIndex; i >= 0 && i < startIndex+count && i < uint64(len(all)); i++ {
@@ -74,7 +74,7 @@ func (a *Api) GetOnlineIdentitiesOld(startIndex, count uint64) []*OnlineIdentity
 	return res
 }
 
-func (a *Api) GetOnlineIdentity(address string) *OnlineIdentity {
+func (a *Api) GetOnlineIdentity(address string) *types.OnlineIdentity {
 	oi := a.onlineIdentities.Get(address)
 	if oi == nil {
 		return nil
@@ -86,11 +86,11 @@ func (a *Api) GetOnlineCount() uint64 {
 	return uint64(a.onlineIdentities.GetOnlineCount())
 }
 
-func convertOnlineIdentity(oi *online.Identity) *OnlineIdentity {
+func convertOnlineIdentity(oi *online.Identity) *types.OnlineIdentity {
 	if oi == nil {
 		return nil
 	}
-	return &OnlineIdentity{
+	return &types.OnlineIdentity{
 		Address:      oi.Address,
 		LastActivity: oi.LastActivity,
 		Penalty:      oi.Penalty,
@@ -116,13 +116,13 @@ func (a *Api) SignatureAddress(value, signature string) (string, error) {
 	return addr.Hex(), nil
 }
 
-func (a *Api) UpgradeVoting() []*UpgradeVotes {
+func (a *Api) UpgradeVoting() []*types.UpgradeVotes {
 	votes := a.upgradesVoting.Get()
-	var res []*UpgradeVotes
+	var res []*types.UpgradeVotes
 	if len(votes) > 0 {
-		res = make([]*UpgradeVotes, len(votes))
+		res = make([]*types.UpgradeVotes, len(votes))
 		for i, v := range votes {
-			res[i] = &UpgradeVotes{
+			res[i] = &types.UpgradeVotes{
 				Upgrade: v.Upgrade,
 				Votes:   v.Votes,
 			}
