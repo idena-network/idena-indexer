@@ -86,7 +86,7 @@ func main() {
 		upgradesVoting := upgrade.NewUpgradesVotingHolder(listener.NodeCtx().Upgrader)
 
 		explorerRi := e.RouterInitializer()
-		indexerApi := api.NewApi(currentOnlineIdentitiesHolder, upgradesVoting)
+		indexerApi := api.NewApi(currentOnlineIdentitiesHolder, upgradesVoting, txMemPool, contractsMemPool)
 		ownRi := server.NewRouterInitializer(indexerApi, e.Logger())
 
 		description, err := ioutil.ReadFile(filepath.Join(explorerConf.HtmlDir, "api.html"))

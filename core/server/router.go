@@ -44,6 +44,17 @@ func (ri *routerInitializer) InitRouter(router *mux.Router) {
 	router.Path(strings.ToLower("/UpgradeVoting")).HandlerFunc(ri.upgradeVoting)
 
 	router.Path(strings.ToLower("/Now")).HandlerFunc(ri.now)
+
+	router.Path(strings.ToLower("/MemPool/Transaction/{hash}")).HandlerFunc(ri.memPoolTransaction)
+	router.Path(strings.ToLower("/MemPool/Transaction/{hash}/Raw")).HandlerFunc(ri.memPoolTransactionRaw)
+	router.Path(strings.ToLower("/MemPool/Address/{address}/Transactions")).
+		Queries("limit", "{limit}").
+		HandlerFunc(ri.memPoolAddressTransactions)
+	router.Path(strings.ToLower("/MemPool/Transactions")).
+		Queries("limit", "{limit}").
+		HandlerFunc(ri.memPoolTransactions)
+	router.Path(strings.ToLower("/MemPool/OracleVotingContractDeploys")).HandlerFunc(ri.memPoolOracleVotingContractDeploys)
+	router.Path(strings.ToLower("/MemPool/Address/{address}/Contract/{contractAddress}/Txs")).HandlerFunc(ri.memPoolAddressContractTxs)
 }
 
 func (ri *routerInitializer) onlineIdentitiesCount(w http.ResponseWriter, r *http.Request) {
@@ -96,4 +107,50 @@ func (ri *routerInitializer) upgradeVoting(w http.ResponseWriter, r *http.Reques
 
 func (ri *routerInitializer) now(w http.ResponseWriter, r *http.Request) {
 	WriteResponse(w, time.Now().UTC().Truncate(time.Second), nil, ri.logger)
+}
+
+func (ri *routerInitializer) memPoolTransaction(w http.ResponseWriter, r *http.Request) {
+	hash := mux.Vars(r)["hash"]
+	resp, err := ri.api.MemPoolTransaction(hash)
+	WriteResponse(w, resp, err, ri.logger)
+}
+
+func (ri *routerInitializer) memPoolTransactionRaw(w http.ResponseWriter, r *http.Request) {
+	hash := mux.Vars(r)["hash"]
+	resp, err := ri.api.MemPoolTransactionRaw(hash)
+	WriteResponse(w, resp, err, ri.logger)
+}
+
+func (ri *routerInitializer) memPoolAddressTransactions(w http.ResponseWriter, r *http.Request) {
+	address := mux.Vars(r)["address"]
+	count, _, err := ReadPaginatorParams(r.Form)
+	if err != nil {
+		WriteErrorResponse(w, err, ri.logger)
+		return
+	}
+	resp, err := ri.api.MemPoolAddressTransactions(address, count)
+	WriteResponse(w, resp, err, ri.logger)
+}
+
+func (ri *routerInitializer) memPoolTransactions(w http.ResponseWriter, r *http.Request) {
+	count, _, err := ReadPaginatorParams(r.Form)
+	if err != nil {
+		WriteErrorResponse(w, err, ri.logger)
+		return
+	}
+	resp, err := ri.api.MemPoolTransactions(count)
+	WriteResponse(w, resp, err, ri.logger)
+}
+
+func (ri *routerInitializer) memPoolOracleVotingContractDeploys(w http.ResponseWriter, r *http.Request) {
+	author := mux.Vars(r)["author"]
+	resp, err := ri.api.MemPoolOracleVotingContractDeploys(author)
+	WriteResponse(w, resp, err, ri.logger)
+}
+
+func (ri *routerInitializer) memPoolAddressContractTxs(w http.ResponseWriter, r *http.Request) {
+	address := mux.Vars(r)["address"]
+	contractAddress := mux.Vars(r)["contractaddress"]
+	resp, err := ri.api.MemPoolAddressContractTxs(address, contractAddress)
+	WriteResponse(w, resp, err, ri.logger)
 }

@@ -1,10 +1,15 @@
 package api
 
 import (
+	"github.com/idena-network/idena-go/common"
 	"github.com/idena-network/idena-go/common/hexutil"
 	"github.com/idena-network/idena-go/crypto"
 	"github.com/idena-network/idena-indexer/core/holder/online"
+	"github.com/idena-network/idena-indexer/core/holder/transaction"
 	"github.com/idena-network/idena-indexer/core/holder/upgrade"
+	"github.com/idena-network/idena-indexer/core/mempool"
+	"github.com/idena-network/idena-indexer/db"
+	"github.com/idena-network/idena-indexer/explorer/types"
 	"github.com/pkg/errors"
 	"strconv"
 )
@@ -12,12 +17,21 @@ import (
 type Api struct {
 	onlineIdentities online.CurrentOnlineIdentitiesHolder
 	upgradesVoting   upgrade.UpgradesVotingHolder
+	memPool          transaction.MemPool
+	contractsMemPool mempool.Contracts
 }
 
-func NewApi(onlineIdentities online.CurrentOnlineIdentitiesHolder, upgradesVoting upgrade.UpgradesVotingHolder) *Api {
+func NewApi(
+	onlineIdentities online.CurrentOnlineIdentitiesHolder,
+	upgradesVoting upgrade.UpgradesVotingHolder,
+	memPool transaction.MemPool,
+	contractsMemPool mempool.Contracts,
+) *Api {
 	return &Api{
 		onlineIdentities: onlineIdentities,
 		upgradesVoting:   upgradesVoting,
+		memPool:          memPool,
+		contractsMemPool: contractsMemPool,
 	}
 }
 
@@ -115,4 +129,28 @@ func (a *Api) UpgradeVoting() []*UpgradeVotes {
 		}
 	}
 	return res
+}
+
+func (a *Api) MemPoolTransaction(hash string) (*types.TransactionDetail, error) {
+	return a.memPool.GetTransaction(hash)
+}
+
+func (a *Api) MemPoolTransactionRaw(hash string) (hexutil.Bytes, error) {
+	return a.memPool.GetTransactionRaw(hash)
+}
+
+func (a *Api) MemPoolAddressTransactions(address string, count uint64) ([]*types.TransactionSummary, error) {
+	return a.memPool.GetAddressTransactions(address, int(count))
+}
+
+func (a *Api) MemPoolTransactions(count uint64) ([]*types.TransactionSummary, error) {
+	return a.memPool.GetTransactions(int(count))
+}
+
+func (a *Api) MemPoolOracleVotingContractDeploys(author string) ([]db.OracleVotingContract, error) {
+	return a.contractsMemPool.GetOracleVotingContractDeploys(common.HexToAddress(author))
+}
+
+func (a *Api) MemPoolAddressContractTxs(address, contractAddress string) ([]db.Transaction, error) {
+	return a.contractsMemPool.GetAddressContractTxs(address, contractAddress)
 }
