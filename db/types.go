@@ -60,8 +60,21 @@ const (
 )
 
 type RestoredData struct {
-	Balances  []Balance
-	Birthdays []Birthday
+	Balances    []Balance
+	Birthdays   []Birthday
+	PoolSizes   []*PoolSize
+	Delegations []*Delegation
+}
+
+type PoolSize struct {
+	Address common.Address
+	Size    uint64
+}
+
+type Delegation struct {
+	Delegator  common.Address
+	Delegatee  common.Address
+	BirthEpoch *uint16
 }
 
 type Data struct {
@@ -117,6 +130,7 @@ type Data struct {
 	TxReceipts                               []*TxReceipt
 	ContractTxsBalanceUpdates                []*ContractTxBalanceUpdates
 	EpochResult                              *EpochResult
+	DelegationSwitches                       []*DelegationSwitch
 }
 
 type EpochRewards struct {
@@ -630,4 +644,10 @@ type RewardBounds struct {
 type RewardBound struct {
 	Amount  *big.Int
 	Address common.Address
+}
+
+type DelegationSwitch struct {
+	Delegator  common.Address
+	Delegatee  *common.Address
+	BirthEpoch *uint16
 }

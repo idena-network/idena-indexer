@@ -139,6 +139,8 @@ func Test_complex(t *testing.T) {
 			},
 		},
 	})
+	appState.State.IncEpoch()
+	appState.State.ClearFlips(addr)
 	height++
 	block = buildBlock(height)
 	block.Header.ProposedHeader.Flags = types2.ValidationFinished
@@ -157,8 +159,6 @@ func Test_complex(t *testing.T) {
 	require.Equal(t, 2, addressSummaries[0].Flips)
 	require.Equal(t, 1, addressSummaries[0].WrongWordsFlips)
 
-	appState.State.IncEpoch()
-	appState.State.ClearFlips(addr)
 	// ----- Epoch 1
 	// When
 	cid1Str = "bafkreiaaogfa4o64mhhvsfczpvjhfrflk7a3kslcmlamyogi2h5yjorto4"

@@ -52,7 +52,7 @@ func (r *Restorer) collectData() (*db.RestoredData, error) {
 	if res.Balances, err = r.collectBalances(); err != nil {
 		return nil, err
 	}
-	if res.Birthdays, err = r.collectBirthdays(); err != nil {
+	if res.Birthdays, res.PoolSizes, res.Delegations, err = r.collectIdentityData(); err != nil {
 		return nil, err
 	}
 	return res, nil
@@ -85,22 +85,47 @@ func (r *Restorer) collectBalances() ([]db.Balance, error) {
 	return balances, nil
 }
 
-func (r *Restorer) collectBirthdays() ([]db.Birthday, error) {
+func (r *Restorer) collectIdentityData() ([]db.Birthday, []*db.PoolSize, []*db.Delegation, error) {
 	head := r.chain.Head
 	if head == nil {
-		return nil, errors.New("blockchain header is nil")
+		return nil, nil, nil, errors.New("blockchain header is nil")
 	}
 	height := head.Height() - 1
 	appState, err := r.appState.Readonly(height)
 	if err != nil {
-		return nil, errors.Errorf("unable to get appState for height %d, err %v", height, err.Error())
+		return nil, nil, nil, errors.Errorf("unable to get appState for height %d, err %v", height, err.Error())
 	}
-	var res []db.Birthday
+	var birthdays []db.Birthday
+	poolSizesByAddr := make(map[common.Address]uint64)
+	var delegations []*db.Delegation
 	appState.State.IterateOverIdentities(func(addr common.Address, identity state.Identity) {
-		res = append(res, db.Birthday{
+		birthEpoch := identity.Birthday
+
+		birthdays = append(birthdays, db.Birthday{
 			Address:    conversion.ConvertAddress(addr),
-			BirthEpoch: uint64(identity.Birthday),
+			BirthEpoch: uint64(birthEpoch),
 		})
+
+		if identity.Delegatee != nil {
+			poolSizesByAddr[*identity.Delegatee]++
+			delegation := &db.Delegation{
+				Delegator: addr,
+				Delegatee: *identity.Delegatee,
+			}
+			delegations = append(delegations, delegation)
+			if identity.State.NewbieOrBetter() || identity.State == state.Suspended || identity.State == state.Zombie {
+				delegation.BirthEpoch = &birthEpoch
+			}
+		}
 	})
-	return res, nil
+
+	poolSizes := make([]*db.PoolSize, 0, len(poolSizesByAddr))
+	for addr, size := range poolSizesByAddr {
+		poolSizes = append(poolSizes, &db.PoolSize{
+			Address: addr,
+			Size:    size,
+		})
+	}
+
+	return birthdays, poolSizes, delegations, nil
 }

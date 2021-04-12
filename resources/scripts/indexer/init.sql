@@ -2779,7 +2779,8 @@ CREATE OR REPLACE FUNCTION save_addrs_and_txs(height bigint,
                                               p_multisig_contract_call_pushes tp_multisig_contract_call_push[],
                                               p_multisig_contract_terminations tp_multisig_contract_termination[],
                                               p_contract_tx_balance_updates jsonb[],
-                                              p_tx_receipts tp_tx_receipt[])
+                                              p_tx_receipts tp_tx_receipt[],
+                                              p_data jsonb)
     RETURNS tp_tx_hash_id[]
     LANGUAGE 'plpgsql'
 AS
@@ -3020,6 +3021,10 @@ BEGIN
 
     if p_tx_receipts is not null then
         call save_tx_receipts(p_tx_receipts);
+    end if;
+
+    if p_data is not null then
+        call save_delegation_switches(height, p_data -> 'delegationSwitches');
     end if;
 
     call apply_block_on_sorted_contracts(height, p_clear_old_ovc_committees);
@@ -3375,13 +3380,12 @@ BEGIN
     from epoch_summaries
     where block_height > p_block_height;
 
-    delete from address_summaries;
-
-    delete
-    from balances;
-
-    delete
-    from birthdays;
+    DELETE FROM address_summaries;
+    DELETE FROM balances;
+    DELETE FROM birthdays;
+    DELETE FROM pool_sizes;
+    DELETE FROM delegations;
+    DELETE FROM pools_summary;
 
     delete
     from coins
@@ -3735,5 +3739,20 @@ BEGIN
         RETURNING id INTO l_address_id;
     end if;
     return l_address_id;
+END
+$$;
+
+CREATE OR REPLACE PROCEDURE save_restored_data(p_data jsonb)
+    LANGUAGE 'plpgsql'
+AS
+$$
+BEGIN
+    if p_data is null then
+        return;
+    end if;
+    call save_delegations(p_data -> 'delegations');
+    call save_pool_sizes(p_data -> 'poolSizes');
+
+    call generate_pools_summary();
 END
 $$;

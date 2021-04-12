@@ -142,6 +142,7 @@ func (a *postgresAccessor) Save(data *Data) error {
 		data.TimeLockContractTerminations,
 		data.ContractTxsBalanceUpdates,
 		data.TxReceipts,
+		data.DelegationSwitches,
 	); err != nil {
 		return getResultError(err)
 	}
@@ -420,10 +421,12 @@ func (a *postgresAccessor) saveAddressesAndTransactions(
 	timeLockContractTerminations []*TimeLockContractTermination,
 	contractTxsBalanceUpdates []*ContractTxBalanceUpdates,
 	txReceipts []*TxReceipt,
+	delegationSwitches []*DelegationSwitch,
 ) (map[string]int64, error) {
 
 	addressesArray, addressStateChangesArray := getPostgresAddressesAndAddressStateChangesArrays(addresses)
 	var txHashIds []txHashId
+	data := getData(delegationSwitches)
 	err := ctx.tx.QueryRow(a.getQuery(insertAddressesAndTransactionsQuery),
 		ctx.blockHeight,
 		a.changesHistoryBlocksCount,
@@ -466,6 +469,7 @@ func (a *postgresAccessor) saveAddressesAndTransactions(
 		pq.Array(multisigContractTerminations),
 		pq.Array(contractTxsBalanceUpdates),
 		pq.Array(txReceipts),
+		data,
 	).Scan(pq.Array(&txHashIds))
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to save addresses and transactions")

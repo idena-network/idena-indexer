@@ -104,14 +104,18 @@ CREATE OR REPLACE PROCEDURE save_birthdays(p_birthdays tp_birthday[])
 AS
 $BODY$
 DECLARE
-    birthday tp_birthday;
+    birthday     tp_birthday;
+    l_address_id bigint;
 BEGIN
     for i in 1..cardinality(p_birthdays)
         loop
             birthday := p_birthdays[i];
+            select id into l_address_id from addresses where lower(address) = lower(birthday.address);
             insert into birthdays (address_id, birth_epoch)
-            values ((select id from addresses where lower(address) = lower(birthday.address)), birthday.birth_epoch)
+            values (l_address_id, birthday.birth_epoch)
             on conflict (address_id) do update set birth_epoch=birthday.birth_epoch;
+
+            call apply_birthday_on_delegations(l_address_id, birthday.birth_epoch);
         end loop;
 END
 $BODY$;
@@ -586,8 +590,8 @@ BEGIN
     for i in 1..cardinality(p_items)
         loop
             l_item = p_items[i];
-            l_min_address_id = get_address_id_or_insert(p_block_height, lower((l_item ->> 'minAddress')::text));
-            l_max_address_id = get_address_id_or_insert(p_block_height, lower((l_item ->> 'maxAddress')::text));
+            l_min_address_id = get_address_id_or_insert(p_block_height, (l_item ->> 'minAddress')::text);
+            l_max_address_id = get_address_id_or_insert(p_block_height, (l_item ->> 'maxAddress')::text);
             INSERT INTO epoch_reward_bounds (epoch, bound_type, min_amount, min_address_id, max_amount, max_address_id)
             VALUES (p_epoch, (l_item ->> 'boundType')::smallint, (l_item ->> 'minAmount')::numeric, l_min_address_id,
                     (l_item ->> 'maxAmount')::numeric,

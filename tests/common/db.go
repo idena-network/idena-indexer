@@ -1800,3 +1800,86 @@ func GetRewardBounds(db *sql.DB) ([]RewardBounds, error) {
 	}
 	return res, nil
 }
+
+type PoolsSummary struct {
+	Count int
+}
+
+func GetPoolsSummaries(db *sql.DB) ([]PoolsSummary, error) {
+	rows, err := db.Query(`select count from pools_summary`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var res []PoolsSummary
+	for rows.Next() {
+		item := PoolsSummary{}
+		err := rows.Scan(
+			&item.Count,
+		)
+		if err != nil {
+			return nil, err
+		}
+		res = append(res, item)
+	}
+	return res, nil
+}
+
+type PoolSize struct {
+	Address string
+	Size    int
+}
+
+func GetPoolSizes(db *sql.DB) ([]PoolSize, error) {
+	rows, err := db.Query(`select a.address, t.size from pool_sizes t join addresses a on a.id=t.address_id order by t.address_id`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var res []PoolSize
+	for rows.Next() {
+		item := PoolSize{}
+		err := rows.Scan(
+			&item.Address,
+			&item.Size,
+		)
+		if err != nil {
+			return nil, err
+		}
+		res = append(res, item)
+	}
+	return res, nil
+}
+
+type Delegation struct {
+	Delegator  string
+	Delegatee  string
+	BirthEpoch *int
+}
+
+func GetDelegations(db *sql.DB) ([]Delegation, error) {
+	rows, err := db.Query(`select a1.address, a2.address, t.birth_epoch from delegations t join addresses a1 on a1.id=t.delegator_address_id join addresses a2 on a2.id=t.delegatee_address_id  order by t.delegator_address_id`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var res []Delegation
+	for rows.Next() {
+		item := Delegation{}
+		var birthEpoch sql.NullInt32
+		err := rows.Scan(
+			&item.Delegator,
+			&item.Delegatee,
+			&birthEpoch,
+		)
+		if birthEpoch.Valid {
+			v := int(birthEpoch.Int32)
+			item.BirthEpoch = &v
+		}
+		if err != nil {
+			return nil, err
+		}
+		res = append(res, item)
+	}
+	return res, nil
+}

@@ -1,0 +1,1 @@
+call save_restored_data($1)

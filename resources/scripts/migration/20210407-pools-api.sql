@@ -1,0 +1,1 @@
+DROP FUNCTION save_addrs_and_txs;

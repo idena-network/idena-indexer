@@ -78,6 +78,71 @@ func InitIndexer(
 	return dbConnector, testIndexer, listener, dbAccessor, nodeEventBus
 }
 
+type Options struct {
+	RestoreInitially          bool
+	ScriptsPathPrefix         string
+	Schema                    string
+	ClearDb                   bool
+	ChangesHistoryBlocksCount int
+	AppState                  *appstate.AppState
+	TestBlockchain            *blockchain.TestBlockchain
+}
+
+type IndexerCtx struct {
+	DbConnector    *sql.DB
+	Indexer        *indexer.Indexer
+	Listener       incoming.Listener
+	DbAccessor     db.Accessor
+	EventBus       eventbus.Bus
+	TestBlockchain *blockchain.TestBlockchain
+}
+
+func InitIndexer2(opt Options) *IndexerCtx {
+	initLog()
+	pm := monitoring.NewEmptyPerformanceMonitor()
+	dbConnector, dbAccessor := InitPostgres(opt.ClearDb, opt.ChangesHistoryBlocksCount, opt.Schema, opt.ScriptsPathPrefix, pm)
+	memPoolIndexer := mempool.NewIndexer(dbAccessor, log.New("component", "mpi"))
+	memDb := db2.NewMemDB()
+	appState := opt.AppState
+	if appState == nil {
+		appState, _ = appstate.NewAppState(memDb, eventbus.New())
+		appState.ValidatorsCache = validators.NewValidatorsCache(appState.IdentityState, common.Address{})
+		appState.ValidatorsCache.Load()
+	}
+
+	chain := opt.TestBlockchain
+	if chain == nil {
+		chain, _, _, _ = blockchain.NewTestBlockchain(true, nil)
+	}
+	nodeCtx := &node.NodeCtx{
+		PendingProofs: &sync.Map{},
+		ProposerByRound: func(round uint64) (hash common.Hash, proposer []byte, ok bool) {
+			return common.Hash{}, nil, true
+		},
+		AppState:   appState,
+		Blockchain: chain.Blockchain,
+	}
+	nodeEventBus := eventbus.New()
+	collectorEventBus := eventbus.New()
+	listener := NewTestListener(nodeEventBus, stats.NewStatsCollector(collectorEventBus), appState, nodeCtx)
+	restorer := restore.NewRestorer(dbAccessor, appState, chain.Blockchain)
+	testIndexer := indexer.NewIndexer(
+		true,
+		listener,
+		memPoolIndexer,
+		dbAccessor,
+		restorer,
+		nil,
+		opt.RestoreInitially,
+		pm,
+		&TestFlipLoader{},
+	)
+	testIndexer.Start()
+	return &IndexerCtx{
+		dbConnector, testIndexer, listener, dbAccessor, nodeEventBus, chain,
+	}
+}
+
 func InitPostgres(
 	clearDb bool,
 	changesHistoryBlocksCount int,

@@ -884,3 +884,86 @@ func (v *RewardBounds) Value() (driver.Value, error) {
 	res.MaxAddress = conversion.ConvertAddress(v.Max.Address)
 	return json.Marshal(res)
 }
+
+type data struct {
+	DelegationSwitches []*delegationSwitch `json:"delegationSwitches,omitempty"`
+}
+
+func (v *data) Value() (driver.Value, error) {
+	return json.Marshal(v)
+}
+
+type delegationSwitch struct {
+	Delegator  string  `json:"delegator"`
+	Delegatee  *string `json:"delegatee,omitempty"`
+	BirthEpoch *uint16 `json:"birthEpoch,omitempty"`
+}
+
+func getData(delegationSwitches []*DelegationSwitch) *data {
+	res := &data{}
+	if len(delegationSwitches) > 0 {
+		res.DelegationSwitches = make([]*delegationSwitch, 0, len(delegationSwitches))
+		for _, incomingDelegationSwitch := range delegationSwitches {
+			postgresDelegationSwitch := &delegationSwitch{
+				Delegator:  conversion.ConvertAddress(incomingDelegationSwitch.Delegator),
+				BirthEpoch: incomingDelegationSwitch.BirthEpoch,
+			}
+			if incomingDelegationSwitch.Delegatee != nil {
+				delegatee := conversion.ConvertAddress(*incomingDelegationSwitch.Delegatee)
+				postgresDelegationSwitch.Delegatee = &delegatee
+			}
+			res.DelegationSwitches = append(res.DelegationSwitches, postgresDelegationSwitch)
+		}
+	}
+	return res
+}
+
+type restoredData struct {
+	PoolSizes   []*poolSize   `json:"poolSizes,omitempty"`
+	Delegations []*delegation `json:"delegations,omitempty"`
+}
+
+func (v *restoredData) Value() (driver.Value, error) {
+	return json.Marshal(v)
+}
+
+type poolSize struct {
+	Address string `json:"address"`
+	Size    uint64 `json:"size"`
+}
+
+type delegation struct {
+	Delegator  string  `json:"delegator"`
+	Delegatee  string  `json:"delegatee"`
+	BirthEpoch *uint16 `json:"birthEpoch,omitempty"`
+}
+
+func getRestoredData(data *RestoredData) *restoredData {
+	if data == nil {
+		return nil
+	}
+	res := &restoredData{}
+
+	if len(data.PoolSizes) > 0 {
+		res.PoolSizes = make([]*poolSize, 0, len(data.PoolSizes))
+		for _, incomingPoolSize := range data.PoolSizes {
+			res.PoolSizes = append(res.PoolSizes, &poolSize{
+				Address: conversion.ConvertAddress(incomingPoolSize.Address),
+				Size:    incomingPoolSize.Size,
+			})
+		}
+	}
+
+	if len(data.Delegations) > 0 {
+		res.Delegations = make([]*delegation, 0, len(data.Delegations))
+		for _, incomingDelegation := range data.Delegations {
+			res.Delegations = append(res.Delegations, &delegation{
+				Delegator:  conversion.ConvertAddress(incomingDelegation.Delegator),
+				Delegatee:  conversion.ConvertAddress(incomingDelegation.Delegatee),
+				BirthEpoch: incomingDelegation.BirthEpoch,
+			})
+		}
+	}
+
+	return res
+}

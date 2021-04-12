@@ -328,7 +328,8 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) (*result
 		newStateReadOnly:  newState,
 	}
 	collector := &conversionCollector{
-		addresses: make(map[string]*db.Address),
+		addresses:   make(map[string]*db.Address),
+		killedAddrs: make(map[common.Address]struct{}),
 	}
 	collectorStats := indexer.statsHolder().GetStats()
 	epoch := uint64(prevState.State.Epoch())
@@ -341,7 +342,7 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) (*result
 		return nil, err
 	}
 	indexer.pm.Complete("ConvertBlock")
-	epochResult := indexer.detectEpochResult(incomingBlock, ctx)
+	epochResult := indexer.detectEpochResult(incomingBlock, ctx, collector)
 
 	firstAddresses := indexer.detectFirstAddresses(incomingBlock, ctx)
 	for _, addr := range firstAddresses {
@@ -358,6 +359,8 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) (*result
 		ctx.newStateReadOnly)
 
 	coins, totalBalance, totalStake := indexer.getCoins(indexer.isFirstBlock(incomingBlock), diff)
+
+	delegationSwitches := detectDelegationSwitches(incomingBlock, ctx.prevStateReadOnly, ctx.newStateReadOnly, collector.killedAddrs, collector.switchDelegationTxs)
 
 	dbData := &db.Data{
 		Epoch:                                    epoch,
@@ -412,6 +415,7 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) (*result
 		TxReceipts:                               collectorStats.TxReceipts,
 		ContractTxsBalanceUpdates:                collectorStats.ContractTxsBalanceUpdates,
 		EpochResult:                              epochResult,
+		DelegationSwitches:                       delegationSwitches,
 	}
 	resData := &resultData{
 		totalBalance: totalBalance,
@@ -611,6 +615,10 @@ func (indexer *Indexer) convertTransaction(
 		collector.becomeOfflineTxs = append(collector.becomeOfflineTxs, *becomeOfflineTxHash)
 	}
 
+	if incomingTx.Type == types.DelegateTx || incomingTx.Type == types.UndelegateTx {
+		collector.switchDelegationTxs = append(collector.switchDelegationTxs, incomingTx)
+	}
+
 	indexer.handleLongAnswers(incomingTx, ctx, collector)
 	txHash := conversion.ConvertHash(incomingTx.Hash())
 
@@ -648,6 +656,12 @@ func (indexer *Indexer) convertTransaction(
 				NewState:  convertIdentityState(senderStateChange.NewState),
 				TxHash:    txHash,
 			})
+
+		if senderStateChange.NewState == state.Killed {
+			collector.killedAddrs[sender] = struct{}{}
+		} else {
+			delete(collector.killedAddrs, sender)
+		}
 	}
 
 	var to string
@@ -667,6 +681,12 @@ func (indexer *Indexer) convertTransaction(
 						NewState:  convertIdentityState(recipientStateChange.NewState),
 						TxHash:    txHash,
 					})
+
+				if recipientStateChange.NewState == state.Killed {
+					collector.killedAddrs[*incomingTx.To] = struct{}{}
+				} else {
+					delete(collector.killedAddrs, *incomingTx.To)
+				}
 			}
 		}
 	}
@@ -771,7 +791,7 @@ func convertCid(cid cid.Cid) string {
 	return cid.String()
 }
 
-func (indexer *Indexer) detectEpochResult(block *types.Block, ctx *conversionContext) *db.EpochResult {
+func (indexer *Indexer) detectEpochResult(block *types.Block, ctx *conversionContext, collector *conversionCollector) *db.EpochResult {
 	if !block.Header.Flags().HasFlag(types.ValidationFinished) {
 		return nil
 	}
@@ -874,6 +894,9 @@ func (indexer *Indexer) detectEpochResult(block *types.Block, ctx *conversionCon
 			}
 		}
 
+		if identity.State != state.Undefined && identity.State != state.Killed && (newIdentityState == state.Killed || newIdentityState == state.Undefined) {
+			collector.killedAddrs[addr] = struct{}{}
+		}
 	})
 
 	var flipsStats []db.FlipStats
