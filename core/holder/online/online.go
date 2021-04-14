@@ -110,6 +110,14 @@ func (updater *currentOnlineIdentitiesCacheUpdater) update() {
 	activityMap := updater.offlineDetector.GetActivityMap()
 	var onlineCount int
 	appState.State.IterateOverIdentities(func(address common.Address, identity state.Identity) {
+		online := appState.ValidatorsCache.IsOnlineIdentity(address)
+		if online {
+			if appState.ValidatorsCache.IsPool(address) {
+				onlineCount += appState.ValidatorsCache.PoolSize(address)
+			} else {
+				onlineCount++
+			}
+		}
 		if identity.State != state.Newbie && identity.State != state.Verified && identity.State != state.Human {
 			return
 		}
@@ -122,13 +130,10 @@ func (updater *currentOnlineIdentitiesCacheUpdater) update() {
 			Address:      addressStr,
 			LastActivity: lastActivity,
 			Penalty:      blockchain.ConvertToFloat(identity.Penalty),
-			Online:       appState.ValidatorsCache.IsOnlineIdentity(address),
+			Online:       online,
 		}
 		identities = append(identities, onlineIdentity)
 		identitiesPerAddress[strings.ToLower(addressStr)] = onlineIdentity
-		if onlineIdentity.Online {
-			onlineCount++
-		}
 	})
 
 	if len(identities) > 0 {
