@@ -14,6 +14,7 @@ import (
 
 func Test_ContractTxBalanceUpdates(t *testing.T) {
 	db, _, listener, dbAccessor, bus := testCommon.InitIndexer(true, 0, testCommon.PostgresSchema, "..")
+	defer listener.Destroy()
 	appState := listener.NodeCtx().AppState
 	statsCollector := listener.StatsCollector()
 
@@ -34,7 +35,7 @@ func Test_ContractTxBalanceUpdates(t *testing.T) {
 	statsCollector.EnableCollecting()
 	height := uint64(3)
 	block := buildBlock(height)
-	tx, _ := types.SignTx(&types.Transaction{AccountNonce: 4, To: &contractAddress, Type: types.CallContract}, senderKey)
+	tx, _ := types.SignTx(&types.Transaction{AccountNonce: 4, To: &contractAddress, Type: types.CallContractTx}, senderKey)
 	statsCollector.BeginApplyingTx(tx, appState)
 
 	statsCollector.BeginTxBalanceUpdate(tx, appState)
@@ -55,7 +56,7 @@ func Test_ContractTxBalanceUpdates(t *testing.T) {
 	block.Body.Transactions = append(block.Body.Transactions, tx)
 
 	// Send tx 2
-	tx, _ = types.SignTx(&types.Transaction{AccountNonce: 5, To: &contractAddress, Type: types.CallContract}, senderKey)
+	tx, _ = types.SignTx(&types.Transaction{AccountNonce: 5, To: &contractAddress, Type: types.CallContractTx}, senderKey)
 	statsCollector.BeginApplyingTx(tx, appState)
 
 	statsCollector.BeginTxBalanceUpdate(tx, appState)
@@ -76,7 +77,7 @@ func Test_ContractTxBalanceUpdates(t *testing.T) {
 	block.Body.Transactions = append(block.Body.Transactions, tx)
 
 	// Send fail tx
-	tx, _ = types.SignTx(&types.Transaction{AccountNonce: 6, To: &contractAddress, Type: types.CallContract}, senderKey)
+	tx, _ = types.SignTx(&types.Transaction{AccountNonce: 6, To: &contractAddress, Type: types.CallContractTx}, senderKey)
 	statsCollector.BeginApplyingTx(tx, appState)
 
 	statsCollector.BeginTxBalanceUpdate(tx, appState)

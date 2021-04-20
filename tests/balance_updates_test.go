@@ -23,6 +23,7 @@ import (
 
 func Test_committeeRewardZeroBlocksCount(t *testing.T) {
 	dbConnector, _, listener, _, bus := testCommon.InitIndexer(true, 0, testCommon.PostgresSchema, "..")
+	defer listener.Destroy()
 
 	addr := tests.GetRandAddr()
 	appState := listener.NodeCtx().AppState
@@ -94,6 +95,7 @@ func Test_committeeRewardZeroBlocksCount(t *testing.T) {
 
 func Test_changeCommitteeRewardBlocksCount(t *testing.T) {
 	dbConnector, indxr, listener, _, bus := testCommon.InitIndexer(true, 3, testCommon.PostgresSchema, "..")
+	defer listener.Destroy()
 	addr := tests.GetRandAddr()
 	appState := listener.NodeCtx().AppState
 	appState.State.SetState(addr, state.Verified)
@@ -132,6 +134,7 @@ func Test_changeCommitteeRewardBlocksCount(t *testing.T) {
 		ScriptsPathPrefix: "..",
 		AppState:          appState,
 	})
+	defer ctx.Listener.Destroy()
 	dbConnector, indxr, listener, bus = ctx.DbConnector, ctx.Indexer, ctx.Listener, ctx.EventBus
 	appState = listener.NodeCtx().AppState
 
@@ -156,6 +159,7 @@ func Test_changeCommitteeRewardBlocksCount(t *testing.T) {
 
 func Test_complexCommitteeRewardBalanceUpdates3blocks(t *testing.T) {
 	dbConnector, _, listener, dbAccessor, bus := testCommon.InitIndexer(true, 3, testCommon.PostgresSchema, "..")
+	defer listener.Destroy()
 
 	addr1 := tests.GetRandAddr()
 	addr2 := tests.GetRandAddr()
@@ -294,6 +298,7 @@ func Test_complexCommitteeRewardBalanceUpdates3blocks(t *testing.T) {
 
 func Test_complexCommitteeRewardBalanceUpdates6blocks(t *testing.T) {
 	dbConnector, _, listener, dbAccessor, bus := testCommon.InitIndexer(true, 6, testCommon.PostgresSchema, "..")
+	defer listener.Destroy()
 
 	addr1 := tests.GetRandAddr()
 	addr2 := tests.GetRandAddr()
@@ -444,6 +449,7 @@ func Test_complexCommitteeRewardBalanceUpdates6blocks(t *testing.T) {
 
 func Test_reset(t *testing.T) {
 	dbConnector, _, listener, dbAccessor, bus := testCommon.InitIndexer(true, 6, testCommon.PostgresSchema, "..")
+	defer listener.Destroy()
 
 	addr1 := tests.GetRandAddr()
 	addr2 := tests.GetRandAddr()
@@ -527,6 +533,7 @@ func Test_reset(t *testing.T) {
 
 func Test_penalty(t *testing.T) {
 	dbConnector, _, listener, _, bus := testCommon.InitIndexer(true, 3, testCommon.PostgresSchema, "..")
+	defer listener.Destroy()
 
 	addr := tests.GetRandAddr()
 	appState := listener.NodeCtx().AppState
@@ -582,7 +589,8 @@ func Test_penalty(t *testing.T) {
 
 func migrate(height uint64) (*sql.DB, error) {
 	schema := "schema_to_migrate"
-	testCommon.InitIndexer(true, 3, schema, "..")
+	_, _, listener, _, _ := testCommon.InitIndexer(true, 3, schema, "..")
+	defer listener.Destroy()
 
 	dbAccessor := migrationDb.NewPostgresAccessor(
 		testCommon.PostgresConnStr+"&search_path="+schema,

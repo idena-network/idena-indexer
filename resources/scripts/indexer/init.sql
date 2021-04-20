@@ -1346,6 +1346,7 @@ CREATE TABLE IF NOT EXISTS rewarded_invitations
     invite_tx_id bigint   NOT NULL,
     block_height bigint   NOT NULL,
     reward_type  smallint NOT NULL,
+    epoch_height integer,
     CONSTRAINT rewarded_invitations_pkey PRIMARY KEY (invite_tx_id, block_height),
     CONSTRAINT rewarded_invitations_invite_tx_id_fkey FOREIGN KEY (invite_tx_id)
         REFERENCES transactions (id) MATCH SIMPLE
@@ -2030,8 +2031,9 @@ $$
     BEGIN
         CREATE TYPE tp_rewarded_invitation AS
         (
-            tx_hash     character(66),
-            reward_type smallint
+            tx_hash      character(66),
+            reward_type  smallint,
+            epoch_height integer
         );
     EXCEPTION
         WHEN duplicate_object THEN null;

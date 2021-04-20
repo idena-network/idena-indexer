@@ -17,6 +17,7 @@ import (
 
 func Test_reportedFlipRewards(t *testing.T) {
 	dbConnector, _, listener, _, bus := testCommon.InitIndexer(true, 0, testCommon.PostgresSchema, "..")
+	defer listener.Destroy()
 
 	// Given
 	var height uint64

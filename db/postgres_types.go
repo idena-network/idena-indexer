@@ -116,9 +116,10 @@ func (v *Reward) Value() (driver.Value, error) {
 }
 
 func (v *RewardedInvite) Value() (driver.Value, error) {
-	return fmt.Sprintf("(%v,%v)",
+	return fmt.Sprintf("(%v,%v,%v)",
 		v.TxHash,
 		v.Type,
+		v.EpochHeight,
 	), nil
 }
 

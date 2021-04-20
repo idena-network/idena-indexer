@@ -17,6 +17,7 @@ import (
 
 func Test_complex(t *testing.T) {
 	dbConnector, _, listener, dbAccessor, bus := testCommon.InitIndexer(true, 0, testCommon.PostgresSchema, "..")
+	defer listener.Destroy()
 
 	var height uint64
 	key, _ := crypto.GenerateKey()
@@ -275,7 +276,8 @@ func Test_complex(t *testing.T) {
 
 	statsCollector.AddValidationReward(addr, addr, 100, new(big.Int).SetUint64(200), new(big.Int).SetUint64(100))
 	statsCollector.AddFlipsReward(addr, addr, new(big.Int).SetUint64(400), new(big.Int).SetUint64(300), nil)
-	statsCollector.AddInvitationsReward(addr, addr, new(big.Int).SetUint64(600), new(big.Int).SetUint64(500), 2, nil, false)
+	rewardedInvitationTxHash := deleteFlipTx.Hash()
+	statsCollector.AddInvitationsReward(addr, addr, new(big.Int).SetUint64(600), new(big.Int).SetUint64(500), 2, &rewardedInvitationTxHash, 99, false)
 
 	height++
 	block = buildBlock(height)
@@ -303,6 +305,12 @@ func Test_complex(t *testing.T) {
 	require.Equal(t, "0.0000000000000021", rewardBounds[0].MinAmount.String())
 	require.Equal(t, addr.Hex(), rewardBounds[0].MaxAddress)
 	require.Equal(t, "0.0000000000000021", rewardBounds[0].MaxAmount.String())
+
+	rewardedInvitations, err := testCommon.GetRewardedInvitations(dbConnector)
+	require.Nil(t, err)
+	require.Len(t, rewardedInvitations, 1)
+	require.Equal(t, 99, *rewardedInvitations[0].EpochHeight)
+	require.Equal(t, 7, rewardedInvitations[0].InviteTxId)
 
 	// When
 	err = dbAccessor.ResetTo(heightToReset)

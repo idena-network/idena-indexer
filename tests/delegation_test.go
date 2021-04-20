@@ -260,6 +260,7 @@ func Test_delegation(t *testing.T) {
 	require.Nil(t, err)
 	require.Empty(t, delegations)
 
+	ctx.Listener.Destroy()
 	ctx = testCommon.InitIndexer2(testCommon.Options{
 		ClearDb:           false,
 		RestoreInitially:  true,
@@ -268,6 +269,7 @@ func Test_delegation(t *testing.T) {
 		TestBlockchain:    ctx.TestBlockchain,
 		AppState:          appState,
 	})
+	defer ctx.Listener.Destroy()
 	appState = ctx.Listener.NodeCtx().AppState
 	statsCollector = ctx.Listener.StatsCollector()
 

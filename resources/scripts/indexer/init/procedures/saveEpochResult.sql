@@ -517,10 +517,11 @@ BEGIN
             if l_invite_tx_id is null then
                 continue;
             end if;
-            insert into rewarded_invitations (invite_tx_id, block_height, reward_type)
+            insert into rewarded_invitations (invite_tx_id, block_height, reward_type, epoch_height)
             values (l_invite_tx_id,
                     p_block_height,
-                    l_rewarded_invitation.reward_type);
+                    l_rewarded_invitation.reward_type,
+                    l_rewarded_invitation.epoch_height);
         end loop;
 END
 $BODY$;

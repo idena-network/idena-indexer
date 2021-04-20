@@ -17,6 +17,7 @@ import (
 
 func Test_RefundableOracleLockContractDeployWithExistingAddresses(t *testing.T) {
 	db, _, listener, _, bus := testCommon.InitIndexer(true, 0, testCommon.PostgresSchema, "..")
+	defer listener.Destroy()
 
 	// When
 	contractAddress1, contractAddress2, oracleVotingAddress, successAddress, failAddress := tests.GetRandAddr(), tests.GetRandAddr(), tests.GetRandAddr(), tests.GetRandAddr(), tests.GetRandAddr()
@@ -67,6 +68,7 @@ func Test_RefundableOracleLockContractDeployWithExistingAddresses(t *testing.T) 
 
 func Test_RefundableOracleLockContractDeployWithNotExistingAddresses(t *testing.T) {
 	db, _, listener, _, bus := testCommon.InitIndexer(true, 0, testCommon.PostgresSchema, "..")
+	defer listener.Destroy()
 
 	// When
 	contractAddress1, contractAddress2, oracleVotingAddress, successAddress, failAddress := tests.GetRandAddr(), tests.GetRandAddr(), tests.GetRandAddr(), tests.GetRandAddr(), tests.GetRandAddr()
@@ -112,6 +114,7 @@ func Test_RefundableOracleLockContractDeployWithNotExistingAddresses(t *testing.
 
 func Test_RefundableOracleLockContractDeployWithoutAddresses(t *testing.T) {
 	db, _, listener, _, bus := testCommon.InitIndexer(true, 0, testCommon.PostgresSchema, "..")
+	defer listener.Destroy()
 
 	// When
 	contractAddress1, contractAddress2, oracleVotingAddress := tests.GetRandAddr(), tests.GetRandAddr(), tests.GetRandAddr()
@@ -208,6 +211,7 @@ func deployRefundableOracleLockContracts(t *testing.T, listener incoming.Listene
 
 func Test_RefundableOracleLockContractCallDeposit(t *testing.T) {
 	db, _, listener, _, bus := testCommon.InitIndexer(true, 0, testCommon.PostgresSchema, "..")
+	defer listener.Destroy()
 	appState := listener.NodeCtx().AppState
 	statsCollector := listener.StatsCollector()
 
@@ -257,6 +261,7 @@ func Test_RefundableOracleLockContractCallDeposit(t *testing.T) {
 
 func Test_RefundableOracleLockContractCallPush(t *testing.T) {
 	db, _, listener, _, bus := testCommon.InitIndexer(true, 0, testCommon.PostgresSchema, "..")
+	defer listener.Destroy()
 	appState := listener.NodeCtx().AppState
 	statsCollector := listener.StatsCollector()
 
@@ -307,6 +312,7 @@ func Test_RefundableOracleLockContractCallPush(t *testing.T) {
 
 func Test_RefundableOracleLockContractCallPushNilResult(t *testing.T) {
 	db, _, listener, _, bus := testCommon.InitIndexer(true, 0, testCommon.PostgresSchema, "..")
+	defer listener.Destroy()
 	appState := listener.NodeCtx().AppState
 	statsCollector := listener.StatsCollector()
 
@@ -345,6 +351,7 @@ func Test_RefundableOracleLockContractCallPushNilResult(t *testing.T) {
 
 func Test_RefundableOracleLockContractCallPushZeroRefundBlock(t *testing.T) {
 	db, _, listener, _, bus := testCommon.InitIndexer(true, 0, testCommon.PostgresSchema, "..")
+	defer listener.Destroy()
 	appState := listener.NodeCtx().AppState
 	statsCollector := listener.StatsCollector()
 
@@ -383,6 +390,7 @@ func Test_RefundableOracleLockContractCallPushZeroRefundBlock(t *testing.T) {
 
 func Test_RefundableOracleLockContractCallRefund(t *testing.T) {
 	db, _, listener, _, bus := testCommon.InitIndexer(true, 0, testCommon.PostgresSchema, "..")
+	defer listener.Destroy()
 	appState := listener.NodeCtx().AppState
 	statsCollector := listener.StatsCollector()
 
@@ -431,6 +439,7 @@ func Test_RefundableOracleLockContractCallRefund(t *testing.T) {
 
 func Test_RefundableOracleLockContractTerminationToExistingAddress(t *testing.T) {
 	db, _, listener, _, bus := testCommon.InitIndexer(true, 0, testCommon.PostgresSchema, "..")
+	defer listener.Destroy()
 	appState := listener.NodeCtx().AppState
 	statsCollector := listener.StatsCollector()
 
@@ -467,6 +476,7 @@ func Test_RefundableOracleLockContractTerminationToExistingAddress(t *testing.T)
 
 func Test_RefundableOracleLockContractTerminationToNotExistingAddress(t *testing.T) {
 	db, _, listener, _, bus := testCommon.InitIndexer(true, 0, testCommon.PostgresSchema, "..")
+	defer listener.Destroy()
 	appState := listener.NodeCtx().AppState
 	statsCollector := listener.StatsCollector()
 
@@ -501,6 +511,7 @@ func Test_RefundableOracleLockContractTerminationToNotExistingAddress(t *testing
 
 func Test__RefundableOracleLockContractReset(t *testing.T) {
 	db, _, listener, dbAccessor, bus := testCommon.InitIndexer(true, 0, testCommon.PostgresSchema, "..")
+	defer listener.Destroy()
 	appState := listener.NodeCtx().AppState
 	statsCollector := listener.StatsCollector()
 

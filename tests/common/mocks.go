@@ -11,6 +11,7 @@ import (
 	"github.com/idena-network/idena-go/core/mempool"
 	"github.com/idena-network/idena-go/events"
 	"github.com/idena-network/idena-go/node"
+	"github.com/idena-network/idena-go/secstore"
 	"github.com/idena-network/idena-go/stats/collector"
 	"github.com/idena-network/idena-indexer/import/words"
 	"github.com/idena-network/idena-indexer/incoming"
@@ -30,6 +31,7 @@ type TestListener struct {
 	appState    *appstate.AppState
 	nodeCtx     *node.NodeCtx
 	keysPool    *mempool.KeysPool
+	secStore    *secstore.SecStore
 }
 
 func NewTestListener(
@@ -37,6 +39,7 @@ func NewTestListener(
 	collector collector.StatsCollector,
 	appState *appstate.AppState,
 	nodeCtx *node.NodeCtx,
+	secStore *secstore.SecStore,
 ) incoming.Listener {
 	return &TestListener{
 		bus:       bus,
@@ -44,6 +47,7 @@ func NewTestListener(
 		appState:  appState,
 		nodeCtx:   nodeCtx,
 		keysPool:  &mempool.KeysPool{},
+		secStore:  secStore,
 	}
 }
 
@@ -97,7 +101,7 @@ func (l *TestListener) NodeEventBus() eventbus.Bus {
 }
 
 func (l *TestListener) Destroy() {
-
+	l.secStore.Destroy()
 }
 
 func (l *TestListener) WaitForStop() {

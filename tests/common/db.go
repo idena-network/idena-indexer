@@ -1883,3 +1883,38 @@ func GetDelegations(db *sql.DB) ([]Delegation, error) {
 	}
 	return res, nil
 }
+
+type RewardedInvitation struct {
+	InviteTxId  int
+	BlockHeight int
+	RewardType  int
+	EpochHeight *int
+}
+
+func GetRewardedInvitations(db *sql.DB) ([]RewardedInvitation, error) {
+	rows, err := db.Query(`select * from rewarded_invitations order by invite_tx_id`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var res []RewardedInvitation
+	for rows.Next() {
+		item := RewardedInvitation{}
+		var epochHeight sql.NullInt32
+		err := rows.Scan(
+			&item.InviteTxId,
+			&item.BlockHeight,
+			&item.RewardType,
+			&epochHeight,
+		)
+		if err != nil {
+			return nil, err
+		}
+		if epochHeight.Valid {
+			v := int(epochHeight.Int32)
+			item.EpochHeight = &v
+		}
+		res = append(res, item)
+	}
+	return res, nil
+}

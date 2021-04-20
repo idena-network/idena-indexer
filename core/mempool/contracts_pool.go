@@ -231,7 +231,7 @@ func (c *contractsImpl) processTx(tx *types.Transaction) error {
 }
 
 func isContractTx(tx *types.Transaction) bool {
-	return tx.Type == types.DeployContract || tx.Type == types.CallContract || tx.Type == types.TerminateContract
+	return tx.Type == types.DeployContractTx || tx.Type == types.CallContractTx || tx.Type == types.TerminateContractTx
 }
 
 func isContractAddress(address common.Address, appState *appstate.AppState) bool {
@@ -308,7 +308,7 @@ func (c *contractsImpl) RemoveTx(tx *types.Transaction) {
 }
 
 func (c *contractsImpl) removeDeployTx(tx *types.Transaction) {
-	if tx.Type != types.DeployContract {
+	if tx.Type != types.DeployContractTx {
 		return
 	}
 	sender, _ := types.Sender(tx)

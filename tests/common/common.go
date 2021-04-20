@@ -61,7 +61,7 @@ func InitIndexer(
 		AppState:   appState,
 		Blockchain: chain.Blockchain,
 	}
-	listener := NewTestListener(nodeEventBus, stats.NewStatsCollector(collectorEventBus), appState, nodeCtx)
+	listener := NewTestListener(nodeEventBus, stats.NewStatsCollector(collectorEventBus), appState, nodeCtx, chain.SecStore())
 	restorer := restore.NewRestorer(dbAccessor, appState, chain.Blockchain)
 	testIndexer := indexer.NewIndexer(
 		true,
@@ -124,7 +124,7 @@ func InitIndexer2(opt Options) *IndexerCtx {
 	}
 	nodeEventBus := eventbus.New()
 	collectorEventBus := eventbus.New()
-	listener := NewTestListener(nodeEventBus, stats.NewStatsCollector(collectorEventBus), appState, nodeCtx)
+	listener := NewTestListener(nodeEventBus, stats.NewStatsCollector(collectorEventBus), appState, nodeCtx, chain.SecStore())
 	restorer := restore.NewRestorer(dbAccessor, appState, chain.Blockchain)
 	testIndexer := indexer.NewIndexer(
 		true,

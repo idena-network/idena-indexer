@@ -146,8 +146,9 @@ type EpochRewards struct {
 }
 
 type RewardedInvite struct {
-	TxHash string
-	Type   byte
+	TxHash      string
+	Type        byte
+	EpochHeight uint32
 }
 
 type SavedInviteRewards struct {

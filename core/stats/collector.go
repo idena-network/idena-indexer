@@ -254,7 +254,7 @@ func (c *statsCollector) getFlipCid(flipIdx int) ([]byte, bool) {
 }
 
 func (c *statsCollector) AddInvitationsReward(balanceDest, stakeDest common.Address, balance *big.Int, stake *big.Int, age uint16,
-	txHash *common.Hash, isSavedInviteWinner bool) {
+	txHash *common.Hash, epochHeight uint32, isSavedInviteWinner bool) {
 	rewardType, err := determineInvitationsRewardType(age, isSavedInviteWinner)
 	if err != nil {
 		log.Warn(err.Error())
@@ -267,7 +267,7 @@ func (c *statsCollector) AddInvitationsReward(balanceDest, stakeDest common.Addr
 		c.addReward(stakeDest, big.NewInt(0), stake, rewardType)
 	}
 	baseRewardRecipient := stakeDest
-	c.addRewardedInvite(baseRewardRecipient, txHash, rewardType)
+	c.addRewardedInvite(baseRewardRecipient, txHash, rewardType, epochHeight)
 
 	c.addAddrTotalReward(baseRewardRecipient, balance, stake)
 }
@@ -290,7 +290,7 @@ func determineInvitationsRewardType(age uint16, isSavedInviteWinner bool) (Rewar
 	}
 }
 
-func (c *statsCollector) addRewardedInvite(addr common.Address, txHash *common.Hash, rewardType RewardType) {
+func (c *statsCollector) addRewardedInvite(addr common.Address, txHash *common.Hash, rewardType RewardType, epochHeight uint32) {
 	if rewardType == SavedInviteWin || rewardType == SavedInvite {
 		c.initRewardStats()
 		if c.stats.RewardsStats.SavedInviteRewardsCountByAddrAndType == nil {
@@ -308,8 +308,9 @@ func (c *statsCollector) addRewardedInvite(addr common.Address, txHash *common.H
 	}
 	c.initRewardStats()
 	c.stats.RewardsStats.RewardedInvites = append(c.stats.RewardsStats.RewardedInvites, &db.RewardedInvite{
-		TxHash: conversion.ConvertHash(*txHash),
-		Type:   byte(rewardType),
+		TxHash:      conversion.ConvertHash(*txHash),
+		Type:        byte(rewardType),
+		EpochHeight: epochHeight,
 	})
 }
 
@@ -831,7 +832,7 @@ func isContractAddress(address common.Address, appState *appstate.AppState) bool
 }
 
 func isContractTx(tx *types.Transaction) bool {
-	return tx.Type == types.DeployContract || tx.Type == types.CallContract || tx.Type == types.TerminateContract
+	return tx.Type == types.DeployContractTx || tx.Type == types.CallContractTx || tx.Type == types.TerminateContractTx
 }
 
 func (c *statsCollector) AddTxFee(feeAmount *big.Int) {
@@ -1395,7 +1396,7 @@ func (c *statsCollector) AddTxReceipt(txReceipt *types.TxReceipt, appState *apps
 		}
 	}
 
-	isFailedDeploy := c.pending.tx.tx.Type == types.DeployContract && !txReceipt.Success
+	isFailedDeploy := c.pending.tx.tx.Type == types.DeployContractTx && !txReceipt.Success
 	if txReceipt.ContractAddress != (common.Address{}) && !isFailedDeploy {
 		c.stats.ContractTxsBalanceUpdates = append(c.stats.ContractTxsBalanceUpdates, &db.ContractTxBalanceUpdates{
 			TxHash:             c.pending.tx.tx.Hash(),

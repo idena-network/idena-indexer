@@ -12,6 +12,7 @@ import (
 
 func Test_transactionRaw(t *testing.T) {
 	dbConnector, _, listener, _, bus := testCommon.InitIndexer(true, 0, testCommon.PostgresSchema, "..")
+	defer listener.Destroy()
 
 	var height uint64
 	key, _ := crypto.GenerateKey()

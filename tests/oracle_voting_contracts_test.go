@@ -18,6 +18,7 @@ import (
 
 func Test_OracleVotingContractDeploy(t *testing.T) {
 	db, _, listener, _, bus := testCommon.InitIndexer(true, 0, testCommon.PostgresSchema, "..")
+	defer listener.Destroy()
 
 	startTime := time.Now().UTC()
 	contractAddress1, contractAddress2 := tests.GetRandAddr(), tests.GetRandAddr()
@@ -99,7 +100,7 @@ func deployOracleVotingContracts(t *testing.T, listener incoming.Listener, bus e
 	block := buildBlock(height)
 
 	// Success
-	tx := &types.Transaction{AccountNonce: 1, Type: types.DeployContract}
+	tx := &types.Transaction{AccountNonce: 1, Type: types.DeployContractTx}
 	statsCollector.BeginApplyingTx(tx, appState)
 	statsCollector.AddOracleVotingDeploy(addr1, uint64(startTime.Unix()), new(big.Int).SetUint64(23400), []byte{0x1, 0x2},
 		0, 1, 2, 3, 4, 5, 7)
@@ -110,7 +111,7 @@ func deployOracleVotingContracts(t *testing.T, listener incoming.Listener, bus e
 
 	// Failed tx receipt
 	failedContractAddress := tests.GetRandAddr()
-	tx = &types.Transaction{AccountNonce: 2, Type: types.DeployContract}
+	tx = &types.Transaction{AccountNonce: 2, Type: types.DeployContractTx}
 	statsCollector.BeginApplyingTx(tx, appState)
 	statsCollector.AddOracleVotingDeploy(failedContractAddress, uint64(startTime.Unix()), new(big.Int).SetUint64(23400), []byte{0x1, 0x2},
 		0, 1, 2, 3, 4, 5, 7)
@@ -120,7 +121,7 @@ func deployOracleVotingContracts(t *testing.T, listener incoming.Listener, bus e
 	block.Body.Transactions = append(block.Body.Transactions, tx)
 
 	// Success, fact and voting min payment are nil
-	tx = &types.Transaction{AccountNonce: 3, Type: types.DeployContract}
+	tx = &types.Transaction{AccountNonce: 3, Type: types.DeployContractTx}
 	statsCollector.BeginApplyingTx(tx, appState)
 	statsCollector.AddOracleVotingDeploy(addr2, uint64(startTime.Unix()), nil, []byte{},
 		0, 11, 12, 13, 14, 15, 17)
@@ -135,6 +136,7 @@ func deployOracleVotingContracts(t *testing.T, listener incoming.Listener, bus e
 
 func Test_TxReceipts(t *testing.T) {
 	db, _, listener, _, bus := testCommon.InitIndexer(true, 0, testCommon.PostgresSchema, "..")
+	defer listener.Destroy()
 
 	startTime := time.Now().UTC()
 	contractAddress1, contractAddress2 := tests.GetRandAddr(), tests.GetRandAddr()
@@ -168,6 +170,7 @@ func Test_TxReceipts(t *testing.T) {
 
 func Test_OracleVotingContractCallStart(t *testing.T) {
 	db, _, listener, _, bus := testCommon.InitIndexer(true, 0, testCommon.PostgresSchema, "..")
+	defer listener.Destroy()
 
 	appState := listener.NodeCtx().AppState
 	addr1 := tests.GetRandAddr()
@@ -270,6 +273,7 @@ func Test_OracleVotingContractCallStart(t *testing.T) {
 
 func Test_OracleVotingContractCallStartEmptyCommittee(t *testing.T) {
 	db, _, listener, _, bus := testCommon.InitIndexer(true, 0, testCommon.PostgresSchema, "..")
+	defer listener.Destroy()
 
 	appState := listener.NodeCtx().AppState
 	addr1 := tests.GetRandAddr()
@@ -305,6 +309,7 @@ func Test_OracleVotingContractCallStartEmptyCommittee(t *testing.T) {
 
 func Test_OracleVotingContractCallStartFail(t *testing.T) {
 	db, _, listener, _, bus := testCommon.InitIndexer(true, 0, testCommon.PostgresSchema, "..")
+	defer listener.Destroy()
 
 	appState := listener.NodeCtx().AppState
 	addr1 := tests.GetRandAddr()
@@ -364,6 +369,7 @@ func Test_OracleVotingContractCallStartFail(t *testing.T) {
 
 func Test_OracleVotingContractCallVoteProofOld(t *testing.T) {
 	db, _, listener, _, bus := testCommon.InitIndexer(true, 0, testCommon.PostgresSchema, "..")
+	defer listener.Destroy()
 
 	appState := listener.NodeCtx().AppState
 	respondentKey, _ := crypto.GenerateKey()
@@ -468,6 +474,7 @@ func Test_OracleVotingContractCallVoteProofOld(t *testing.T) {
 
 func Test_OracleVotingContractCallVoteProof(t *testing.T) {
 	db, _, listener, _, bus := testCommon.InitIndexer(true, 0, testCommon.PostgresSchema, "..")
+	defer listener.Destroy()
 
 	appState := listener.NodeCtx().AppState
 	respondentKey, _ := crypto.GenerateKey()
@@ -576,6 +583,7 @@ func Test_OracleVotingContractCallVoteProof(t *testing.T) {
 
 func Test_OracleVotingContractCallVoteProofTwiceOld(t *testing.T) {
 	db, _, listener, _, bus := testCommon.InitIndexer(true, 0, testCommon.PostgresSchema, "..")
+	defer listener.Destroy()
 
 	appState := listener.NodeCtx().AppState
 	respondentKey, _ := crypto.GenerateKey()
@@ -652,6 +660,7 @@ func Test_OracleVotingContractCallVoteProofTwiceOld(t *testing.T) {
 
 func Test_OracleVotingContractCallVoteProofTwice(t *testing.T) {
 	db, _, listener, _, bus := testCommon.InitIndexer(true, 0, testCommon.PostgresSchema, "..")
+	defer listener.Destroy()
 
 	appState := listener.NodeCtx().AppState
 	respondentKey, _ := crypto.GenerateKey()
@@ -730,6 +739,7 @@ func Test_OracleVotingContractCallVoteProofTwice(t *testing.T) {
 
 func Test_OracleVotingContractCallVoteProofTwice2(t *testing.T) {
 	db, _, listener, _, bus := testCommon.InitIndexer(true, 0, testCommon.PostgresSchema, "..")
+	defer listener.Destroy()
 
 	appState := listener.NodeCtx().AppState
 	respondentKey, _ := crypto.GenerateKey()
@@ -808,6 +818,7 @@ func Test_OracleVotingContractCallVoteProofTwice2(t *testing.T) {
 
 func Test_OracleVotingContractCallVoteOld(t *testing.T) {
 	db, _, listener, _, bus := testCommon.InitIndexer(true, 0, testCommon.PostgresSchema, "..")
+	defer listener.Destroy()
 	appState := listener.NodeCtx().AppState
 	statsCollector := listener.StatsCollector()
 
@@ -859,6 +870,7 @@ func Test_OracleVotingContractCallVoteOld(t *testing.T) {
 
 func Test_OracleVotingContractCallVote(t *testing.T) {
 	db, _, listener, _, bus := testCommon.InitIndexer(true, 0, testCommon.PostgresSchema, "..")
+	defer listener.Destroy()
 	appState := listener.NodeCtx().AppState
 	statsCollector := listener.StatsCollector()
 
@@ -919,6 +931,7 @@ func Test_OracleVotingContractCallVote(t *testing.T) {
 
 func Test_OracleVotingContractCallVoteWithDelegatee1(t *testing.T) {
 	db, _, listener, _, bus := testCommon.InitIndexer(true, 0, testCommon.PostgresSchema, "..")
+	defer listener.Destroy()
 	appState := listener.NodeCtx().AppState
 	statsCollector := listener.StatsCollector()
 
@@ -980,6 +993,7 @@ func Test_OracleVotingContractCallVoteWithDelegatee1(t *testing.T) {
 
 func Test_OracleVotingContractCallVoteWithDelegatee2(t *testing.T) {
 	db, _, listener, _, bus := testCommon.InitIndexer(true, 0, testCommon.PostgresSchema, "..")
+	defer listener.Destroy()
 	appState := listener.NodeCtx().AppState
 	statsCollector := listener.StatsCollector()
 
@@ -1045,6 +1059,7 @@ func Test_OracleVotingContractCallVoteWithDelegatee2(t *testing.T) {
 
 func Test_OracleVotingContractCallFinish(t *testing.T) {
 	db, _, listener, _, bus := testCommon.InitIndexer(true, 0, testCommon.PostgresSchema, "..")
+	defer listener.Destroy()
 
 	startTime := time.Now().UTC()
 	contractAddress1, contractAddress2 := tests.GetRandAddr(), tests.GetRandAddr()
@@ -1122,6 +1137,7 @@ func Test_OracleVotingContractCallFinish(t *testing.T) {
 
 func Test_OracleVotingContractCallProlongationOld(t *testing.T) {
 	db, _, listener, _, bus := testCommon.InitIndexer(true, 0, testCommon.PostgresSchema, "..")
+	defer listener.Destroy()
 	appState := listener.NodeCtx().AppState
 	statsCollector := listener.StatsCollector()
 
@@ -1163,6 +1179,7 @@ func Test_OracleVotingContractCallProlongationOld(t *testing.T) {
 
 func Test_OracleVotingContractCallProlongation(t *testing.T) {
 	db, _, listener, _, bus := testCommon.InitIndexer(true, 0, testCommon.PostgresSchema, "..")
+	defer listener.Destroy()
 	appState := listener.NodeCtx().AppState
 	statsCollector := listener.StatsCollector()
 
@@ -1215,6 +1232,7 @@ func Test_OracleVotingContractCallProlongation(t *testing.T) {
 
 func Test_OracleVotingContractCallProlongationWithoutStartBlock(t *testing.T) {
 	db, _, listener, _, bus := testCommon.InitIndexer(true, 0, testCommon.PostgresSchema, "..")
+	defer listener.Destroy()
 	appState := listener.NodeCtx().AppState
 	statsCollector := listener.StatsCollector()
 
@@ -1261,6 +1279,7 @@ func Test_OracleVotingContractCallProlongationWithoutStartBlock(t *testing.T) {
 
 func Test_OracleVotingContractCallAddStake(t *testing.T) {
 	db, _, listener, _, bus := testCommon.InitIndexer(true, 0, testCommon.PostgresSchema, "..")
+	defer listener.Destroy()
 	appState := listener.NodeCtx().AppState
 	statsCollector := listener.StatsCollector()
 
@@ -1305,6 +1324,7 @@ func Test_OracleVotingContractCallAddStake(t *testing.T) {
 
 func Test_OracleVotingContractTermination(t *testing.T) {
 	db, _, listener, _, bus := testCommon.InitIndexer(true, 0, testCommon.PostgresSchema, "..")
+	defer listener.Destroy()
 	appState := listener.NodeCtx().AppState
 	statsCollector := listener.StatsCollector()
 
@@ -1345,6 +1365,7 @@ func Test_OracleVotingContractTermination(t *testing.T) {
 
 func Test_OracleVotingContractUpdateBalance(t *testing.T) {
 	db, _, listener, _, bus := testCommon.InitIndexer(true, 0, testCommon.PostgresSchema, "..")
+	defer listener.Destroy()
 	appState := listener.NodeCtx().AppState
 	statsCollector := listener.StatsCollector()
 
@@ -1378,6 +1399,7 @@ func Test_OracleVotingContractUpdateBalance(t *testing.T) {
 
 func Test_OracleVotingContractSetNewCommitteeAndSwitchToCountingState(t *testing.T) {
 	db, _, listener, _, bus := testCommon.InitIndexer(true, 0, testCommon.PostgresSchema, "..")
+	defer listener.Destroy()
 
 	appState := listener.NodeCtx().AppState
 	addr1 := tests.GetRandAddr()
@@ -1505,6 +1527,7 @@ func Test_OracleVotingContractSetNewCommitteeAndSwitchToCountingState(t *testing
 
 func Test_ClearOldEpochNotVotedCommitteeOld(t *testing.T) {
 	db, _, listener, dbAccessor, bus := testCommon.InitIndexer(true, 10, testCommon.PostgresSchema, "..")
+	defer listener.Destroy()
 
 	appState := listener.NodeCtx().AppState
 	respondentKey, _ := crypto.GenerateKey()
@@ -1633,6 +1656,7 @@ func Test_ClearOldEpochNotVotedCommitteeOld(t *testing.T) {
 
 func Test_ClearOldEpochNotVotedCommittee(t *testing.T) {
 	db, _, listener, dbAccessor, bus := testCommon.InitIndexer(true, 10, testCommon.PostgresSchema, "..")
+	defer listener.Destroy()
 
 	appState := listener.NodeCtx().AppState
 	respondentKey, _ := crypto.GenerateKey()
@@ -1761,6 +1785,7 @@ func Test_ClearOldEpochNotVotedCommittee(t *testing.T) {
 
 func Test_ClearTerminatedContractCommitteeOld(t *testing.T) {
 	db, _, listener, dbAccessor, bus := testCommon.InitIndexer(true, 10, testCommon.PostgresSchema, "..")
+	defer listener.Destroy()
 
 	appState := listener.NodeCtx().AppState
 	respondentKey, _ := crypto.GenerateKey()
@@ -1871,6 +1896,7 @@ func Test_ClearTerminatedContractCommitteeOld(t *testing.T) {
 
 func Test_ClearTerminatedContractCommittee(t *testing.T) {
 	db, _, listener, dbAccessor, bus := testCommon.InitIndexer(true, 10, testCommon.PostgresSchema, "..")
+	defer listener.Destroy()
 
 	appState := listener.NodeCtx().AppState
 	respondentKey, _ := crypto.GenerateKey()

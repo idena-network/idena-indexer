@@ -16,6 +16,7 @@ import (
 
 func Test_ResetOracleVotingResultsAndSummariesOld(t *testing.T) {
 	db, _, listener, dbAccessor, bus := testCommon.InitIndexer(true, 5, testCommon.PostgresSchema, "..")
+	defer listener.Destroy()
 	appState := listener.NodeCtx().AppState
 	statsCollector := listener.StatsCollector()
 
@@ -147,6 +148,7 @@ func Test_ResetOracleVotingResultsAndSummariesOld(t *testing.T) {
 
 func Test_ResetOracleVotingResultsAndSummaries(t *testing.T) {
 	db, _, listener, dbAccessor, bus := testCommon.InitIndexer(true, 5, testCommon.PostgresSchema, "..")
+	defer listener.Destroy()
 	appState := listener.NodeCtx().AppState
 	statsCollector := listener.StatsCollector()
 
@@ -284,6 +286,7 @@ func Test_ResetOracleVotingResultsAndSummaries(t *testing.T) {
 func Test_ResetOracleVotingContractsOld(t *testing.T) {
 
 	db, _, listener, dbAccessor, bus := testCommon.InitIndexer(true, 1000, testCommon.PostgresSchema, "..")
+	defer listener.Destroy()
 
 	respondentKey1, _ := crypto.GenerateKey()
 	respondentAddress1 := crypto.PubkeyToAddress(respondentKey1.PublicKey)
@@ -764,6 +767,7 @@ func Test_ResetOracleVotingContractsOld(t *testing.T) {
 func Test_ResetOracleVotingContracts(t *testing.T) {
 
 	db, _, listener, dbAccessor, bus := testCommon.InitIndexer(true, 1000, testCommon.PostgresSchema, "..")
+	defer listener.Destroy()
 
 	respondentKey1, _ := crypto.GenerateKey()
 	respondentAddress1 := crypto.PubkeyToAddress(respondentKey1.PublicKey)

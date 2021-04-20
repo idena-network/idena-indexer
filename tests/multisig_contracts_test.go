@@ -16,6 +16,7 @@ import (
 
 func Test_MultisigContractDeploy(t *testing.T) {
 	db, _, listener, _, bus := testCommon.InitIndexer(true, 0, testCommon.PostgresSchema, "..")
+	defer listener.Destroy()
 
 	// When
 	contractAddress1, contractAddress2 := tests.GetRandAddr(), tests.GetRandAddr()
@@ -94,6 +95,7 @@ func deployMultisigContracts(t *testing.T, listener incoming.Listener, bus event
 
 func Test_MultisigContractCallAddExistingAddressAndNoNewState(t *testing.T) {
 	db, _, listener, _, bus := testCommon.InitIndexer(true, 0, testCommon.PostgresSchema, "..")
+	defer listener.Destroy()
 	appState := listener.NodeCtx().AppState
 	statsCollector := listener.StatsCollector()
 
@@ -131,6 +133,7 @@ func Test_MultisigContractCallAddExistingAddressAndNoNewState(t *testing.T) {
 
 func Test_MultisigContractCallAddNotExistingAddressAndNewState(t *testing.T) {
 	db, _, listener, _, bus := testCommon.InitIndexer(true, 0, testCommon.PostgresSchema, "..")
+	defer listener.Destroy()
 	appState := listener.NodeCtx().AppState
 	statsCollector := listener.StatsCollector()
 
@@ -166,6 +169,7 @@ func Test_MultisigContractCallAddNotExistingAddressAndNewState(t *testing.T) {
 
 func Test_MultisigContractCallSendToExistingAddress(t *testing.T) {
 	db, _, listener, _, bus := testCommon.InitIndexer(true, 0, testCommon.PostgresSchema, "..")
+	defer listener.Destroy()
 	appState := listener.NodeCtx().AppState
 	statsCollector := listener.StatsCollector()
 
@@ -203,6 +207,7 @@ func Test_MultisigContractCallSendToExistingAddress(t *testing.T) {
 
 func Test_MultisigContractCallSendToNotExistingAddress(t *testing.T) {
 	db, _, listener, _, bus := testCommon.InitIndexer(true, 0, testCommon.PostgresSchema, "..")
+	defer listener.Destroy()
 	appState := listener.NodeCtx().AppState
 	statsCollector := listener.StatsCollector()
 
@@ -237,6 +242,7 @@ func Test_MultisigContractCallSendToNotExistingAddress(t *testing.T) {
 
 func Test_MultisigContractCallPushToExistingAddress(t *testing.T) {
 	db, _, listener, _, bus := testCommon.InitIndexer(true, 0, testCommon.PostgresSchema, "..")
+	defer listener.Destroy()
 	appState := listener.NodeCtx().AppState
 	statsCollector := listener.StatsCollector()
 
@@ -276,6 +282,7 @@ func Test_MultisigContractCallPushToExistingAddress(t *testing.T) {
 
 func Test_MultisigContractCallPushToNotExistingAddress(t *testing.T) {
 	db, _, listener, _, bus := testCommon.InitIndexer(true, 0, testCommon.PostgresSchema, "..")
+	defer listener.Destroy()
 	appState := listener.NodeCtx().AppState
 	statsCollector := listener.StatsCollector()
 
@@ -312,6 +319,7 @@ func Test_MultisigContractCallPushToNotExistingAddress(t *testing.T) {
 
 func Test_MultisigContractTerminationToExistingAddress(t *testing.T) {
 	db, _, listener, _, bus := testCommon.InitIndexer(true, 0, testCommon.PostgresSchema, "..")
+	defer listener.Destroy()
 	appState := listener.NodeCtx().AppState
 	statsCollector := listener.StatsCollector()
 
@@ -348,6 +356,7 @@ func Test_MultisigContractTerminationToExistingAddress(t *testing.T) {
 
 func Test_MultisigContractTerminationToNotExistingAddress(t *testing.T) {
 	db, _, listener, _, bus := testCommon.InitIndexer(true, 0, testCommon.PostgresSchema, "..")
+	defer listener.Destroy()
 	appState := listener.NodeCtx().AppState
 	statsCollector := listener.StatsCollector()
 
@@ -382,6 +391,7 @@ func Test_MultisigContractTerminationToNotExistingAddress(t *testing.T) {
 
 func Test_MultisigContractReset(t *testing.T) {
 	db, _, listener, dbAccessor, bus := testCommon.InitIndexer(true, 0, testCommon.PostgresSchema, "..")
+	defer listener.Destroy()
 
 	contractAddress := tests.GetRandAddr()
 	deployMultisigContracts(t, listener, bus, contractAddress, tests.GetRandAddr())

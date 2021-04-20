@@ -17,6 +17,7 @@ import (
 
 func Test_TimeLockContractDeploy(t *testing.T) {
 	db, _, listener, _, bus := testCommon.InitIndexer(true, 0, testCommon.PostgresSchema, "..")
+	defer listener.Destroy()
 
 	// When
 	timestamp := time.Now()
@@ -94,6 +95,7 @@ func deployTimeLockContracts(t *testing.T, listener incoming.Listener, bus event
 
 func Test_TimeLockContractCallTransferToExistingAddress(t *testing.T) {
 	db, _, listener, _, bus := testCommon.InitIndexer(true, 0, testCommon.PostgresSchema, "..")
+	defer listener.Destroy()
 	appState := listener.NodeCtx().AppState
 	statsCollector := listener.StatsCollector()
 
@@ -132,6 +134,7 @@ func Test_TimeLockContractCallTransferToExistingAddress(t *testing.T) {
 
 func Test_TimeLockContractCallTransferToNotExistingAddress(t *testing.T) {
 	db, _, listener, _, bus := testCommon.InitIndexer(true, 0, testCommon.PostgresSchema, "..")
+	defer listener.Destroy()
 	appState := listener.NodeCtx().AppState
 	statsCollector := listener.StatsCollector()
 
@@ -168,6 +171,7 @@ func Test_TimeLockContractCallTransferToNotExistingAddress(t *testing.T) {
 
 func Test_TimeLockContractTerminationToExistingAddress(t *testing.T) {
 	db, _, listener, _, bus := testCommon.InitIndexer(true, 0, testCommon.PostgresSchema, "..")
+	defer listener.Destroy()
 	appState := listener.NodeCtx().AppState
 	statsCollector := listener.StatsCollector()
 
@@ -205,6 +209,7 @@ func Test_TimeLockContractTerminationToExistingAddress(t *testing.T) {
 
 func Test_TimeLockContractTerminationToNotExistingAddress(t *testing.T) {
 	db, _, listener, _, bus := testCommon.InitIndexer(true, 0, testCommon.PostgresSchema, "..")
+	defer listener.Destroy()
 	appState := listener.NodeCtx().AppState
 	statsCollector := listener.StatsCollector()
 
@@ -240,6 +245,7 @@ func Test_TimeLockContractTerminationToNotExistingAddress(t *testing.T) {
 
 func Test_TimeLockContractReset(t *testing.T) {
 	db, _, listener, dbAccessor, bus := testCommon.InitIndexer(true, 0, testCommon.PostgresSchema, "..")
+	defer listener.Destroy()
 	appState := listener.NodeCtx().AppState
 	statsCollector := listener.StatsCollector()
 

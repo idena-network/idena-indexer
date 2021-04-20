@@ -16,6 +16,7 @@ import (
 
 func Test_OracleLockContractDeployWithExistingAddresses(t *testing.T) {
 	db, _, listener, _, bus := testCommon.InitIndexer(true, 0, testCommon.PostgresSchema, "..")
+	defer listener.Destroy()
 
 	// When
 	contractAddress1, contractAddress2, oracleVotingAddress, successAddress, failAddress := tests.GetRandAddr(), tests.GetRandAddr(), tests.GetRandAddr(), tests.GetRandAddr(), tests.GetRandAddr()
@@ -63,6 +64,7 @@ func Test_OracleLockContractDeployWithExistingAddresses(t *testing.T) {
 
 func Test_OracleLockContractDeployWithNotExistingAddresses(t *testing.T) {
 	db, _, listener, _, bus := testCommon.InitIndexer(true, 0, testCommon.PostgresSchema, "..")
+	defer listener.Destroy()
 
 	// When
 	contractAddress1, contractAddress2, oracleVotingAddress, successAddress, failAddress := tests.GetRandAddr(), tests.GetRandAddr(), tests.GetRandAddr(), tests.GetRandAddr(), tests.GetRandAddr()
@@ -142,6 +144,7 @@ func deployOracleLockContracts(t *testing.T, listener incoming.Listener, bus eve
 
 func Test_OracleLockContractCallCheckOracleVoting(t *testing.T) {
 	db, _, listener, _, bus := testCommon.InitIndexer(true, 0, testCommon.PostgresSchema, "..")
+	defer listener.Destroy()
 	appState := listener.NodeCtx().AppState
 	statsCollector := listener.StatsCollector()
 
@@ -189,6 +192,7 @@ func Test_OracleLockContractCallCheckOracleVoting(t *testing.T) {
 
 func Test_OracleLockContractCallPush(t *testing.T) {
 	db, _, listener, _, bus := testCommon.InitIndexer(true, 0, testCommon.PostgresSchema, "..")
+	defer listener.Destroy()
 	appState := listener.NodeCtx().AppState
 	statsCollector := listener.StatsCollector()
 
@@ -254,6 +258,7 @@ func Test_OracleLockContractCallPush(t *testing.T) {
 
 func Test_OracleLockContractTerminationToExistingAddress(t *testing.T) {
 	db, _, listener, _, bus := testCommon.InitIndexer(true, 0, testCommon.PostgresSchema, "..")
+	defer listener.Destroy()
 	appState := listener.NodeCtx().AppState
 	statsCollector := listener.StatsCollector()
 
@@ -290,6 +295,7 @@ func Test_OracleLockContractTerminationToExistingAddress(t *testing.T) {
 
 func Test_OracleLockContractTerminationToNotExistingAddress(t *testing.T) {
 	db, _, listener, _, bus := testCommon.InitIndexer(true, 0, testCommon.PostgresSchema, "..")
+	defer listener.Destroy()
 	appState := listener.NodeCtx().AppState
 	statsCollector := listener.StatsCollector()
 
@@ -324,6 +330,7 @@ func Test_OracleLockContractTerminationToNotExistingAddress(t *testing.T) {
 
 func Test_OracleLockContractReset(t *testing.T) {
 	db, _, listener, dbAccessor, bus := testCommon.InitIndexer(true, 0, testCommon.PostgresSchema, "..")
+	defer listener.Destroy()
 	appState := listener.NodeCtx().AppState
 	statsCollector := listener.StatsCollector()
 

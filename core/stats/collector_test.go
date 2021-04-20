@@ -557,15 +557,15 @@ func TestStatsCollector_AddInvitationsReward(t *testing.T) {
 
 	addr1, addr2, addr3, addr4, addr5 := tests.GetRandAddr(), tests.GetRandAddr(), tests.GetRandAddr(), tests.GetRandAddr(), tests.GetRandAddr()
 
-	c.AddInvitationsReward(addr1, addr1, nil, nil, 1, nil, false)
-	c.AddInvitationsReward(addr5, addr5, nil, nil, 1, nil, false)
+	c.AddInvitationsReward(addr1, addr1, nil, nil, 1, nil, 2, false)
+	c.AddInvitationsReward(addr5, addr5, nil, nil, 1, nil, 3, false)
 
 	txHash := common.Hash{0x1, 0x2}
 
-	c.AddInvitationsReward(addr2, addr1, big.NewInt(1), big.NewInt(2), 1, &txHash, false)
-	c.AddInvitationsReward(addr2, addr2, big.NewInt(3), big.NewInt(4), 1, &txHash, false)
-	c.AddInvitationsReward(addr3, addr3, big.NewInt(4), big.NewInt(5), 1, &txHash, false)
-	c.AddInvitationsReward(addr2, addr4, big.NewInt(6), big.NewInt(7), 1, &txHash, false)
+	c.AddInvitationsReward(addr2, addr1, big.NewInt(1), big.NewInt(2), 1, &txHash, 4, false)
+	c.AddInvitationsReward(addr2, addr2, big.NewInt(3), big.NewInt(4), 1, &txHash, 5, false)
+	c.AddInvitationsReward(addr3, addr3, big.NewInt(4), big.NewInt(5), 1, &txHash, 6, false)
+	c.AddInvitationsReward(addr2, addr4, big.NewInt(6), big.NewInt(7), 1, &txHash, 7, false)
 
 	require.Empty(t, c.stats.RewardsStats.SavedInviteRewardsCountByAddrAndType)
 	require.Len(t, c.stats.RewardsStats.RewardedInvites, 4)
