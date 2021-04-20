@@ -20,7 +20,7 @@ type UpgradeVotes struct {
 
 type TransactionSummary struct {
 	Hash      string           `json:"hash"`
-	Type      string           `json:"type,omitempty" enums:"SendTx,ActivationTx,InviteTx,KillTx,SubmitFlipTx,SubmitAnswersHashTx,SubmitShortAnswersTx,SubmitLongAnswersTx,EvidenceTx,OnlineStatusTx,KillInviteeTx,ChangeGodAddressTx,BurnTx,ChangeProfileTx,DeleteFlipTx,DeployContract,CallContract,TerminateContract,DelegateTx,UndelegateTx,KillDelegatorTx"`
+	Type      string           `json:"type,omitempty" enums:"SendTx,ActivationTx,InviteTx,KillTx,SubmitFlipTx,SubmitAnswersHashTx,SubmitShortAnswersTx,SubmitLongAnswersTx,EvidenceTx,OnlineStatusTx,KillInviteeTx,ChangeGodAddressTx,BurnTx,ChangeProfileTx,DeleteFlipTx,DeployContract,CallContract,TerminateContract,DelegateTx,UndelegateTx,KillDelegatorTx,StoreToIpfsTx"`
 	Timestamp time.Time        `json:"timestamp" example:"2020-01-01T00:00:00Z"`
 	From      string           `json:"from,omitempty"`
 	To        string           `json:"to,omitempty"`
@@ -41,7 +41,7 @@ type TransactionDetail struct {
 	BlockHeight uint64          `json:"blockHeight"`
 	BlockHash   string          `json:"blockHash"`
 	Hash        string          `json:"hash"`
-	Type        string          `json:"type" enums:"SendTx,ActivationTx,InviteTx,KillTx,SubmitFlipTx,SubmitAnswersHashTx,SubmitShortAnswersTx,SubmitLongAnswersTx,EvidenceTx,OnlineStatusTx,KillInviteeTx,ChangeGodAddressTx,BurnTx,ChangeProfileTx,DeleteFlipTx,DeployContract,CallContract,TerminateContract,DelegateTx,UndelegateTx,KillDelegatorTx"`
+	Type        string          `json:"type" enums:"SendTx,ActivationTx,InviteTx,KillTx,SubmitFlipTx,SubmitAnswersHashTx,SubmitShortAnswersTx,SubmitLongAnswersTx,EvidenceTx,OnlineStatusTx,KillInviteeTx,ChangeGodAddressTx,BurnTx,ChangeProfileTx,DeleteFlipTx,DeployContract,CallContract,TerminateContract,DelegateTx,UndelegateTx,KillDelegatorTx,StoreToIpfsTx"`
 	Timestamp   time.Time       `json:"timestamp" example:"2020-01-01T00:00:00Z"`
 	From        string          `json:"from"`
 	To          string          `json:"to,omitempty"`

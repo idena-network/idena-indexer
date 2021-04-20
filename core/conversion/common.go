@@ -28,6 +28,7 @@ var (
 		types.DelegateTx:           "DelegateTx",
 		types.UndelegateTx:         "UndelegateTx",
 		types.KillDelegatorTx:      "KillDelegatorTx",
+		types.StoreToIpfsTx:        "StoreToIpfsTx",
 	}
 )
 
