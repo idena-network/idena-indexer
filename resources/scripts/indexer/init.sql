@@ -3030,6 +3030,7 @@ BEGIN
 
     if p_data is not null then
         call save_delegation_switches(height, p_data -> 'delegationSwitches');
+        call save_upgrades_votes(height, p_data -> 'upgradesVotes');
     end if;
 
     call apply_block_on_sorted_contracts(height, p_clear_old_ovc_committees);

@@ -63,6 +63,7 @@ func InitIndexer(
 	}
 	listener := NewTestListener(nodeEventBus, stats.NewStatsCollector(collectorEventBus), appState, nodeCtx, chain.SecStore())
 	restorer := restore.NewRestorer(dbAccessor, appState, chain.Blockchain)
+	upgradesVotingHolder := &TestUpgradesVotingHolder{}
 	testIndexer := indexer.NewIndexer(
 		true,
 		listener,
@@ -73,31 +74,45 @@ func InitIndexer(
 		false,
 		pm,
 		&TestFlipLoader{},
+		upgradesVotingHolder,
+		20,
+		5,
 	)
 	testIndexer.Start()
 	return dbConnector, testIndexer, listener, dbAccessor, nodeEventBus
 }
 
 type Options struct {
-	RestoreInitially          bool
-	ScriptsPathPrefix         string
-	Schema                    string
-	ClearDb                   bool
-	ChangesHistoryBlocksCount int
-	AppState                  *appstate.AppState
-	TestBlockchain            *blockchain.TestBlockchain
+	RestoreInitially                  bool
+	ScriptsPathPrefix                 string
+	Schema                            string
+	ClearDb                           bool
+	ChangesHistoryBlocksCount         int
+	AppState                          *appstate.AppState
+	TestBlockchain                    *blockchain.TestBlockchain
+	UpgradeVotingShortHistoryItems    *int
+	UpgradeVotingShortHistoryMinShift *int
 }
 
 type IndexerCtx struct {
-	DbConnector    *sql.DB
-	Indexer        *indexer.Indexer
-	Listener       incoming.Listener
-	DbAccessor     db.Accessor
-	EventBus       eventbus.Bus
-	TestBlockchain *blockchain.TestBlockchain
+	DbConnector          *sql.DB
+	Indexer              *indexer.Indexer
+	Listener             incoming.Listener
+	DbAccessor           db.Accessor
+	EventBus             eventbus.Bus
+	TestBlockchain       *blockchain.TestBlockchain
+	UpgradesVotingHolder *TestUpgradesVotingHolder
 }
 
 func InitIndexer2(opt Options) *IndexerCtx {
+
+	if opt.UpgradeVotingShortHistoryItems == nil {
+		opt.UpgradeVotingShortHistoryItems = Pint(20)
+	}
+	if opt.UpgradeVotingShortHistoryMinShift == nil {
+		opt.UpgradeVotingShortHistoryMinShift = Pint(5)
+	}
+
 	initLog()
 	pm := monitoring.NewEmptyPerformanceMonitor()
 	dbConnector, dbAccessor := InitPostgres(opt.ClearDb, opt.ChangesHistoryBlocksCount, opt.Schema, opt.ScriptsPathPrefix, pm)
@@ -126,6 +141,7 @@ func InitIndexer2(opt Options) *IndexerCtx {
 	collectorEventBus := eventbus.New()
 	listener := NewTestListener(nodeEventBus, stats.NewStatsCollector(collectorEventBus), appState, nodeCtx, chain.SecStore())
 	restorer := restore.NewRestorer(dbAccessor, appState, chain.Blockchain)
+	upgradesVotingHolder := &TestUpgradesVotingHolder{}
 	testIndexer := indexer.NewIndexer(
 		true,
 		listener,
@@ -136,10 +152,13 @@ func InitIndexer2(opt Options) *IndexerCtx {
 		opt.RestoreInitially,
 		pm,
 		&TestFlipLoader{},
+		upgradesVotingHolder,
+		*opt.UpgradeVotingShortHistoryItems,
+		*opt.UpgradeVotingShortHistoryMinShift,
 	)
 	testIndexer.Start()
 	return &IndexerCtx{
-		dbConnector, testIndexer, listener, dbAccessor, nodeEventBus, chain,
+		dbConnector, testIndexer, listener, dbAccessor, nodeEventBus, chain, upgradesVotingHolder,
 	}
 }
 
@@ -181,4 +200,8 @@ func InitPostgres(
 func InitDefaultPostgres(scriptsPathPrefix string) (*sql.DB, db.Accessor) {
 	return InitPostgres(true, 0, PostgresSchema, scriptsPathPrefix,
 		monitoring.NewEmptyPerformanceMonitor())
+}
+
+func Pint(v int) *int {
+	return &v
 }

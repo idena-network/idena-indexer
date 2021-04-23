@@ -888,6 +888,7 @@ func (v *RewardBounds) Value() (driver.Value, error) {
 
 type data struct {
 	DelegationSwitches []*delegationSwitch `json:"delegationSwitches,omitempty"`
+	UpgradesVotes      []*upgradeVotes     `json:"upgradesVotes,omitempty"`
 }
 
 func (v *data) Value() (driver.Value, error) {
@@ -900,7 +901,13 @@ type delegationSwitch struct {
 	BirthEpoch *uint16 `json:"birthEpoch,omitempty"`
 }
 
-func getData(delegationSwitches []*DelegationSwitch) *data {
+type upgradeVotes struct {
+	Upgrade   uint32 `json:"upgrade"`
+	Votes     uint64 `json:"votes"`
+	Timestamp int64  `json:"timestamp"`
+}
+
+func getData(delegationSwitches []*DelegationSwitch, upgradesVotes []*UpgradeVotes) *data {
 	res := &data{}
 	if len(delegationSwitches) > 0 {
 		res.DelegationSwitches = make([]*delegationSwitch, 0, len(delegationSwitches))
@@ -914,6 +921,17 @@ func getData(delegationSwitches []*DelegationSwitch) *data {
 				postgresDelegationSwitch.Delegatee = &delegatee
 			}
 			res.DelegationSwitches = append(res.DelegationSwitches, postgresDelegationSwitch)
+		}
+	}
+	if len(upgradesVotes) > 0 {
+		res.UpgradesVotes = make([]*upgradeVotes, 0, len(upgradesVotes))
+		for _, incomingUpgradeVotes := range upgradesVotes {
+			postgresUpgradeVotes := &upgradeVotes{
+				Upgrade:   incomingUpgradeVotes.Upgrade,
+				Votes:     incomingUpgradeVotes.Votes,
+				Timestamp: incomingUpgradeVotes.Timestamp,
+			}
+			res.UpgradesVotes = append(res.UpgradesVotes, postgresUpgradeVotes)
 		}
 	}
 	return res
@@ -967,4 +985,20 @@ func getRestoredData(data *RestoredData) *restoredData {
 	}
 
 	return res
+}
+
+type upgradeVotingShortHistoryData struct {
+	Upgrade    uint32                           `json:"upgrade"`
+	LastHeight uint64                           `json:"lastHeight"`
+	LastStep   uint32                           `json:"lastStep"`
+	History    []*upgradeVotingShortHistoryItem `json:"history,omitempty"`
+}
+
+type upgradeVotingShortHistoryItem struct {
+	BlockHeight uint64 `json:"blockHeight"`
+	Votes       uint64 `json:"votes"`
+}
+
+func (v *upgradeVotingShortHistoryData) Value() (driver.Value, error) {
+	return json.Marshal(v)
 }

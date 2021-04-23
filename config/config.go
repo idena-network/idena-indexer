@@ -9,20 +9,22 @@ import (
 )
 
 type Config struct {
-	Postgres                   PostgresConfig
-	RuntimeMigration           RuntimeMigrationConfig
-	Migration                  Migration
-	NodeConfigFile             string
-	WordsFile                  string
-	Verbosity                  int
-	NodeVerbosity              int
-	RestoreInitially           bool
-	PerformanceMonitor         PerformanceMonitorConfig
-	FlipContentLoader          FlipContentLoaderConfig
-	CommitteeRewardBlocksCount int
-	MiningRewards              bool
-	Enabled                    *bool
-	Api                        *Api
+	Postgres                          PostgresConfig
+	RuntimeMigration                  RuntimeMigrationConfig
+	Migration                         Migration
+	NodeConfigFile                    string
+	WordsFile                         string
+	Verbosity                         int
+	NodeVerbosity                     int
+	RestoreInitially                  bool
+	PerformanceMonitor                PerformanceMonitorConfig
+	FlipContentLoader                 FlipContentLoaderConfig
+	CommitteeRewardBlocksCount        int
+	MiningRewards                     bool
+	Enabled                           *bool
+	Api                               *Api
+	UpgradeVotingShortHistoryItems    int
+	UpgradeVotingShortHistoryMinShift int
 }
 
 type Api struct {
@@ -92,6 +94,8 @@ func newDefaultConfig() *Config {
 			Port:        8080,
 			LogFileSize: 100 * 1024,
 		},
-		CommitteeRewardBlocksCount: 1000,
+		CommitteeRewardBlocksCount:        1000,
+		UpgradeVotingShortHistoryItems:    400,
+		UpgradeVotingShortHistoryMinShift: 5,
 	}
 }

@@ -57,7 +57,7 @@ func main() {
 		txMemPool := transaction.NewMemPool(log.New("component", "txMemPool"))
 
 		// Indexer
-		indxr, listener, contractsMemPool := initIndexer(conf, txMemPool)
+		indxr, listener, contractsMemPool, upgradesVoting := initIndexer(conf, txMemPool)
 		defer indxr.Destroy()
 
 		// Start indexer
@@ -67,8 +67,6 @@ func main() {
 		currentOnlineIdentitiesHolder := online.NewCurrentOnlineIdentitiesCache(listener.AppState(),
 			listener.NodeCtx().Blockchain,
 			listener.NodeCtx().OfflineDetector)
-
-		upgradesVoting := upgrade.NewUpgradesVotingHolder(listener.NodeCtx().Upgrader)
 
 		apiLogger, err := logUtil.NewFileLogger("api.log", conf.Api.LogFileSize)
 		if err != nil {
@@ -113,7 +111,7 @@ func (removedMemPoolTxEvent) EventID() eventbus.EventID {
 	return removedMemPoolTxEventId
 }
 
-func initIndexer(config *config.Config, txMemPool transaction.MemPool) (*indexer.Indexer, incoming.Listener, mempool.Contracts) {
+func initIndexer(config *config.Config, txMemPool transaction.MemPool) (*indexer.Indexer, incoming.Listener, mempool.Contracts, upgrade.UpgradesVotingHolder) {
 	contractsMemPoolBus := eventbus.New()
 	statsCollectorEventBus := eventbus.New()
 	statsCollectorEventBus.Subscribe(stats.RemovedMemPoolTxEventID, func(e eventbus.Event) {
@@ -196,6 +194,8 @@ func initIndexer(config *config.Config, txMemPool transaction.MemPool) (*indexer
 		contractsMemPool.RemoveTx(e.(*removedMemPoolTxEvent).tx)
 	})
 
+	upgradesVoting := upgrade.NewUpgradesVotingHolder(listener.NodeCtx().Upgrader)
+
 	enabled := config.Enabled == nil || *config.Enabled
 	return indexer.NewIndexer(
 			enabled,
@@ -207,8 +207,11 @@ func initIndexer(config *config.Config, txMemPool transaction.MemPool) (*indexer
 			restoreInitially,
 			performanceMonitor,
 			flipLoader,
+			upgradesVoting,
+			config.UpgradeVotingShortHistoryItems,
+			config.UpgradeVotingShortHistoryMinShift,
 		),
-		listener, contractsMemPool
+		listener, contractsMemPool, upgradesVoting
 }
 
 func initPerformanceMonitor(config config.PerformanceMonitorConfig) monitoring.PerformanceMonitor {

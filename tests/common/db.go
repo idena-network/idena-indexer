@@ -1918,3 +1918,53 @@ func GetRewardedInvitations(db *sql.DB) ([]RewardedInvitation, error) {
 	}
 	return res, nil
 }
+
+type UpgradeVotingHistoryItem struct {
+	BlockHeight int
+	Upgrade     int
+	Votes       int
+}
+
+func GetUpgradeVotingHistory(db *sql.DB) ([]UpgradeVotingHistoryItem, error) {
+	rows, err := db.Query(`select block_height, upgrade, votes from upgrade_voting_history order by block_height, upgrade`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var res []UpgradeVotingHistoryItem
+	for rows.Next() {
+		item := UpgradeVotingHistoryItem{}
+		err := rows.Scan(
+			&item.BlockHeight,
+			&item.Upgrade,
+			&item.Votes,
+		)
+		if err != nil {
+			return nil, err
+		}
+		res = append(res, item)
+	}
+	return res, nil
+}
+
+func GetUpgradeVotingShortHistory(db *sql.DB) ([]UpgradeVotingHistoryItem, error) {
+	rows, err := db.Query(`select block_height, upgrade, votes from upgrade_voting_short_history order by block_height, upgrade`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var res []UpgradeVotingHistoryItem
+	for rows.Next() {
+		item := UpgradeVotingHistoryItem{}
+		err := rows.Scan(
+			&item.BlockHeight,
+			&item.Upgrade,
+			&item.Votes,
+		)
+		if err != nil {
+			return nil, err
+		}
+		res = append(res, item)
+	}
+	return res, nil
+}

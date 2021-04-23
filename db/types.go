@@ -131,6 +131,7 @@ type Data struct {
 	ContractTxsBalanceUpdates                []*ContractTxBalanceUpdates
 	EpochResult                              *EpochResult
 	DelegationSwitches                       []*DelegationSwitch
+	UpgradesVotes                            []*UpgradeVotes
 }
 
 type EpochRewards struct {
@@ -651,4 +652,21 @@ type DelegationSwitch struct {
 	Delegator  common.Address
 	Delegatee  *common.Address
 	BirthEpoch *uint16
+}
+
+type UpgradeVotes struct {
+	Upgrade   uint32
+	Votes     uint64
+	Timestamp int64
+}
+
+type UpgradeHistoryItem struct {
+	BlockHeight uint64
+	Votes       uint64
+}
+
+type UpgradeVotingShortHistoryInfo struct {
+	HistoryItems uint64
+	LastStep     uint32
+	LastHeight   uint64
 }

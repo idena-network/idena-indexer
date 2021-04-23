@@ -17,6 +17,7 @@ import (
 	statsTypes "github.com/idena-network/idena-go/stats/types"
 	"github.com/idena-network/idena-indexer/core/conversion"
 	"github.com/idena-network/idena-indexer/core/flip"
+	"github.com/idena-network/idena-indexer/core/holder/upgrade"
 	"github.com/idena-network/idena-indexer/core/mempool"
 	"github.com/idena-network/idena-indexer/core/restore"
 	"github.com/idena-network/idena-indexer/core/stats"
@@ -64,6 +65,14 @@ type Indexer struct {
 	flipLoader                  flip.Loader
 	firstBlockHeight            uint64
 	firstBlockHeightInitialized bool
+	upgradeVotingHistoryCtx     *upgradeVotingHistoryCtx
+}
+
+type upgradeVotingHistoryCtx struct {
+	holder               upgrade.UpgradesVotingHolder
+	shortHistoryItems    int
+	shortHistoryMinShift int
+	queue                chan *upgradesVotesWrapper
 }
 
 type result struct {
@@ -82,32 +91,47 @@ type flipTx struct {
 	cid    []byte
 }
 
+type upgradesVotesWrapper struct {
+	upgradesVotes []*db.UpgradeVotes
+	height        uint64
+}
+
 func NewIndexer(
 	enabled bool,
 	listener incoming.Listener,
 	mempoolIndexer *mempool.Indexer,
-	db db.Accessor,
+	dbAccessor db.Accessor,
 	restorer *restore.Restorer,
 	secondaryStorage *runtime.SecondaryStorage,
 	restoreInitially bool,
 	pm monitoring.PerformanceMonitor,
 	flipLoader flip.Loader,
+	upgradesVotingHolder upgrade.UpgradesVotingHolder,
+	upgradeVotingShortHistoryItems int,
+	upgradeVotingShortHistoryMinShift int,
 ) *Indexer {
 	return &Indexer{
 		enabled:          enabled,
 		listener:         listener,
 		memPoolIndexer:   mempoolIndexer,
-		db:               db,
+		db:               dbAccessor,
 		restorer:         restorer,
 		secondaryStorage: secondaryStorage,
 		restore:          restoreInitially,
 		pm:               pm,
 		flipLoader:       flipLoader,
+		upgradeVotingHistoryCtx: &upgradeVotingHistoryCtx{
+			holder:               upgradesVotingHolder,
+			shortHistoryItems:    upgradeVotingShortHistoryItems,
+			shortHistoryMinShift: upgradeVotingShortHistoryMinShift,
+			queue:                make(chan *upgradesVotesWrapper, 5),
+		},
 	}
 }
 
 func (indexer *Indexer) Start() {
 	indexer.memPoolIndexer.Initialize(indexer.listener.NodeEventBus())
+	go indexer.loopRefreshUpgradeVotingHistorySummaries()
 	indexer.listener.Listen(indexer.indexBlock, indexer.getHeightToIndex()-1)
 }
 
@@ -226,6 +250,8 @@ func (indexer *Indexer) indexBlock(block *types.Block) {
 		}
 
 		log.Info(fmt.Sprintf("Processed block %d", block.Height()))
+
+		indexer.refreshUpgradeVotingHistorySummaries(res.dbData.UpgradesVotes, block.Height())
 
 		return
 	}
@@ -361,6 +387,7 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) (*result
 	coins, totalBalance, totalStake := indexer.getCoins(indexer.isFirstBlock(incomingBlock), diff)
 
 	delegationSwitches := detectDelegationSwitches(incomingBlock, ctx.prevStateReadOnly, ctx.newStateReadOnly, collector.killedAddrs, collector.switchDelegationTxs)
+	upgradesVotes := detectUpgradeVotes(indexer.upgradeVotingHistoryCtx.holder.Get())
 
 	dbData := &db.Data{
 		Epoch:                                    epoch,
@@ -416,6 +443,7 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) (*result
 		ContractTxsBalanceUpdates:                collectorStats.ContractTxsBalanceUpdates,
 		EpochResult:                              epochResult,
 		DelegationSwitches:                       delegationSwitches,
+		UpgradesVotes:                            upgradesVotes,
 	}
 	resData := &resultData{
 		totalBalance: totalBalance,

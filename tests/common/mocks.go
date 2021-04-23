@@ -13,8 +13,10 @@ import (
 	"github.com/idena-network/idena-go/node"
 	"github.com/idena-network/idena-go/secstore"
 	"github.com/idena-network/idena-go/stats/collector"
+	"github.com/idena-network/idena-indexer/core/holder/upgrade"
 	"github.com/idena-network/idena-indexer/import/words"
 	"github.com/idena-network/idena-indexer/incoming"
+	"sync"
 )
 
 type TestWordsLoader struct {
@@ -112,4 +114,31 @@ type TestFlipLoader struct {
 }
 
 func (l *TestFlipLoader) SubmitToLoad(cidBytes []byte, txHash common.Hash) {
+}
+
+type TestUpgradesVotingHolder struct {
+	upgradesVotes []*upgrade.Votes
+	mutex         sync.Mutex
+}
+
+func (t *TestUpgradesVotingHolder) Set(upgradesVotes []*upgrade.Votes) {
+	t.mutex.Lock()
+	defer t.mutex.Unlock()
+	t.upgradesVotes = upgradesVotes
+}
+
+func (t *TestUpgradesVotingHolder) Get() []*upgrade.Votes {
+	t.mutex.Lock()
+	defer t.mutex.Unlock()
+	if t.upgradesVotes == nil {
+		return nil
+	}
+	res := make([]*upgrade.Votes, 0, len(t.upgradesVotes))
+	for _, v := range t.upgradesVotes {
+		res = append(res, &upgrade.Votes{
+			v.Upgrade,
+			v.Votes,
+		})
+	}
+	return res
 }

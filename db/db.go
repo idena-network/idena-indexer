@@ -13,6 +13,10 @@ type Accessor interface {
 	GetFlipsToLoadContent(timestamp *big.Int, limit int) ([]*FlipToLoadContent, error)
 	SaveFlipsContent(failedFlips []*FailedFlipContent, flipsContent []*FlipContent) error
 
+	GetUpgradeVotingShortHistoryInfo(upgrade uint32) (*UpgradeVotingShortHistoryInfo, error)
+	GetUpgradeVotingHistory(upgrade uint32) ([]*UpgradeHistoryItem, error)
+	UpdateUpgradeVotingShortHistory(upgrade uint32, history []*UpgradeHistoryItem, lastStep uint32, lastHeight uint64) error
+
 	Destroy()
 	ResetTo(height uint64) error
 }
