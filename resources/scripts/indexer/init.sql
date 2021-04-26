@@ -3273,6 +3273,7 @@ BEGIN
 
     call reset_changes_to(p_block_height);
     call reset_contracts_to(p_block_height);
+    call reset_upgrade_voting_history_to(p_block_height);
 
     select epoch into l_epoch from blocks where height = greatest(2, p_block_height);
 

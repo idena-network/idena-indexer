@@ -120,6 +120,54 @@ func Test_upgradeVotingHistory(t *testing.T) {
 	history, err = testCommon.GetUpgradeVotingHistory(ctx.DbConnector)
 	require.Nil(t, err)
 	require.Len(t, history, 4)
+
+	summaries, err := testCommon.GetUpgradeVotingHistorySummaries(ctx.DbConnector)
+	require.Nil(t, err)
+	require.Len(t, summaries, 2)
+	require.Equal(t, 2, summaries[0].Items)
+	require.Equal(t, 2, summaries[1].Items)
+
+	require.Nil(t, ctx.DbAccessor.ResetTo(8))
+
+	history, err = testCommon.GetUpgradeVotingHistory(ctx.DbConnector)
+	require.Nil(t, err)
+	require.Len(t, history, 4)
+	summaries, err = testCommon.GetUpgradeVotingHistorySummaries(ctx.DbConnector)
+	require.Nil(t, err)
+	require.Len(t, summaries, 2)
+	require.Equal(t, 2, summaries[0].Items)
+	require.Equal(t, 2, summaries[1].Items)
+
+	require.Nil(t, ctx.DbAccessor.ResetTo(7))
+
+	history, err = testCommon.GetUpgradeVotingHistory(ctx.DbConnector)
+	require.Nil(t, err)
+	require.Len(t, history, 4)
+	summaries, err = testCommon.GetUpgradeVotingHistorySummaries(ctx.DbConnector)
+	require.Nil(t, err)
+	require.Len(t, summaries, 2)
+	require.Equal(t, 2, summaries[0].Items)
+	require.Equal(t, 2, summaries[1].Items)
+
+	require.Nil(t, ctx.DbAccessor.ResetTo(6))
+
+	history, err = testCommon.GetUpgradeVotingHistory(ctx.DbConnector)
+	require.Nil(t, err)
+	require.Len(t, history, 3)
+	summaries, err = testCommon.GetUpgradeVotingHistorySummaries(ctx.DbConnector)
+	require.Nil(t, err)
+	require.Len(t, summaries, 2)
+	require.Equal(t, 2, summaries[0].Items)
+	require.Equal(t, 1, summaries[1].Items)
+
+	require.Nil(t, ctx.DbAccessor.ResetTo(2))
+
+	history, err = testCommon.GetUpgradeVotingHistory(ctx.DbConnector)
+	require.Nil(t, err)
+	require.Empty(t, history)
+	summaries, err = testCommon.GetUpgradeVotingHistorySummaries(ctx.DbConnector)
+	require.Nil(t, err)
+	require.Empty(t, summaries)
 }
 
 func Test_upgradeVotingShortHistory(t *testing.T) {
@@ -176,6 +224,21 @@ func Test_upgradeVotingShortHistory(t *testing.T) {
 	require.Equal(t, 13, history[5].BlockHeight)
 	require.Equal(t, 1, history[5].Upgrade)
 	require.Equal(t, 1013, history[5].Votes)
+
+	require.Nil(t, ctx.DbAccessor.ResetTo(13))
+
+	history, err = testCommon.GetUpgradeVotingShortHistory(ctx.DbConnector)
+	require.Nil(t, err)
+	require.Len(t, history, 6)
+	require.Equal(t, 13, history[5].BlockHeight)
+	require.Equal(t, 1, history[5].Upgrade)
+	require.Equal(t, 1013, history[5].Votes)
+
+	require.Nil(t, ctx.DbAccessor.ResetTo(12))
+
+	history, err = testCommon.GetUpgradeVotingShortHistory(ctx.DbConnector)
+	require.Nil(t, err)
+	require.Empty(t, history)
 }
 
 //func Test_upgradeVotingShortHistory_longVoting(t *testing.T) {

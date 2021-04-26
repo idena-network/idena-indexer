@@ -1968,3 +1968,29 @@ func GetUpgradeVotingShortHistory(db *sql.DB) ([]UpgradeVotingHistoryItem, error
 	}
 	return res, nil
 }
+
+type UpgradeVotingHistorySummary struct {
+	Upgrade int
+	Items   int
+}
+
+func GetUpgradeVotingHistorySummaries(db *sql.DB) ([]UpgradeVotingHistorySummary, error) {
+	rows, err := db.Query(`select upgrade, items from upgrade_voting_history_summary order by upgrade`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var res []UpgradeVotingHistorySummary
+	for rows.Next() {
+		item := UpgradeVotingHistorySummary{}
+		err := rows.Scan(
+			&item.Upgrade,
+			&item.Items,
+		)
+		if err != nil {
+			return nil, err
+		}
+		res = append(res, item)
+	}
+	return res, nil
+}

@@ -66,3 +66,37 @@ BEGIN
         end loop;
 END
 $$;
+
+CREATE OR REPLACE PROCEDURE reset_upgrade_voting_history_to(p_block_height bigint)
+    LANGUAGE 'plpgsql'
+AS
+$$
+DECLARE
+    l_rec   record;
+    l_items bigint;
+BEGIN
+    for l_rec in SELECT upgrade
+                 FROM upgrade_voting_history
+                 WHERE block_height > p_block_height
+                 ORDER by block_height DESC
+        loop
+            UPDATE upgrade_voting_history_summary
+            SET items = items - 1
+            WHERE "upgrade" = l_rec.upgrade
+            RETURNING items INTO l_items;
+            if l_items = 0 then
+                DELETE FROM upgrade_voting_history_summary WHERE "upgrade" = l_rec.upgrade;
+            end if;
+        end loop;
+
+    DELETE FROM upgrade_voting_history WHERE block_height > p_block_height;
+
+    DELETE
+    FROM upgrade_voting_short_history_summary
+    WHERE upgrade IN (SELECT DISTINCT upgrade FROM upgrade_voting_short_history WHERE block_height > p_block_height);
+
+    DELETE
+    FROM upgrade_voting_short_history
+    WHERE upgrade IN (SELECT DISTINCT upgrade FROM upgrade_voting_short_history WHERE block_height > p_block_height);
+END
+$$;
