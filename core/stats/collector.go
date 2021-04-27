@@ -541,7 +541,11 @@ func (c *statsCollector) AddFeeBurntCoins(addr common.Address, feeAmount *big.In
 }
 
 func (c *statsCollector) AddKilledBurntCoins(addr common.Address, amount *big.Int) {
-	c.addBurntCoins(addr, amount, db.KilledBurntCoins, nil)
+	var tx *types.Transaction
+	if c.pending != nil && c.pending.tx != nil {
+		tx = c.pending.tx.tx
+	}
+	c.addBurntCoins(addr, amount, db.KilledBurntCoins, tx)
 }
 
 func (c *statsCollector) AddBurnTxBurntCoins(addr common.Address, tx *types.Transaction) {
@@ -595,14 +599,20 @@ func (c *statsCollector) AddKillTxStakeTransfer(tx *types.Transaction, amount *b
 	})
 }
 
-func (c *statsCollector) AddKillInviteeTxStakeTransfer(tx *types.Transaction, amount *big.Int) {
-	if amount == nil || amount.Sign() == 0 {
-		return
+func (c *statsCollector) AddKillInviteeTxStakeTransfer(tx *types.Transaction, stake, stakeToTransfer *big.Int) {
+
+	if !common.ZeroOrNil(stakeToTransfer) {
+		c.stats.KillInviteeTxTransfers = append(c.stats.KillInviteeTxTransfers, db.KillInviteeTxTransfer{
+			TxHash:        conversion.ConvertHash(tx.Hash()),
+			StakeTransfer: blockchain.ConvertToFloat(stakeToTransfer),
+		})
 	}
-	c.stats.KillInviteeTxTransfers = append(c.stats.KillInviteeTxTransfers, db.KillInviteeTxTransfer{
-		TxHash:        conversion.ConvertHash(tx.Hash()),
-		StakeTransfer: blockchain.ConvertToFloat(amount),
-	})
+
+	if !common.ZeroOrNil(stake) && !common.ZeroOrNil(stakeToTransfer) && stake.Cmp(stakeToTransfer) > 0 {
+		burntStake := new(big.Int).Sub(stake, stakeToTransfer)
+		c.AddKilledBurntCoins(*tx.To, burntStake)
+	}
+
 }
 
 func (c *statsCollector) BeginVerifiedStakeTransferBalanceUpdate(addrFrom, addrTo common.Address, appState *appstate.AppState) {
