@@ -8,6 +8,7 @@ const (
 	getUpgradeVotingShortHistoryInfoQuery = "getUpgradeVotingShortHistoryInfo.sql"
 	getUpgradeVotingHistoryQuery          = "getUpgradeVotingHistory.sql"
 	updateUpgradeVotingShortHistoryQuery  = "updateUpgradeVotingShortHistory.sql"
+	updateUpgradesQuery                   = "updateUpgrades.sql"
 )
 
 func (a *postgresAccessor) GetUpgradeVotingShortHistoryInfo(upgrade uint32) (*UpgradeVotingShortHistoryInfo, error) {
@@ -59,4 +60,19 @@ func (a *postgresAccessor) UpdateUpgradeVotingShortHistory(upgrade uint32, histo
 	}
 	_, err := a.db.Exec(a.getQuery(updateUpgradeVotingShortHistoryQuery), data)
 	return errors.Wrap(err, "unable to update upgrade voting short history")
+}
+
+func (a *postgresAccessor) UpdateUpgrades(upgrades []*Upgrade) error {
+	data := &upgradesData{
+		Upgrades: make([]*upgrade, 0, len(upgrades)),
+	}
+	for _, item := range upgrades {
+		data.Upgrades = append(data.Upgrades, &upgrade{
+			Upgrade:             item.Upgrade,
+			StartActivationDate: item.StartActivationDate,
+			EndActivationDate:   item.EndActivationDate,
+		})
+	}
+	_, err := a.db.Exec(a.getQuery(updateUpgradesQuery), data)
+	return errors.Wrap(err, "unable to update upgrades")
 }

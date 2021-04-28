@@ -16,6 +16,7 @@ type Accessor interface {
 	GetUpgradeVotingShortHistoryInfo(upgrade uint32) (*UpgradeVotingShortHistoryInfo, error)
 	GetUpgradeVotingHistory(upgrade uint32) ([]*UpgradeHistoryItem, error)
 	UpdateUpgradeVotingShortHistory(upgrade uint32, history []*UpgradeHistoryItem, lastStep uint32, lastHeight uint64) error
+	UpdateUpgrades(upgrades []*Upgrade) error
 
 	Destroy()
 	ResetTo(height uint64) error

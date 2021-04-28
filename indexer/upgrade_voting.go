@@ -113,3 +113,20 @@ func (indexer *Indexer) refreshUpgradeVotingHistorySummary(upgrade uint32, heigh
 	}
 	log.Debug(fmt.Sprintf("Refreshed upgrade voting short history, height: %v, upgrade: %v, duration: %v", height, upgrade, time.Since(start)))
 }
+
+func (indexer *Indexer) updateUpgradesInfo() {
+	if len(config.ConsensusVersions) == 0 {
+		return
+	}
+	upgrades := make([]*db.Upgrade, 0, len(config.ConsensusVersions))
+	for consensusVersion, consensusConf := range config.ConsensusVersions {
+		upgrades = append(upgrades, &db.Upgrade{
+			Upgrade:             uint32(consensusVersion),
+			StartActivationDate: consensusConf.StartActivationDate,
+			EndActivationDate:   consensusConf.EndActivationDate,
+		})
+	}
+	if err := indexer.db.UpdateUpgrades(upgrades); err != nil {
+		log.Warn("Unable to update upgrades info", "err", err)
+	}
+}

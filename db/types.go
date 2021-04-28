@@ -670,3 +670,9 @@ type UpgradeVotingShortHistoryInfo struct {
 	LastStep     uint32
 	LastHeight   uint64
 }
+
+type Upgrade struct {
+	Upgrade             uint32
+	StartActivationDate int64
+	EndActivationDate   int64
+}

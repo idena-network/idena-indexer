@@ -100,3 +100,56 @@ BEGIN
     WHERE upgrade IN (SELECT DISTINCT upgrade FROM upgrade_voting_short_history WHERE block_height > p_block_height);
 END
 $$;
+
+CREATE OR REPLACE PROCEDURE update_upgrades(p_data jsonb)
+    LANGUAGE 'plpgsql'
+AS
+$$
+DECLARE
+    l_upgrades                  jsonb;
+    l_item                      jsonb;
+    l_upgrade                   integer;
+    l_cur_start_activation_date bigint;
+    l_cur_end_activation_date   bigint;
+    l_start_activation_date     bigint;
+    l_end_activation_date       bigint;
+BEGIN
+
+    if p_data is null then
+        return;
+    end if;
+
+    l_upgrades = p_data -> 'upgrades';
+    if l_upgrades is null then
+        return;
+    end if;
+
+    for i in 0..jsonb_array_length(l_upgrades) - 1
+        loop
+            l_item = (l_upgrades ->> i)::jsonb;
+
+            l_upgrade = (l_item ->> 'upgrade')::smallint;
+            l_start_activation_date = (l_item ->> 'startActivationDate')::bigint;
+            l_end_activation_date = (l_item ->> 'endActivationDate')::bigint;
+
+            SELECT start_activation_date, end_activation_date
+            INTO l_cur_start_activation_date, l_cur_end_activation_date
+            FROM upgrades
+            WHERE upgrade = l_upgrade;
+
+            if l_cur_start_activation_date is null then
+                INSERT INTO upgrades (upgrade, start_activation_date, end_activation_date)
+                VALUES (l_upgrade, l_start_activation_date, l_end_activation_date);
+            else
+                if l_cur_start_activation_date <> l_start_activation_date or
+                   l_cur_end_activation_date <> l_end_activation_date then
+                    UPDATE upgrades
+                    SET start_activation_date = l_start_activation_date,
+                        end_activation_date   = l_end_activation_date
+                    WHERE upgrade = l_upgrade;
+                end if;
+            end if;
+
+        end loop;
+END
+$$;

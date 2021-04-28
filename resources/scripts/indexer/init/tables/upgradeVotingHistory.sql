@@ -1,3 +1,11 @@
+CREATE TABLE IF NOT EXISTS upgrades
+(
+    upgrade               smallint NOT NULL,
+    start_activation_date bigint   NOT NULL,
+    end_activation_date   bigint   NOT NULL,
+    CONSTRAINT upgrades_pkey PRIMARY KEY (upgrade)
+);
+
 CREATE TABLE IF NOT EXISTS upgrade_voting_history
 (
     block_height bigint   NOT NULL,

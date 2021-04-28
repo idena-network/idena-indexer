@@ -994,11 +994,25 @@ type upgradeVotingShortHistoryData struct {
 	History    []*upgradeVotingShortHistoryItem `json:"history,omitempty"`
 }
 
+func (v *upgradeVotingShortHistoryData) Value() (driver.Value, error) {
+	return json.Marshal(v)
+}
+
 type upgradeVotingShortHistoryItem struct {
 	BlockHeight uint64 `json:"blockHeight"`
 	Votes       uint64 `json:"votes"`
 }
 
-func (v *upgradeVotingShortHistoryData) Value() (driver.Value, error) {
+type upgradesData struct {
+	Upgrades []*upgrade `json:"upgrades"`
+}
+
+func (v *upgradesData) Value() (driver.Value, error) {
 	return json.Marshal(v)
+}
+
+type upgrade struct {
+	Upgrade             uint32 `json:"upgrade"`
+	StartActivationDate int64  `json:"startActivationDate"`
+	EndActivationDate   int64  `json:"endActivationDate"`
 }

@@ -132,6 +132,7 @@ func NewIndexer(
 func (indexer *Indexer) Start() {
 	indexer.memPoolIndexer.Initialize(indexer.listener.NodeEventBus())
 	go indexer.loopRefreshUpgradeVotingHistorySummaries()
+	go indexer.updateUpgradesInfo()
 	indexer.listener.Listen(indexer.indexBlock, indexer.getHeightToIndex()-1)
 }
 
