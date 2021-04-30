@@ -90,12 +90,21 @@ func convertOnlineIdentity(oi *online.Identity) *types.OnlineIdentity {
 	if oi == nil {
 		return nil
 	}
-	return &types.OnlineIdentity{
+	res := &types.OnlineIdentity{
 		Address:      oi.Address,
 		LastActivity: oi.LastActivity,
 		Penalty:      oi.Penalty,
 		Online:       oi.Online,
 	}
+	if oi.Delegatee != nil {
+		res.Delegetee = &types.OnlineIdentity{
+			Address:      oi.Delegatee.Address,
+			LastActivity: oi.Delegatee.LastActivity,
+			Penalty:      oi.Delegatee.Penalty,
+			Online:       oi.Delegatee.Online,
+		}
+	}
+	return res
 }
 
 func (a *Api) SignatureAddress(value, signature string) (string, error) {

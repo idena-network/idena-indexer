@@ -19,6 +19,7 @@ type Identity struct {
 	LastActivity *time.Time
 	Penalty      decimal.Decimal
 	Online       bool
+	Delegatee    *Identity
 }
 
 type CurrentOnlineIdentitiesHolder interface {
@@ -109,7 +110,38 @@ func (updater *currentOnlineIdentitiesCacheUpdater) update() {
 
 	activityMap := updater.offlineDetector.GetActivityMap()
 	var onlineCount int
+	poolsByAddress := make(map[common.Address]*Identity)
+
+	buildIdentity := func(address common.Address, identity state.Identity, pOnline *bool, delegetee *Identity) *Identity {
+		var online bool
+		if pOnline != nil {
+			online = *pOnline
+		} else {
+			online = appState.ValidatorsCache.IsOnlineIdentity(address)
+		}
+		addressStr := conversion.ConvertAddress(address)
+		var lastActivity *time.Time
+		if t, present := activityMap[address]; present {
+			lastActivity = &t
+		}
+		return &Identity{
+			Address:      addressStr,
+			LastActivity: lastActivity,
+			Penalty:      blockchain.ConvertToFloat(identity.Penalty),
+			Online:       online,
+			Delegatee:    delegetee,
+		}
+	}
+
 	appState.State.IterateOverIdentities(func(address common.Address, identity state.Identity) {
+		var delegatee *Identity
+		if identity.Delegatee != nil {
+			delegeteeAddr := *identity.Delegatee
+			if delegatee = poolsByAddress[delegeteeAddr]; delegatee == nil {
+				delegatee = buildIdentity(delegeteeAddr, appState.State.GetIdentity(delegeteeAddr), nil, nil)
+				poolsByAddress[delegeteeAddr] = delegatee
+			}
+		}
 		online := appState.ValidatorsCache.IsOnlineIdentity(address)
 		if online {
 			if appState.ValidatorsCache.IsPool(address) {
@@ -121,19 +153,12 @@ func (updater *currentOnlineIdentitiesCacheUpdater) update() {
 		if identity.State != state.Newbie && identity.State != state.Verified && identity.State != state.Human {
 			return
 		}
-		addressStr := conversion.ConvertAddress(address)
-		var lastActivity *time.Time
-		if t, present := activityMap[address]; present {
-			lastActivity = &t
-		}
-		onlineIdentity := &Identity{
-			Address:      addressStr,
-			LastActivity: lastActivity,
-			Penalty:      blockchain.ConvertToFloat(identity.Penalty),
-			Online:       online,
+		var onlineIdentity *Identity
+		if onlineIdentity = poolsByAddress[address]; onlineIdentity == nil {
+			onlineIdentity = buildIdentity(address, identity, &online, delegatee)
 		}
 		identities = append(identities, onlineIdentity)
-		identitiesPerAddress[strings.ToLower(addressStr)] = onlineIdentity
+		identitiesPerAddress[strings.ToLower(onlineIdentity.Address)] = onlineIdentity
 	})
 
 	if len(identities) > 0 {

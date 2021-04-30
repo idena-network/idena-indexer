@@ -5,7 +5,6 @@ go 1.13
 replace github.com/cosmos/iavl => github.com/idena-network/iavl v0.12.3-0.20210112075003-70ccb13c86c9
 
 require (
-	github.com/alecthomas/template v0.0.0-20190718012654-fb15b899a751
 	github.com/deckarep/golang-set v1.7.1
 	github.com/go-stack/stack v1.8.0
 	github.com/gorilla/handlers v1.4.2
@@ -17,7 +16,6 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/shopspring/decimal v0.0.0-20200227202807-02e2044944cc
 	github.com/stretchr/testify v1.7.0
-	github.com/swaggo/swag v1.6.7
 	github.com/tendermint/tm-db v0.6.4
 	golang.org/x/image v0.0.0-20190802002840-cff245a6509b
 	gopkg.in/urfave/cli.v1 v1.20.0

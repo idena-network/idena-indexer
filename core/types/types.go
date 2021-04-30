@@ -10,6 +10,7 @@ type OnlineIdentity struct {
 	LastActivity *time.Time      `json:"lastActivity"`
 	Penalty      decimal.Decimal `json:"penalty"`
 	Online       bool            `json:"online"`
+	Delegetee    *OnlineIdentity `json:"delegatee,omitempty"`
 }
 
 type UpgradeVotes struct {
