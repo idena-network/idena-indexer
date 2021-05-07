@@ -163,3 +163,57 @@ func (a *Api) MemPoolOracleVotingContractDeploys(author string) ([]db.OracleVoti
 func (a *Api) MemPoolAddressContractTxs(address, contractAddress string) ([]db.Transaction, error) {
 	return a.contractsMemPool.GetAddressContractTxs(address, contractAddress)
 }
+
+func (a *Api) ValidatorsCount() uint64 {
+	return uint64(a.onlineIdentities.ValidatorsCount())
+}
+
+func (a *Api) Validators(count uint64, continuationToken *string) ([]*types.Validator, *string, error) {
+	var startIndex uint64
+	if continuationToken != nil {
+		var err error
+		if startIndex, err = strconv.ParseUint(*continuationToken, 10, 64); err != nil {
+			return nil, nil, errors.New("invalid continuation token")
+		}
+	}
+	var res []*types.Validator
+	all := a.onlineIdentities.Validators()
+	var nextContinuationToken *string
+	if len(all) > 0 {
+		for i := startIndex; i >= 0 && i < startIndex+count && i < uint64(len(all)); i++ {
+			res = append(res, all[i])
+		}
+		if uint64(len(all)) > startIndex+count {
+			t := strconv.FormatUint(startIndex+count, 10)
+			nextContinuationToken = &t
+		}
+	}
+	return res, nextContinuationToken, nil
+}
+
+func (a *Api) OnlineValidatorsCount() uint64 {
+	return uint64(a.onlineIdentities.OnlineValidatorsCount())
+}
+
+func (a *Api) OnlineValidators(count uint64, continuationToken *string) ([]*types.Validator, *string, error) {
+	var startIndex uint64
+	if continuationToken != nil {
+		var err error
+		if startIndex, err = strconv.ParseUint(*continuationToken, 10, 64); err != nil {
+			return nil, nil, errors.New("invalid continuation token")
+		}
+	}
+	var res []*types.Validator
+	all := a.onlineIdentities.OnlineValidators()
+	var nextContinuationToken *string
+	if len(all) > 0 {
+		for i := startIndex; i >= 0 && i < startIndex+count && i < uint64(len(all)); i++ {
+			res = append(res, all[i])
+		}
+		if uint64(len(all)) > startIndex+count {
+			t := strconv.FormatUint(startIndex+count, 10)
+			nextContinuationToken = &t
+		}
+	}
+	return res, nextContinuationToken, nil
+}

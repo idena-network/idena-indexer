@@ -7,6 +7,7 @@ import (
 	"github.com/idena-network/idena-go/core/appstate"
 	"github.com/idena-network/idena-go/core/state"
 	"github.com/idena-network/idena-indexer/core/conversion"
+	"github.com/idena-network/idena-indexer/core/types"
 	"github.com/idena-network/idena-indexer/log"
 	"github.com/shopspring/decimal"
 	"sort"
@@ -26,19 +27,25 @@ type CurrentOnlineIdentitiesHolder interface {
 	GetAll() []*Identity
 	Get(address string) *Identity
 	GetOnlineCount() int
+	ValidatorsCount() int
+	Validators() []*types.Validator
+	OnlineValidatorsCount() int
+	OnlineValidators() []*types.Validator
 }
 
 type currentOnlineIdentitiesCache struct {
 	identities           []*Identity
 	identitiesPerAddress map[string]*Identity
 	onlineCount          int
+	validators           []*types.Validator
+	onlineValidators     []*types.Validator
 }
 
 func NewCurrentOnlineIdentitiesCache(appState *appstate.AppState,
 	chain *blockchain.Blockchain,
 	offlineDetector *blockchain.OfflineDetector) CurrentOnlineIdentitiesHolder {
 	cache := &currentOnlineIdentitiesCache{}
-	cache.set(nil, make(map[string]*Identity), 0)
+	cache.set(nil, make(map[string]*Identity), 0, nil, nil)
 	cache.initialize(appState, chain, offlineDetector)
 	return cache
 }
@@ -63,14 +70,34 @@ func (cache *currentOnlineIdentitiesCache) GetOnlineCount() int {
 	return cache.onlineCount
 }
 
+func (cache *currentOnlineIdentitiesCache) ValidatorsCount() int {
+	return len(cache.validators)
+}
+
+func (cache *currentOnlineIdentitiesCache) Validators() []*types.Validator {
+	return cache.validators
+}
+
+func (cache *currentOnlineIdentitiesCache) OnlineValidatorsCount() int {
+	return len(cache.onlineValidators)
+}
+
+func (cache *currentOnlineIdentitiesCache) OnlineValidators() []*types.Validator {
+	return cache.onlineValidators
+}
+
 func (cache *currentOnlineIdentitiesCache) set(
 	identities []*Identity,
 	identitiesPerAddress map[string]*Identity,
 	onlineCount int,
+	validators []*types.Validator,
+	onlineValidators []*types.Validator,
 ) {
 	cache.identities = identities
 	cache.identitiesPerAddress = identitiesPerAddress
 	cache.onlineCount = onlineCount
+	cache.validators = validators
+	cache.onlineValidators = onlineValidators
 }
 
 func (cache *currentOnlineIdentitiesCache) initialize(appState *appstate.AppState,
@@ -111,6 +138,7 @@ func (updater *currentOnlineIdentitiesCacheUpdater) update() {
 	activityMap := updater.offlineDetector.GetActivityMap()
 	var onlineCount int
 	poolsByAddress := make(map[common.Address]*Identity)
+	var validators, onlineValidators []*types.Validator
 
 	buildIdentity := func(address common.Address, identity state.Identity, pOnline *bool, delegetee *Identity) *Identity {
 		var online bool
@@ -133,7 +161,38 @@ func (updater *currentOnlineIdentitiesCacheUpdater) update() {
 		}
 	}
 
+	buildValidator := func(address common.Address, identity state.Identity) *types.Validator {
+		var size uint32
+		isPool := appState.ValidatorsCache.IsPool(address)
+		if identity.State.NewbieOrBetter() && identity.Delegatee == nil && !isPool {
+			size = 1
+		} else if isPool {
+			size = uint32(appState.ValidatorsCache.PoolSize(address))
+		}
+		if size == 0 {
+			return nil
+		}
+		var lastActivity *time.Time
+		if t, present := activityMap[address]; present {
+			lastActivity = &t
+		}
+		return &types.Validator{
+			Address:      conversion.ConvertAddress(address),
+			Size:         size,
+			Online:       appState.ValidatorsCache.IsOnlineIdentity(address),
+			LastActivity: lastActivity,
+			Penalty:      blockchain.ConvertToFloat(identity.Penalty),
+			IsPool:       isPool,
+		}
+	}
+
 	appState.State.IterateOverIdentities(func(address common.Address, identity state.Identity) {
+		if validator := buildValidator(address, identity); validator != nil {
+			validators = append(validators, validator)
+			if validator.Online {
+				onlineValidators = append(onlineValidators, validator)
+			}
+		}
 		var delegatee *Identity
 		if identity.Delegatee != nil {
 			delegeteeAddr := *identity.Delegatee
@@ -174,8 +233,18 @@ func (updater *currentOnlineIdentitiesCacheUpdater) update() {
 			return iTime.LastActivity.After(*jTime.LastActivity)
 		})
 	}
+	if len(validators) > 0 {
+		sort.Slice(validators, func(i, j int) bool {
+			return validators[i].Size > validators[j].Size
+		})
+	}
+	if len(onlineValidators) > 0 {
+		sort.Slice(onlineValidators, func(i, j int) bool {
+			return onlineValidators[i].Size > onlineValidators[j].Size
+		})
+	}
 
-	updater.cache.set(identities, identitiesPerAddress, onlineCount)
+	updater.cache.set(identities, identitiesPerAddress, onlineCount, validators, onlineValidators)
 	finishTime := time.Now()
 	updater.log.Debug("Updated", "duration", finishTime.Sub(startTime))
 }

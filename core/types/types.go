@@ -13,6 +13,15 @@ type OnlineIdentity struct {
 	Delegetee    *OnlineIdentity `json:"delegatee,omitempty"`
 }
 
+type Validator struct {
+	Address      string          `json:"address"`
+	Size         uint32          `json:"size"`
+	Online       bool            `json:"online"`
+	LastActivity *time.Time      `json:"lastActivity"`
+	Penalty      decimal.Decimal `json:"penalty"`
+	IsPool       bool            `json:"isPool"`
+}
+
 type UpgradeVotes struct {
 	Upgrade uint32 `json:"upgrade"`
 	Votes   uint64 `json:"votes"`

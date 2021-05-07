@@ -37,6 +37,11 @@ func (ri *routerInitializer) InitRouter(router *mux.Router) {
 
 	router.Path(strings.ToLower("/OnlineMiners/Count")).HandlerFunc(ri.onlineCount)
 
+	router.Path(strings.ToLower("/Validators/Count")).HandlerFunc(ri.validatorsCount)
+	router.Path(strings.ToLower("/Validators")).HandlerFunc(ri.validators)
+	router.Path(strings.ToLower("/OnlineValidators/Count")).HandlerFunc(ri.onlineValidatorsCount)
+	router.Path(strings.ToLower("/OnlineValidators")).HandlerFunc(ri.onlineValidators)
+
 	router.Path(strings.ToLower("/SignatureAddress")).
 		Queries("value", "{value}", "signature", "{signature}").
 		HandlerFunc(ri.signatureAddress)
@@ -153,4 +158,34 @@ func (ri *routerInitializer) memPoolAddressContractTxs(w http.ResponseWriter, r 
 	contractAddress := mux.Vars(r)["contractaddress"]
 	resp, err := ri.api.MemPoolAddressContractTxs(address, contractAddress)
 	WriteResponse(w, resp, err, ri.logger)
+}
+
+func (ri *routerInitializer) validatorsCount(w http.ResponseWriter, r *http.Request) {
+	resp := ri.api.ValidatorsCount()
+	WriteResponse(w, resp, nil, ri.logger)
+}
+
+func (ri *routerInitializer) validators(w http.ResponseWriter, r *http.Request) {
+	count, continuationToken, err := ReadPaginatorParams(r.Form)
+	if err != nil {
+		WriteErrorResponse(w, err, ri.logger)
+		return
+	}
+	resp, nextContinuationToken, err := ri.api.Validators(count, continuationToken)
+	WriteResponsePage(w, resp, nextContinuationToken, err, ri.logger)
+}
+
+func (ri *routerInitializer) onlineValidatorsCount(w http.ResponseWriter, r *http.Request) {
+	resp := ri.api.OnlineValidatorsCount()
+	WriteResponse(w, resp, nil, ri.logger)
+}
+
+func (ri *routerInitializer) onlineValidators(w http.ResponseWriter, r *http.Request) {
+	count, continuationToken, err := ReadPaginatorParams(r.Form)
+	if err != nil {
+		WriteErrorResponse(w, err, ri.logger)
+		return
+	}
+	resp, nextContinuationToken, err := ri.api.OnlineValidators(count, continuationToken)
+	WriteResponsePage(w, resp, nextContinuationToken, err, ri.logger)
 }
