@@ -471,7 +471,8 @@ func (c *statsCollector) BeforeClearPenalty(addr common.Address, appState *appst
 	c.detectAndCollectBurntPenalty(addr, appState)
 }
 
-func (c *statsCollector) BeforeSetPenalty(addr common.Address, appState *appstate.AppState) {
+func (c *statsCollector) BeforeSetPenalty(addr common.Address, amount *big.Int, appState *appstate.AppState) {
+	c.addChargedPenalty(addr, amount)
 	c.detectAndCollectBurntPenalty(addr, appState)
 }
 
@@ -489,6 +490,21 @@ func (c *statsCollector) initBurntPenaltiesByAddr() {
 		return
 	}
 	c.stats.BurntPenaltiesByAddr = make(map[common.Address]*big.Int)
+}
+
+func (c *statsCollector) addChargedPenalty(addr common.Address, amount *big.Int) {
+	if amount == nil || amount.Sign() != 1 {
+		return
+	}
+	c.initChargedPenaltiesByAddr()
+	c.stats.ChargedPenaltiesByAddr[addr] = new(big.Int).Set(amount)
+}
+
+func (c *statsCollector) initChargedPenaltiesByAddr() {
+	if c.stats.ChargedPenaltiesByAddr != nil {
+		return
+	}
+	c.stats.ChargedPenaltiesByAddr = make(map[common.Address]*big.Int)
 }
 
 func (c *statsCollector) AddMintedCoins(amount *big.Int) {

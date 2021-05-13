@@ -197,11 +197,11 @@ func (a *postgresAccessor) Save(data *Data) error {
 	}
 	a.pm.Complete("savePaidPenalties")
 
-	a.pm.Start("savePenalty")
-	if err = a.savePenalty(ctx, data.Penalty); err != nil {
+	a.pm.Start("savePenalties")
+	if err = a.savePenalties(ctx, data.Penalties); err != nil {
 		return getResultError(err)
 	}
-	a.pm.Complete("savePenalty")
+	a.pm.Complete("savePenalties")
 
 	if a.miningRewards {
 		a.pm.Start("saveMiningRewards")
@@ -532,6 +532,15 @@ func (a *postgresAccessor) saveFlipsWords(ctx *context, words []FlipWords) error
 	}
 	_, err := ctx.tx.Exec(a.getQuery(saveFlipsWordsQuery), pq.Array(words))
 	return errors.Wrap(err, "unable to save flips words")
+}
+
+func (a *postgresAccessor) savePenalties(ctx *context, penalties []Penalty) error {
+	for _, penalty := range penalties {
+		if err := a.savePenalty(ctx, &penalty); err != nil {
+			return errors.Wrapf(err, "unable to save penalties")
+		}
+	}
+	return nil
 }
 
 func (a *postgresAccessor) savePenalty(ctx *context, penalty *Penalty) error {

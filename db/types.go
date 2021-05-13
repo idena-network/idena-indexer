@@ -95,7 +95,7 @@ type Data struct {
 	Addresses                                []Address
 	ChangedBalances                          []Balance
 	Coins                                    Coins
-	Penalty                                  *Penalty
+	Penalties                                []Penalty
 	BurntPenalties                           []Penalty
 	MiningRewards                            []*MiningReward
 	BurntCoinsPerAddr                        map[common.Address][]*BurntCoins

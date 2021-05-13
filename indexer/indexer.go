@@ -408,7 +408,7 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) (*result
 		Addresses:                                collector.getAddresses(),
 		ChangedBalances:                          balanceUpdates,
 		Coins:                                    coins,
-		Penalty:                                  detectChargedPenalty(incomingBlock, ctx.newStateReadOnly),
+		Penalties:                                convertChargedPenalties(collectorStats.ChargedPenaltiesByAddr),
 		BurntPenalties:                           convertBurntPenalties(collectorStats.BurntPenaltiesByAddr),
 		MiningRewards:                            convertMiningRewards(collectorStats.MiningRewards),
 		BurntCoinsPerAddr:                        collectorStats.BurntCoinsByAddr,

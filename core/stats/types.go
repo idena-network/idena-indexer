@@ -33,6 +33,7 @@ type Stats struct {
 	OriginalFinalCommittee                   map[common.Address]struct{}
 	PoolFinalCommittee                       map[common.Address]struct{}
 	BurntPenaltiesByAddr                     map[common.Address]*big.Int
+	ChargedPenaltiesByAddr                   map[common.Address]*big.Int
 	BurntCoins                               *big.Int
 	BurntCoinsByAddr                         map[common.Address][]*db.BurntCoins
 	MintedCoins                              *big.Int

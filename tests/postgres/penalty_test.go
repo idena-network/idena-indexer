@@ -20,8 +20,8 @@ func Test_penalty(t *testing.T) {
 	// When
 	data := createBaseData()
 	data.Addresses = []db.Address{{Address: address1.Hex()}, {Address: address2.Hex()}}
-	penaltyNotToPay := &db.Penalty{Penalty: decimal.New(234, -2), Address: address1.Hex()}
-	data.Penalty = penaltyNotToPay
+	penaltyNotToPay := db.Penalty{Penalty: decimal.New(234, -2), Address: address1.Hex()}
+	data.Penalties = []db.Penalty{penaltyNotToPay}
 	err := dbAccessor.Save(data)
 	// Then
 	require.Nil(t, err)
@@ -29,8 +29,8 @@ func Test_penalty(t *testing.T) {
 	// When
 	data = createBaseData()
 	data.Block = createBlock(2)
-	penaltyToPay := &db.Penalty{Penalty: decimal.New(234, -2), Address: address1.Hex()}
-	data.Penalty = penaltyToPay
+	penaltyToPay := db.Penalty{Penalty: decimal.New(234, -2), Address: address1.Hex()}
+	data.Penalties = []db.Penalty{penaltyToPay}
 	err = dbAccessor.Save(data)
 	// Then
 	require.Nil(t, err)
@@ -75,7 +75,7 @@ func Test_PenaltyWithNotPaidPreviousOne(t *testing.T) {
 	// When
 	data := createBaseData()
 	data.Addresses = []db.Address{{Address: address.Hex()}}
-	data.Penalty = &db.Penalty{Penalty: decimal.New(234, -2), Address: address.Hex()}
+	data.Penalties = []db.Penalty{{Penalty: decimal.New(234, -2), Address: address.Hex()}}
 	err := dbAccessor.Save(data)
 	// Then
 	require.Nil(t, err)
@@ -83,7 +83,7 @@ func Test_PenaltyWithNotPaidPreviousOne(t *testing.T) {
 	// When
 	data = createBaseData()
 	data.Block = createBlock(2)
-	data.Penalty = &db.Penalty{Penalty: decimal.New(123, -2), Address: address.Hex()}
+	data.Penalties = []db.Penalty{{Penalty: decimal.New(123, -2), Address: address.Hex()}}
 	data.BurntPenalties = []db.Penalty{{Address: address.Hex(), Penalty: decimal.New(101, -2)}}
 	err = dbAccessor.Save(data)
 	paidPenalties, err2 := common.GetPaidPenalties(dbConnector)

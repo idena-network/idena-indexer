@@ -2,27 +2,31 @@ package indexer
 
 import (
 	"github.com/idena-network/idena-go/blockchain"
-	"github.com/idena-network/idena-go/blockchain/types"
 	"github.com/idena-network/idena-go/common"
-	"github.com/idena-network/idena-go/core/appstate"
 	"github.com/idena-network/idena-indexer/core/conversion"
 	"github.com/idena-network/idena-indexer/db"
 	"math/big"
 )
 
-func detectChargedPenalty(block *types.Block, newState *appstate.AppState) *db.Penalty {
-	if !block.Header.Flags().HasFlag(types.OfflineCommit) {
+func convertChargedPenalties(chargedPenaltiesByAddr map[common.Address]*big.Int) []db.Penalty {
+	if len(chargedPenaltiesByAddr) == 0 {
 		return nil
 	}
-	address := *block.Header.OfflineAddr()
-	return &db.Penalty{
-		Address: conversion.ConvertAddress(address),
-		Penalty: blockchain.ConvertToFloat(newState.State.GetPenalty(address)),
+	res := make([]db.Penalty, 0, len(chargedPenaltiesByAddr))
+	for addr, amount := range chargedPenaltiesByAddr {
+		res = append(res, db.Penalty{
+			Address: conversion.ConvertAddress(addr),
+			Penalty: blockchain.ConvertToFloat(amount),
+		})
 	}
+	return res
 }
 
 func convertBurntPenalties(burntPenaltiesByAddr map[common.Address]*big.Int) []db.Penalty {
-	var res []db.Penalty
+	if len(burntPenaltiesByAddr) == 0 {
+		return nil
+	}
+	res := make([]db.Penalty, 0, len(burntPenaltiesByAddr))
 	for addr, burntAmount := range burntPenaltiesByAddr {
 		res = append(res, db.Penalty{
 			Address: conversion.ConvertAddress(addr),
