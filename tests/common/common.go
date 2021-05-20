@@ -90,6 +90,7 @@ func InitIndexer(
 		indexer.NewOracleVotingToProlongDetector(),
 		false,
 		false,
+		nil,
 	)
 	testIndexer.Start()
 	return dbConnector, testIndexer, listener, dbAccessor, nodeEventBus
@@ -192,6 +193,7 @@ func InitIndexer2(opt Options) *IndexerCtx {
 		opt.OracleVotingToProlongDetector,
 		false,
 		false,
+		nil,
 	)
 	testIndexer.Start()
 	return &IndexerCtx{

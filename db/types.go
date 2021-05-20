@@ -441,6 +441,7 @@ type MemPoolData struct {
 	FlipKeyTimestamps                []*MemPoolActionTimestamp `json:"flipKeyTimestamps,omitempty"`
 	AnswersHashTxTimestamps          []*MemPoolActionTimestamp `json:"answersHashTxTimestamps,omitempty"`
 	ShortAnswersTxTimestamps         []*MemPoolActionTimestamp `json:"shortAnswersTxTimestamps,omitempty"`
+	FlipPrivateKeys                  []*FlipPrivateKey         `json:"flipPrivateKeys,omitempty"`
 }
 
 type MemPoolActionTimestamp struct {
@@ -449,10 +450,16 @@ type MemPoolActionTimestamp struct {
 	Time    int64  `json:"timestamp"`
 }
 
+type FlipPrivateKey struct {
+	Cid string `json:"cid"`
+	Key bytes  `json:"key"`
+}
+
 type FlipToLoadContent struct {
-	Cid      string
-	Key      string
-	Attempts int
+	Cid        string
+	Key        string
+	PrivateKey []byte
+	Attempts   int
 }
 
 type FailedFlipContent struct {
