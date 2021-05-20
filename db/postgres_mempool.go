@@ -10,6 +10,7 @@ const (
 	insertAnswersHashTxTimestampQuery      = "insertAnswersHashTxTimestamp.sql"
 	selectFlipKeyTimestampCountQuery       = "selectFlipKeyTimestampCount.sql"
 	selectAnswersHashTxTimestampCountQuery = "selectAnswersHashTxTimestampCount.sql"
+	saveMemPoolDataQuery                   = "saveMemPoolData.sql"
 )
 
 func (a *postgresAccessor) SaveMemPoolData(data *MemPoolData) error {
@@ -36,7 +37,11 @@ func (a *postgresAccessor) SaveMemPoolData(data *MemPoolData) error {
 		return err
 	}
 
-	return errors.Wrap(tx.Commit(), "unable to commit mem pool data (%v)")
+	if err := a.saveMemPoolData(tx, data); err != nil {
+		return err
+	}
+
+	return errors.Wrap(tx.Commit(), "unable to commit mem pool data")
 }
 
 func (a *postgresAccessor) saveMemPoolActionTimestamps(tx *sql.Tx, selectQueryName, insertQueryName string, timestamps []*MemPoolActionTimestamp) error {
@@ -59,4 +64,19 @@ func (a *postgresAccessor) saveMemPoolActionTimestamps(tx *sql.Tx, selectQueryNa
 		}
 	}
 	return nil
+}
+
+func (a *postgresAccessor) saveMemPoolData(tx *sql.Tx, data *MemPoolData) error {
+	postgresData := &memPoolData{}
+	if len(data.FlipPrivateKeys) > 0 {
+		postgresData.FlipPrivateKeys = make([]flipPrivateKey, len(data.FlipPrivateKeys))
+		for _, privateFlipKey := range data.FlipPrivateKeys {
+			postgresData.FlipPrivateKeys = append(postgresData.FlipPrivateKeys, flipPrivateKey{
+				Cid: privateFlipKey.Cid,
+				Key: privateFlipKey.Key,
+			})
+		}
+	}
+	_, err := tx.Exec(a.getQuery(saveMemPoolDataQuery), postgresData)
+	return errors.Wrap(err, "unable to save mem pool data")
 }

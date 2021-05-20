@@ -210,6 +210,7 @@ func initIndexer(config *config.Config, txMemPool transaction.MemPool) (*indexer
 			upgradesVoting,
 			config.UpgradeVotingShortHistoryItems,
 			config.UpgradeVotingShortHistoryMinShift,
+			config.ExternalKeys,
 		),
 		listener, contractsMemPool, upgradesVoting
 }

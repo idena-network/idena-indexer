@@ -381,6 +381,7 @@ type BurntCoins struct {
 type MemPoolData struct {
 	FlipKeyTimestamps       []*MemPoolActionTimestamp
 	AnswersHashTxTimestamps []*MemPoolActionTimestamp
+	FlipPrivateKeys         []*FlipPrivateKey
 }
 
 type MemPoolActionTimestamp struct {
@@ -389,10 +390,16 @@ type MemPoolActionTimestamp struct {
 	Time    *big.Int
 }
 
+type FlipPrivateKey struct {
+	Cid string
+	Key []byte
+}
+
 type FlipToLoadContent struct {
-	Cid      string
-	Key      string
-	Attempts int
+	Cid        string
+	Key        string
+	PrivateKey []byte
+	Attempts   int
 }
 
 type FailedFlipContent struct {

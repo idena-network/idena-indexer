@@ -4,10 +4,12 @@ import (
 	"fmt"
 	"github.com/idena-network/idena-go/blockchain/types"
 	"github.com/idena-network/idena-go/common/eventbus"
+	"github.com/idena-network/idena-go/core/ceremony"
 	"github.com/idena-network/idena-go/events"
 	"github.com/idena-network/idena-indexer/core/conversion"
 	"github.com/idena-network/idena-indexer/db"
 	"github.com/idena-network/idena-indexer/log"
+	"github.com/patrickmn/go-cache"
 	"github.com/pkg/errors"
 	"math/big"
 	"sync"
@@ -19,6 +21,7 @@ type Indexer struct {
 	flipKeyChan      chan *flipKeyWrapper
 	answerHashTxChan chan *txWrapper
 	cache            *indexerCache
+	ceremony         *ceremony.ValidationCeremony
 	log              log.Logger
 	mutex            sync.Mutex
 }
@@ -28,6 +31,9 @@ type indexerCache struct {
 	flipKeyTimestamps       []*db.MemPoolActionTimestamp
 	ahttMutex               sync.Mutex
 	answersHashTxTimestamps []*db.MemPoolActionTimestamp
+	fpkMutex                sync.Mutex
+	flipPrivateKeys         []*db.FlipPrivateKey
+	handledFlipPrivateKeys  *cache.Cache
 }
 
 type flipKeyWrapper struct {
@@ -46,14 +52,18 @@ func NewIndexer(db db.Accessor, log log.Logger) *Indexer {
 		flipKeyChan:      make(chan *flipKeyWrapper, 1000),
 		answerHashTxChan: make(chan *txWrapper, 1000),
 		log:              log,
-		cache:            &indexerCache{},
+		cache: &indexerCache{
+			handledFlipPrivateKeys: cache.New(5*time.Hour, 10*time.Hour),
+		},
 	}
 }
 
-func (indexer *Indexer) Initialize(bus eventbus.Bus) {
+func (indexer *Indexer) Initialize(bus eventbus.Bus, ceremony *ceremony.ValidationCeremony) {
+	indexer.ceremony = ceremony
 	indexer.subscribe(bus)
 	go indexer.saveDataLoop()
 	go indexer.listenFlipKeys()
+	go indexer.listenFlipPrivateKeys()
 	go indexer.listenAnswersHashTxs()
 }
 
@@ -94,6 +104,30 @@ func (indexer *Indexer) listenFlipKeys() {
 			Time:    flipKey.time,
 		}
 		indexer.addFlipKeyTimestamp(flipKeyTimestamp)
+	}
+}
+
+func (indexer *Indexer) listenFlipPrivateKeys() {
+	for {
+		privateKeys := indexer.ceremony.GetExternalFlipPrivateKeys()
+		indexer.handleFlipPrivateKeys(privateKeys)
+		time.Sleep(time.Second * 30)
+	}
+}
+
+func (indexer *Indexer) handleFlipPrivateKeys(keys map[string][]byte) {
+	if len(keys) == 0 {
+		return
+	}
+	for flipCid, key := range keys {
+		if _, ok := indexer.cache.handledFlipPrivateKeys.Get(flipCid); ok {
+			continue
+		}
+		indexer.addFlipPrivateKey(&db.FlipPrivateKey{
+			Cid: flipCid,
+			Key: key,
+		})
+		indexer.cache.handledFlipPrivateKeys.Set(flipCid, struct{}{}, cache.DefaultExpiration)
 	}
 }
 
@@ -163,6 +197,30 @@ func (indexer *Indexer) getAnswersHashTxTimestampsToSave() []*db.MemPoolActionTi
 	return result
 }
 
+func (indexer *Indexer) addFlipPrivateKey(key *db.FlipPrivateKey) {
+	indexer.cache.fpkMutex.Lock()
+	defer indexer.cache.fpkMutex.Unlock()
+
+	indexer.cache.flipPrivateKeys = append(indexer.cache.flipPrivateKeys, key)
+	indexer.log.Trace(fmt.Sprintf("Got mem pool flip private key for flip: %v", key.Cid))
+}
+
+func (indexer *Indexer) addFlipPrivateKeys(keys []*db.FlipPrivateKey) {
+	indexer.cache.fpkMutex.Lock()
+	defer indexer.cache.fpkMutex.Unlock()
+
+	indexer.cache.flipPrivateKeys = append(indexer.cache.flipPrivateKeys, keys...)
+}
+
+func (indexer *Indexer) getFlipPrivateKeysToSave() []*db.FlipPrivateKey {
+	indexer.cache.fpkMutex.Lock()
+	defer indexer.cache.fpkMutex.Unlock()
+
+	result := indexer.cache.flipPrivateKeys
+	indexer.cache.flipPrivateKeys = nil
+	return result
+}
+
 func (indexer *Indexer) saveDataLoop() {
 	for {
 		time.Sleep(time.Second * 10)
@@ -177,24 +235,31 @@ func (indexer *Indexer) saveData() {
 	data := &db.MemPoolData{
 		FlipKeyTimestamps:       indexer.getFlipKeyTimestampsToSave(),
 		AnswersHashTxTimestamps: indexer.getAnswersHashTxTimestampsToSave(),
+		FlipPrivateKeys:         indexer.getFlipPrivateKeysToSave(),
 	}
-	if len(data.FlipKeyTimestamps)+len(data.AnswersHashTxTimestamps) == 0 {
+	if len(data.FlipKeyTimestamps)+len(data.AnswersHashTxTimestamps)+len(data.FlipPrivateKeys) == 0 {
 		return
 	}
 	err := indexer.db.SaveMemPoolData(data)
 	if err != nil {
 		indexer.addFlipKeyTimestamps(data.FlipKeyTimestamps)
 		indexer.addAnswersHashTxTimestamps(data.AnswersHashTxTimestamps)
+		indexer.addFlipPrivateKeys(data.FlipPrivateKeys)
 		indexer.log.Error(errors.Wrapf(err,
 			"Unable to save %d answers hash timestamps (current cache length: %d) "+
-				"and %d flip key timestamps (current cache length: %d)",
+				", %d flip key timestamps (current cache length: %d)"+
+				", %d flip private keys (current cache length: %d)",
 			len(data.AnswersHashTxTimestamps), len(indexer.cache.answersHashTxTimestamps),
-			len(data.FlipKeyTimestamps), len(indexer.cache.flipKeyTimestamps)).Error())
+			len(data.FlipKeyTimestamps), len(indexer.cache.flipKeyTimestamps),
+			len(data.FlipPrivateKeys), len(indexer.cache.flipPrivateKeys),
+		).Error())
 		return
 	}
-	indexer.log.Info(fmt.Sprintf("Saved %d flip key timestamps and %d answers hash timestamps",
+	indexer.log.Info(fmt.Sprintf("Saved %d flip key timestamps, %d answers hash timestamps, %d flip private keys",
 		len(data.FlipKeyTimestamps),
-		len(data.AnswersHashTxTimestamps)))
+		len(data.AnswersHashTxTimestamps),
+		len(data.FlipPrivateKeys),
+	))
 }
 
 func (indexer *Indexer) Destroy() {

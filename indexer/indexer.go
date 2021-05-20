@@ -66,6 +66,7 @@ type Indexer struct {
 	firstBlockHeight            uint64
 	firstBlockHeightInitialized bool
 	upgradeVotingHistoryCtx     *upgradeVotingHistoryCtx
+	externalKeys                []string
 }
 
 type upgradeVotingHistoryCtx struct {
@@ -109,6 +110,7 @@ func NewIndexer(
 	upgradesVotingHolder upgrade.UpgradesVotingHolder,
 	upgradeVotingShortHistoryItems int,
 	upgradeVotingShortHistoryMinShift int,
+	externalKeys []string,
 ) *Indexer {
 	return &Indexer{
 		enabled:          enabled,
@@ -120,6 +122,7 @@ func NewIndexer(
 		restore:          restoreInitially,
 		pm:               pm,
 		flipLoader:       flipLoader,
+		externalKeys:     externalKeys,
 		upgradeVotingHistoryCtx: &upgradeVotingHistoryCtx{
 			holder:               upgradesVotingHolder,
 			shortHistoryItems:    upgradeVotingShortHistoryItems,
@@ -130,10 +133,10 @@ func NewIndexer(
 }
 
 func (indexer *Indexer) Start() {
-	indexer.memPoolIndexer.Initialize(indexer.listener.NodeEventBus())
+	indexer.memPoolIndexer.Initialize(indexer.listener.NodeEventBus(), indexer.listener.NodeCtx().Ceremony)
 	go indexer.loopRefreshUpgradeVotingHistorySummaries()
 	go indexer.updateUpgradesInfo()
-	indexer.listener.Listen(indexer.indexBlock, indexer.getHeightToIndex()-1)
+	indexer.listener.Listen(indexer.indexBlock, indexer.getHeightToIndex()-1, indexer.externalKeys)
 }
 
 func (indexer *Indexer) WaitForNodeStop() {

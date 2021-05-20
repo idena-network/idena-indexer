@@ -110,16 +110,24 @@ func (l *ContentLoader) handleFlips(flips []*db.FlipToLoadContent) ([]*db.Failed
 }
 
 func (l *ContentLoader) getFlipContent(flip *db.FlipToLoadContent) (*db.FlipContent, error) {
-	encryptionKey, err := convertKey(flip.Key)
+	publicEncryptionKey, err := convertKey(flip.Key)
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to convert key")
 	}
 	flipCid, _ := cid.Decode(flip.Cid)
-	flipData, err := l.getFlipData(flipCid.Bytes(), encryptionKey)
+	var privateEncryptionKey *ecies.PrivateKey
+	if len(flip.PrivateKey) > 0 {
+		ecdsaKeyPrivatePart, err := crypto.ToECDSA(flip.PrivateKey)
+		if err != nil {
+			return nil, errors.Wrap(err, "private flip key is not valid ECDSA key")
+		}
+		privateEncryptionKey = ecies.ImportECDSA(ecdsaKeyPrivatePart)
+	}
+	flipPublicData, flipPrivateData, err := l.getFlipData(flipCid.Bytes(), publicEncryptionKey, privateEncryptionKey)
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to get flip data")
 	}
-	parsedData, err := l.parseFlip(flip.Cid, flipData)
+	parsedData, err := l.parseFlip(flip.Cid, flipPublicData, flipPrivateData)
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to parse flip data")
 	}
@@ -138,24 +146,56 @@ func convertKey(keyHex string) (*ecies.PrivateKey, error) {
 	return ecies.ImportECDSA(ecdsaKey), nil
 }
 
-func (l *ContentLoader) getFlipData(cid []byte, encryptionKey *ecies.PrivateKey) ([]byte, error) {
+func (l *ContentLoader) getFlipData(cid []byte, publicEncryptionKey, privateEncryptionKey *ecies.PrivateKey) ([]byte, []byte, error) {
 	ipfsFlip, err := l.flipper.GetRawFlip(cid)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	if encryptionKey == nil {
-		return nil, nil
+	if publicEncryptionKey == nil {
+		return nil, nil, nil
 	}
-	decryptedFlip, err := encryptionKey.Decrypt(ipfsFlip.PublicPart, nil, nil)
+	decryptedPublicPart, err := publicEncryptionKey.Decrypt(ipfsFlip.PublicPart, nil, nil)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return decryptedFlip, nil
+	var decryptedPrivatePart []byte
+	if privateEncryptionKey != nil {
+		decryptedPrivatePart, err = privateEncryptionKey.Decrypt(ipfsFlip.PrivatePart, nil, nil)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+	return decryptedPublicPart, decryptedPrivatePart, nil
 }
 
-func (l *ContentLoader) parseFlip(flipCidStr string, data []byte) (db.FlipContent, error) {
+func (l *ContentLoader) parseFlip(flipCidStr string, publicData, privateData []byte) (db.FlipContent, error) {
+	var privatePics [][]byte
+	var allOrders [][]byte
+	if privateData != nil {
+		arr := make([]interface{}, 2)
+		err := rlp.DecodeBytes(privateData, &arr)
+		if err != nil || len(arr) == 0 {
+			return db.FlipContent{}, err
+		}
+		for _, b := range arr[0].([]interface{}) {
+			privatePics = append(privatePics, b.([]byte))
+		}
+		if len(arr) > 1 {
+			for _, b := range arr[1].([]interface{}) {
+				var orders []byte
+				for _, bb := range b.([]interface{}) {
+					var order byte
+					if len(bb.([]byte)) > 0 {
+						order = bb.([]byte)[0]
+					}
+					orders = append(orders, order)
+				}
+				allOrders = append(allOrders, orders)
+			}
+		}
+	}
 	arr := make([]interface{}, 2)
-	err := rlp.DecodeBytes(data, &arr)
+	err := rlp.DecodeBytes(publicData, &arr)
 	if err != nil || len(arr) == 0 {
 		return db.FlipContent{}, err
 	}
@@ -163,20 +203,10 @@ func (l *ContentLoader) parseFlip(flipCidStr string, data []byte) (db.FlipConten
 	for _, b := range arr[0].([]interface{}) {
 		pics = append(pics, b.([]byte))
 	}
-	var allOrders [][]byte
-	if len(arr) > 1 {
-		for _, b := range arr[1].([]interface{}) {
-			var orders []byte
-			for _, bb := range b.([]interface{}) {
-				var order byte
-				if len(bb.([]byte)) > 0 {
-					order = bb.([]byte)[0]
-				}
-				orders = append(orders, order)
-			}
-			allOrders = append(allOrders, orders)
-		}
+	if len(privatePics) > 0 {
+		pics = append(pics, privatePics...)
 	}
+
 	var icon []byte
 
 	if len(pics) > 0 {

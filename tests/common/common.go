@@ -77,6 +77,7 @@ func InitIndexer(
 		upgradesVotingHolder,
 		20,
 		5,
+		nil,
 	)
 	testIndexer.Start()
 	return dbConnector, testIndexer, listener, dbAccessor, nodeEventBus
@@ -155,6 +156,7 @@ func InitIndexer2(opt Options) *IndexerCtx {
 		upgradesVotingHolder,
 		*opt.UpgradeVotingShortHistoryItems,
 		*opt.UpgradeVotingShortHistoryMinShift,
+		nil,
 	)
 	testIndexer.Start()
 	return &IndexerCtx{

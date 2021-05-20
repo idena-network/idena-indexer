@@ -25,6 +25,7 @@ type Config struct {
 	Api                               *Api
 	UpgradeVotingShortHistoryItems    int
 	UpgradeVotingShortHistoryMinShift int
+	ExternalKeys                      []string
 }
 
 type Api struct {

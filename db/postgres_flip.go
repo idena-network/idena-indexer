@@ -45,7 +45,7 @@ func (a *postgresAccessor) GetFlipsToLoadContent(timestamp *big.Int, limit int) 
 	var res []*FlipToLoadContent
 	for rows.Next() {
 		var item FlipToLoadContent
-		err = rows.Scan(&item.Cid, &item.Key, &item.Attempts)
+		err = rows.Scan(&item.Cid, &item.Key, &item.Attempts, &item.PrivateKey)
 		if err != nil {
 			return nil, err
 		}

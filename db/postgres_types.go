@@ -1035,3 +1035,16 @@ type upgrade struct {
 	StartActivationDate int64  `json:"startActivationDate"`
 	EndActivationDate   int64  `json:"endActivationDate"`
 }
+
+type memPoolData struct {
+	FlipPrivateKeys []flipPrivateKey `json:"flipPrivateKeys,omitempty"`
+}
+
+func (v *memPoolData) Value() (driver.Value, error) {
+	return json.Marshal(v)
+}
+
+type flipPrivateKey struct {
+	Cid string `json:"cid"`
+	Key bytes  `json:"key"`
+}
