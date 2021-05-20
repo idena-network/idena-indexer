@@ -790,6 +790,13 @@ CREATE TABLE IF NOT EXISTS mem_pool_flip_keys
 ALTER TABLE mem_pool_flip_keys
     OWNER to postgres;
 
+CREATE TABLE IF NOT EXISTS flip_private_keys
+(
+    flip_tx_id bigint NOT NULL,
+    key        bytea  NOT NULL,
+    CONSTRAINT flip_private_keys_pkey PRIMARY KEY (flip_tx_id)
+);
+
 -- Table: answers
 
 -- DROP TABLE answers;

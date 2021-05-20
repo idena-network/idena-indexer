@@ -1423,6 +1423,19 @@ func getEpochResultData(epochResult *EpochResult) *epochResultData {
 	return res
 }
 
+type memPoolData struct {
+	FlipPrivateKeys []flipPrivateKey `json:"flipPrivateKeys,omitempty"`
+}
+
+func (v *memPoolData) Value() (driver.Value, error) {
+	return json.Marshal(v)
+}
+
+type flipPrivateKey struct {
+	Cid string `json:"cid"`
+	Key bytes  `json:"key"`
+}
+
 func convertValidationRewardSummary(v ValidationRewardSummary) validationRewardSummary {
 	return validationRewardSummary{
 		Earned:       blockchain.ConvertToFloat(v.Earned),

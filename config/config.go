@@ -30,6 +30,7 @@ type Config struct {
 	CheckBalances                     bool
 	WasmInfoUrl                       string
 	DisableDelegationHistory          bool // TODO temporary flag
+	ExternalKeys                      []string
 }
 
 type Api struct {

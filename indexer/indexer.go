@@ -75,6 +75,7 @@ type Indexer struct {
 	oracleVotingToProlongDetector OracleVotingToProlongDetector
 	checkBalances                 bool
 	disableDelegationHistory      bool
+	externalKeys                  []string
 }
 
 type upgradeVotingHistoryCtx struct {
@@ -127,6 +128,7 @@ func NewIndexer(
 	oracleVotingToProlongDetector OracleVotingToProlongDetector,
 	checkBalances bool,
 	disableDelegationHistory bool,
+	externalKeys []string,
 ) *Indexer {
 	return &Indexer{
 		enabled:                       enabled,
@@ -142,6 +144,7 @@ func NewIndexer(
 		treeSnapshotDir:               treeSnapshotDir,
 		actualOracleVotingsLoader:     actualOracleVotingsLoader,
 		oracleVotingToProlongDetector: oracleVotingToProlongDetector,
+		externalKeys:                  externalKeys,
 		upgradeVotingHistoryCtx: &upgradeVotingHistoryCtx{
 			holder:               upgradesVotingHolder,
 			shortHistoryItems:    upgradeVotingShortHistoryItems,
@@ -154,10 +157,10 @@ func NewIndexer(
 }
 
 func (indexer *Indexer) Start() {
-	indexer.memPoolIndexer.Initialize(indexer.listener.NodeEventBus())
+	indexer.memPoolIndexer.Initialize(indexer.listener.NodeEventBus(), indexer.listener.NodeCtx().Ceremony)
 	go indexer.loopRefreshUpgradeVotingHistorySummaries()
 	go indexer.updateUpgradesInfo()
-	indexer.listener.Listen(indexer.indexBlock, indexer.getHeightToIndex()-1)
+	indexer.listener.Listen(indexer.indexBlock, indexer.getHeightToIndex()-1, indexer.externalKeys)
 }
 
 func (indexer *Indexer) WaitForNodeStop() {

@@ -1,6 +1,7 @@
 package incoming
 
 import (
+	"encoding/hex"
 	"github.com/idena-network/idena-go/blockchain"
 	"github.com/idena-network/idena-go/blockchain/types"
 	"github.com/idena-network/idena-go/common/eventbus"
@@ -9,14 +10,16 @@ import (
 	"github.com/idena-network/idena-go/core/flip"
 	"github.com/idena-network/idena-go/core/mempool"
 	"github.com/idena-network/idena-go/core/upgrade"
+	"github.com/idena-network/idena-go/crypto"
 	"github.com/idena-network/idena-go/events"
 	"github.com/idena-network/idena-go/node"
 	"github.com/idena-network/idena-go/stats/collector"
+	"github.com/idena-network/idena-indexer/log"
 	"github.com/idena-network/idena-indexer/monitoring"
 )
 
 type Listener interface {
-	Listen(handleBlock func(block *types.Block), expectedHeadHeight uint64)
+	Listen(handleBlock func(block *types.Block), expectedHeadHeight uint64, externalKeys []string)
 	AppStateReadonly(height uint64) (*appstate.AppState, error)
 	AppState() *appstate.AppState
 	NodeCtx() *node.NodeCtx
@@ -113,8 +116,21 @@ func (l *listenerImpl) Config() *config.Config {
 	return l.config
 }
 
-func (l *listenerImpl) Listen(handleBlock func(block *types.Block), expectedHeadHeight uint64) {
+func (l *listenerImpl) Listen(handleBlock func(block *types.Block), expectedHeadHeight uint64, externalKeys []string) {
 	l.handleBlock = handleBlock
+	for _, externalKey := range externalKeys {
+		key, err := hex.DecodeString(externalKey)
+		if err != nil {
+			log.Crit("Failed to decode external key")
+		}
+		privK, err := crypto.ToECDSA(key)
+		if err != nil {
+			log.Crit("Failed to covert external key")
+		}
+		if err := l.nodeCtx.SecStore.AddExternalKey(crypto.FromECDSA(privK)); err != nil {
+			log.Crit("Failed to add external key")
+		}
+	}
 	l.node.StartWithHeight(expectedHeadHeight)
 }
 

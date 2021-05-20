@@ -4,10 +4,12 @@ import (
 	"fmt"
 	"github.com/idena-network/idena-go/blockchain/types"
 	"github.com/idena-network/idena-go/common/eventbus"
+	"github.com/idena-network/idena-go/core/ceremony"
 	"github.com/idena-network/idena-go/events"
 	"github.com/idena-network/idena-indexer/core/conversion"
 	"github.com/idena-network/idena-indexer/db"
 	"github.com/idena-network/idena-indexer/log"
+	"github.com/patrickmn/go-cache"
 	"github.com/pkg/errors"
 	"sync"
 	"time"
@@ -22,6 +24,7 @@ type Indexer struct {
 	answerHashTxChan           chan *txWrapper
 	shortAnswersTxChan         chan *txWrapper
 	cache                      *indexerCache
+	ceremony                   *ceremony.ValidationCeremony
 	log                        log.Logger
 	mutex                      sync.Mutex
 }
@@ -35,6 +38,9 @@ type indexerCache struct {
 	answersHashTxTimestamps               []*db.MemPoolActionTimestamp
 	shortAnswersTxTimestampsMutex         sync.Mutex
 	shortAnswersTxTimestamps              []*db.MemPoolActionTimestamp
+	fpkMutex                              sync.Mutex
+	flipPrivateKeys                       []*db.FlipPrivateKey
+	handledFlipPrivateKeys                *cache.Cache
 }
 
 type flipPrivateKeysPackageWrapper struct {
@@ -60,15 +66,17 @@ func NewIndexer(db db.Accessor, log log.Logger) *Indexer {
 		answerHashTxChan:           make(chan *txWrapper, queueSize),
 		shortAnswersTxChan:         make(chan *txWrapper, queueSize),
 		log:                        log,
-		cache:                      &indexerCache{},
+		cache:                      &indexerCache{handledFlipPrivateKeys: cache.New(5*time.Hour, 10*time.Hour)},
 	}
 }
 
-func (indexer *Indexer) Initialize(bus eventbus.Bus) {
+func (indexer *Indexer) Initialize(bus eventbus.Bus, ceremony *ceremony.ValidationCeremony) {
+	indexer.ceremony = ceremony
 	indexer.subscribe(bus)
 	go indexer.saveDataLoop()
 	go indexer.listenFlipPrivateKeysPackages()
 	go indexer.listenFlipKeys()
+	go indexer.listenFlipPrivateKeys()
 	go indexer.listenAnswersHashTxs()
 	go indexer.listenShortAnswersTxs()
 }
@@ -144,6 +152,30 @@ func (indexer *Indexer) listenFlipKeys() {
 			Time:    flipKey.time,
 		}
 		indexer.addFlipKeyTimestamp(flipKeyTimestamp)
+	}
+}
+
+func (indexer *Indexer) listenFlipPrivateKeys() {
+	for {
+		privateKeys := indexer.ceremony.GetExternalFlipPrivateKeys()
+		indexer.handleFlipPrivateKeys(privateKeys)
+		time.Sleep(time.Second * 30)
+	}
+}
+
+func (indexer *Indexer) handleFlipPrivateKeys(keys map[string][]byte) {
+	if len(keys) == 0 {
+		return
+	}
+	for flipCid, key := range keys {
+		if _, ok := indexer.cache.handledFlipPrivateKeys.Get(flipCid); ok {
+			continue
+		}
+		indexer.addFlipPrivateKey(&db.FlipPrivateKey{
+			Cid: flipCid,
+			Key: key,
+		})
+		indexer.cache.handledFlipPrivateKeys.Set(flipCid, struct{}{}, cache.DefaultExpiration)
 	}
 }
 
@@ -279,6 +311,30 @@ func (indexer *Indexer) getShortAnswersTxTimestampsToSave() []*db.MemPoolActionT
 	return result
 }
 
+func (indexer *Indexer) addFlipPrivateKey(key *db.FlipPrivateKey) {
+	indexer.cache.fpkMutex.Lock()
+	defer indexer.cache.fpkMutex.Unlock()
+
+	indexer.cache.flipPrivateKeys = append(indexer.cache.flipPrivateKeys, key)
+	indexer.log.Trace(fmt.Sprintf("Got mem pool flip private key for flip: %v", key.Cid))
+}
+
+func (indexer *Indexer) addFlipPrivateKeys(keys []*db.FlipPrivateKey) {
+	indexer.cache.fpkMutex.Lock()
+	defer indexer.cache.fpkMutex.Unlock()
+
+	indexer.cache.flipPrivateKeys = append(indexer.cache.flipPrivateKeys, keys...)
+}
+
+func (indexer *Indexer) getFlipPrivateKeysToSave() []*db.FlipPrivateKey {
+	indexer.cache.fpkMutex.Lock()
+	defer indexer.cache.fpkMutex.Unlock()
+
+	result := indexer.cache.flipPrivateKeys
+	indexer.cache.flipPrivateKeys = nil
+	return result
+}
+
 func (indexer *Indexer) saveDataLoop() {
 	for {
 		time.Sleep(time.Second * 10)
@@ -295,11 +351,13 @@ func (indexer *Indexer) saveData() {
 		FlipKeyTimestamps:                indexer.getFlipKeyTimestampsToSave(),
 		AnswersHashTxTimestamps:          indexer.getAnswersHashTxTimestampsToSave(),
 		ShortAnswersTxTimestamps:         indexer.getShortAnswersTxTimestampsToSave(),
+		FlipPrivateKeys:                  indexer.getFlipPrivateKeysToSave(),
 	}
 	if len(data.FlipPrivateKeysPackageTimestamps)+
 		len(data.FlipKeyTimestamps)+
 		len(data.AnswersHashTxTimestamps)+
-		len(data.ShortAnswersTxTimestamps) == 0 {
+		len(data.ShortAnswersTxTimestamps)+
+		len(data.FlipPrivateKeys) == 0 {
 		return
 	}
 	start := time.Now()
@@ -310,23 +368,27 @@ func (indexer *Indexer) saveData() {
 		indexer.addFlipKeyTimestamps(data.FlipKeyTimestamps)
 		indexer.addAnswersHashTxTimestamps(data.AnswersHashTxTimestamps)
 		indexer.addShortAnswersTxTimestamps(data.ShortAnswersTxTimestamps)
+		indexer.addFlipPrivateKeys(data.FlipPrivateKeys)
 		indexer.log.Error(errors.Wrapf(err,
 			"Unable to save %d flip keys package timestamps (current cache length: %d) "+
 				", %d flip key timestamps (current cache length: %d)"+
 				", %d answers hash timestamps (current cache length: %d)"+
-				", %d short answers timestamps (current cache length: %d)",
+				", %d short answers timestamps (current cache length: %d)"+
+				", %d flip private keys (current cache length: %d)",
 			len(data.FlipPrivateKeysPackageTimestamps), len(indexer.cache.flipPrivateKeysPackageTimestamps),
 			len(data.FlipKeyTimestamps), len(indexer.cache.flipKeyTimestamps),
 			len(data.AnswersHashTxTimestamps), len(indexer.cache.answersHashTxTimestamps),
 			len(data.ShortAnswersTxTimestamps), len(indexer.cache.shortAnswersTxTimestamps),
+			len(data.FlipPrivateKeys), len(indexer.cache.flipPrivateKeys),
 		).Error(), "d", duration)
 		return
 	}
-	indexer.log.Info(fmt.Sprintf("Saved timestamps: %d flip keys packages, %d flip keys, %d answers hashes, %d short answers",
+	indexer.log.Info(fmt.Sprintf("Saved timestamps: %d flip keys packages, %d flip keys, %d answers hashes, %d short answers, %d flip private keys",
 		len(data.FlipPrivateKeysPackageTimestamps),
 		len(data.FlipKeyTimestamps),
 		len(data.AnswersHashTxTimestamps),
 		len(data.ShortAnswersTxTimestamps),
+		len(data.FlipPrivateKeys),
 	), "d", duration)
 }
 
