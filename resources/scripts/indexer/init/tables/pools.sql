@@ -5,8 +5,9 @@ CREATE TABLE IF NOT EXISTS pools_summary
 
 CREATE TABLE IF NOT EXISTS pool_sizes
 (
-    address_id bigint NOT NULL,
-    size       bigint NOT NULL,
+    address_id      bigint NOT NULL,
+    size            bigint NOT NULL,
+    total_delegated bigint NOT NULL,
     CONSTRAINT pool_sizes_pkey PRIMARY KEY (address_id)
 );
 CREATE INDEX IF NOT EXISTS pool_sizes_pools_api_idx on pool_sizes (size desc, address_id);

@@ -67,8 +67,9 @@ type RestoredData struct {
 }
 
 type PoolSize struct {
-	Address common.Address
-	Size    uint64
+	Address        common.Address
+	Size           uint64
+	TotalDelegated uint64
 }
 
 type Delegation struct {
@@ -132,6 +133,7 @@ type Data struct {
 	EpochResult                              *EpochResult
 	DelegationSwitches                       []*DelegationSwitch
 	UpgradesVotes                            []*UpgradeVotes
+	PoolSizes                                []PoolSize
 }
 
 type EpochRewards struct {

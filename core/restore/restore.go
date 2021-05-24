@@ -97,6 +97,7 @@ func (r *Restorer) collectIdentityData() ([]db.Birthday, []*db.PoolSize, []*db.D
 	}
 	var birthdays []db.Birthday
 	poolSizesByAddr := make(map[common.Address]uint64)
+	poolDelegatorsByAddr := make(map[common.Address]uint64)
 	var delegations []*db.Delegation
 	appState.State.IterateOverIdentities(func(addr common.Address, identity state.Identity) {
 		birthEpoch := identity.Birthday
@@ -107,7 +108,10 @@ func (r *Restorer) collectIdentityData() ([]db.Birthday, []*db.PoolSize, []*db.D
 		})
 
 		if identity.Delegatee != nil {
-			poolSizesByAddr[*identity.Delegatee]++
+			poolDelegatorsByAddr[*identity.Delegatee]++
+			if _, ok := poolSizesByAddr[*identity.Delegatee]; !ok {
+				poolSizesByAddr[*identity.Delegatee] = uint64(appState.ValidatorsCache.PoolSize(*identity.Delegatee))
+			}
 			delegation := &db.Delegation{
 				Delegator: addr,
 				Delegatee: *identity.Delegatee,
@@ -119,11 +123,12 @@ func (r *Restorer) collectIdentityData() ([]db.Birthday, []*db.PoolSize, []*db.D
 		}
 	})
 
-	poolSizes := make([]*db.PoolSize, 0, len(poolSizesByAddr))
-	for addr, size := range poolSizesByAddr {
+	poolSizes := make([]*db.PoolSize, 0, len(poolDelegatorsByAddr))
+	for addr, size := range poolDelegatorsByAddr {
 		poolSizes = append(poolSizes, &db.PoolSize{
-			Address: addr,
-			Size:    size,
+			Address:        addr,
+			TotalDelegated: size,
+			Size:           poolSizesByAddr[addr],
 		})
 	}
 

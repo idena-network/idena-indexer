@@ -3030,6 +3030,7 @@ BEGIN
 
     if p_data is not null then
         call save_delegation_switches(height, p_data -> 'delegationSwitches');
+        call update_pool_sizes(height, p_data -> 'poolSizes');
         call save_upgrades_votes(height, p_data -> 'upgradesVotes');
     end if;
 

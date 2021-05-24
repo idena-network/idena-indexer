@@ -889,6 +889,7 @@ func (v *RewardBounds) Value() (driver.Value, error) {
 type data struct {
 	DelegationSwitches []*delegationSwitch `json:"delegationSwitches,omitempty"`
 	UpgradesVotes      []*upgradeVotes     `json:"upgradesVotes,omitempty"`
+	PoolSizes          []poolSize          `json:"poolSizes,omitempty"`
 }
 
 func (v *data) Value() (driver.Value, error) {
@@ -907,7 +908,7 @@ type upgradeVotes struct {
 	Timestamp int64  `json:"timestamp"`
 }
 
-func getData(delegationSwitches []*DelegationSwitch, upgradesVotes []*UpgradeVotes) *data {
+func getData(delegationSwitches []*DelegationSwitch, upgradesVotes []*UpgradeVotes, poolSizes []PoolSize) *data {
 	res := &data{}
 	if len(delegationSwitches) > 0 {
 		res.DelegationSwitches = make([]*delegationSwitch, 0, len(delegationSwitches))
@@ -934,6 +935,15 @@ func getData(delegationSwitches []*DelegationSwitch, upgradesVotes []*UpgradeVot
 			res.UpgradesVotes = append(res.UpgradesVotes, postgresUpgradeVotes)
 		}
 	}
+	if len(poolSizes) > 0 {
+		res.PoolSizes = make([]poolSize, 0, len(poolSizes))
+		for _, incomingPoolSize := range poolSizes {
+			res.PoolSizes = append(res.PoolSizes, poolSize{
+				Address: conversion.ConvertAddress(incomingPoolSize.Address),
+				Size:    incomingPoolSize.Size,
+			})
+		}
+	}
 	return res
 }
 
@@ -947,8 +957,9 @@ func (v *restoredData) Value() (driver.Value, error) {
 }
 
 type poolSize struct {
-	Address string `json:"address"`
-	Size    uint64 `json:"size"`
+	Address        string `json:"address"`
+	Size           uint64 `json:"size"`
+	TotalDelegated uint64 `json:"totalDelegated"`
 }
 
 type delegation struct {
@@ -967,8 +978,9 @@ func getRestoredData(data *RestoredData) *restoredData {
 		res.PoolSizes = make([]*poolSize, 0, len(data.PoolSizes))
 		for _, incomingPoolSize := range data.PoolSizes {
 			res.PoolSizes = append(res.PoolSizes, &poolSize{
-				Address: conversion.ConvertAddress(incomingPoolSize.Address),
-				Size:    incomingPoolSize.Size,
+				Address:        conversion.ConvertAddress(incomingPoolSize.Address),
+				TotalDelegated: incomingPoolSize.TotalDelegated,
+				Size:           incomingPoolSize.Size,
 			})
 		}
 	}

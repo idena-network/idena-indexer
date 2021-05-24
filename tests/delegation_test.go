@@ -31,11 +31,13 @@ func Test_delegation(t *testing.T) {
 	key2, _ := crypto.GenerateKey()
 	addr2 := crypto.PubkeyToAddress(key2.PublicKey)
 	appState.State.SetState(addr2, state.Human)
+	appState.IdentityState.Add(addr2)
 	appState.State.SetBirthday(addr2, 2)
 
 	key3, _ := crypto.GenerateKey()
 	delegatee2 := crypto.PubkeyToAddress(key3.PublicKey)
 	appState.State.SetState(delegatee2, state.Human)
+	appState.IdentityState.Add(delegatee2)
 	appState.State.SetBirthday(delegatee2, 3)
 
 	var height uint64
@@ -70,6 +72,7 @@ func Test_delegation(t *testing.T) {
 
 	height = 3
 	appState.State.SetDelegatee(delegator1, delegatee1)
+	appState.IdentityState.SetDelegatee(delegator1, delegatee1)
 	statsCollector.EnableCollecting()
 	block = buildBlock(height)
 	block.Header.ProposedHeader.Flags = types2.IdentityUpdate
@@ -85,7 +88,8 @@ func Test_delegation(t *testing.T) {
 	require.Nil(t, err)
 	require.Len(t, poolSizes, 1)
 	require.Equal(t, delegatee1.Hex(), poolSizes[0].Address)
-	require.Equal(t, 1, poolSizes[0].Size)
+	require.Equal(t, 1, poolSizes[0].TotalDelegated)
+	require.Equal(t, 0, poolSizes[0].Size)
 
 	delegations, err = testCommon.GetDelegations(ctx.DbConnector)
 	require.Nil(t, err)
@@ -112,7 +116,8 @@ func Test_delegation(t *testing.T) {
 	require.Nil(t, err)
 	require.Len(t, poolSizes, 1)
 	require.Equal(t, delegatee1.Hex(), poolSizes[0].Address)
-	require.Equal(t, 1, poolSizes[0].Size)
+	require.Equal(t, 1, poolSizes[0].TotalDelegated)
+	require.Equal(t, 0, poolSizes[0].Size)
 
 	delegations, err = testCommon.GetDelegations(ctx.DbConnector)
 	require.Nil(t, err)
@@ -123,7 +128,9 @@ func Test_delegation(t *testing.T) {
 
 	height = 5
 	appState.State.SetDelegatee(addr1, delegatee2)
+	appState.IdentityState.SetDelegatee(addr1, delegatee2)
 	appState.State.SetDelegatee(addr2, delegatee1)
+	appState.IdentityState.SetDelegatee(addr2, delegatee1)
 	block = buildBlock(height)
 	block.Header.ProposedHeader.Flags = types2.IdentityUpdate
 	statsCollector.EnableCollecting()
@@ -139,9 +146,11 @@ func Test_delegation(t *testing.T) {
 	require.Nil(t, err)
 	require.Len(t, poolSizes, 2)
 	require.Equal(t, delegatee2.Hex(), poolSizes[0].Address)
-	require.Equal(t, 1, poolSizes[0].Size)
+	require.Equal(t, 1, poolSizes[0].TotalDelegated)
+	require.Equal(t, 0, poolSizes[0].Size)
 	require.Equal(t, delegatee1.Hex(), poolSizes[1].Address)
-	require.Equal(t, 2, poolSizes[1].Size)
+	require.Equal(t, 2, poolSizes[1].TotalDelegated)
+	require.Equal(t, 1, poolSizes[1].Size)
 
 	delegations, err = testCommon.GetDelegations(ctx.DbConnector)
 	require.Nil(t, err)
@@ -173,6 +182,7 @@ func Test_delegation(t *testing.T) {
 	tx, _ := types2.SignTx(&types2.Transaction{}, key2)
 	statsCollector.BeginApplyingTx(tx, appState)
 	appState.State.SetState(addr2, state.Killed)
+	appState.IdentityState.Remove(addr2)
 	statsCollector.CompleteApplyingTx(appState)
 
 	block = buildBlock(height)
@@ -191,9 +201,11 @@ func Test_delegation(t *testing.T) {
 	require.Nil(t, err)
 	require.Len(t, poolSizes, 2)
 	require.Equal(t, delegatee2.Hex(), poolSizes[0].Address)
-	require.Equal(t, 1, poolSizes[0].Size)
+	require.Equal(t, 1, poolSizes[0].TotalDelegated)
+	require.Equal(t, 0, poolSizes[0].Size)
 	require.Equal(t, delegatee1.Hex(), poolSizes[1].Address)
-	require.Equal(t, 1, poolSizes[1].Size)
+	require.Equal(t, 1, poolSizes[1].TotalDelegated)
+	require.Equal(t, 0, poolSizes[1].Size)
 
 	delegations, err = testCommon.GetDelegations(ctx.DbConnector)
 	require.Nil(t, err)
@@ -236,7 +248,8 @@ func Test_delegation(t *testing.T) {
 	require.Nil(t, err)
 	require.Len(t, poolSizes, 1)
 	require.Equal(t, delegatee1.Hex(), poolSizes[0].Address)
-	require.Equal(t, 1, poolSizes[0].Size)
+	require.Equal(t, 1, poolSizes[0].TotalDelegated)
+	require.Equal(t, 0, poolSizes[0].Size)
 
 	delegations, err = testCommon.GetDelegations(ctx.DbConnector)
 	require.Nil(t, err)
@@ -288,7 +301,8 @@ func Test_delegation(t *testing.T) {
 	require.Nil(t, err)
 	require.Len(t, poolSizes, 1)
 	require.Equal(t, delegatee1.Hex(), poolSizes[0].Address)
-	require.Equal(t, 1, poolSizes[0].Size)
+	require.Equal(t, 1, poolSizes[0].TotalDelegated)
+	require.Equal(t, 0, poolSizes[0].Size)
 
 	delegations, err = testCommon.GetDelegations(ctx.DbConnector)
 	require.Nil(t, err)

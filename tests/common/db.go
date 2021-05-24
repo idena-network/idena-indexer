@@ -1826,12 +1826,13 @@ func GetPoolsSummaries(db *sql.DB) ([]PoolsSummary, error) {
 }
 
 type PoolSize struct {
-	Address string
-	Size    int
+	Address        string
+	TotalDelegated int
+	Size           int
 }
 
 func GetPoolSizes(db *sql.DB) ([]PoolSize, error) {
-	rows, err := db.Query(`select a.address, t.size from pool_sizes t join addresses a on a.id=t.address_id order by t.address_id`)
+	rows, err := db.Query(`select a.address, t.total_delegated, t.size from pool_sizes t join addresses a on a.id=t.address_id order by t.address_id`)
 	if err != nil {
 		return nil, err
 	}
@@ -1841,6 +1842,7 @@ func GetPoolSizes(db *sql.DB) ([]PoolSize, error) {
 		item := PoolSize{}
 		err := rows.Scan(
 			&item.Address,
+			&item.TotalDelegated,
 			&item.Size,
 		)
 		if err != nil {

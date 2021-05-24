@@ -390,6 +390,13 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) (*result
 	delegationSwitches := detectDelegationSwitches(incomingBlock, ctx.prevStateReadOnly, ctx.newStateReadOnly, collector.killedAddrs, collector.switchDelegationTxs)
 	upgradesVotes := detectUpgradeVotes(indexer.upgradeVotingHistoryCtx.holder.Get())
 
+	poolSizes := detectPoolSizeUpdates(delegationSwitches, collector.getAddresses(), func() []db.EpochIdentity {
+		if epochResult == nil {
+			return nil
+		}
+		return epochResult.Identities
+	}(), ctx.prevStateReadOnly, ctx.newStateReadOnly)
+
 	dbData := &db.Data{
 		Epoch:                                    epoch,
 		ValidationTime:                           *big.NewInt(ctx.newStateReadOnly.State.NextValidationTime().Unix()),
@@ -445,6 +452,7 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) (*result
 		EpochResult:                              epochResult,
 		DelegationSwitches:                       delegationSwitches,
 		UpgradesVotes:                            upgradesVotes,
+		PoolSizes:                                poolSizes,
 	}
 	resData := &resultData{
 		totalBalance: totalBalance,

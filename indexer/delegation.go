@@ -95,3 +95,62 @@ func detectDelegationSwitch(delegator common.Address, prevState *appstate.AppSta
 		BirthEpoch: birthEpoch,
 	}
 }
+
+func detectPoolSizeUpdates(delegationSwitches []*db.DelegationSwitch, addresses []db.Address, epochIdentities []db.EpochIdentity, prevState, newState *appstate.AppState) []db.PoolSize {
+	if len(addresses) == 0 && len(delegationSwitches) == 0 && len(epochIdentities) == 0 {
+		return nil
+	}
+	poolSizeByAddress := make(map[common.Address]uint64)
+
+	handleDelegator := func(addr common.Address) {
+		if delegatee := prevState.State.Delegatee(addr); delegatee != nil {
+			if _, ok := poolSizeByAddress[*delegatee]; !ok {
+				poolSizeByAddress[*delegatee] = uint64(newState.ValidatorsCache.PoolSize(*delegatee))
+			}
+		}
+		if delegatee := newState.State.Delegatee(addr); delegatee != nil {
+			if _, ok := poolSizeByAddress[*delegatee]; !ok {
+				poolSizeByAddress[*delegatee] = uint64(newState.ValidatorsCache.PoolSize(*delegatee))
+			}
+		}
+	}
+
+	handlePool := func(addr common.Address) {
+		if prevState.ValidatorsCache.IsPool(addr) || newState.ValidatorsCache.IsPool(addr) {
+			if _, ok := poolSizeByAddress[addr]; !ok {
+				poolSizeByAddress[addr] = uint64(newState.ValidatorsCache.PoolSize(addr))
+			}
+		}
+	}
+
+	for _, delegationSwitch := range delegationSwitches {
+		addr := delegationSwitch.Delegator
+		handleDelegator(addr)
+	}
+
+	for _, address := range addresses {
+		if len(address.StateChanges) == 0 {
+			continue
+		}
+		addr := common.HexToAddress(address.Address)
+		handlePool(addr)
+		handleDelegator(addr)
+	}
+
+	for _, epochIdentity := range epochIdentities {
+		addr := common.HexToAddress(epochIdentity.Address)
+		handlePool(addr)
+		handleDelegator(addr)
+	}
+	if len(poolSizeByAddress) == 0 {
+		return nil
+	}
+	res := make([]db.PoolSize, 0, len(poolSizeByAddress))
+	for poolAddress, size := range poolSizeByAddress {
+		res = append(res, db.PoolSize{
+			Address: poolAddress,
+			Size:    size,
+		})
+	}
+	return res
+}
