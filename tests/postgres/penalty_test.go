@@ -8,12 +8,11 @@ import (
 	"github.com/stretchr/testify/require"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"testing"
 )
 
 func Test_penalty(t *testing.T) {
-	dbConnector, dbAccessor := common.InitDefaultPostgres(filepath.Join("..", ".."))
+	_, dbAccessor := common.InitDefaultPostgres(filepath.Join("..", ".."))
 	address1 := tests.GetRandAddr()
 	address2 := tests.GetRandAddr()
 
@@ -38,7 +37,6 @@ func Test_penalty(t *testing.T) {
 	// When
 	data = createBaseData()
 	data.Block = createBlock(3)
-	data.BurntPenalties = []db.Penalty{{Address: address2.Hex(), Penalty: decimal.New(101, -2)}}
 	err = dbAccessor.Save(data)
 	// Then
 	require.Nil(t, err)
@@ -47,29 +45,13 @@ func Test_penalty(t *testing.T) {
 	// When
 	data = createBaseData()
 	data.Block = createBlock(4)
-	data.BurntPenalties = []db.Penalty{{Address: address1.Hex(), Penalty: decimal.New(101, -2)}}
 	err = dbAccessor.Save(data)
-	paidPenalties, err2 := common.GetPaidPenalties(dbConnector)
 	// Then
 	require.Nil(t, err)
-	require.Nil(t, err2)
-	require.Equal(t, 1, len(paidPenalties))
-	require.Equal(t, 4, int(paidPenalties[0].BlockHeight))
-	require.Equal(t, 2, int(paidPenalties[0].PenaltyId))
-	require.Equal(t, "1.33", paidPenalties[0].Penalty.String())
-
-	// When
-	data = createBaseData()
-	data.Block = createBlock(5)
-	data.BurntPenalties = []db.Penalty{{Address: address1.Hex(), Penalty: decimal.New(101, -2)}}
-	err = dbAccessor.Save(data)
-	// Then
-	require.NotNil(t, err)
-	require.True(t, strings.Contains(err.Error(), "latest penalty is already closed"))
 }
 
 func Test_PenaltyWithNotPaidPreviousOne(t *testing.T) {
-	dbConnector, dbAccessor := common.InitDefaultPostgres(filepath.Join("..", ".."))
+	_, dbAccessor := common.InitDefaultPostgres(filepath.Join("..", ".."))
 	address := tests.GetRandAddr()
 
 	// When
@@ -84,16 +66,9 @@ func Test_PenaltyWithNotPaidPreviousOne(t *testing.T) {
 	data = createBaseData()
 	data.Block = createBlock(2)
 	data.Penalties = []db.Penalty{{Penalty: decimal.New(123, -2), Address: address.Hex()}}
-	data.BurntPenalties = []db.Penalty{{Address: address.Hex(), Penalty: decimal.New(101, -2)}}
 	err = dbAccessor.Save(data)
-	paidPenalties, err2 := common.GetPaidPenalties(dbConnector)
 	// Then
 	require.Nil(t, err)
-	require.Nil(t, err2)
-	require.Equal(t, 1, len(paidPenalties))
-	require.Equal(t, 2, int(paidPenalties[0].BlockHeight))
-	require.Equal(t, 1, int(paidPenalties[0].PenaltyId))
-	require.Equal(t, "1.33", paidPenalties[0].Penalty.String())
 }
 
 func createBaseData() *db.Data {

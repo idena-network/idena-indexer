@@ -21,17 +21,3 @@ func convertChargedPenalties(chargedPenaltiesByAddr map[common.Address]*big.Int)
 	}
 	return res
 }
-
-func convertBurntPenalties(burntPenaltiesByAddr map[common.Address]*big.Int) []db.Penalty {
-	if len(burntPenaltiesByAddr) == 0 {
-		return nil
-	}
-	res := make([]db.Penalty, 0, len(burntPenaltiesByAddr))
-	for addr, burntAmount := range burntPenaltiesByAddr {
-		res = append(res, db.Penalty{
-			Address: conversion.ConvertAddress(addr),
-			Penalty: blockchain.ConvertToFloat(burntAmount),
-		})
-	}
-	return res
-}

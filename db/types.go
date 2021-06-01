@@ -97,7 +97,6 @@ type Data struct {
 	ChangedBalances                          []Balance
 	Coins                                    Coins
 	Penalties                                []Penalty
-	BurntPenalties                           []Penalty
 	MiningRewards                            []*MiningReward
 	BurntCoinsPerAddr                        map[common.Address][]*BurntCoins
 	BalanceUpdates                           []*BalanceUpdate

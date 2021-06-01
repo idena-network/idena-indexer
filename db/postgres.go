@@ -43,7 +43,6 @@ const (
 	insertMiningRewardsQuery            = "insertMiningRewards.sql"
 	insertBurntCoinsQuery               = "insertBurntCoins.sql"
 	saveEpochResultQuery                = "saveEpochResult.sql"
-	savePaidPenaltiesQuery              = "savePaidPenalties.sql"
 	saveFlipsWordsQuery                 = "saveFlipsWords.sql"
 )
 
@@ -192,12 +191,6 @@ func (a *postgresAccessor) Save(data *Data) error {
 		return getResultError(err)
 	}
 	a.pm.Complete("saveFlipsWords")
-
-	a.pm.Start("savePaidPenalties")
-	if err = a.savePaidPenalties(ctx, data.BurntPenalties); err != nil {
-		return getResultError(err)
-	}
-	a.pm.Complete("savePaidPenalties")
 
 	a.pm.Start("savePenalties")
 	if err = a.savePenalties(ctx, data.Penalties); err != nil {
@@ -553,14 +546,6 @@ func (a *postgresAccessor) savePenalty(ctx *context, penalty *Penalty) error {
 	}
 	_, err := ctx.tx.Exec(a.getQuery(insertPenaltyQuery), penalty.Address, penalty.Penalty, ctx.blockHeight)
 	return errors.Wrapf(err, "unable to save penalty")
-}
-
-func (a *postgresAccessor) savePaidPenalties(ctx *context, burntPenalties []Penalty) error {
-	if len(burntPenalties) == 0 {
-		return nil
-	}
-	_, err := ctx.tx.Exec(a.getQuery(savePaidPenaltiesQuery), ctx.blockHeight, pq.Array(burntPenalties))
-	return errors.Wrap(err, "unable to save paid penalties")
 }
 
 func (a *postgresAccessor) saveMiningRewards(ctx *context, rewards []*MiningReward) error {
