@@ -890,6 +890,7 @@ type data struct {
 	DelegationSwitches []*delegationSwitch `json:"delegationSwitches,omitempty"`
 	UpgradesVotes      []*upgradeVotes     `json:"upgradesVotes,omitempty"`
 	PoolSizes          []poolSize          `json:"poolSizes,omitempty"`
+	MinersHistoryItem  *MinersHistoryItem  `json:"minersHistoryItem,omitempty"`
 }
 
 func (v *data) Value() (driver.Value, error) {
@@ -908,7 +909,12 @@ type upgradeVotes struct {
 	Timestamp int64  `json:"timestamp"`
 }
 
-func getData(delegationSwitches []*DelegationSwitch, upgradesVotes []*UpgradeVotes, poolSizes []PoolSize) *data {
+func getData(
+	delegationSwitches []*DelegationSwitch,
+	upgradesVotes []*UpgradeVotes,
+	poolSizes []PoolSize,
+	minersHistoryItem *MinersHistoryItem,
+) *data {
 	res := &data{}
 	if len(delegationSwitches) > 0 {
 		res.DelegationSwitches = make([]*delegationSwitch, 0, len(delegationSwitches))
@@ -944,6 +950,7 @@ func getData(delegationSwitches []*DelegationSwitch, upgradesVotes []*UpgradeVot
 			})
 		}
 	}
+	res.MinersHistoryItem = minersHistoryItem
 	return res
 }
 

@@ -453,6 +453,7 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) (*result
 		DelegationSwitches:                       delegationSwitches,
 		UpgradesVotes:                            upgradesVotes,
 		PoolSizes:                                poolSizes,
+		MinersHistoryItem:                        detectMinersHistoryItem(ctx.prevStateReadOnly, ctx.newStateReadOnly),
 	}
 	resData := &resultData{
 		totalBalance: totalBalance,

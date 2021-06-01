@@ -134,6 +134,7 @@ type Data struct {
 	DelegationSwitches                       []*DelegationSwitch
 	UpgradesVotes                            []*UpgradeVotes
 	PoolSizes                                []PoolSize
+	MinersHistoryItem                        *MinersHistoryItem
 }
 
 type EpochRewards struct {
@@ -677,4 +678,9 @@ type Upgrade struct {
 	Upgrade             uint32
 	StartActivationDate int64
 	EndActivationDate   int64
+}
+
+type MinersHistoryItem struct {
+	OnlineValidators uint64 `json:"onlineValidators"`
+	OnlineMiners     uint64 `json:"onlineMiners"`
 }

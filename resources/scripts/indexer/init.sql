@@ -3032,6 +3032,7 @@ BEGIN
         call save_delegation_switches(height, p_data -> 'delegationSwitches');
         call update_pool_sizes(height, p_data -> 'poolSizes');
         call save_upgrades_votes(height, p_data -> 'upgradesVotes');
+        call save_miners_history_item(height, p_data -> 'minersHistoryItem');
     end if;
 
     call apply_block_on_sorted_contracts(height, p_clear_old_ovc_committees);
@@ -3351,6 +3352,8 @@ BEGIN
     delete
     from epoch_reward_bounds
     where epoch + 1 > l_epoch;
+
+    DELETE FROM miners_history WHERE block_height > p_block_height;
 
     delete
     from epoch_identity_interim_states
