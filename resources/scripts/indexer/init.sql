@@ -1048,33 +1048,6 @@ ALTER TABLE penalties
 CREATE INDEX IF NOT EXISTS penalties_address_id_idx on penalties (address_id);
 CREATE INDEX IF NOT EXISTS penalties_id_address_id_idx on penalties (id desc, address_id);
 
--- Table: paid_penalties
-
--- DROP TABLE penalties;
-
-CREATE TABLE IF NOT EXISTS paid_penalties
-(
-    penalty_id   bigint          NOT NULL,
-    penalty      numeric(30, 18) NOT NULL,
-    block_height bigint          NOT NULL,
-    CONSTRAINT paid_penalties_pkey PRIMARY KEY (penalty_id),
-    CONSTRAINT paid_penalties_penalty_id_fkey FOREIGN KEY (penalty_id)
-        REFERENCES penalties (id) MATCH SIMPLE
-        ON UPDATE NO ACTION
-        ON DELETE NO ACTION,
-    CONSTRAINT paid_penalties_block_height_fkey FOREIGN KEY (block_height)
-        REFERENCES blocks (height) MATCH SIMPLE
-        ON UPDATE NO ACTION
-        ON DELETE NO ACTION
-)
-    WITH (
-        OIDS = FALSE
-    )
-    TABLESPACE pg_default;
-
-ALTER TABLE penalties
-    OWNER to postgres;
-
 -- Table: total_rewards
 
 -- DROP TABLE total_rewards;
@@ -2087,19 +2060,6 @@ $$
             penalty_new numeric(30, 18),
             tx_hash     text,
             reason      smallint
-        );
-    EXCEPTION
-        WHEN duplicate_object THEN null;
-    END
-$$;
-
-DO
-$$
-    BEGIN
-        CREATE TYPE tp_paid_penalty AS
-        (
-            address              text,
-            burnt_penalty_amount numeric
         );
     EXCEPTION
         WHEN duplicate_object THEN null;
@@ -3377,10 +3337,6 @@ BEGIN
 
     delete
     from total_rewards
-    where block_height > p_block_height;
-
-    delete
-    from paid_penalties
     where block_height > p_block_height;
 
     delete

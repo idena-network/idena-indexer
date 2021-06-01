@@ -452,44 +452,13 @@ func (c *statsCollector) addMiningReward(addr common.Address, balance *big.Int, 
 }
 
 func (c *statsCollector) AfterSubPenalty(addr common.Address, amount *big.Int, appState *appstate.AppState) {
-	if amount == nil || amount.Sign() != 1 {
-		return
-	}
-	c.detectAndCollectCompletedPenalty(addr, appState)
-}
-
-func (c *statsCollector) detectAndCollectCompletedPenalty(addr common.Address, appState *appstate.AppState) {
-	updatedPenalty := appState.State.GetPenalty(addr)
-	if updatedPenalty != nil && updatedPenalty.Sign() == 1 {
-		return
-	}
-	c.initBurntPenaltiesByAddr()
-	c.stats.BurntPenaltiesByAddr[addr] = updatedPenalty
 }
 
 func (c *statsCollector) BeforeClearPenalty(addr common.Address, appState *appstate.AppState) {
-	c.detectAndCollectBurntPenalty(addr, appState)
 }
 
 func (c *statsCollector) BeforeSetPenalty(addr common.Address, amount *big.Int, appState *appstate.AppState) {
 	c.addChargedPenalty(addr, amount)
-	c.detectAndCollectBurntPenalty(addr, appState)
-}
-
-func (c *statsCollector) detectAndCollectBurntPenalty(addr common.Address, appState *appstate.AppState) {
-	curPenalty := appState.State.GetPenalty(addr)
-	if curPenalty == nil || curPenalty.Sign() != 1 {
-		return
-	}
-	c.initBurntPenaltiesByAddr()
-	c.stats.BurntPenaltiesByAddr[addr] = curPenalty
-}
-
-func (c *statsCollector) initBurntPenaltiesByAddr() {
-	if c.stats.BurntPenaltiesByAddr != nil {
-		return
-	}
-	c.stats.BurntPenaltiesByAddr = make(map[common.Address]*big.Int)
 }
 
 func (c *statsCollector) addChargedPenalty(addr common.Address, amount *big.Int) {

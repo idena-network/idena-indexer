@@ -161,34 +161,6 @@ func GetCommitteeRewardBalanceUpdates(db *sql.DB) ([]CommitteeRewardBalanceUpdat
 	return res, nil
 }
 
-type PaidPenalty struct {
-	PenaltyId   uint64
-	Penalty     decimal.Decimal
-	BlockHeight uint64
-}
-
-func GetPaidPenalties(db *sql.DB) ([]PaidPenalty, error) {
-	rows, err := db.Query(`select penalty_id, penalty, block_height from paid_penalties`)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var res []PaidPenalty
-	for rows.Next() {
-		item := PaidPenalty{}
-		err := rows.Scan(
-			&item.PenaltyId,
-			&item.Penalty,
-			&item.BlockHeight,
-		)
-		if err != nil {
-			return nil, err
-		}
-		res = append(res, item)
-	}
-	return res, nil
-}
-
 type EpochIdentity struct {
 	Id                    int
 	ShortAnswers          int

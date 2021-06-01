@@ -192,9 +192,6 @@ insert into penalties (select * from OLD_SCHEMA_TAG.penalties where block_height
 select setval('penalties_id_seq', max(id))
 from penalties;
 
--- paid_penalties
-insert into paid_penalties (select * from OLD_SCHEMA_TAG.paid_penalties where block_height <= $1);
-
 -- total_rewards
 insert into total_rewards (select * from OLD_SCHEMA_TAG.total_rewards where block_height <= $1);
 
