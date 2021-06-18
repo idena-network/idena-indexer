@@ -851,7 +851,7 @@ func (indexer *Indexer) detectEpochResult(block *types.Block, ctx *conversionCon
 
 	godAddress := ctx.prevStateReadOnly.State.GodAddress()
 	newEpoch := ctx.newStateReadOnly.State.Epoch()
-
+	epochRewards, validationRewardsAddresses := indexer.detectEpochRewards(block)
 	ctx.prevStateReadOnly.State.IterateOverIdentities(func(addr common.Address, identity state.Identity) {
 		convertedAddress := conversion.ConvertAddress(addr)
 		convertedIdentity := db.EpochIdentity{}
@@ -902,6 +902,7 @@ func (indexer *Indexer) detectEpochResult(block *types.Block, ctx *conversionCon
 		}
 
 		identities = append(identities, convertedIdentity)
+		delete(validationRewardsAddresses, addr)
 
 		birthday := detectBirthday(addr, identity.Birthday, ctx.newStateReadOnly.State.GetIdentity(addr).Birthday)
 		if birthday != nil {
@@ -937,6 +938,14 @@ func (indexer *Indexer) detectEpochResult(block *types.Block, ctx *conversionCon
 		}
 	})
 
+	for addr := range validationRewardsAddresses {
+		identities = append(identities, db.EpochIdentity{
+			Address: conversion.ConvertAddress(addr),
+			State:   convertIdentityState(state.Undefined),
+			Missed:  true,
+		})
+	}
+
 	var flipsStats []db.FlipStats
 	for flipIdx, flipStats := range validationStats.FlipsPerIdx {
 		flipCid, err := cid.Parse(validationStats.FlipCids[flipIdx])
@@ -969,7 +978,7 @@ func (indexer *Indexer) detectEpochResult(block *types.Block, ctx *conversionCon
 		Birthdays:         birthdays,
 		MemPoolFlipKeys:   memPoolFlipKeys,
 		FailedValidation:  validationStats.Failed,
-		EpochRewards:      indexer.detectEpochRewards(block),
+		EpochRewards:      epochRewards,
 		MinScoreForInvite: minScoreForInvite,
 		RewardsBounds:     rewardsBounds.getResult(),
 	}

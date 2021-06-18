@@ -10,21 +10,22 @@ import (
 	"math/big"
 )
 
-func (indexer *Indexer) detectEpochRewards(block *types.Block) *db.EpochRewards {
+func (indexer *Indexer) detectEpochRewards(block *types.Block) (*db.EpochRewards, map[common.Address]struct{}) {
 	if !block.Header.Flags().HasFlag(types.ValidationFinished) {
-		return nil
+		return nil, nil
 	}
 
 	rewardsStats := indexer.statsHolder().GetStats().RewardsStats
 	if rewardsStats == nil {
-		return nil
+		return nil, nil
 	}
 
 	epochRewards := &db.EpochRewards{}
 	if rewardsStats.ValidationResults != nil {
 		epochRewards.BadAuthors = convertBadAuthors(rewardsStats.ValidationResults.BadAuthors)
 	}
-	epochRewards.ValidationRewards, epochRewards.FundRewards = convertRewards(rewardsStats.Rewards)
+	var validationRewardsAddresses map[common.Address]struct{}
+	epochRewards.ValidationRewards, epochRewards.FundRewards, validationRewardsAddresses = convertRewards(rewardsStats.Rewards)
 	epochRewards.Total = convertTotalRewards(rewardsStats)
 	epochRewards.AgesByAddress = rewardsStats.AgesByAddress
 	epochRewards.RewardedFlipCids = rewardsStats.RewardedFlipCids
@@ -32,7 +33,7 @@ func (indexer *Indexer) detectEpochRewards(block *types.Block) *db.EpochRewards 
 	epochRewards.SavedInviteRewards = convertSavedInviteRewards(rewardsStats.SavedInviteRewardsCountByAddrAndType)
 	epochRewards.ReportedFlipRewards = rewardsStats.ReportedFlipRewards
 
-	return epochRewards
+	return epochRewards, validationRewardsAddresses
 }
 
 func convertBadAuthors(badAuthors map[common.Address]types.BadAuthorReason) []*db.BadAuthor {
@@ -63,13 +64,17 @@ func convertTotalRewards(rewardsStats *stats.RewardsStats) *db.TotalRewards {
 	}
 }
 
-func convertRewards(rewards []*stats.RewardStats) (validationRewards, fundRewards []*db.Reward) {
+func convertRewards(rewards []*stats.RewardStats) (validationRewards, fundRewards []*db.Reward, validationRewardsAddresses map[common.Address]struct{}) {
 	for _, reward := range rewards {
 		convertedReward := convertReward(reward)
 		if reward.Type == stats.FoundationPayouts || reward.Type == stats.ZeroWalletFund {
 			fundRewards = append(fundRewards, convertedReward)
 		} else {
 			validationRewards = append(validationRewards, convertedReward)
+			if validationRewardsAddresses == nil {
+				validationRewardsAddresses = make(map[common.Address]struct{})
+			}
+			validationRewardsAddresses[reward.Address] = struct{}{}
 		}
 	}
 	return

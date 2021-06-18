@@ -190,13 +190,14 @@ func GetPaidPenalties(db *sql.DB) ([]PaidPenalty, error) {
 }
 
 type EpochIdentity struct {
-	Id           int
-	ShortAnswers int
-	LongAnswers  int
+	Id                    int
+	ShortAnswers          int
+	LongAnswers           int
+	TotalValidationReward decimal.Decimal
 }
 
 func GetEpochIdentities(db *sql.DB) ([]EpochIdentity, error) {
-	rows, err := db.Query(`select address_state_id, short_answers, long_answers from epoch_identities`)
+	rows, err := db.Query(`select address_state_id, short_answers, long_answers, total_validation_reward from epoch_identities`)
 	if err != nil {
 		return nil, err
 	}
@@ -208,6 +209,7 @@ func GetEpochIdentities(db *sql.DB) ([]EpochIdentity, error) {
 			&item.Id,
 			&item.ShortAnswers,
 			&item.LongAnswers,
+			&item.TotalValidationReward,
 		)
 		if err != nil {
 			return nil, err
