@@ -2008,3 +2008,74 @@ func Test_ClearTerminatedContractCommittee(t *testing.T) {
 func pUint64(v uint64) *uint64 {
 	return &v
 }
+
+func Test_OracleVotingContractDeployBigMinPayment(t *testing.T) {
+	_, _, listener, _, bus := testCommon.InitIndexer(true, 0, testCommon.PostgresSchema, "..")
+	defer listener.Destroy()
+
+	startTime := time.Now().UTC()
+	contractAddress1 := tests.GetRandAddr()
+
+	appState := listener.NodeCtx().AppState
+
+	var height uint64
+	height++
+	appState.Precommit()
+	require.Nil(t, appState.CommitAt(height))
+	require.Nil(t, appState.Initialize(height))
+
+	statsCollector := listener.StatsCollector()
+
+	statsCollector.EnableCollecting()
+	height++
+	block := buildBlock(height)
+
+	tx := &types.Transaction{AccountNonce: 1, Type: types.DeployContractTx}
+	statsCollector.BeginApplyingTx(tx, appState)
+	minPayment, ok := new(big.Int).SetString("9999999999999999999999999999999000000000000000000", 10)
+	require.True(t, ok)
+	statsCollector.AddOracleVotingDeploy(contractAddress1, uint64(startTime.Unix()), minPayment, []byte{0x1, 0x2},
+		0, 1, 2, 3, 4, 5, 7)
+	statsCollector.AddContractStake(new(big.Int).SetUint64(12300))
+	statsCollector.AddTxReceipt(&types.TxReceipt{Success: true, TxHash: tx.Hash(), GasUsed: 11, GasCost: big.NewInt(1100), ContractAddress: contractAddress1, Method: "deploy1"}, appState)
+	statsCollector.CompleteApplyingTx(appState)
+	block.Body.Transactions = append(block.Body.Transactions, tx)
+
+	require.Nil(t, applyBlock(bus, block, appState))
+	statsCollector.CompleteCollecting()
+}
+
+func Test_OracleVotingContractCallStartBigMinPayment(t *testing.T) {
+	_, _, listener, _, bus := testCommon.InitIndexer(true, 0, testCommon.PostgresSchema, "..")
+	defer listener.Destroy()
+
+	appState := listener.NodeCtx().AppState
+	addr1 := tests.GetRandAddr()
+	addr2 := tests.GetRandAddr()
+	appState.State.SetState(addr1, state.Verified)
+	appState.State.SetPubKey(addr1, []byte{0x1, 0x2})
+	appState.State.SetState(addr2, state.Verified)
+	appState.State.SetPubKey(addr2, []byte{0x2, 0x3})
+
+	startTime := time.Now().UTC()
+	contractAddress1, contractAddress2 := tests.GetRandAddr(), tests.GetRandAddr()
+	deployOracleVotingContracts(t, listener, bus, startTime, contractAddress1, contractAddress2)
+
+	statsCollector := listener.StatsCollector()
+
+	statsCollector.EnableCollecting()
+	height := uint64(3)
+	block := buildBlock(height)
+
+	tx := &types.Transaction{AccountNonce: 4, To: &contractAddress2}
+	statsCollector.BeginApplyingTx(tx, appState)
+	minPayment, ok := new(big.Int).SetString("9999999999999999999999999999999000000000000000000", 10)
+	require.True(t, ok)
+	statsCollector.AddOracleVotingCallStart(1, 234, 2, minPayment, []byte{0x3, 0x4}, 50, 100)
+	statsCollector.AddTxReceipt(&types.TxReceipt{Success: true, TxHash: tx.Hash(), ContractAddress: contractAddress2}, appState)
+	statsCollector.CompleteApplyingTx(appState)
+	block.Body.Transactions = append(block.Body.Transactions, tx)
+
+	require.Nil(t, applyBlock(bus, block, appState))
+	statsCollector.CompleteCollecting()
+}

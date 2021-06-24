@@ -24,13 +24,15 @@ CREATE OR REPLACE PROCEDURE save_oracle_voting_contracts(p_block_height bigint,
 AS
 $$
 DECLARE
-    CONTRACT_TYPE_ORACLE_VOTING CONSTANT smallint = 2;
-    SOVC_STATE_PENDING          CONSTANT smallint = 0;
+    CONTRACT_TYPE_ORACLE_VOTING CONSTANT smallint        = 2;
+    SOVC_STATE_PENDING          CONSTANT smallint        = 0;
+    MAX_VOTING_MIN_PAYMENT      CONSTANT numeric(48, 18) = 999999999999999999999999999999;
     l_item                               tp_oracle_voting_contract;
     l_contract_address_id                bigint;
     l_author_address_id                  bigint;
     l_tx_id                              bigint;
     l_estimated_oracle_reward            numeric;
+    l_voting_min_payment                 numeric;
 BEGIN
     for i in 1..cardinality(p_items)
         loop
@@ -46,11 +48,15 @@ BEGIN
             INSERT INTO contracts (tx_id, contract_address_id, "type", stake)
             VALUES (l_tx_id, l_contract_address_id, CONTRACT_TYPE_ORACLE_VOTING, l_item.stake);
 
+            l_voting_min_payment = null_if_negative_numeric(l_item.voting_min_payment);
+            if l_voting_min_payment is not null and l_voting_min_payment > MAX_VOTING_MIN_PAYMENT then
+                l_voting_min_payment = MAX_VOTING_MIN_PAYMENT;
+            end if;
+
             INSERT INTO oracle_voting_contracts (contract_tx_id, start_time, voting_duration,
                                                  voting_min_payment, fact, public_voting_duration, winner_threshold,
                                                  quorum, committee_size, owner_fee, state)
-            VALUES (l_tx_id, l_item.start_time, l_item.voting_duration,
-                    null_if_negative_numeric(l_item.voting_min_payment),
+            VALUES (l_tx_id, l_item.start_time, l_item.voting_duration, l_voting_min_payment,
                     decode(l_item.fact, 'hex'), l_item.public_voting_duration, l_item.winner_threshold, l_item.quorum,
                     l_item.committee_size, l_item.owner_fee, l_item.state);
 
@@ -74,14 +80,16 @@ CREATE OR REPLACE PROCEDURE save_oracle_voting_contract_call_starts(p_block_heig
 AS
 $$
 DECLARE
-    SOVC_STATE_VOTING CONSTANT smallint = 1;
-    l_item                     jsonb;
-    l_contract_address_id      bigint;
-    l_contract_tx_id           bigint;
-    l_tx_id                    bigint;
-    l_start_block_height       bigint;
-    l_voting_duration          bigint;
-    l_epoch                    bigint;
+    SOVC_STATE_VOTING      CONSTANT smallint        = 1;
+    MAX_VOTING_MIN_PAYMENT CONSTANT numeric(48, 18) = 999999999999999999999999999999;
+    l_item                          jsonb;
+    l_contract_address_id           bigint;
+    l_contract_tx_id                bigint;
+    l_tx_id                         bigint;
+    l_start_block_height            bigint;
+    l_voting_duration               bigint;
+    l_epoch                         bigint;
+    l_voting_min_payment            numeric;
 BEGIN
     for i in 1..cardinality(p_items)
         loop
@@ -99,10 +107,13 @@ BEGIN
 
             l_start_block_height = (l_item ->> 'startBlockHeight')::bigint;
             l_epoch = (l_item ->> 'epoch')::bigint;
+            l_voting_min_payment = null_if_negative_numeric((l_item ->> 'votingMinPayment')::numeric);
+            if l_voting_min_payment is not null and l_voting_min_payment > MAX_VOTING_MIN_PAYMENT then
+                l_voting_min_payment = MAX_VOTING_MIN_PAYMENT;
+            end if;
             INSERT INTO oracle_voting_contract_call_starts (call_tx_id, ov_contract_tx_id, start_block_height, epoch,
                                                             voting_min_payment, vrf_seed, state)
-            VALUES (l_tx_id, l_contract_tx_id, l_start_block_height, l_epoch,
-                    null_if_negative_numeric((l_item ->> 'votingMinPayment')::numeric),
+            VALUES (l_tx_id, l_contract_tx_id, l_start_block_height, l_epoch, l_voting_min_payment,
                     decode(l_item ->> 'vrfSeed', 'hex'), (l_item ->> 'state')::smallint);
 
             SELECT voting_duration

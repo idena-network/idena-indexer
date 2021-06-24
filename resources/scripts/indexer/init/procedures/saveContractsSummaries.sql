@@ -10,7 +10,7 @@ END
 $$;
 
 CREATE OR REPLACE FUNCTION calculate_estimated_oracle_reward(p_balance numeric, p_id bigint)
-    RETURNS numeric(30, 18)
+    RETURNS numeric(48, 18)
     LANGUAGE 'plpgsql'
 AS
 $$
@@ -19,7 +19,7 @@ DECLARE
     l_fee_rate                double precision;
     l_committee_size          bigint;
     l_voting_min_payment      numeric;
-    l_estimated_oracle_reward numeric(30, 18);
+    l_estimated_oracle_reward numeric(48, 18);
 BEGIN
     SELECT committee_size, owner_fee, voting_min_payment
     INTO l_committee_size, l_owner_fee, l_voting_min_payment
