@@ -3,6 +3,7 @@ package tests
 import (
 	"github.com/idena-network/idena-go/blockchain/attachments"
 	types2 "github.com/idena-network/idena-go/blockchain/types"
+	"github.com/idena-network/idena-go/common"
 	"github.com/idena-network/idena-go/core/state"
 	"github.com/idena-network/idena-go/crypto"
 	"github.com/idena-network/idena-go/stats/types"
@@ -60,12 +61,16 @@ func Test_reportedFlipRewards(t *testing.T) {
 	// When
 	statsCollector.EnableCollecting()
 	statsCollector.SetValidation(&types.ValidationStats{
-		FlipCids: [][]byte{cid1.Bytes(), cid2.Bytes()},
+		Shards: map[common.ShardId]*types.ValidationShardStats{
+			1: {
+				FlipCids: [][]byte{cid1.Bytes(), cid2.Bytes()},
+			},
+		},
 	})
-	statsCollector.SetValidationResults(&types2.ValidationResults{})
-	statsCollector.AddReportedFlipsReward(reporter1, reporter1, 0, new(big.Int).SetInt64(int64(1000_000)), new(big.Int).SetInt64(int64(100_000)))
-	statsCollector.AddReportedFlipsReward(reporter1, reporter1, 1, new(big.Int).SetInt64(int64(300_000)), new(big.Int).SetInt64(int64(200_000)))
-	statsCollector.AddReportedFlipsReward(reporter2, reporter2, 1, new(big.Int).SetInt64(int64(200_000)), new(big.Int).SetInt64(int64(300_000)))
+	statsCollector.SetValidationResults(nil)
+	statsCollector.AddReportedFlipsReward(reporter1, reporter1, 1, 0, new(big.Int).SetInt64(int64(1000_000)), new(big.Int).SetInt64(int64(100_000)))
+	statsCollector.AddReportedFlipsReward(reporter1, reporter1, 1, 1, new(big.Int).SetInt64(int64(300_000)), new(big.Int).SetInt64(int64(200_000)))
+	statsCollector.AddReportedFlipsReward(reporter2, reporter2, 1, 1, new(big.Int).SetInt64(int64(200_000)), new(big.Int).SetInt64(int64(300_000)))
 	height++
 	block = buildBlock(height)
 	block.Header.ProposedHeader.Flags = types2.ValidationFinished

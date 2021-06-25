@@ -22,7 +22,7 @@ func (indexer *Indexer) detectEpochRewards(block *types.Block) (*db.EpochRewards
 
 	epochRewards := &db.EpochRewards{}
 	if rewardsStats.ValidationResults != nil {
-		epochRewards.BadAuthors = convertBadAuthors(rewardsStats.ValidationResults.BadAuthors)
+		epochRewards.BadAuthors = convertBadAuthors(rewardsStats.ValidationResults)
 	}
 	var validationRewardsAddresses map[common.Address]struct{}
 	epochRewards.ValidationRewards, epochRewards.FundRewards, validationRewardsAddresses = convertRewards(rewardsStats.Rewards)
@@ -36,13 +36,15 @@ func (indexer *Indexer) detectEpochRewards(block *types.Block) (*db.EpochRewards
 	return epochRewards, validationRewardsAddresses
 }
 
-func convertBadAuthors(badAuthors map[common.Address]types.BadAuthorReason) []*db.BadAuthor {
+func convertBadAuthors(validationResults map[common.ShardId]*types.ValidationResults) []*db.BadAuthor {
 	var res []*db.BadAuthor
-	for address, reason := range badAuthors {
-		res = append(res, &db.BadAuthor{
-			Address: conversion.ConvertAddress(address),
-			Reason:  reason,
-		})
+	for _, vr := range validationResults {
+		for address, reason := range vr.BadAuthors {
+			res = append(res, &db.BadAuthor{
+				Address: conversion.ConvertAddress(address),
+				Reason:  reason,
+			})
+		}
 	}
 	return res
 }

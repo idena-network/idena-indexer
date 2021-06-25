@@ -232,7 +232,7 @@ func Test_delegation(t *testing.T) {
 	appState.State.SetState(delegator1, state.Newbie)
 	appState.State.SetBirthday(delegator1, 5)
 	statsCollector.EnableCollecting()
-	statsCollector.SetValidation(types.NewValidationStats())
+	statsCollector.SetValidation(&types.ValidationStats{})
 	appState.State.IncEpoch()
 	block = buildBlock(height)
 	block.Header.ProposedHeader.Flags = types2.IdentityUpdate | types2.ValidationFinished

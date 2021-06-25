@@ -90,53 +90,57 @@ func Test_complex(t *testing.T) {
 	// When
 	statsCollector.EnableCollecting()
 	statsCollector.SetValidation(&types.ValidationStats{
-		FlipCids: [][]byte{cid1.Bytes(), cidWrongWordsFlip.Bytes()},
-		FlipsPerIdx: map[int]*types.FlipStats{
-			0: {
-				Status: byte(ceremony.Qualified),
-				Answer: types2.Left,
-				Grade:  types2.GradeA,
-				ShortAnswers: []types.FlipAnswerStats{
-					{
-						Respondent: addr,
-						Answer:     types2.Left,
-						Grade:      types2.GradeA,
-						Point:      1,
-					},
-				},
-				LongAnswers: []types.FlipAnswerStats{
-					{
-						Respondent: addr,
-						Answer:     types2.Left,
-						Grade:      types2.GradeA,
-						Point:      1,
-					},
-				},
-			},
+		Shards: map[common.ShardId]*types.ValidationShardStats{
 			1: {
-				Status: byte(ceremony.Qualified),
-				Answer: types2.Right,
-				Grade:  types2.GradeReported,
-				LongAnswers: []types.FlipAnswerStats{
-					{
-						Respondent: addr,
-						Answer:     types2.Right,
-						Grade:      types2.GradeReported,
-						Point:      1,
+				FlipCids: [][]byte{cid1.Bytes(), cidWrongWordsFlip.Bytes()},
+				FlipsPerIdx: map[int]*types.FlipStats{
+					0: {
+						Status: byte(ceremony.Qualified),
+						Answer: types2.Left,
+						Grade:  types2.GradeA,
+						ShortAnswers: []types.FlipAnswerStats{
+							{
+								Respondent: addr,
+								Answer:     types2.Left,
+								Grade:      types2.GradeA,
+								Point:      1,
+							},
+						},
+						LongAnswers: []types.FlipAnswerStats{
+							{
+								Respondent: addr,
+								Answer:     types2.Left,
+								Grade:      types2.GradeA,
+								Point:      1,
+							},
+						},
+					},
+					1: {
+						Status: byte(ceremony.Qualified),
+						Answer: types2.Right,
+						Grade:  types2.GradeReported,
+						LongAnswers: []types.FlipAnswerStats{
+							{
+								Respondent: addr,
+								Answer:     types2.Right,
+								Grade:      types2.GradeReported,
+								Point:      1,
+							},
+						},
 					},
 				},
-			},
-		},
-		IdentitiesPerAddr: map[common.Address]*types.IdentityStats{
-			addr: {
-				ShortPoint:        1,
-				ShortFlips:        1,
-				LongPoint:         2,
-				LongFlips:         2,
-				Approved:          true,
-				Missed:            false,
-				ShortFlipsToSolve: []int{0},
-				LongFlipsToSolve:  []int{0, 1},
+				IdentitiesPerAddr: map[common.Address]*types.IdentityStats{
+					addr: {
+						ShortPoint:        1,
+						ShortFlips:        1,
+						LongPoint:         2,
+						LongFlips:         2,
+						Approved:          true,
+						Missed:            false,
+						ShortFlipsToSolve: []int{0},
+						LongFlipsToSolve:  []int{0, 1},
+					},
+				},
 			},
 		},
 	})
@@ -223,53 +227,57 @@ func Test_complex(t *testing.T) {
 	// When
 	statsCollector.EnableCollecting()
 	statsCollector.SetValidation(&types.ValidationStats{
-		FlipCids: [][]byte{cid1.Bytes(), cidWrongWordsFlip.Bytes()},
-		FlipsPerIdx: map[int]*types.FlipStats{
-			0: {
-				Status: byte(ceremony.Qualified),
-				Answer: types2.Left,
-				Grade:  types2.GradeA,
-				ShortAnswers: []types.FlipAnswerStats{
-					{
-						Respondent: addr,
-						Answer:     types2.Left,
-						Grade:      types2.GradeA,
-						Point:      1,
-					},
-				},
-				LongAnswers: []types.FlipAnswerStats{
-					{
-						Respondent: addr,
-						Answer:     types2.Left,
-						Grade:      types2.GradeA,
-						Point:      1,
-					},
-				},
-			},
+		Shards: map[common.ShardId]*types.ValidationShardStats{
 			1: {
-				Status: byte(ceremony.Qualified),
-				Answer: types2.Right,
-				Grade:  types2.GradeReported,
-				LongAnswers: []types.FlipAnswerStats{
-					{
-						Respondent: addr,
-						Answer:     types2.Right,
-						Grade:      types2.GradeReported,
-						Point:      1,
+				FlipCids: [][]byte{cid1.Bytes(), cidWrongWordsFlip.Bytes()},
+				FlipsPerIdx: map[int]*types.FlipStats{
+					0: {
+						Status: byte(ceremony.Qualified),
+						Answer: types2.Left,
+						Grade:  types2.GradeA,
+						ShortAnswers: []types.FlipAnswerStats{
+							{
+								Respondent: addr,
+								Answer:     types2.Left,
+								Grade:      types2.GradeA,
+								Point:      1,
+							},
+						},
+						LongAnswers: []types.FlipAnswerStats{
+							{
+								Respondent: addr,
+								Answer:     types2.Left,
+								Grade:      types2.GradeA,
+								Point:      1,
+							},
+						},
+					},
+					1: {
+						Status: byte(ceremony.Qualified),
+						Answer: types2.Right,
+						Grade:  types2.GradeReported,
+						LongAnswers: []types.FlipAnswerStats{
+							{
+								Respondent: addr,
+								Answer:     types2.Right,
+								Grade:      types2.GradeReported,
+								Point:      1,
+							},
+						},
 					},
 				},
-			},
-		},
-		IdentitiesPerAddr: map[common.Address]*types.IdentityStats{
-			addr: {
-				ShortPoint:        1,
-				ShortFlips:        1,
-				LongPoint:         2,
-				LongFlips:         2,
-				Approved:          true,
-				Missed:            false,
-				ShortFlipsToSolve: []int{0},
-				LongFlipsToSolve:  []int{0, 1},
+				IdentitiesPerAddr: map[common.Address]*types.IdentityStats{
+					addr: {
+						ShortPoint:        1,
+						ShortFlips:        1,
+						LongPoint:         2,
+						LongFlips:         2,
+						Approved:          true,
+						Missed:            false,
+						ShortFlipsToSolve: []int{0},
+						LongFlipsToSolve:  []int{0, 1},
+					},
+				},
 			},
 		},
 	})

@@ -20,7 +20,6 @@ type conversionCollector struct {
 	flipKeys            []db.FlipKey
 	flipsWords          []db.FlipWords
 	addresses           map[string]*db.Address
-	activationTxs       []db.ActivationTx
 	killInviteeTxs      []db.KillInviteeTx
 	becomeOnlineTxs     []string
 	becomeOfflineTxs    []string
