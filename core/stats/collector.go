@@ -137,7 +137,7 @@ func (c *statsCollector) SetMinScoreForInvite(score float32) {
 	c.stats.MinScoreForInvite = &score
 }
 
-func (c *statsCollector) SetValidationResults(validationResults *types.ValidationResults) {
+func (c *statsCollector) SetValidationResults(validationResults map[common.ShardId]*types.ValidationResults) {
 	c.initRewardStats()
 	c.stats.RewardsStats.ValidationResults = validationResults
 }
@@ -217,7 +217,7 @@ func (c *statsCollector) addRewardedFlips(flipsToReward []*types.FlipToReward) {
 	}
 }
 
-func (c *statsCollector) AddReportedFlipsReward(balanceDest, stakeDest common.Address, flipIdx int, balance *big.Int, stake *big.Int) {
+func (c *statsCollector) AddReportedFlipsReward(balanceDest, stakeDest common.Address, shardId common.ShardId, flipIdx int, balance *big.Int, stake *big.Int) {
 	if balanceDest == stakeDest {
 		c.addReward(balanceDest, balance, stake, ReportedFlips)
 	} else {
@@ -225,13 +225,13 @@ func (c *statsCollector) AddReportedFlipsReward(balanceDest, stakeDest common.Ad
 		c.addReward(stakeDest, big.NewInt(0), stake, ReportedFlips)
 	}
 	baseRewardRecipient := stakeDest
-	c.addReportedFlipReward(baseRewardRecipient, flipIdx, balance, stake)
+	c.addReportedFlipReward(baseRewardRecipient, shardId, flipIdx, balance, stake)
 
 	c.addAddrTotalReward(baseRewardRecipient, balance, stake)
 }
 
-func (c *statsCollector) addReportedFlipReward(addr common.Address, flipIdx int, balance *big.Int, stake *big.Int) {
-	cidBytes, ok := c.getFlipCid(flipIdx)
+func (c *statsCollector) addReportedFlipReward(addr common.Address, shardId common.ShardId, flipIdx int, balance *big.Int, stake *big.Int) {
+	cidBytes, ok := c.getFlipCid(shardId, flipIdx)
 	if !ok {
 		log.Warn(fmt.Sprintf("Cid for flip %d not found", flipIdx))
 		return
@@ -246,11 +246,18 @@ func (c *statsCollector) addReportedFlipReward(addr common.Address, flipIdx int,
 	})
 }
 
-func (c *statsCollector) getFlipCid(flipIdx int) ([]byte, bool) {
-	if flipIdx < 0 || flipIdx >= len(c.stats.ValidationStats.FlipCids) {
+func (c *statsCollector) getFlipCid(shardId common.ShardId, flipIdx int) ([]byte, bool) {
+	if flipIdx < 0 || c.stats.ValidationStats.Shards == nil {
 		return nil, false
 	}
-	return c.stats.ValidationStats.FlipCids[flipIdx], true
+	validationShardStats, ok := c.stats.ValidationStats.Shards[shardId]
+	if !ok {
+		return nil, false
+	}
+	if flipIdx >= len(validationShardStats.FlipCids) {
+		return nil, false
+	}
+	return validationShardStats.FlipCids[flipIdx], true
 }
 
 func (c *statsCollector) AddInvitationsReward(balanceDest, stakeDest common.Address, balance *big.Int, stake *big.Int, age uint16,
@@ -796,8 +803,23 @@ func (c *statsCollector) CompleteApplyingTx(appState *appstate.AppState) {
 	}
 
 	c.collectTxSentToContract(appState)
+	c.collectActivationTx(appState)
 
 	c.pending.tx = nil
+}
+
+func (c *statsCollector) collectActivationTx(appState *appstate.AppState) {
+	tx := c.pending.tx.tx
+	if tx.Type != types.ActivationTx {
+		return
+	}
+	recipient := *tx.To
+	inviter := appState.State.GetInviter(recipient)
+	c.stats.ActivationTxs = append(c.stats.ActivationTxs, db.ActivationTx{
+		TxHash:       conversion.ConvertHash(tx.Hash()),
+		InviteTxHash: conversion.ConvertHash(inviter.TxHash),
+		ShardId:      appState.State.ShardId(recipient),
+	})
 }
 
 func (c *statsCollector) collectTxSentToContract(appState *appstate.AppState) {

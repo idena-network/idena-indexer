@@ -249,6 +249,7 @@ type KillInviteeTxTransfer struct {
 type ActivationTx struct {
 	TxHash       string
 	InviteTxHash string
+	ShardId      common.ShardId
 }
 
 type KillInviteeTx struct {
@@ -275,6 +276,8 @@ type EpochIdentity struct {
 	ShortFlipCidsToSolve []string
 	LongFlipCidsToSolve  []string
 	DelegateeAddress     string
+	ShardId              common.ShardId
+	NewShardId           common.ShardId
 }
 
 type Flip struct {

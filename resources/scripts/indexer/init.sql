@@ -647,6 +647,8 @@ CREATE TABLE IF NOT EXISTS epoch_identities
     long_answers            integer         NOT NULL,
     wrong_words_flips       smallint        NOT NULL,
     delegatee_address_id    bigint,
+    shard_id                integer,
+    new_shard_id            integer,
     CONSTRAINT epoch_identities_pkey PRIMARY KEY (address_state_id),
     CONSTRAINT epoch_identities_address_state_id_fkey FOREIGN KEY (address_state_id)
         REFERENCES address_states (id) MATCH SIMPLE
@@ -1249,6 +1251,7 @@ CREATE TABLE IF NOT EXISTS activation_txs
 (
     tx_id        bigint NOT NULL,
     invite_tx_id bigint NOT NULL,
+    shard_id     integer,
     CONSTRAINT activation_txs_pkey PRIMARY KEY (tx_id),
     CONSTRAINT activation_txs_tx_id_fkey FOREIGN KEY (tx_id)
         REFERENCES transactions (id) MATCH SIMPLE
@@ -1633,7 +1636,8 @@ $$
         CREATE TYPE tp_activation_tx_transfer AS
         (
             tx_hash          character(66),
-            balance_transfer numeric(30, 18)
+            balance_transfer numeric(30, 18),
+            shard_id         integer
         );
     EXCEPTION
         WHEN duplicate_object THEN null;
@@ -1792,7 +1796,9 @@ $$
             short_answers      integer,
             long_answers       integer,
             wrong_words_flips  smallint,
-            delegatee_address  character(42)
+            delegatee_address  character(42),
+            shard_id           integer,
+            new_shard_id       integer
         );
 
         ALTER TYPE tp_epoch_identity
@@ -3087,8 +3093,9 @@ BEGIN
             if l_invite_tx_id is null then
                 continue;
             end if;
-            insert into activation_txs (tx_id, invite_tx_id)
-            values ((select id from transactions where lower(hash) = lower(l_activation_tx.tx_hash)), l_invite_tx_id);
+            insert into activation_txs (tx_id, invite_tx_id, shard_id)
+            values ((select id from transactions where lower(hash) = lower(l_activation_tx.tx_hash)), l_invite_tx_id,
+                    l_activation_tx.shard_id);
         end loop;
 END
 $BODY$;
