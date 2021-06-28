@@ -6,4 +6,4 @@ ALTER TABLE activation_txs
     ADD COLUMN shard_id integer;
 
 DROP TYPE tp_epoch_identity;
-DROP TYPE tp_activation_tx_transfer;
+DROP TYPE tp_activation_tx;

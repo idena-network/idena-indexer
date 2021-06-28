@@ -1636,8 +1636,7 @@ $$
         CREATE TYPE tp_activation_tx_transfer AS
         (
             tx_hash          character(66),
-            balance_transfer numeric(30, 18),
-            shard_id         integer
+            balance_transfer numeric(30, 18)
         );
     EXCEPTION
         WHEN duplicate_object THEN null;
@@ -1980,7 +1979,8 @@ $$
         CREATE TYPE tp_activation_tx AS
         (
             tx_hash        character(66),
-            invite_tx_hash character(66)
+            invite_tx_hash character(66),
+            shard_id       integer
         );
     EXCEPTION
         WHEN duplicate_object THEN null;
