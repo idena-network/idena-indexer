@@ -156,6 +156,10 @@ func (a *Api) MemPoolTransactions(count uint64) ([]*types.TransactionSummary, er
 	return a.memPool.GetTransactions(int(count))
 }
 
+func (a *Api) MemPoolTransactionsCount() (int, error) {
+	return a.memPool.GetTransactionsCount()
+}
+
 func (a *Api) MemPoolOracleVotingContractDeploys(author string) ([]db.OracleVotingContract, error) {
 	return a.contractsMemPool.GetOracleVotingContractDeploys(common.HexToAddress(author))
 }

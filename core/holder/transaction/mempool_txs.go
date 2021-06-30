@@ -19,6 +19,7 @@ type MemPool interface {
 	GetTransactionRaw(hash string) (hexutil.Bytes, error)
 	GetAddressTransactions(address string, count int) ([]*types2.TransactionSummary, error)
 	GetTransactions(count int) ([]*types2.TransactionSummary, error)
+	GetTransactionsCount() (int, error)
 
 	AddTransaction(tx *types.Transaction) error
 	RemoveTransaction(tx *types.Transaction) error
@@ -234,6 +235,10 @@ func (pool *memPool) GetAddressTransactions(address string, count int) ([]*types
 func (pool *memPool) GetTransactions(count int) ([]*types2.TransactionSummary, error) {
 	txs := pool.txsByHash.all(count)
 	return toTransactionSummaries(txs), nil
+}
+
+func (pool *memPool) GetTransactionsCount() (int, error) {
+	return pool.txsByHash.len(), nil
 }
 
 func (pool *memPool) addTx(tx *types.Transaction) {

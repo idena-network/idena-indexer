@@ -58,6 +58,7 @@ func (ri *routerInitializer) InitRouter(router *mux.Router) {
 	router.Path(strings.ToLower("/MemPool/Transactions")).
 		Queries("limit", "{limit}").
 		HandlerFunc(ri.memPoolTransactions)
+	router.Path(strings.ToLower("/MemPool/Transactions/Count")).HandlerFunc(ri.memPoolTransactionsCount)
 	router.Path(strings.ToLower("/MemPool/OracleVotingContractDeploys")).HandlerFunc(ri.memPoolOracleVotingContractDeploys)
 	router.Path(strings.ToLower("/MemPool/Address/{address}/Contract/{contractAddress}/Txs")).HandlerFunc(ri.memPoolAddressContractTxs)
 }
@@ -144,6 +145,11 @@ func (ri *routerInitializer) memPoolTransactions(w http.ResponseWriter, r *http.
 		return
 	}
 	resp, err := ri.api.MemPoolTransactions(count)
+	WriteResponse(w, resp, err, ri.logger)
+}
+
+func (ri *routerInitializer) memPoolTransactionsCount(w http.ResponseWriter, r *http.Request) {
+	resp, err := ri.api.MemPoolTransactionsCount()
 	WriteResponse(w, resp, err, ri.logger)
 }
 
