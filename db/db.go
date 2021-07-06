@@ -1,6 +1,9 @@
 package db
 
-import "math/big"
+import (
+	"math/big"
+	"time"
+)
 
 type Accessor interface {
 	GetLastHeight() (uint64, error)
@@ -17,6 +20,8 @@ type Accessor interface {
 	GetUpgradeVotingHistory(upgrade uint32) ([]*UpgradeHistoryItem, error)
 	UpdateUpgradeVotingShortHistory(upgrade uint32, history []*UpgradeHistoryItem, lastStep uint32, lastHeight uint64) error
 	UpdateUpgrades(upgrades []*Upgrade) error
+
+	SavePeersCount(count int, timestamp time.Time) error
 
 	Destroy()
 	ResetTo(height uint64) error

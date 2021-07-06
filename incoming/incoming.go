@@ -60,6 +60,7 @@ func NewListener(nodeConfigFile string, bus eventbus.Bus, statsCollector collect
 	cfg.IpfsConf.GracePeriod = "30s"
 	cfg.IpfsConf.ReproviderInterval = "0"
 	cfg.IpfsConf.Routing = "dhtclient"
+	cfg.IpfsConf.PublishPeers = true
 	cfg.Sync.FastSync = false
 
 	cfgTransform(cfg)

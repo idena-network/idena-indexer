@@ -196,6 +196,12 @@ func initIndexer(config *config.Config, txMemPool transaction.MemPool) (*indexer
 
 	upgradesVoting := upgrade.NewUpgradesVotingHolder(listener.NodeCtx().Upgrader)
 
+	peersTracker := mempool.NewPeersTracker(dbAccessor, log.New("component", "peersTracker"))
+	nodeEventBus.Subscribe(events.PeersEventID, func(e eventbus.Event) {
+		peersEvent := e.(*events.PeersEvent)
+		peersTracker.AddPeersData(peersEvent.PeersData, peersEvent.Time)
+	})
+
 	enabled := config.Enabled == nil || *config.Enabled
 	return indexer.NewIndexer(
 			enabled,
