@@ -11,7 +11,6 @@ import (
 type Config struct {
 	Postgres                          PostgresConfig
 	RuntimeMigration                  RuntimeMigrationConfig
-	Migration                         Migration
 	NodeConfigFile                    string
 	WordsFile                         string
 	Verbosity                         int
@@ -45,13 +44,6 @@ type PostgresConfig struct {
 type RuntimeMigrationConfig struct {
 	Enabled  bool
 	Postgres PostgresConfig
-}
-
-type Migration struct {
-	Enabled    bool
-	OldSchema  string
-	Height     uint64
-	ScriptsDir string
 }
 
 type FlipContentLoaderConfig struct {

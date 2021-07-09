@@ -17,7 +17,7 @@ CREATE OR REPLACE PROCEDURE save_epoch_result(p_epoch bigint,
                                               p_reported_flip_rewards tp_reported_flip_reward[],
                                               p_failed_validation boolean,
                                               p_min_score_for_invite real,
-                                              p_epoch_rewards_bounds jsonb[])
+                                              p_data jsonb)
     LANGUAGE 'plpgsql'
 AS
 $BODY$
@@ -71,12 +71,18 @@ BEGIN
     select clock_timestamp() into l_end;
     call log_performance('save_epoch_rewards', l_start, l_end);
 
-    select clock_timestamp() into l_start;
-    if p_epoch_rewards_bounds is not null then
-        call save_epoch_rewards_bounds(p_epoch, p_height, p_epoch_rewards_bounds);
+    if p_data is not null then
+        select clock_timestamp() into l_start;
+        call save_epoch_rewards_bounds(p_epoch, p_height, p_data -> 'rewardsBounds');
+        select clock_timestamp() into l_end;
+        call log_performance('save_epoch_rewards_bounds', l_start, l_end);
+
+        select clock_timestamp() into l_start;
+        call save_epoch_flip_statuses(p_epoch, p_data -> 'flipStatuses');
+        select clock_timestamp() into l_end;
+        call log_performance('save_epoch_flip_statuses', l_start, l_end);
     end if;
-    select clock_timestamp() into l_end;
-    call log_performance('save_epoch_rewards_bounds', l_start, l_end);
+
 
     select clock_timestamp() into l_start;
     if p_failed_validation then
@@ -86,7 +92,7 @@ BEGIN
     call log_performance('failed_validations', l_start, l_end);
 
     select clock_timestamp() into l_start;
-    call generate_epoch_summaries(p_epoch, p_height, p_min_score_for_invite);
+    call generate_epoch_summaries(p_epoch, p_height, p_min_score_for_invite, (p_data ->> 'reportedFlips')::integer);
     select clock_timestamp() into l_end;
     call log_performance('generate_epoch_summaries', l_start, l_end);
 
@@ -320,7 +326,7 @@ BEGIN
 
     select clock_timestamp() into l_start;
     if p_total is not null then
-        call save_total_reward(p_block_height, p_total);
+        call save_total_reward(p_epoch, p_total);
     end if;
     select clock_timestamp() into l_end;
     call log_performance('save_total_reward', l_start, l_end);
@@ -394,13 +400,13 @@ BEGIN
 END
 $BODY$;
 
-CREATE OR REPLACE PROCEDURE save_total_reward(p_block_height bigint,
+CREATE OR REPLACE PROCEDURE save_total_reward(p_epoch bigint,
                                               p_total tp_total_epoch_reward)
     LANGUAGE 'plpgsql'
 AS
 $BODY$
 BEGIN
-    insert into total_rewards (block_height,
+    insert into total_rewards (epoch,
                                total, validation,
                                flips,
                                invitations,
@@ -409,7 +415,7 @@ BEGIN
                                validation_share,
                                flips_share,
                                invitations_share)
-    values (p_block_height,
+    values (p_epoch,
             p_total.total,
             p_total.validation,
             p_total.flips,
@@ -579,7 +585,7 @@ $BODY$;
 
 CREATE OR REPLACE PROCEDURE save_epoch_rewards_bounds(p_epoch bigint,
                                                       p_block_height bigint,
-                                                      p_items jsonb[])
+                                                      p_items jsonb)
     LANGUAGE 'plpgsql'
 AS
 $$
@@ -588,15 +594,38 @@ DECLARE
     l_min_address_id bigint;
     l_max_address_id bigint;
 BEGIN
-    for i in 1..cardinality(p_items)
+    if p_items is null then
+        return;
+    end if;
+    for i in 0..jsonb_array_length(p_items) - 1
         loop
-            l_item = p_items[i];
+            l_item = (p_items ->> i)::jsonb;
             l_min_address_id = get_address_id_or_insert(p_block_height, (l_item ->> 'minAddress')::text);
             l_max_address_id = get_address_id_or_insert(p_block_height, (l_item ->> 'maxAddress')::text);
             INSERT INTO epoch_reward_bounds (epoch, bound_type, min_amount, min_address_id, max_amount, max_address_id)
             VALUES (p_epoch, (l_item ->> 'boundType')::smallint, (l_item ->> 'minAmount')::numeric, l_min_address_id,
                     (l_item ->> 'maxAmount')::numeric,
                     l_max_address_id);
+        end loop;
+END
+$$;
+
+CREATE OR REPLACE PROCEDURE save_epoch_flip_statuses(p_epoch bigint,
+                                                     p_items jsonb)
+    LANGUAGE 'plpgsql'
+AS
+$$
+DECLARE
+    l_item jsonb;
+BEGIN
+    if p_items is null then
+        return;
+    end if;
+    for i in 0..jsonb_array_length(p_items) - 1
+        loop
+            l_item = (p_items ->> i)::jsonb;
+            INSERT INTO epoch_flip_statuses (epoch, flip_status, count)
+            VALUES (p_epoch, (l_item ->> 'status')::smallint, (l_item ->> 'count')::integer);
         end loop;
 END
 $$;

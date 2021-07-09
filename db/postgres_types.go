@@ -868,24 +868,6 @@ func getRewardAgesArray(agesByAddress map[string]uint16) interface {
 	return pq.Array(converted)
 }
 
-type rewardBounds struct {
-	BoundType  byte            `json:"boundType"`
-	MinAmount  decimal.Decimal `json:"minAmount"`
-	MinAddress string          `json:"minAddress"`
-	MaxAmount  decimal.Decimal `json:"maxAmount"`
-	MaxAddress string          `json:"maxAddress"`
-}
-
-func (v *RewardBounds) Value() (driver.Value, error) {
-	res := rewardBounds{}
-	res.BoundType = v.Type
-	res.MinAmount = blockchain.ConvertToFloat(v.Min.Amount)
-	res.MinAddress = conversion.ConvertAddress(v.Min.Address)
-	res.MaxAmount = blockchain.ConvertToFloat(v.Max.Amount)
-	res.MaxAddress = conversion.ConvertAddress(v.Max.Address)
-	return json.Marshal(res)
-}
-
 type data struct {
 	DelegationSwitches []*delegationSwitch `json:"delegationSwitches,omitempty"`
 	UpgradesVotes      []*upgradeVotes     `json:"upgradesVotes,omitempty"`
@@ -1034,4 +1016,42 @@ type upgrade struct {
 	Upgrade             uint32 `json:"upgrade"`
 	StartActivationDate int64  `json:"startActivationDate"`
 	EndActivationDate   int64  `json:"endActivationDate"`
+}
+
+type epochResultData struct {
+	FlipStatuses  []FlipStatusCount `json:"flipStatuses,omitempty"`
+	RewardsBounds []rewardBounds    `json:"rewardsBounds,omitempty"`
+	ReportedFlips uint32            `json:"reportedFlips"`
+}
+
+func (v *epochResultData) Value() (driver.Value, error) {
+	return json.Marshal(v)
+}
+
+type rewardBounds struct {
+	BoundType  byte            `json:"boundType"`
+	MinAmount  decimal.Decimal `json:"minAmount"`
+	MinAddress string          `json:"minAddress"`
+	MaxAmount  decimal.Decimal `json:"maxAmount"`
+	MaxAddress string          `json:"maxAddress"`
+}
+
+func getEpochResultData(rewardsBounds []*RewardBounds, flipStatuses []FlipStatusCount, reportedFlips uint32) *epochResultData {
+	res := &epochResultData{
+		FlipStatuses:  flipStatuses,
+		ReportedFlips: reportedFlips,
+	}
+	if len(rewardsBounds) > 0 {
+		res.RewardsBounds = make([]rewardBounds, 0, len(rewardsBounds))
+		for _, incomingRewardBounds := range rewardsBounds {
+			res.RewardsBounds = append(res.RewardsBounds, rewardBounds{
+				BoundType:  incomingRewardBounds.Type,
+				MinAmount:  blockchain.ConvertToFloat(incomingRewardBounds.Min.Amount),
+				MinAddress: conversion.ConvertAddress(incomingRewardBounds.Min.Address),
+				MaxAmount:  blockchain.ConvertToFloat(incomingRewardBounds.Max.Amount),
+				MaxAddress: conversion.ConvertAddress(incomingRewardBounds.Max.Address),
+			})
+		}
+	}
+	return res
 }

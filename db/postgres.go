@@ -38,7 +38,6 @@ const (
 	saveBalancesQuery                   = "saveBalances.sql"
 	saveBirthdaysQuery                  = "saveBirthdays.sql"
 	insertCoinsQuery                    = "insertCoins.sql"
-	insertBlockFlagQuery                = "insertBlockFlag.sql"
 	insertPenaltyQuery                  = "insertPenalty.sql"
 	insertMiningRewardsQuery            = "insertMiningRewards.sql"
 	insertBurntCoinsQuery               = "insertBurntCoins.sql"
@@ -93,12 +92,6 @@ func (a *postgresAccessor) Save(data *Data) error {
 		return getResultError(err)
 	}
 	a.pm.Complete("saveBlock")
-
-	a.pm.Start("saveBlockFlags")
-	if err = a.saveBlockFlags(ctx, data.Block.Flags); err != nil {
-		return getResultError(err)
-	}
-	a.pm.Complete("saveBlockFlags")
 
 	a.pm.Start("saveAddressesAndTransactions")
 	if ctx.txIdsPerHash, err = a.saveAddressesAndTransactions(
@@ -257,6 +250,7 @@ func (a *postgresAccessor) saveEpochResult(
 		savedInviteRewards = pq.Array(epochRewards.SavedInviteRewards)
 		reportedFlipRewards = pq.Array(epochRewards.ReportedFlipRewards)
 	}
+	data := getEpochResultData(epochResult.RewardsBounds, epochResult.FlipStatuses, epochResult.ReportedFlips)
 	if _, err := tx.Exec(
 		a.getQuery(saveEpochResultQuery),
 		epoch,
@@ -278,7 +272,7 @@ func (a *postgresAccessor) saveEpochResult(
 		reportedFlipRewards,
 		epochResult.FailedValidation,
 		epochResult.MinScoreForInvite,
-		pq.Array(epochResult.RewardsBounds),
+		data,
 	); err != nil {
 		return errors.Wrap(err, "unable to save epoch result")
 	}
@@ -304,25 +298,9 @@ func (a *postgresAccessor) saveBlock(ctx *context, block Block) error {
 		block.FullSize,
 		block.FeeRate,
 		block.Upgrade,
+		pq.Array(block.Flags),
 	)
 	return err
-}
-
-func (a *postgresAccessor) saveBlockFlags(ctx *context, flags []string) error {
-	if len(flags) == 0 {
-		return nil
-	}
-	for _, flag := range flags {
-		if err := a.saveBlockFlag(ctx, flag); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (a *postgresAccessor) saveBlockFlag(ctx *context, flag string) error {
-	_, err := ctx.tx.Exec(a.getQuery(insertBlockFlagQuery), ctx.blockHeight, flag)
-	return errors.Wrapf(err, "unable to save block flag")
 }
 
 func (a *postgresAccessor) saveProposer(ctx *context, proposer string) error {

@@ -945,12 +945,17 @@ func (indexer *Indexer) detectEpochResult(block *types.Block, ctx *conversionCon
 		})
 	}
 
-	var flipsStats []db.FlipStats
+	flipsStats := make([]db.FlipStats, 0, len(validationStats.FlipsPerIdx))
+	flipStatusesMap := make(map[byte]uint64)
+	var reportedFlips uint32
 	for flipIdx, flipStats := range validationStats.FlipsPerIdx {
 		flipCid, err := cid.Parse(validationStats.FlipCids[flipIdx])
 		if err != nil {
 			log.Error("Unable to parse flip cid. Skipped.", "b", block.Height(), "idx", flipIdx, "err", err)
 			continue
+		}
+		if flipStats.Grade == types.GradeReported {
+			reportedFlips++
 		}
 		flipCidStr := convertCid(flipCid)
 		flipStats := db.FlipStats{
@@ -963,6 +968,14 @@ func (indexer *Indexer) detectEpochResult(block *types.Block, ctx *conversionCon
 			Grade:        byte(flipStats.Grade),
 		}
 		flipsStats = append(flipsStats, flipStats)
+		flipStatusesMap[flipStats.Status]++
+	}
+	flipStatuses := make([]db.FlipStatusCount, 0, len(flipStatusesMap))
+	for status, count := range flipStatusesMap {
+		flipStatuses = append(flipStatuses, db.FlipStatusCount{
+			Status: status,
+			Count:  count,
+		})
 	}
 
 	collectorStats := indexer.statsHolder().GetStats()
@@ -974,12 +987,14 @@ func (indexer *Indexer) detectEpochResult(block *types.Block, ctx *conversionCon
 	return &db.EpochResult{
 		Identities:        identities,
 		FlipStats:         flipsStats,
+		FlipStatuses:      flipStatuses,
 		Birthdays:         birthdays,
 		MemPoolFlipKeys:   memPoolFlipKeys,
 		FailedValidation:  validationStats.Failed,
 		EpochRewards:      epochRewards,
 		MinScoreForInvite: minScoreForInvite,
 		RewardsBounds:     rewardsBounds.getResult(),
+		ReportedFlips:     reportedFlips,
 	}
 }
 

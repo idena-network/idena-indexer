@@ -1,6 +1,7 @@
 CREATE OR REPLACE PROCEDURE generate_epoch_summaries(p_epoch bigint,
                                                      p_block_height bigint,
-                                                     p_min_score_for_invite real)
+                                                     p_min_score_for_invite real,
+                                                     p_reported_flips integer)
     LANGUAGE 'plpgsql'
 AS
 $$
@@ -18,7 +19,8 @@ BEGIN
     where s.state in (3, 7, 8);
     call update_epoch_summary(p_block_height => p_block_height,
                               p_validated_count => l_validated_count,
-                              p_min_score_for_invite => p_min_score_for_invite);
+                              p_min_score_for_invite => p_min_score_for_invite,
+                              p_reported_flips => p_reported_flips);
     select clock_timestamp() into l_end;
     call log_performance('update_epoch_summary', l_start, l_end);
 
@@ -117,7 +119,11 @@ CREATE OR REPLACE PROCEDURE update_epoch_summary(p_block_height bigint,
                                                  p_minted_diff numeric DEFAULT null,
                                                  p_total_balance numeric DEFAULT null,
                                                  p_total_stake numeric DEFAULT null,
-                                                 p_min_score_for_invite real DEFAULT null)
+                                                 p_min_score_for_invite real DEFAULT null,
+                                                 p_flip_lottery_block_height bigint DEFAULT null,
+                                                 p_min_tx_id bigint DEFAULT null,
+                                                 p_max_tx_id bigint DEFAULT null,
+                                                 p_reported_flips integer DEFAULT null)
     LANGUAGE 'plpgsql'
 AS
 $$
@@ -127,18 +133,22 @@ DECLARE
 BEGIN
     select epoch into l_epoch from blocks where height = p_block_height;
     update epoch_summaries
-    set validated_count      = coalesce(p_validated_count, validated_count),
-        block_count          = block_count + coalesce(p_block_count_diff, 0),
-        empty_block_count    = empty_block_count + coalesce(p_empty_block_count_diff, 0),
-        tx_count             = tx_count + coalesce(p_tx_count_diff, 0),
-        invite_count         = invite_count + coalesce(p_invite_count_diff, 0),
-        flip_count           = flip_count + coalesce(p_flip_count_diff, 0),
-        burnt                = burnt + coalesce(p_burnt_diff, 0),
-        minted               = minted + coalesce(p_minted_diff, 0),
-        total_balance        = coalesce(p_total_balance, total_balance),
-        total_stake          = coalesce(p_total_stake, total_stake),
-        block_height         = p_block_height,
-        min_score_for_invite = coalesce(p_min_score_for_invite, min_score_for_invite)
+    set validated_count           = coalesce(p_validated_count, validated_count),
+        block_count               = block_count + coalesce(p_block_count_diff, 0),
+        empty_block_count         = empty_block_count + coalesce(p_empty_block_count_diff, 0),
+        tx_count                  = tx_count + coalesce(p_tx_count_diff, 0),
+        invite_count              = invite_count + coalesce(p_invite_count_diff, 0),
+        flip_count                = flip_count + coalesce(p_flip_count_diff, 0),
+        burnt                     = burnt + coalesce(p_burnt_diff, 0),
+        minted                    = minted + coalesce(p_minted_diff, 0),
+        total_balance             = coalesce(p_total_balance, total_balance),
+        total_stake               = coalesce(p_total_stake, total_stake),
+        block_height              = p_block_height,
+        min_score_for_invite      = coalesce(p_min_score_for_invite, min_score_for_invite),
+        flip_lottery_block_height = coalesce(p_flip_lottery_block_height, flip_lottery_block_height),
+        min_tx_id                 = coalesce(p_min_tx_id, min_tx_id),
+        max_tx_id                 = coalesce(p_max_tx_id, max_tx_id),
+        reported_flips            = coalesce(p_reported_flips, reported_flips)
     where epoch = l_epoch
     RETURNING epoch into l_check_epoch;
 
@@ -155,7 +165,11 @@ BEGIN
                                      total_balance,
                                      total_stake,
                                      block_height,
-                                     min_score_for_invite)
+                                     min_score_for_invite,
+                                     flip_lottery_block_height,
+                                     min_tx_id,
+                                     max_tx_id,
+                                     reported_flips)
         values (l_epoch,
                 coalesce(p_validated_count, 0),
                 coalesce(p_block_count_diff, 0),
@@ -168,7 +182,11 @@ BEGIN
                 coalesce(p_total_balance, 0),
                 coalesce(p_total_stake, 0),
                 p_block_height,
-                coalesce(p_min_score_for_invite, 0));
+                coalesce(p_min_score_for_invite, 0),
+                p_flip_lottery_block_height,
+                p_min_tx_id,
+                p_max_tx_id,
+                p_reported_flips);
     end if;
 END
 $$;
@@ -212,7 +230,11 @@ BEGIN
      total_balance,
      total_stake,
      block_height,
-     min_score_for_invite)
+     min_score_for_invite,
+     flip_lottery_block_height,
+     min_tx_id,
+     max_tx_id,
+     reported_flips)
     values (l_epoch,
             0,
             (select count(*)
@@ -246,6 +268,19 @@ BEGIN
             l_total_balance,
             l_total_stake,
             p_block_height,
-            0);
+            0,
+            (SELECT b.height
+             FROM blocks b
+                      JOIN block_flags bf ON bf.block_height = b.height AND bf.flag = 'FlipLotteryStarted'
+             WHERE b.epoch = l_epoch),
+            (SELECT min(t.id)
+             FROM transactions t
+                      JOIN blocks b on b.height = t.block_height
+             WHERE b.epoch = l_epoch),
+            (SELECT max(t.id)
+             FROM transactions t
+                      JOIN blocks b on b.height = t.block_height
+             WHERE b.epoch = l_epoch),
+            null);
 END
 $$;

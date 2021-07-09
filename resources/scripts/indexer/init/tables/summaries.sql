@@ -1,18 +1,22 @@
 CREATE TABLE IF NOT EXISTS epoch_summaries
 (
-    epoch                bigint          NOT NULL,
-    validated_count      integer         NOT NULL,
-    block_count          bigint          NOT NULL,
-    empty_block_count    bigint          NOT NULL,
-    tx_count             bigint          NOT NULL,
-    invite_count         bigint          NOT NULL,
-    flip_count           integer         NOT NULL,
-    burnt                numeric(30, 18) NOT NULL,
-    minted               numeric(30, 18) NOT NULL,
-    total_balance        numeric(30, 18) NOT NULL,
-    total_stake          numeric(30, 18) NOT NULL,
-    block_height         bigint          NOT NULL,
-    min_score_for_invite real            NOT NULL,
+    epoch                     bigint          NOT NULL,
+    validated_count           integer         NOT NULL,
+    block_count               bigint          NOT NULL,
+    empty_block_count         bigint          NOT NULL,
+    tx_count                  bigint          NOT NULL,
+    invite_count              bigint          NOT NULL,
+    flip_count                integer         NOT NULL,
+    burnt                     numeric(30, 18) NOT NULL,
+    minted                    numeric(30, 18) NOT NULL,
+    total_balance             numeric(30, 18) NOT NULL,
+    total_stake               numeric(30, 18) NOT NULL,
+    block_height              bigint          NOT NULL,
+    min_score_for_invite      real            NOT NULL,
+    flip_lottery_block_height bigint,
+    min_tx_id                 bigint,
+    max_tx_id                 bigint,
+    reported_flips            integer,
     CONSTRAINT epoch_summaries_pkey PRIMARY KEY (epoch),
     CONSTRAINT epoch_summaries_block_height_fkey FOREIGN KEY (block_height)
         REFERENCES blocks (height) MATCH SIMPLE
@@ -65,4 +69,12 @@ CREATE TABLE IF NOT EXISTS epoch_reward_bounds
     max_amount     numeric(30, 18) NOT NULL,
     max_address_id bigint          NOT NULL,
     CONSTRAINT epoch_reward_bounds_pkey PRIMARY KEY (epoch, bound_type)
+);
+
+CREATE TABLE IF NOT EXISTS epoch_flip_statuses
+(
+    epoch       bigint   NOT NULL,
+    flip_status smallint NOT NULL,
+    count       integer  NOT NULL,
+    CONSTRAINT epoch_flip_statuses_pkey PRIMARY KEY (epoch, flip_status)
 );

@@ -422,6 +422,8 @@ type EpochResult struct {
 	EpochRewards      *EpochRewards
 	MinScoreForInvite float32
 	RewardsBounds     []*RewardBounds
+	FlipStatuses      []FlipStatusCount
+	ReportedFlips     uint32
 }
 
 type OracleVotingContract struct {
@@ -682,4 +684,9 @@ type Upgrade struct {
 type MinersHistoryItem struct {
 	OnlineValidators uint64 `json:"onlineValidators"`
 	OnlineMiners     uint64 `json:"onlineMiners"`
+}
+
+type FlipStatusCount struct {
+	Status byte   `json:"status"`
+	Count  uint64 `json:"count"`
 }

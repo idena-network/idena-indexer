@@ -1048,13 +1048,9 @@ ALTER TABLE penalties
 CREATE INDEX IF NOT EXISTS penalties_address_id_idx on penalties (address_id);
 CREATE INDEX IF NOT EXISTS penalties_id_address_id_idx on penalties (id desc, address_id);
 
--- Table: total_rewards
-
--- DROP TABLE total_rewards;
-
 CREATE TABLE IF NOT EXISTS total_rewards
 (
-    block_height      bigint          NOT NULL,
+    epoch             bigint          NOT NULL,
     total             numeric(30, 18) NOT NULL,
     validation        numeric(30, 18) NOT NULL,
     flips             numeric(30, 18) NOT NULL,
@@ -1064,18 +1060,12 @@ CREATE TABLE IF NOT EXISTS total_rewards
     validation_share  numeric(30, 18) NOT NULL,
     flips_share       numeric(30, 18) NOT NULL,
     invitations_share numeric(30, 18) NOT NULL,
-    CONSTRAINT total_rewards_pkey PRIMARY KEY (block_height),
-    CONSTRAINT total_rewards_block_height_fkey FOREIGN KEY (block_height)
-        REFERENCES blocks (height) MATCH SIMPLE
+    CONSTRAINT total_rewards_pkey PRIMARY KEY (epoch),
+    CONSTRAINT total_rewards_epoch_fkey FOREIGN KEY (epoch)
+        REFERENCES epochs (epoch) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION
-) WITH (
-      OIDS = FALSE
-    )
-  TABLESPACE pg_default;
-
-ALTER TABLE total_rewards
-    OWNER to postgres;
+);
 
 -- Table: validation_rewards
 
@@ -2704,7 +2694,7 @@ BEGIN
 END
 $BODY$;
 
-CREATE OR REPLACE FUNCTION save_addrs_and_txs(height bigint,
+CREATE OR REPLACE FUNCTION save_addrs_and_txs(p_height bigint,
                                               p_changes_blocks_count smallint,
                                               addresses tp_address[],
                                               txs tp_tx[],
@@ -2762,17 +2752,20 @@ DECLARE
     deleted_flip             tp_deleted_flip;
     l_invites_count          integer;
     l_flips_count_diff       integer;
+    l_cur_epoch_min_tx_id    bigint;
+    l_epoch_min_tx_id        bigint;
+    l_epoch_max_tx_id        bigint;
 BEGIN
     if addresses is not null then
         for i in 1..cardinality(addresses)
             loop
                 address_row = addresses[i];
 
-                l_address_id = get_address_id_or_insert(height, address_row.address);
+                l_address_id = get_address_id_or_insert(p_height, address_row.address);
 
                 if address_row.is_temporary then
                     insert into temporary_identities (address_id, block_height)
-                    values (l_address_id, height)
+                    values (l_address_id, p_height)
                     on conflict (address_id) do nothing;
                 end if;
             end loop;
@@ -2781,6 +2774,12 @@ BEGIN
     if txs is not null then
         l_invites_count = 0;
         l_flips_count_diff = 0;
+
+        SELECT min_tx_id
+        INTO l_cur_epoch_min_tx_id
+        FROM epoch_summaries
+        WHERE epoch = (SELECT epoch FROM blocks WHERE height = p_height);
+
         for i in 1..cardinality(txs)
             loop
                 tx = txs[i];
@@ -2790,7 +2789,7 @@ BEGIN
                 end if;
                 SELECT id INTO l_address_id FROM addresses WHERE lower(address) = lower(tx."from");
                 INSERT INTO TRANSACTIONS (HASH, BLOCK_HEIGHT, type, "from", "to", AMOUNT, TIPS, MAX_FEE, FEE, SIZE)
-                VALUES (tx.hash, height, tx.type, l_address_id, l_to, tx.amount, tx.tips, tx.max_fee, tx.fee, tx.size)
+                VALUES (tx.hash, p_height, tx.type, l_address_id, l_to, tx.amount, tx.tips, tx.max_fee, tx.fee, tx.size)
                 RETURNING id into l_tx_id;
 
                 INSERT INTO transaction_raws (tx_id, raw) VALUES (l_tx_id, decode(tx.raw, 'hex'));
@@ -2811,12 +2810,21 @@ BEGIN
                     l_flips_count_diff = l_flips_count_diff - 1;
                     CALL update_address_summary(p_address_id => l_address_id, p_flips_diff => -1);
                 end if;
+
+                if l_cur_epoch_min_tx_id is null and l_epoch_min_tx_id is null then
+                    l_epoch_min_tx_id = l_tx_id;
+                end if;
+
+                l_epoch_max_tx_id = l_tx_id;
+
             end loop;
 
-        call update_epoch_summary(p_block_height => height,
+        call update_epoch_summary(p_block_height => p_height,
                                   p_tx_count_diff => cardinality(txs),
                                   p_invite_count_diff =>l_invites_count,
-                                  p_flip_count_diff => l_flips_count_diff);
+                                  p_flip_count_diff => l_flips_count_diff,
+                                  p_min_tx_id => l_epoch_min_tx_id,
+                                  p_max_tx_id => l_epoch_max_tx_id);
     end if;
 
     if p_activation_tx_transfers is not null then
@@ -2864,7 +2872,7 @@ BEGIN
                 returning id into l_prev_state_id;
 
                 insert into address_states (address_id, state, is_actual, block_height, tx_id, prev_id)
-                values (l_address_id, address_state_change_row.new_state, true, height,
+                values (l_address_id, address_state_change_row.new_state, true, p_height,
                         (select id from transactions where lower(hash) = lower(address_state_change_row.tx_hash)),
                         l_prev_state_id);
             end loop;
@@ -2881,39 +2889,39 @@ BEGIN
     end if;
 
     if p_oracle_voting_contracts is not null then
-        call save_oracle_voting_contracts(height, p_oracle_voting_contracts);
+        call save_oracle_voting_contracts(p_height, p_oracle_voting_contracts);
     end if;
 
     if p_oracle_voting_contract_call_starts is not null then
-        call save_oracle_voting_contract_call_starts(height, p_oracle_voting_contract_call_starts);
+        call save_oracle_voting_contract_call_starts(p_height, p_oracle_voting_contract_call_starts);
     end if;
 
     if p_oracle_voting_contract_call_vote_proofs is not null then
-        call save_oracle_voting_contract_call_vote_proofs(height, p_oracle_voting_contract_call_vote_proofs);
+        call save_oracle_voting_contract_call_vote_proofs(p_height, p_oracle_voting_contract_call_vote_proofs);
     end if;
 
     if p_oracle_voting_contract_call_votes is not null then
-        call save_oracle_voting_contract_call_votes(height, p_oracle_voting_contract_call_votes);
+        call save_oracle_voting_contract_call_votes(p_height, p_oracle_voting_contract_call_votes);
     end if;
 
     if p_oracle_voting_contract_call_finishes is not null then
-        call save_oracle_voting_contract_call_finishes(height, p_oracle_voting_contract_call_finishes);
+        call save_oracle_voting_contract_call_finishes(p_height, p_oracle_voting_contract_call_finishes);
     end if;
 
     if p_oracle_voting_contract_call_prolongations is not null then
-        call save_oracle_voting_contract_call_prolongations(height, p_oracle_voting_contract_call_prolongations);
+        call save_oracle_voting_contract_call_prolongations(p_height, p_oracle_voting_contract_call_prolongations);
     end if;
 
     if p_oracle_voting_contract_call_add_stakes is not null then
-        call save_oracle_voting_contract_call_add_stakes(height, p_oracle_voting_contract_call_add_stakes);
+        call save_oracle_voting_contract_call_add_stakes(p_height, p_oracle_voting_contract_call_add_stakes);
     end if;
 
     if p_oracle_voting_contract_terminations is not null then
-        call save_oracle_voting_contract_terminations(height, p_oracle_voting_contract_terminations);
+        call save_oracle_voting_contract_terminations(p_height, p_oracle_voting_contract_terminations);
     end if;
 
     if p_oracle_lock_contracts is not null then
-        call save_oracle_lock_contracts(height, p_oracle_lock_contracts);
+        call save_oracle_lock_contracts(p_height, p_oracle_lock_contracts);
     end if;
 
     if p_oracle_lock_contract_call_check_oracle_votings is not null then
@@ -2925,11 +2933,11 @@ BEGIN
     end if;
 
     if p_oracle_lock_contract_terminations is not null then
-        call save_oracle_lock_contract_terminations(height, p_oracle_lock_contract_terminations);
+        call save_oracle_lock_contract_terminations(p_height, p_oracle_lock_contract_terminations);
     end if;
 
     if p_refundable_oracle_lock_contracts is not null then
-        call save_refundable_oracle_lock_contracts(height, p_refundable_oracle_lock_contracts);
+        call save_refundable_oracle_lock_contracts(p_height, p_refundable_oracle_lock_contracts);
     end if;
 
     if p_refundable_oracle_lock_contract_call_deposits is not null then
@@ -2945,43 +2953,44 @@ BEGIN
     end if;
 
     if p_refundable_oracle_lock_contract_terminations is not null then
-        call save_refundable_oracle_lock_contract_terminations(height, p_refundable_oracle_lock_contract_terminations);
+        call save_refundable_oracle_lock_contract_terminations(p_height,
+                                                               p_refundable_oracle_lock_contract_terminations);
     end if;
 
     if p_time_lock_contracts is not null then
-        call save_time_lock_contracts(height, p_time_lock_contracts);
+        call save_time_lock_contracts(p_height, p_time_lock_contracts);
     end if;
 
     if p_time_lock_contract_call_transfers is not null then
-        call save_time_lock_contract_call_transfers(height, p_time_lock_contract_call_transfers);
+        call save_time_lock_contract_call_transfers(p_height, p_time_lock_contract_call_transfers);
     end if;
 
     if p_time_lock_contract_terminations is not null then
-        call save_time_lock_contract_terminations(height, p_time_lock_contract_terminations);
+        call save_time_lock_contract_terminations(p_height, p_time_lock_contract_terminations);
     end if;
 
     if p_multisig_contracts is not null then
-        call save_multisig_contracts(height, p_multisig_contracts);
+        call save_multisig_contracts(p_height, p_multisig_contracts);
     end if;
 
     if p_multisig_contract_call_adds is not null then
-        call save_multisig_contract_call_adds(height, p_multisig_contract_call_adds);
+        call save_multisig_contract_call_adds(p_height, p_multisig_contract_call_adds);
     end if;
 
     if p_multisig_contract_call_sends is not null then
-        call save_multisig_contract_call_sends(height, p_multisig_contract_call_sends);
+        call save_multisig_contract_call_sends(p_height, p_multisig_contract_call_sends);
     end if;
 
     if p_multisig_contract_call_pushes is not null then
-        call save_multisig_contract_call_pushes(height, p_multisig_contract_call_pushes);
+        call save_multisig_contract_call_pushes(p_height, p_multisig_contract_call_pushes);
     end if;
 
     if p_multisig_contract_terminations is not null then
-        call save_multisig_contract_terminations(height, p_multisig_contract_terminations);
+        call save_multisig_contract_terminations(p_height, p_multisig_contract_terminations);
     end if;
 
     if p_contract_tx_balance_updates is not null then
-        call save_contract_tx_balance_updates(height, p_contract_tx_balance_updates);
+        call save_contract_tx_balance_updates(p_height, p_contract_tx_balance_updates);
     end if;
 
     if p_tx_receipts is not null then
@@ -2989,15 +2998,15 @@ BEGIN
     end if;
 
     if p_data is not null then
-        call save_delegation_switches(height, p_data -> 'delegationSwitches');
-        call update_pool_sizes(height, p_data -> 'poolSizes');
-        call save_upgrades_votes(height, p_data -> 'upgradesVotes');
-        call save_miners_history_item(height, p_data -> 'minersHistoryItem');
+        call save_delegation_switches(p_height, p_data -> 'delegationSwitches');
+        call update_pool_sizes(p_height, p_data -> 'poolSizes');
+        call save_upgrades_votes(p_height, p_data -> 'upgradesVotes');
+        call save_miners_history_item(p_height, p_data -> 'minersHistoryItem');
     end if;
 
-    call apply_block_on_sorted_contracts(height, p_clear_old_ovc_committees);
+    call apply_block_on_sorted_contracts(p_height, p_clear_old_ovc_committees);
 
-    DELETE FROM changes WHERE block_height <= height - p_changes_blocks_count;
+    DELETE FROM changes WHERE block_height <= p_height - p_changes_blocks_count;
 
     return res;
 END
@@ -3222,7 +3231,9 @@ CREATE OR REPLACE PROCEDURE reset_to(p_block_height bigint)
 AS
 $BODY$
 DECLARE
-    l_epoch bigint;
+    l_epoch               bigint;
+    l_is_epoch_last_block boolean;
+    l_timestamp           bigint;
 BEGIN
 
     SET session_replication_role = replica;
@@ -3237,9 +3248,15 @@ BEGIN
     call reset_contracts_to(p_block_height);
     call reset_upgrade_voting_history_to(p_block_height);
 
-    select epoch into l_epoch from blocks where height = greatest(2, p_block_height);
+    select epoch, "timestamp" into l_epoch, l_timestamp from blocks where height = greatest(2, p_block_height);
 
     l_epoch = coalesce(l_epoch, 0);
+    l_timestamp = coalesce(l_timestamp, 0);
+
+    l_is_epoch_last_block = (SELECT exists(SELECT 1
+                                           FROM block_flags
+                                           WHERE block_height = p_block_height
+                                             AND flag = 'ValidationFinished'));
 
     delete
     from flips_queue
@@ -3309,11 +3326,7 @@ BEGIN
                     join blocks b on b.height = t.block_height and
                                      b.epoch + 1 > l_epoch);
 
-    delete
-    from epoch_reward_bounds
-    where epoch + 1 > l_epoch;
-
-    DELETE FROM miners_history WHERE block_height > p_block_height;
+    DELETE FROM miners_history WHERE block_timestamp > l_timestamp;
 
     delete
     from epoch_identity_interim_states
@@ -3336,16 +3349,16 @@ BEGIN
     where block_height > p_block_height;
 
     delete
-    from total_rewards
-    where block_height > p_block_height;
-
-    delete
     from penalties
     where block_height > p_block_height;
 
     delete
     from epoch_summaries
     where block_height > p_block_height;
+
+    DELETE FROM epoch_reward_bounds WHERE epoch > l_epoch OR NOT l_is_epoch_last_block AND epoch = l_epoch;
+    DELETE FROM total_rewards WHERE epoch > l_epoch OR NOT l_is_epoch_last_block AND epoch = l_epoch;
+    DELETE FROM epoch_flip_statuses WHERE epoch > l_epoch OR NOT l_is_epoch_last_block AND epoch = l_epoch;
 
     DELETE FROM address_summaries;
     DELETE FROM balances;
@@ -3627,55 +3640,6 @@ BEGIN
     delete
     from latest_committee_reward_balance_updates
     where block_height > p_block_height;
-END
-$$;
-
-CREATE OR REPLACE PROCEDURE migrate_balance_updates(p_block_height bigint,
-                                                    p_old_schema text)
-    LANGUAGE 'plpgsql'
-AS
-$$
-DECLARE
-    l_history_min_height bigint;
-    l_max                bigint;
-BEGIN
-    EXECUTE 'set search_path to ' || p_old_schema;
-
-    select min(block_height) into l_history_min_height from latest_committee_reward_balance_updates;
-
-    if l_history_min_height is null then
-        if (select exists(select 1
-                          from balance_updates
-                          where block_height <= p_block_height
-                            and last_block_height is not null
-                            and last_block_height > p_block_height)) then
-            raise exception 'there is no committee rewards history to restore balance updates';
-        end if;
-    end if;
-
-    if p_block_height < l_history_min_height then
-        if (select exists(select 1
-                          from balance_updates
-                          where block_height <= p_block_height
-                            and last_block_height is not null
-                            and last_block_height > p_block_height)) then
-            raise exception 'height to migrate is lower than committee rewards history min height';
-        end if;
-    end if;
-
-    RESET search_path;
-
-    EXECUTE FORMAT('insert into balance_updates (select * from %s.balance_updates where block_height <= %s)',
-                   p_old_schema, p_block_height);
-    select max(id) into l_max from balance_updates;
-    select setval('balance_updates_id_seq', l_max) into l_max;
-
-    EXECUTE FORMAT(
-            'insert into latest_committee_reward_balance_updates (select * from %s.latest_committee_reward_balance_updates)',
-            p_old_schema);
-
-
-    call reset_balance_updates_to(p_block_height);
 END
 $$;
 

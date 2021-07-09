@@ -23,7 +23,6 @@ import (
 	"github.com/idena-network/idena-indexer/incoming"
 	"github.com/idena-network/idena-indexer/indexer"
 	"github.com/idena-network/idena-indexer/log"
-	migrationDb "github.com/idena-network/idena-indexer/migration/db"
 	runtimeMigration "github.com/idena-network/idena-indexer/migration/runtime"
 	runtimeMigrationDb "github.com/idena-network/idena-indexer/migration/runtime/db"
 	"github.com/idena-network/idena-indexer/monitoring"
@@ -146,11 +145,6 @@ func initIndexer(config *config.Config, txMemPool transaction.MemPool) (*indexer
 			config.RuntimeMigration.Postgres.ConnStr, config.RuntimeMigration.Postgres.ScriptsDir))
 	}
 	restoreInitially := config.RestoreInitially
-	if migrated, err := migrateDataIfNeeded(config); err != nil {
-		panic(fmt.Sprintf("Unable to migrate data: %v", err))
-	} else {
-		restoreInitially = restoreInitially || migrated
-	}
 
 	memPoolIndexer := mempool.NewIndexer(dbAccessor, log.New("component", "mpi"))
 
@@ -225,19 +219,4 @@ func initPerformanceMonitor(config config.PerformanceMonitorConfig) monitoring.P
 		return monitoring.NewEmptyPerformanceMonitor()
 	}
 	return monitoring.NewPerformanceMonitor(config.BlocksToLog, log.New("component", "pm"))
-}
-
-func migrateDataIfNeeded(config *config.Config) (bool, error) {
-	if !config.Migration.Enabled {
-		return false, nil
-	}
-	dbAccessor := migrationDb.NewPostgresAccessor(config.Postgres.ConnStr, config.Migration.OldSchema,
-		config.Migration.ScriptsDir)
-	defer dbAccessor.Destroy()
-	log.Info("Start migrating data...")
-	if err := dbAccessor.MigrateTo(config.Migration.Height); err != nil {
-		return false, err
-	}
-	log.Info("Data migration has been completed")
-	return true, nil
 }
