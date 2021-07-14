@@ -8,7 +8,10 @@ import (
 	"time"
 )
 
-const period = time.Hour
+const (
+	expiration = time.Hour * 3
+	period     = time.Hour
+)
 
 type PeersTracker interface {
 	AddPeersData(peersData []iface.ConnectionInfo, time time.Time)
@@ -18,7 +21,7 @@ func NewPeersTracker(dbAccessor db.Accessor, logger log.Logger) PeersTracker {
 	pt := &peersTracker{
 		dbAccessor:     dbAccessor,
 		peersDataQueue: make(chan *peersDataWrapper, 10),
-		peersData:      cache.New(period, period*2),
+		peersData:      cache.New(expiration, expiration*2),
 		logger:         logger,
 	}
 	go pt.handlePeers()
@@ -62,7 +65,7 @@ func (pt *peersTracker) handlePeers() {
 }
 
 func (pt *peersTracker) track() {
-	time.Sleep(period)
+	time.Sleep(expiration)
 	for {
 		pt.peersData.DeleteExpired()
 		now := time.Now()
