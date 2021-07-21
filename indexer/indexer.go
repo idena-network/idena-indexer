@@ -8,6 +8,7 @@ import (
 	"github.com/idena-network/idena-go/blockchain/attachments"
 	"github.com/idena-network/idena-go/blockchain/types"
 	"github.com/idena-network/idena-go/common"
+	"github.com/idena-network/idena-go/common/eventbus"
 	"github.com/idena-network/idena-go/core/appstate"
 	"github.com/idena-network/idena-go/core/ceremony"
 	"github.com/idena-network/idena-go/core/state"
@@ -22,6 +23,7 @@ import (
 	"github.com/idena-network/idena-indexer/core/restore"
 	"github.com/idena-network/idena-indexer/core/stats"
 	"github.com/idena-network/idena-indexer/db"
+	"github.com/idena-network/idena-indexer/events"
 	"github.com/idena-network/idena-indexer/incoming"
 	"github.com/idena-network/idena-indexer/log"
 	"github.com/idena-network/idena-indexer/migration/runtime"
@@ -66,6 +68,7 @@ type Indexer struct {
 	firstBlockHeight            uint64
 	firstBlockHeightInitialized bool
 	upgradeVotingHistoryCtx     *upgradeVotingHistoryCtx
+	eventBus                    eventbus.Bus
 }
 
 type upgradeVotingHistoryCtx struct {
@@ -109,6 +112,7 @@ func NewIndexer(
 	upgradesVotingHolder upgrade.UpgradesVotingHolder,
 	upgradeVotingShortHistoryItems int,
 	upgradeVotingShortHistoryMinShift int,
+	eventBus eventbus.Bus,
 ) *Indexer {
 	return &Indexer{
 		enabled:          enabled,
@@ -120,6 +124,7 @@ func NewIndexer(
 		restore:          restoreInitially,
 		pm:               pm,
 		flipLoader:       flipLoader,
+		eventBus:         eventBus,
 		upgradeVotingHistoryCtx: &upgradeVotingHistoryCtx{
 			holder:               upgradesVotingHolder,
 			shortHistoryItems:    upgradeVotingShortHistoryItems,
@@ -250,6 +255,10 @@ func (indexer *Indexer) indexBlock(block *types.Block) {
 			log.Info("Completed runtime migration")
 		}
 
+		if block.Header.Flags().HasFlag(types.ValidationFinished) {
+			indexer.eventBus.Publish(&events.NewEpochEvent{Epoch: uint16(res.dbData.Epoch) + 1})
+		}
+
 		log.Info(fmt.Sprintf("Processed block %d", block.Height()))
 
 		indexer.refreshUpgradeVotingHistorySummaries(res.dbData.UpgradesVotes, block.Height())
@@ -267,6 +276,7 @@ func (indexer *Indexer) initFirstBlockHeight() {
 	} else {
 		indexer.firstBlockHeight = 1
 	}
+	indexer.eventBus.Publish(&events.CurrentEpochEvent{Epoch: indexer.listener.NodeCtx().AppState.State.Epoch()})
 	indexer.firstBlockHeightInitialized = true
 }
 

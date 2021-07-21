@@ -22,6 +22,7 @@ type postgresAccessor struct {
 	mutex                     sync.Mutex
 	changesHistoryBlocksCount int
 	miningRewards             bool
+	dataTable, dataStateTable string
 }
 
 const (

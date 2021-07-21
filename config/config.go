@@ -24,6 +24,7 @@ type Config struct {
 	Api                               *Api
 	UpgradeVotingShortHistoryItems    int
 	UpgradeVotingShortHistoryMinShift int
+	Data                              *DataConfig
 }
 
 type Api struct {
@@ -50,6 +51,12 @@ type FlipContentLoaderConfig struct {
 	BatchSize        int
 	AttemptsLimit    int
 	RetryIntervalMin int
+}
+
+type DataConfig struct {
+	Enabled    bool
+	Table      string
+	StateTable string
 }
 
 func LoadConfig(configPath string) *Config {

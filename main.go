@@ -18,6 +18,7 @@ import (
 	"github.com/idena-network/idena-indexer/core/restore"
 	"github.com/idena-network/idena-indexer/core/server"
 	"github.com/idena-network/idena-indexer/core/stats"
+	"github.com/idena-network/idena-indexer/data"
 	"github.com/idena-network/idena-indexer/db"
 	"github.com/idena-network/idena-indexer/import/words"
 	"github.com/idena-network/idena-indexer/incoming"
@@ -111,6 +112,7 @@ func (removedMemPoolTxEvent) EventID() eventbus.EventID {
 }
 
 func initIndexer(config *config.Config, txMemPool transaction.MemPool) (*indexer.Indexer, incoming.Listener, mempool.Contracts, upgrade.UpgradesVotingHolder) {
+	indexerEventBus := eventbus.New()
 	contractsMemPoolBus := eventbus.New()
 	statsCollectorEventBus := eventbus.New()
 	statsCollectorEventBus.Subscribe(stats.RemovedMemPoolTxEventID, func(e eventbus.Event) {
@@ -136,8 +138,12 @@ func initIndexer(config *config.Config, txMemPool transaction.MemPool) (*indexer
 	wordsLoader := words.NewLoader(config.WordsFile)
 	statsCollector := stats.NewStatsCollector(statsCollectorEventBus)
 	listener := incoming.NewListener(config.NodeConfigFile, nodeEventBus, statsCollector, performanceMonitor)
+	var dataTable, dataStateTable string
+	if config.Data != nil && config.Data.Enabled {
+		dataTable, dataStateTable = config.Data.Table, config.Data.StateTable
+	}
 	dbAccessor := db.NewPostgresAccessor(config.Postgres.ConnStr, config.Postgres.ScriptsDir, wordsLoader,
-		performanceMonitor, config.CommitteeRewardBlocksCount, config.MiningRewards)
+		performanceMonitor, config.CommitteeRewardBlocksCount, config.MiningRewards, dataTable, dataStateTable)
 	restorer := restore.NewRestorer(dbAccessor, listener.AppState(), listener.NodeCtx().Blockchain)
 	var secondaryStorage *runtimeMigration.SecondaryStorage
 	if config.RuntimeMigration.Enabled {
@@ -196,6 +202,10 @@ func initIndexer(config *config.Config, txMemPool transaction.MemPool) (*indexer
 		peersTracker.AddPeersData(peersEvent.PeersData, peersEvent.Time)
 	})
 
+	if config.Data != nil && config.Data.Enabled {
+		data.StartDataService(indexerEventBus, dbAccessor, log.New("component", "dataEngine"))
+	}
+
 	enabled := config.Enabled == nil || *config.Enabled
 	return indexer.NewIndexer(
 			enabled,
@@ -210,6 +220,7 @@ func initIndexer(config *config.Config, txMemPool transaction.MemPool) (*indexer
 			upgradesVoting,
 			config.UpgradeVotingShortHistoryItems,
 			config.UpgradeVotingShortHistoryMinShift,
+			indexerEventBus,
 		),
 		listener, contractsMemPool, upgradesVoting
 }

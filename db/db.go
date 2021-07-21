@@ -1,11 +1,14 @@
 package db
 
 import (
+	data2 "github.com/idena-network/idena-indexer/data"
 	"math/big"
 	"time"
 )
 
 type Accessor interface {
+	data2.DbAccessor
+
 	GetLastHeight() (uint64, error)
 	Save(data *Data) error
 	SaveRestoredData(data *RestoredData) error

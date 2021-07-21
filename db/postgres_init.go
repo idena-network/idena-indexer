@@ -15,6 +15,8 @@ func NewPostgresAccessor(
 	pm monitoring.PerformanceMonitor,
 	changesHistoryBlocksCount int,
 	miningRewards bool,
+	dataTable string,
+	dataStateTable string,
 ) Accessor {
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
@@ -27,6 +29,8 @@ func NewPostgresAccessor(
 		queries:                   ReadQueries(scriptsDirPath),
 		changesHistoryBlocksCount: changesHistoryBlocksCount,
 		miningRewards:             miningRewards,
+		dataTable:                 dataTable,
+		dataStateTable:            dataStateTable,
 	}
 	for {
 		if err := a.init(wordsLoader); err != nil {
