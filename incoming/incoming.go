@@ -53,8 +53,10 @@ func NewListener(nodeConfigFile string, bus eventbus.Bus, statsCollector collect
 	if err != nil {
 		panic(err)
 	}
-	cfg.P2P.MaxInboundPeers = config.LowPowerMaxInboundPeers
-	cfg.P2P.MaxOutboundPeers = config.LowPowerMaxOutboundPeers
+	cfg.P2P.MaxInboundPeers = config.LowPowerMaxInboundNotOwnShardPeers
+	cfg.P2P.MaxOutboundPeers = config.LowPowerMaxOutboundNotOwnShardPeers
+	cfg.P2P.MaxInboundOwnShardPeers = config.LowPowerMaxInboundOwnShardPeers
+	cfg.P2P.MaxOutboundOwnShardPeers = config.LowPowerMaxOutboundOwnShardPeers
 	cfg.IpfsConf.LowWater = 8
 	cfg.IpfsConf.HighWater = 10
 	cfg.IpfsConf.GracePeriod = "30s"

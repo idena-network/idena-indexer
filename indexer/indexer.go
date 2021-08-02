@@ -948,7 +948,7 @@ func (indexer *Indexer) detectEpochResult(block *types.Block, ctx *conversionCon
 		})
 	}
 
-	flipsStats := make([]db.FlipStats, 0, len(validationStats.FlipsPerIdx))
+	var flipsStats []db.FlipStats
 	flipStatusesMap := make(map[byte]uint64)
 	var reportedFlips uint32
 	for _, validationShardStats := range validationStats.Shards {
