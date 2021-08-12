@@ -2,14 +2,14 @@ module github.com/idena-network/idena-indexer
 
 go 1.13
 
-replace github.com/cosmos/iavl => github.com/idena-network/iavl v0.12.3-0.20210112075003-70ccb13c86c9
+replace github.com/cosmos/iavl => github.com/idena-network/iavl v0.12.3-0.20210604085842-854e73deab29
 
 require (
 	github.com/deckarep/golang-set v1.7.1
 	github.com/go-stack/stack v1.8.0
 	github.com/gorilla/handlers v1.4.2
 	github.com/gorilla/mux v1.7.3
-	github.com/idena-network/idena-go v0.26.6
+	github.com/idena-network/idena-go v0.26.7
 	github.com/ipfs/go-cid v0.0.7
 	github.com/ipfs/go-ipfs-pinner v0.1.1 // indirect
 	github.com/ipfs/interface-go-ipfs-core v0.4.0
