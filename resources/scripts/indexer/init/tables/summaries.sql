@@ -78,3 +78,28 @@ CREATE TABLE IF NOT EXISTS epoch_flip_statuses
     count       integer  NOT NULL,
     CONSTRAINT epoch_flip_statuses_pkey PRIMARY KEY (epoch, flip_status)
 );
+
+CREATE TABLE IF NOT EXISTS balance_update_summaries
+(
+    address_id  bigint          NOT NULL,
+    balance_in  numeric(30, 18) NOT NULL,
+    balance_out numeric(30, 18) NOT NULL,
+    stake_in    numeric(30, 18) NOT NULL,
+    stake_out   numeric(30, 18) NOT NULL,
+    penalty_in  numeric(30, 18) NOT NULL,
+    penalty_out numeric(30, 18) NOT NULL,
+    CONSTRAINT balance_update_summaries_pkey PRIMARY KEY (address_id)
+);
+
+CREATE TABLE IF NOT EXISTS balance_update_summaries_changes
+(
+    change_id   bigint NOT NULL,
+    address_id  bigint NOT NULL,
+    balance_in  numeric(30, 18),
+    balance_out numeric(30, 18),
+    stake_in    numeric(30, 18),
+    stake_out   numeric(30, 18),
+    penalty_in  numeric(30, 18),
+    penalty_out numeric(30, 18),
+    CONSTRAINT balance_update_summaries_changes_pkey PRIMARY KEY (change_id)
+);

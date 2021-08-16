@@ -1,6 +1,6 @@
 module github.com/idena-network/idena-indexer
 
-go 1.13
+go 1.16
 
 replace github.com/cosmos/iavl => github.com/idena-network/iavl v0.12.3-0.20210604085842-854e73deab29
 

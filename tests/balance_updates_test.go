@@ -266,6 +266,31 @@ func Test_complexCommitteeRewardBalanceUpdates3blocks(t *testing.T) {
 	require.Nil(t, err)
 	require.Equal(t, 3, len(committeeUpdates))
 
+	summaries, err := testCommon.GetBalanceUpdateSummaries(dbConnector)
+	require.Nil(t, err)
+	require.Len(t, summaries, 2)
+	for _, summary := range summaries {
+		if summary.Address == addr1.Hex() {
+			require.Equal(t, dna(164), blockchain.ConvertToInt(summary.BalanceIn))
+			require.Equal(t, dna(0), blockchain.ConvertToInt(summary.BalanceOut))
+			require.Equal(t, dna(82), blockchain.ConvertToInt(summary.StakeIn))
+			require.Equal(t, dna(0), blockchain.ConvertToInt(summary.StakeOut))
+			require.Equal(t, dna(0), blockchain.ConvertToInt(summary.PenaltyIn))
+			require.Equal(t, dna(0), blockchain.ConvertToInt(summary.PenaltyOut))
+		}
+		if summary.Address == addr2.Hex() {
+			require.Equal(t, dna(102), blockchain.ConvertToInt(summary.BalanceIn))
+			require.Equal(t, dna(0), blockchain.ConvertToInt(summary.BalanceOut))
+			require.Equal(t, dna(51), blockchain.ConvertToInt(summary.StakeIn))
+			require.Equal(t, dna(0), blockchain.ConvertToInt(summary.StakeOut))
+			require.Equal(t, dna(0), blockchain.ConvertToInt(summary.PenaltyIn))
+			require.Equal(t, dna(0), blockchain.ConvertToInt(summary.PenaltyOut))
+		}
+	}
+	summariesChanges, err := testCommon.GetBalanceUpdateSummariesChanges(dbConnector)
+	require.Nil(t, err)
+	require.Len(t, summariesChanges, 19)
+
 	// When
 	err = dbAccessor.ResetTo(12)
 
@@ -278,6 +303,31 @@ func Test_complexCommitteeRewardBalanceUpdates3blocks(t *testing.T) {
 	committeeUpdates, err = testCommon.GetCommitteeRewardBalanceUpdates(dbConnector)
 	require.Nil(t, err)
 	require.Equal(t, 1, len(committeeUpdates))
+
+	summaries, err = testCommon.GetBalanceUpdateSummaries(dbConnector)
+	require.Nil(t, err)
+	require.Len(t, summaries, 2)
+	for _, summary := range summaries {
+		if summary.Address == addr1.Hex() {
+			require.Equal(t, dna(150), blockchain.ConvertToInt(summary.BalanceIn))
+			require.Equal(t, dna(0), blockchain.ConvertToInt(summary.BalanceOut))
+			require.Equal(t, dna(75), blockchain.ConvertToInt(summary.StakeIn))
+			require.Equal(t, dna(0), blockchain.ConvertToInt(summary.StakeOut))
+			require.Equal(t, dna(0), blockchain.ConvertToInt(summary.PenaltyIn))
+			require.Equal(t, dna(0), blockchain.ConvertToInt(summary.PenaltyOut))
+		}
+		if summary.Address == addr2.Hex() {
+			require.Equal(t, dna(102), blockchain.ConvertToInt(summary.BalanceIn))
+			require.Equal(t, dna(0), blockchain.ConvertToInt(summary.BalanceOut))
+			require.Equal(t, dna(51), blockchain.ConvertToInt(summary.StakeIn))
+			require.Equal(t, dna(0), blockchain.ConvertToInt(summary.StakeOut))
+			require.Equal(t, dna(0), blockchain.ConvertToInt(summary.PenaltyIn))
+			require.Equal(t, dna(0), blockchain.ConvertToInt(summary.PenaltyOut))
+		}
+	}
+	summariesChanges, err = testCommon.GetBalanceUpdateSummariesChanges(dbConnector)
+	require.Nil(t, err)
+	require.Len(t, summariesChanges, 16)
 }
 
 func Test_complexCommitteeRewardBalanceUpdates6blocks(t *testing.T) {

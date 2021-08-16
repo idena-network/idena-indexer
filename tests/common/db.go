@@ -21,6 +21,116 @@ func (n *NullDecimal) Scan(value interface{}) error {
 	return nil
 }
 
+type BalanceUpdateSummary struct {
+	Address    string
+	BalanceIn  decimal.Decimal
+	BalanceOut decimal.Decimal
+	StakeIn    decimal.Decimal
+	StakeOut   decimal.Decimal
+	PenaltyIn  decimal.Decimal
+	PenaltyOut decimal.Decimal
+}
+
+func GetBalanceUpdateSummaries(db *sql.DB) ([]BalanceUpdateSummary, error) {
+	rows, err := db.Query(`select a.address, 
+       bus.balance_in, 
+       bus.balance_out,
+       bus.stake_in, 
+       bus.stake_out,
+       bus.penalty_in, 
+       bus.penalty_out
+       from balance_update_summaries bus 
+           join addresses a on a.id=bus.address_id order by bus.address_id`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var res []BalanceUpdateSummary
+	for rows.Next() {
+		item := BalanceUpdateSummary{}
+		err := rows.Scan(
+			&item.Address,
+			&item.BalanceIn,
+			&item.BalanceOut,
+			&item.StakeIn,
+			&item.StakeOut,
+			&item.PenaltyIn,
+			&item.PenaltyOut,
+		)
+		if err != nil {
+			return nil, err
+		}
+		res = append(res, item)
+	}
+	return res, nil
+}
+
+type BalanceUpdateSummariesChange struct {
+	ChangeId   int
+	Address    string
+	BalanceIn  *decimal.Decimal
+	BalanceOut *decimal.Decimal
+	StakeIn    *decimal.Decimal
+	StakeOut   *decimal.Decimal
+	PenaltyIn  *decimal.Decimal
+	PenaltyOut *decimal.Decimal
+}
+
+func GetBalanceUpdateSummariesChanges(db *sql.DB) ([]BalanceUpdateSummariesChange, error) {
+	rows, err := db.Query(`select bus.change_id,
+       a.address, 
+       bus.balance_in, 
+       bus.balance_out,
+       bus.stake_in, 
+       bus.stake_out,
+       bus.penalty_in, 
+       bus.penalty_out
+       from balance_update_summaries_changes bus 
+           join addresses a on a.id=bus.address_id order by bus.address_id`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var res []BalanceUpdateSummariesChange
+	for rows.Next() {
+		item := BalanceUpdateSummariesChange{}
+		var balanceIn, balanceOut, stakeIn, stakeOut, penaltyIn, penaltyOut NullDecimal
+		err := rows.Scan(
+			&item.ChangeId,
+			&item.Address,
+			&balanceIn,
+			&balanceOut,
+			&stakeIn,
+			&stakeOut,
+			&penaltyIn,
+			&penaltyOut,
+		)
+		if err != nil {
+			return nil, err
+		}
+		if balanceIn.Valid {
+			item.BalanceIn = &balanceIn.Decimal
+		}
+		if balanceOut.Valid {
+			item.BalanceOut = &balanceOut.Decimal
+		}
+		if stakeIn.Valid {
+			item.StakeIn = &stakeIn.Decimal
+		}
+		if stakeOut.Valid {
+			item.StakeOut = &stakeOut.Decimal
+		}
+		if penaltyIn.Valid {
+			item.PenaltyIn = &penaltyIn.Decimal
+		}
+		if penaltyOut.Valid {
+			item.PenaltyOut = &penaltyOut.Decimal
+		}
+		res = append(res, item)
+	}
+	return res, nil
+}
+
 type BalanceUpdate struct {
 	Address              string
 	BalanceOld           decimal.Decimal

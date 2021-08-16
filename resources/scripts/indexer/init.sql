@@ -1490,6 +1490,9 @@ ON CONFLICT DO NOTHING;
 INSERT INTO dic_change_types
 VALUES (4, 'sorted_oracle_voting_contract_committees')
 ON CONFLICT DO NOTHING;
+INSERT INTO dic_change_types
+VALUES (5, 'balance_update_summaries')
+ON CONFLICT DO NOTHING;
 
 CREATE SEQUENCE IF NOT EXISTS changes_id_seq
     INCREMENT 1
@@ -2571,6 +2574,8 @@ BEGIN
                         null,
                         null);
             end if;
+
+            call update_balance_update_summary(p_block_height, l_balance_update);
         end loop;
 END
 $BODY$;
