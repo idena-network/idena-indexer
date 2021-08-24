@@ -5,5 +5,5 @@ ALTER TABLE epoch_identities
 ALTER TABLE activation_txs
     ADD COLUMN shard_id integer;
 
-DROP TYPE tp_epoch_identity;
-DROP TYPE tp_activation_tx;
+DROP TYPE tp_epoch_identity CASCADE;
+DROP TYPE tp_activation_tx CASCADE;
