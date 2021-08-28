@@ -64,7 +64,7 @@ func (a *postgresAccessor) GetDataList() ([]data2.Data, error) {
 }
 
 func (a *postgresAccessor) createDataTables() error {
-	_, err := a.db.Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %v (name character varying(30) NOT NULL, refresh_procedure character varying(30), refresh_period character varying(1), refresh_delay_minutes smallint, endpoint_method character varying(30), \"limit\" smallint); CREATE TABLE IF NOT EXISTS %v (name character varying(100) NOT NULL, refresh_time bigint, refresh_epoch smallint, CONSTRAINT data_state_pkey PRIMARY KEY (name));",
+	_, err := a.db.Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %v (name character varying(30) NOT NULL, refresh_procedure character varying(30), refresh_period character varying(1), refresh_delay_minutes smallint, endpoint_method character varying(30), \"limit\" smallint); CREATE TABLE IF NOT EXISTS %v (name character varying(100) NOT NULL, refresh_time bigint, refresh_epoch smallint, last_refresh_time bigint, CONSTRAINT data_state_pkey PRIMARY KEY (name));",
 		a.dataTable,
 		a.dataStateTable,
 	))
@@ -79,11 +79,11 @@ func (a *postgresAccessor) UpdateRefreshTime(dataName string, refreshTime time.T
 	return err
 }
 
-func (a *postgresAccessor) Refresh(dataName, refreshProcedure string, refreshTime *time.Time, refreshEpoch *uint16) error {
-	var refreshTimeUnix *int64
-	if refreshTime != nil {
-		v := refreshTime.Unix()
-		refreshTimeUnix = &v
+func (a *postgresAccessor) Refresh(dataName, refreshProcedure string, time time.Time, nextRefreshTime *time.Time, refreshEpoch *uint16) error {
+	var nextRefreshTimeUnix *int64
+	if nextRefreshTime != nil {
+		v := nextRefreshTime.Unix()
+		nextRefreshTimeUnix = &v
 	}
 	tx, err := a.db.Begin()
 	if err != nil {
@@ -94,10 +94,11 @@ func (a *postgresAccessor) Refresh(dataName, refreshProcedure string, refreshTim
 	if err != nil {
 		return getResultError(err)
 	}
-	_, err = tx.Exec(fmt.Sprintf("INSERT INTO %v VALUES ($3, $1, $2) ON CONFLICT (name) DO UPDATE SET refresh_time = $1, refresh_epoch = $2", a.dataStateTable),
-		refreshTimeUnix,
+	_, err = tx.Exec(fmt.Sprintf("INSERT INTO %v VALUES ($3, $1, $2, $4) ON CONFLICT (name) DO UPDATE SET refresh_time = $1, refresh_epoch = $2, last_refresh_time = $4", a.dataStateTable),
+		nextRefreshTimeUnix,
 		refreshEpoch,
 		dataName,
+		time.Unix(),
 	)
 	if err != nil {
 		return getResultError(err)

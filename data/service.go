@@ -75,7 +75,7 @@ func (service *serviceImpl) observe() {
 					if dataItem.RefreshDelay != nil {
 						nextRefreshTime = nextRefreshTime.Add(*dataItem.RefreshDelay)
 					}
-					if err := service.dbAccessor.Refresh(dataItem.Name, *dataItem.RefreshProcedure, &nextRefreshTime, nil); err != nil {
+					if err := service.dbAccessor.Refresh(dataItem.Name, *dataItem.RefreshProcedure, time.Now().UTC(), &nextRefreshTime, nil); err != nil {
 						service.logger.Error(fmt.Sprintf("Unable to refresh, name: %v, err: %v", dataItem.Name, err.Error()))
 						continue
 					}
@@ -101,7 +101,7 @@ func (service *serviceImpl) observe() {
 					}
 					if dataItem.RefreshTime == nil || dataItem.RefreshTime.Before(now) {
 						nextEpoch := *currentEpoch + 1
-						if err := service.dbAccessor.Refresh(dataItem.Name, *dataItem.RefreshProcedure, nil, &nextEpoch); err != nil {
+						if err := service.dbAccessor.Refresh(dataItem.Name, *dataItem.RefreshProcedure, time.Now().UTC(), nil, &nextEpoch); err != nil {
 							service.logger.Error(fmt.Sprintf("Unable to refresh, name: %v, err: %v", dataItem.Name, err.Error()))
 							continue
 						}
