@@ -21,3 +21,10 @@ CREATE TABLE IF NOT EXISTS delegations
 CREATE INDEX IF NOT EXISTS delegations_pool_delegators_api_idx on delegations (delegatee_address_id,
                                                                                coalesce(birth_epoch, 9999),
                                                                                delegator_address_id);
+
+CREATE TABLE IF NOT EXISTS removed_transitive_delegations
+(
+    epoch                integer NOT NULL,
+    delegator_address_id bigint  NOT NULL,
+    delegatee_address_id bigint  NOT NULL
+);

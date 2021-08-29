@@ -1460,6 +1460,13 @@ func (c *statsCollector) getOracleVotingCommittee(committeeSize uint64, networkS
 	return res
 }
 
+func (c *statsCollector) AddRemovedTransitiveDelegation(delegator, delegatee common.Address) {
+	c.stats.RemovedTransitiveDelegations = append(c.stats.RemovedTransitiveDelegations, db.RemovedTransitiveDelegation{
+		Delegator: delegator,
+		Delegatee: delegatee,
+	})
+}
+
 func (c *statsCollector) Disable() {
 	c.statsEnabled = false
 }

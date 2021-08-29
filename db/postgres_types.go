@@ -875,10 +875,11 @@ func getRewardAgesArray(agesByAddress map[string]uint16) interface {
 }
 
 type data struct {
-	DelegationSwitches []*delegationSwitch `json:"delegationSwitches,omitempty"`
-	UpgradesVotes      []*upgradeVotes     `json:"upgradesVotes,omitempty"`
-	PoolSizes          []poolSize          `json:"poolSizes,omitempty"`
-	MinersHistoryItem  *MinersHistoryItem  `json:"minersHistoryItem,omitempty"`
+	DelegationSwitches           []*delegationSwitch           `json:"delegationSwitches,omitempty"`
+	UpgradesVotes                []*upgradeVotes               `json:"upgradesVotes,omitempty"`
+	PoolSizes                    []poolSize                    `json:"poolSizes,omitempty"`
+	MinersHistoryItem            *MinersHistoryItem            `json:"minersHistoryItem,omitempty"`
+	RemovedTransitiveDelegations []removedTransitiveDelegation `json:"removedTransitiveDelegations,omitempty"`
 }
 
 func (v *data) Value() (driver.Value, error) {
@@ -897,11 +898,17 @@ type upgradeVotes struct {
 	Timestamp int64  `json:"timestamp"`
 }
 
+type removedTransitiveDelegation struct {
+	Delegator string `json:"delegator"`
+	Delegatee string `json:"delegatee"`
+}
+
 func getData(
 	delegationSwitches []*DelegationSwitch,
 	upgradesVotes []*UpgradeVotes,
 	poolSizes []PoolSize,
 	minersHistoryItem *MinersHistoryItem,
+	removedTransitiveDelegations []RemovedTransitiveDelegation,
 ) *data {
 	res := &data{}
 	if len(delegationSwitches) > 0 {
@@ -939,6 +946,15 @@ func getData(
 		}
 	}
 	res.MinersHistoryItem = minersHistoryItem
+	if len(removedTransitiveDelegations) > 0 {
+		res.RemovedTransitiveDelegations = make([]removedTransitiveDelegation, 0, len(removedTransitiveDelegations))
+		for _, item := range removedTransitiveDelegations {
+			res.RemovedTransitiveDelegations = append(res.RemovedTransitiveDelegations, removedTransitiveDelegation{
+				Delegator: conversion.ConvertAddress(item.Delegator),
+				Delegatee: conversion.ConvertAddress(item.Delegatee),
+			})
+		}
+	}
 	return res
 }
 

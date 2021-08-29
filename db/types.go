@@ -134,6 +134,7 @@ type Data struct {
 	UpgradesVotes                            []*UpgradeVotes
 	PoolSizes                                []PoolSize
 	MinersHistoryItem                        *MinersHistoryItem
+	RemovedTransitiveDelegations             []RemovedTransitiveDelegation
 }
 
 type EpochRewards struct {
@@ -692,4 +693,8 @@ type MinersHistoryItem struct {
 type FlipStatusCount struct {
 	Status byte   `json:"status"`
 	Count  uint64 `json:"count"`
+}
+
+type RemovedTransitiveDelegation struct {
+	Delegator, Delegatee common.Address
 }

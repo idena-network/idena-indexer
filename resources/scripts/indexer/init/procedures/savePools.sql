@@ -154,3 +154,30 @@ BEGIN
     INSERT INTO pools_summary (count) VALUES ((SELECT count(*) FROM pool_sizes));
 END
 $$;
+
+CREATE OR REPLACE PROCEDURE save_removed_transitive_delegations(p_block_height bigint,
+                                                                p_items jsonb)
+    LANGUAGE 'plpgsql'
+AS
+$$
+DECLARE
+    l_item                 jsonb;
+    l_epoch                bigint;
+    l_delegator_address_id bigint;
+    l_delegatee_address_id bigint;
+BEGIN
+    if p_items is null then
+        return;
+    end if;
+    SELECT epoch INTO l_epoch FROM blocks WHERE height = p_block_height;
+    for i in 0..jsonb_array_length(p_items) - 1
+        loop
+            l_item = (p_items ->> i)::jsonb;
+            l_delegator_address_id = get_address_id_or_insert(p_block_height, (l_item ->> 'delegator')::text);
+            l_delegatee_address_id = get_address_id_or_insert(p_block_height, (l_item ->> 'delegatee')::text);
+
+            INSERT INTO removed_transitive_delegations (epoch, delegator_address_id, delegatee_address_id)
+            VALUES (l_epoch, l_delegator_address_id, l_delegatee_address_id);
+        end loop;
+END
+$$;

@@ -398,6 +398,13 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) (*result
 	coins, totalBalance, totalStake := indexer.getCoins(indexer.isFirstBlock(incomingBlock), diff)
 
 	delegationSwitches := detectDelegationSwitches(incomingBlock, ctx.prevStateReadOnly, ctx.newStateReadOnly, collector.killedAddrs, collector.switchDelegationTxs)
+
+	for _, removedTransitiveDelegation := range collectorStats.RemovedTransitiveDelegations {
+		delegationSwitches = append(delegationSwitches, &db.DelegationSwitch{
+			Delegator: removedTransitiveDelegation.Delegator,
+		})
+	}
+
 	upgradesVotes := detectUpgradeVotes(indexer.upgradeVotingHistoryCtx.holder.Get())
 
 	poolSizes := detectPoolSizeUpdates(delegationSwitches, collector.getAddresses(), func() []db.EpochIdentity {
@@ -463,6 +470,7 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) (*result
 		UpgradesVotes:                            upgradesVotes,
 		PoolSizes:                                poolSizes,
 		MinersHistoryItem:                        detectMinersHistoryItem(ctx.prevStateReadOnly, ctx.newStateReadOnly),
+		RemovedTransitiveDelegations:             collectorStats.RemovedTransitiveDelegations,
 	}
 	resData := &resultData{
 		totalBalance: totalBalance,
