@@ -101,5 +101,9 @@ CREATE TABLE IF NOT EXISTS balance_update_summaries_changes
     stake_out   numeric(30, 18),
     penalty_in  numeric(30, 18),
     penalty_out numeric(30, 18),
-    CONSTRAINT balance_update_summaries_changes_pkey PRIMARY KEY (change_id)
+    CONSTRAINT balance_update_summaries_changes_pkey PRIMARY KEY (change_id),
+    CONSTRAINT balance_update_summaries_changes_change_id_fkey FOREIGN KEY (change_id)
+        REFERENCES changes (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE
 );

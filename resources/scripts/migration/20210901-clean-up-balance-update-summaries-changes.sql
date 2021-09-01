@@ -1,0 +1,1 @@
+DROP TABLE balance_update_summaries_changes;
