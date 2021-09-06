@@ -57,11 +57,13 @@ func convertTotalRewards(rewardsStats *stats.RewardsStats) *db.TotalRewards {
 		Total:             blockchain.ConvertToFloat(rewardsStats.Total),
 		Validation:        blockchain.ConvertToFloat(rewardsStats.Validation),
 		Flips:             blockchain.ConvertToFloat(rewardsStats.Flips),
+		Reports:           blockchain.ConvertToFloat(rewardsStats.Reports),
 		Invitations:       blockchain.ConvertToFloat(rewardsStats.Invitations),
 		FoundationPayouts: blockchain.ConvertToFloat(rewardsStats.FoundationPayouts),
 		ZeroWalletFund:    blockchain.ConvertToFloat(rewardsStats.ZeroWalletFund),
 		ValidationShare:   blockchain.ConvertToFloat(rewardsStats.ValidationShare),
 		FlipsShare:        blockchain.ConvertToFloat(rewardsStats.FlipsShare),
+		ReportsShare:      blockchain.ConvertToFloat(rewardsStats.ReportsShare),
 		InvitationsShare:  blockchain.ConvertToFloat(rewardsStats.InvitationsShare),
 	}
 }

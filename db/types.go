@@ -172,11 +172,13 @@ type TotalRewards struct {
 	Total             decimal.Decimal
 	Validation        decimal.Decimal
 	Flips             decimal.Decimal
+	Reports           decimal.Decimal
 	Invitations       decimal.Decimal
 	FoundationPayouts decimal.Decimal
 	ZeroWalletFund    decimal.Decimal
 	ValidationShare   decimal.Decimal
 	FlipsShare        decimal.Decimal
+	ReportsShare      decimal.Decimal
 	InvitationsShare  decimal.Decimal
 }
 

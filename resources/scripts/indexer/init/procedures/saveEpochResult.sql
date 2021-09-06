@@ -414,7 +414,9 @@ BEGIN
                                zero_wallet,
                                validation_share,
                                flips_share,
-                               invitations_share)
+                               invitations_share,
+                               reports,
+                               reports_share)
     values (p_epoch,
             p_total.total,
             p_total.validation,
@@ -424,7 +426,9 @@ BEGIN
             p_total.zero_wallet,
             p_total.validation_share,
             p_total.flips_share,
-            p_total.invitations_share);
+            p_total.invitations_share,
+            p_total.reports,
+            p_total.reports_share);
 END
 $BODY$;
 

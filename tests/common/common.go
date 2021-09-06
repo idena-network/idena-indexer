@@ -64,6 +64,7 @@ func InitIndexer(
 	listener := NewTestListener(nodeEventBus, stats.NewStatsCollector(collectorEventBus), appState, nodeCtx, chain.SecStore())
 	restorer := restore.NewRestorer(dbAccessor, appState, chain.Blockchain)
 	upgradesVotingHolder := &TestUpgradesVotingHolder{}
+	indexerEventBus := eventbus.New()
 	testIndexer := indexer.NewIndexer(
 		true,
 		listener,
@@ -77,6 +78,7 @@ func InitIndexer(
 		upgradesVotingHolder,
 		20,
 		5,
+		indexerEventBus,
 	)
 	testIndexer.Start()
 	return dbConnector, testIndexer, listener, dbAccessor, nodeEventBus
@@ -142,6 +144,7 @@ func InitIndexer2(opt Options) *IndexerCtx {
 	listener := NewTestListener(nodeEventBus, stats.NewStatsCollector(collectorEventBus), appState, nodeCtx, chain.SecStore())
 	restorer := restore.NewRestorer(dbAccessor, appState, chain.Blockchain)
 	upgradesVotingHolder := &TestUpgradesVotingHolder{}
+	indexerEventBus := eventbus.New()
 	testIndexer := indexer.NewIndexer(
 		true,
 		listener,
@@ -155,6 +158,7 @@ func InitIndexer2(opt Options) *IndexerCtx {
 		upgradesVotingHolder,
 		*opt.UpgradeVotingShortHistoryItems,
 		*opt.UpgradeVotingShortHistoryMinShift,
+		indexerEventBus,
 	)
 	testIndexer.Start()
 	return &IndexerCtx{
@@ -193,6 +197,8 @@ func InitPostgres(
 		pm,
 		changesHistoryBlocksCount,
 		false,
+		"",
+		"",
 	)
 	return dbConnector, dbAccessor
 }

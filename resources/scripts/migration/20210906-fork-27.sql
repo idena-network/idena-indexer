@@ -7,3 +7,9 @@ ALTER TABLE activation_txs
 
 DROP TYPE tp_epoch_identity CASCADE;
 DROP TYPE tp_activation_tx CASCADE;
+
+DROP TYPE tp_total_epoch_reward CASCADE;
+ALTER TABLE total_rewards
+    ADD COLUMN reports numeric(30, 18);
+ALTER TABLE total_rewards
+    ADD COLUMN reports_share numeric(30, 18);

@@ -93,7 +93,7 @@ func (v *TotalRewards) Value() (driver.Value, error) {
 	if v == nil {
 		return nil, nil
 	}
-	return fmt.Sprintf("(%v,%v,%v,%v,%v,%v,%v,%v,%v)",
+	return fmt.Sprintf("(%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v)",
 		v.Total,
 		v.Validation,
 		v.Flips,
@@ -103,6 +103,8 @@ func (v *TotalRewards) Value() (driver.Value, error) {
 		v.ValidationShare,
 		v.FlipsShare,
 		v.InvitationsShare,
+		v.Reports,
+		v.ReportsShare,
 	), nil
 }
 

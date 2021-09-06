@@ -80,11 +80,13 @@ type RewardsStats struct {
 	Total                                *big.Int
 	Validation                           *big.Int
 	Flips                                *big.Int
+	Reports                              *big.Int
 	Invitations                          *big.Int
 	FoundationPayouts                    *big.Int
 	ZeroWalletFund                       *big.Int
 	ValidationShare                      *big.Int
 	FlipsShare                           *big.Int
+	ReportsShare                         *big.Int
 	InvitationsShare                     *big.Int
 	Rewards                              []*RewardStats
 	AgesByAddress                        map[string]uint16

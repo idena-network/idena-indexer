@@ -159,6 +159,12 @@ func (c *statsCollector) SetTotalFlipsReward(amount *big.Int, share *big.Int) {
 	c.stats.RewardsStats.FlipsShare = share
 }
 
+func (c *statsCollector) SetTotalReportsReward(amount *big.Int, share *big.Int) {
+	c.initRewardStats()
+	c.stats.RewardsStats.Reports = amount
+	c.stats.RewardsStats.ReportsShare = share
+}
+
 func (c *statsCollector) SetTotalInvitationsReward(amount *big.Int, share *big.Int) {
 	c.initRewardStats()
 	c.stats.RewardsStats.Invitations = amount

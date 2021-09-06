@@ -1062,6 +1062,8 @@ CREATE TABLE IF NOT EXISTS total_rewards
     validation_share  numeric(30, 18) NOT NULL,
     flips_share       numeric(30, 18) NOT NULL,
     invitations_share numeric(30, 18) NOT NULL,
+    reports           numeric(30, 18),
+    reports_share     numeric(30, 18),
     CONSTRAINT total_rewards_pkey PRIMARY KEY (epoch),
     CONSTRAINT total_rewards_epoch_fkey FOREIGN KEY (epoch)
         REFERENCES epochs (epoch) MATCH SIMPLE
@@ -1853,7 +1855,9 @@ $$
             zero_wallet       numeric(30, 18),
             validation_share  numeric(30, 18),
             flips_share       numeric(30, 18),
-            invitations_share numeric(30, 18)
+            invitations_share numeric(30, 18),
+            reports           numeric(30, 18),
+            reports_share     numeric(30, 18)
         );
 
         ALTER TYPE tp_total_epoch_reward
