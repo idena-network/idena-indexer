@@ -480,22 +480,26 @@ func TestStatsCollector_AddReportedFlipsReward(t *testing.T) {
 	cid3, _ := cid.Parse("bafkreihcvhijrwwts3xl3zufbi2mjng5gltc7ojw2syue7zyritkq3gbii")
 
 	c.SetValidation(&types2.ValidationStats{
-		FlipCids: [][]byte{
-			cid1.Bytes(),
-			cid2.Bytes(),
-			cid3.Bytes(),
+		Shards: map[common.ShardId]*types2.ValidationShardStats{
+			1: {
+				FlipCids: [][]byte{
+					cid1.Bytes(),
+					cid2.Bytes(),
+					cid3.Bytes(),
+				},
+			},
 		},
 	})
 
 	addr1, addr2, addr3, addr4, addr5 := tests.GetRandAddr(), tests.GetRandAddr(), tests.GetRandAddr(), tests.GetRandAddr(), tests.GetRandAddr()
 
-	c.AddReportedFlipsReward(addr1, addr1, -1, nil, nil)
-	c.AddReportedFlipsReward(addr5, addr5, 0, nil, nil)
+	c.AddReportedFlipsReward(addr1, addr1, 1, -1, nil, nil)
+	c.AddReportedFlipsReward(addr5, addr5, 1, 0, nil, nil)
 
-	c.AddReportedFlipsReward(addr2, addr1, 1, big.NewInt(1), big.NewInt(2))
-	c.AddReportedFlipsReward(addr2, addr2, 1, big.NewInt(3), big.NewInt(4))
-	c.AddReportedFlipsReward(addr3, addr3, 1, big.NewInt(4), big.NewInt(5))
-	c.AddReportedFlipsReward(addr2, addr4, 2, big.NewInt(6), big.NewInt(7))
+	c.AddReportedFlipsReward(addr2, addr1, 1, 1, big.NewInt(1), big.NewInt(2))
+	c.AddReportedFlipsReward(addr2, addr2, 1, 1, big.NewInt(3), big.NewInt(4))
+	c.AddReportedFlipsReward(addr3, addr3, 1, 1, big.NewInt(4), big.NewInt(5))
+	c.AddReportedFlipsReward(addr2, addr4, 1, 2, big.NewInt(6), big.NewInt(7))
 
 	require.Len(t, c.stats.RewardsStats.ReportedFlipRewards, 5)
 	require.Equal(t, cid1.String(), c.stats.RewardsStats.ReportedFlipRewards[0].Cid)

@@ -414,7 +414,7 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) (*result
 		ActivationTxTransfers:                    collectorStats.ActivationTxTransfers,
 		KillTxTransfers:                          collectorStats.KillTxTransfers,
 		KillInviteeTxTransfers:                   collectorStats.KillInviteeTxTransfers,
-		ActivationTxs:                            collector.activationTxs,
+		ActivationTxs:                            collectorStats.ActivationTxs,
 		KillInviteeTxs:                           collector.killInviteeTxs,
 		BecomeOnlineTxs:                          collector.becomeOnlineTxs,
 		BecomeOfflineTxs:                         collector.becomeOfflineTxs,
@@ -648,10 +648,6 @@ func (indexer *Indexer) convertTransaction(
 		collector.deletedFlips = append(collector.deletedFlips, *deletedFlip)
 	}
 
-	if activationTx := detectActivationTx(incomingTx, ctx.prevStateReadOnly); activationTx != nil {
-		collector.activationTxs = append(collector.activationTxs, *activationTx)
-	}
-
 	if killInviteeTx := detectKillInviteeTx(incomingTx, ctx.prevStateReadOnly); killInviteeTx != nil {
 		collector.killInviteeTxs = append(collector.killInviteeTxs, *killInviteeTx)
 	}
@@ -760,18 +756,6 @@ func (indexer *Indexer) convertTransaction(
 	return tx
 }
 
-func detectActivationTx(tx *types.Transaction, prevState *appstate.AppState) *db.ActivationTx {
-	if tx.Type != types.ActivationTx {
-		return nil
-	}
-	sender, _ := types.Sender(tx)
-	inviter := prevState.State.GetInviter(sender)
-	return &db.ActivationTx{
-		TxHash:       conversion.ConvertHash(tx.Hash()),
-		InviteTxHash: conversion.ConvertHash(inviter.TxHash),
-	}
-}
-
 func detectKillInviteeTx(tx *types.Transaction, prevState *appstate.AppState) *db.KillInviteeTx {
 	if tx.Type != types.KillInviteeTx {
 		return nil
@@ -862,8 +846,11 @@ func (indexer *Indexer) detectEpochResult(block *types.Block, ctx *conversionCon
 	newEpoch := ctx.newStateReadOnly.State.Epoch()
 	epochRewards, validationRewardsAddresses := indexer.detectEpochRewards(block)
 	ctx.prevStateReadOnly.State.IterateOverIdentities(func(addr common.Address, identity state.Identity) {
+		shardId := identity.ShiftedShardId()
 		convertedAddress := conversion.ConvertAddress(addr)
 		convertedIdentity := db.EpochIdentity{}
+		convertedIdentity.ShardId = shardId
+		convertedIdentity.NewShardId = ctx.newStateReadOnly.State.ShardId(addr)
 		convertedIdentity.Address = convertedAddress
 		newIdentityState := ctx.newStateReadOnly.State.GetIdentityState(addr)
 		convertedIdentity.State = convertIdentityState(newIdentityState)
@@ -875,7 +862,13 @@ func (indexer *Indexer) detectEpochResult(block *types.Block, ctx *conversionCon
 		if identity.Delegatee != nil {
 			convertedIdentity.DelegateeAddress = conversion.ConvertAddress(*identity.Delegatee)
 		}
-		if identityStats, present := validationStats.IdentitiesPerAddr[addr]; present {
+		validationShardStats := validationStats.Shards[shardId]
+		var identityStats *statsTypes.IdentityStats
+		var present bool
+		if validationShardStats != nil {
+			identityStats, present = validationShardStats.IdentitiesPerAddr[addr]
+		}
+		if validationShardStats != nil && present && identityStats != nil {
 			convertedIdentity.ShortPoint = identityStats.ShortPoint
 			convertedIdentity.ShortFlips = identityStats.ShortFlips
 
@@ -895,8 +888,8 @@ func (indexer *Indexer) detectEpochResult(block *types.Block, ctx *conversionCon
 			convertedIdentity.LongFlips = identityStats.LongFlips
 			convertedIdentity.Approved = identityStats.Approved
 			convertedIdentity.Missed = identityStats.Missed
-			convertedIdentity.ShortFlipCidsToSolve = convertCids(identityStats.ShortFlipsToSolve, validationStats.FlipCids, block)
-			convertedIdentity.LongFlipCidsToSolve = convertCids(identityStats.LongFlipsToSolve, validationStats.FlipCids, block)
+			convertedIdentity.ShortFlipCidsToSolve = convertCids(identityStats.ShortFlipsToSolve, validationShardStats.FlipCids, block)
+			convertedIdentity.LongFlipCidsToSolve = convertCids(identityStats.LongFlipsToSolve, validationShardStats.FlipCids, block)
 		} else {
 			convertedIdentity.Approved = false
 			convertedIdentity.Missed = true
@@ -955,30 +948,32 @@ func (indexer *Indexer) detectEpochResult(block *types.Block, ctx *conversionCon
 		})
 	}
 
-	flipsStats := make([]db.FlipStats, 0, len(validationStats.FlipsPerIdx))
+	var flipsStats []db.FlipStats
 	flipStatusesMap := make(map[byte]uint64)
 	var reportedFlips uint32
-	for flipIdx, flipStats := range validationStats.FlipsPerIdx {
-		flipCid, err := cid.Parse(validationStats.FlipCids[flipIdx])
-		if err != nil {
-			log.Error("Unable to parse flip cid. Skipped.", "b", block.Height(), "idx", flipIdx, "err", err)
-			continue
+	for _, validationShardStats := range validationStats.Shards {
+		for flipIdx, flipStats := range validationShardStats.FlipsPerIdx {
+			flipCid, err := cid.Parse(validationShardStats.FlipCids[flipIdx])
+			if err != nil {
+				log.Error("Unable to parse flip cid. Skipped.", "b", block.Height(), "idx", flipIdx, "err", err)
+				continue
+			}
+			if flipStats.Grade == types.GradeReported {
+				reportedFlips++
+			}
+			flipCidStr := convertCid(flipCid)
+			flipStats := db.FlipStats{
+				Author:       authorAddressesByFlipCid[flipCidStr],
+				Cid:          flipCidStr,
+				ShortAnswers: convertStatsAnswers(flipStats.ShortAnswers),
+				LongAnswers:  convertStatsAnswers(flipStats.LongAnswers),
+				Status:       convertFlipStatus(ceremony.FlipStatus(flipStats.Status)),
+				Answer:       convertAnswer(flipStats.Answer),
+				Grade:        byte(flipStats.Grade),
+			}
+			flipsStats = append(flipsStats, flipStats)
+			flipStatusesMap[flipStats.Status]++
 		}
-		if flipStats.Grade == types.GradeReported {
-			reportedFlips++
-		}
-		flipCidStr := convertCid(flipCid)
-		flipStats := db.FlipStats{
-			Author:       authorAddressesByFlipCid[flipCidStr],
-			Cid:          flipCidStr,
-			ShortAnswers: convertStatsAnswers(flipStats.ShortAnswers),
-			LongAnswers:  convertStatsAnswers(flipStats.LongAnswers),
-			Status:       convertFlipStatus(ceremony.FlipStatus(flipStats.Status)),
-			Answer:       convertAnswer(flipStats.Answer),
-			Grade:        byte(flipStats.Grade),
-		}
-		flipsStats = append(flipsStats, flipStats)
-		flipStatusesMap[flipStats.Status]++
 	}
 	flipStatuses := make([]db.FlipStatusCount, 0, len(flipStatusesMap))
 	for status, count := range flipStatusesMap {

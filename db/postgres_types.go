@@ -71,7 +71,7 @@ func (v KillInviteeTxTransfer) Value() (driver.Value, error) {
 }
 
 func (v ActivationTx) Value() (driver.Value, error) {
-	return fmt.Sprintf("(%v,%v)", v.TxHash, v.InviteTxHash), nil
+	return fmt.Sprintf("(%v,%v,%v)", v.TxHash, v.InviteTxHash, uint32(v.ShardId)), nil
 }
 
 func (v KillInviteeTx) Value() (driver.Value, error) {
@@ -740,10 +740,12 @@ type postgresEpochIdentity struct {
 	longAnswers      uint32
 	wrongWordsFlips  uint8
 	delegateeAddress string
+	shardId          uint32
+	newShardId       uint32
 }
 
 func (v postgresEpochIdentity) Value() (driver.Value, error) {
-	return fmt.Sprintf("(%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v)",
+	return fmt.Sprintf("(%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v)",
 		v.address,
 		v.state,
 		v.shortPoint,
@@ -763,6 +765,8 @@ func (v postgresEpochIdentity) Value() (driver.Value, error) {
 		v.longAnswers,
 		v.wrongWordsFlips,
 		v.delegateeAddress,
+		v.shardId,
+		v.newShardId,
 	), nil
 }
 
@@ -837,6 +841,8 @@ func getEpochIdentitiesArrays(
 			longAnswers:      longAnswers,
 			wrongWordsFlips:  wrongWordsFlips,
 			delegateeAddress: identity.DelegateeAddress,
+			shardId:          uint32(identity.ShardId),
+			newShardId:       uint32(identity.NewShardId),
 		})
 	}
 	return pq.Array(convertedIdentities), pq.Array(convertedFlipsToSolve)

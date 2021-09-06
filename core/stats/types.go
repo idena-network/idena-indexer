@@ -71,10 +71,11 @@ type Stats struct {
 	TimeLockContractTerminations             []*db.TimeLockContractTermination
 	TxReceipts                               []*db.TxReceipt
 	ContractTxsBalanceUpdates                []*db.ContractTxBalanceUpdates
+	ActivationTxs                            []db.ActivationTx
 }
 
 type RewardsStats struct {
-	ValidationResults                    *types.ValidationResults
+	ValidationResults                    map[common.ShardId]*types.ValidationResults
 	Total                                *big.Int
 	Validation                           *big.Int
 	Flips                                *big.Int

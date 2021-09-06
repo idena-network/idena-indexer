@@ -9,9 +9,8 @@ require (
 	github.com/go-stack/stack v1.8.0
 	github.com/gorilla/handlers v1.4.2
 	github.com/gorilla/mux v1.7.3
-	github.com/idena-network/idena-go v0.26.7
+	github.com/idena-network/idena-go v0.26.8-0.20210829110338-384ccd32634a
 	github.com/ipfs/go-cid v0.0.7
-	github.com/ipfs/go-ipfs-pinner v0.1.1 // indirect
 	github.com/ipfs/interface-go-ipfs-core v0.4.0
 	github.com/lib/pq v1.1.1
 	github.com/patrickmn/go-cache v2.1.0+incompatible
