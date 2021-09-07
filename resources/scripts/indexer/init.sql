@@ -8,8 +8,8 @@ CREATE TABLE IF NOT EXISTS performance_logs
 CREATE TABLE IF NOT EXISTS words_dictionary
 (
     id          bigint                                              NOT NULL,
-    name        character varying(20) COLLATE pg_catalog."default"  NOT NULL,
-    description character varying(100) COLLATE pg_catalog."default" NOT NULL,
+    name        character varying(50) COLLATE pg_catalog."default"  NOT NULL,
+    description character varying(200) COLLATE pg_catalog."default" NOT NULL,
     CONSTRAINT words_dictionary_pkey PRIMARY KEY (id)
 );
 

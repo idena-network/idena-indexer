@@ -5,6 +5,7 @@ import (
 	"github.com/idena-network/idena-indexer/import/words"
 	"github.com/idena-network/idena-indexer/log"
 	"github.com/idena-network/idena-indexer/monitoring"
+	"github.com/pkg/errors"
 	"time"
 )
 
@@ -70,14 +71,18 @@ func initWords(tx *sql.Tx, loader words.Loader) error {
 	if err != nil {
 		return err
 	}
-	if count > 0 {
-		return nil
-	}
 	importedWords, err := loader.LoadWords()
 	if err != nil {
 		return err
 	}
-	for i, word := range importedWords {
+	if count == int64(len(importedWords)) {
+		return nil
+	}
+	if count > int64(len(importedWords)) {
+		return errors.New("database words count is greater than source file contains")
+	}
+	for i := count; i < int64(len(importedWords)); i++ {
+		word := importedWords[i]
 		if _, err := tx.Exec("insert into words_dictionary (id, name, description) values ($1, $2, $3)",
 			i,
 			word.Name,

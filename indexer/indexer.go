@@ -1130,7 +1130,8 @@ func (indexer *Indexer) handleLongAnswers(
 
 	if len(attachment.Proof) > 0 {
 		for _, f := range ctx.prevStateReadOnly.State.GetIdentity(sender).Flips {
-			word1, word2, err := getFlipWords(sender, attachment, int(f.Pair), ctx.prevStateReadOnly)
+			firstIndex, dictionarySize := indexer.listener.NodeCtx().Ceremony.GetWordDictionaryRange()
+			word1, word2, err := getFlipWords(sender, attachment, firstIndex, dictionarySize, int(f.Pair), ctx.prevStateReadOnly)
 			flipCid, _ := cid.Parse(f.Cid)
 			cidStr := convertCid(flipCid)
 			if err != nil {
@@ -1150,11 +1151,11 @@ func (indexer *Indexer) handleLongAnswers(
 	}
 }
 
-func getFlipWords(addr common.Address, attachment *attachments.LongAnswerAttachment, pairId int, appState *appstate.AppState) (word1, word2 int, err error) {
+func getFlipWords(addr common.Address, attachment *attachments.LongAnswerAttachment, firstIndex, dictionarySize, pairId int, appState *appstate.AppState) (word1, word2 int, err error) {
 	identity := appState.State.GetIdentity(addr)
 	hash, _ := vrf.HashFromProof(attachment.Proof)
 	rnd := binary.LittleEndian.Uint64(hash[:])
-	return ceremony.GetWords(rnd, common.WordDictionarySize, identity.GetTotalWordPairsCount(), pairId)
+	return ceremony.GetWords(rnd, firstIndex, dictionarySize, identity.GetTotalWordPairsCount(), pairId)
 }
 
 func convertCids(idxs []int, cids [][]byte, block *types.Block) []string {
