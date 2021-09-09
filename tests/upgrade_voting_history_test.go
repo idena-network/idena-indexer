@@ -216,7 +216,7 @@ func Test_upgradeVotingShortHistory(t *testing.T) {
 		statsCollector.CompleteCollecting()
 	}
 
-	time.Sleep(time.Second)
+	time.Sleep(time.Second * 2)
 
 	history, err := testCommon.GetUpgradeVotingShortHistory(ctx.DbConnector)
 	require.Nil(t, err)

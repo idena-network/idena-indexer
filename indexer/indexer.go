@@ -405,7 +405,7 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) (*result
 		})
 	}
 
-	upgradesVotes := detectUpgradeVotes(indexer.upgradeVotingHistoryCtx.holder.Get())
+	upgradesVotes := detectUpgradeVotes(indexer.upgradeVotingHistoryCtx.holder.Get(), indexer.listener.Config().Consensus.Version)
 
 	poolSizes := detectPoolSizeUpdates(delegationSwitches, collector.getAddresses(), func() []db.EpochIdentity {
 		if epochResult == nil {

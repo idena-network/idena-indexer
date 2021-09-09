@@ -5,6 +5,7 @@ import (
 	"github.com/idena-network/idena-go/blockchain"
 	"github.com/idena-network/idena-go/common"
 	"github.com/idena-network/idena-go/common/eventbus"
+	config2 "github.com/idena-network/idena-go/config"
 	"github.com/idena-network/idena-go/core/appstate"
 	"github.com/idena-network/idena-go/core/validators"
 	"github.com/idena-network/idena-go/node"
@@ -61,7 +62,9 @@ func InitIndexer(
 		AppState:   appState,
 		Blockchain: chain.Blockchain,
 	}
-	listener := NewTestListener(nodeEventBus, stats.NewStatsCollector(collectorEventBus), appState, nodeCtx, chain.SecStore())
+	listener := NewTestListener(nodeEventBus, stats.NewStatsCollector(collectorEventBus), appState, nodeCtx, chain.SecStore(), &config2.Config{
+		Consensus: &config2.ConsensusConf{},
+	})
 	restorer := restore.NewRestorer(dbAccessor, appState, chain.Blockchain)
 	upgradesVotingHolder := &TestUpgradesVotingHolder{}
 	indexerEventBus := eventbus.New()
@@ -94,6 +97,7 @@ type Options struct {
 	TestBlockchain                    *blockchain.TestBlockchain
 	UpgradeVotingShortHistoryItems    *int
 	UpgradeVotingShortHistoryMinShift *int
+	NodeConfig                        *config2.Config
 }
 
 type IndexerCtx struct {
@@ -113,6 +117,12 @@ func InitIndexer2(opt Options) *IndexerCtx {
 	}
 	if opt.UpgradeVotingShortHistoryMinShift == nil {
 		opt.UpgradeVotingShortHistoryMinShift = Pint(5)
+	}
+	if opt.NodeConfig == nil {
+		opt.NodeConfig = &config2.Config{}
+	}
+	if opt.NodeConfig.Consensus == nil {
+		opt.NodeConfig.Consensus = &config2.ConsensusConf{}
 	}
 
 	initLog()
@@ -141,7 +151,7 @@ func InitIndexer2(opt Options) *IndexerCtx {
 	}
 	nodeEventBus := eventbus.New()
 	collectorEventBus := eventbus.New()
-	listener := NewTestListener(nodeEventBus, stats.NewStatsCollector(collectorEventBus), appState, nodeCtx, chain.SecStore())
+	listener := NewTestListener(nodeEventBus, stats.NewStatsCollector(collectorEventBus), appState, nodeCtx, chain.SecStore(), opt.NodeConfig)
 	restorer := restore.NewRestorer(dbAccessor, appState, chain.Blockchain)
 	upgradesVotingHolder := &TestUpgradesVotingHolder{}
 	indexerEventBus := eventbus.New()

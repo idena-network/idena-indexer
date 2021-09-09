@@ -34,6 +34,7 @@ type TestListener struct {
 	nodeCtx     *node.NodeCtx
 	keysPool    *mempool.KeysPool
 	secStore    *secstore.SecStore
+	config      *config.Config
 }
 
 func NewTestListener(
@@ -42,6 +43,7 @@ func NewTestListener(
 	appState *appstate.AppState,
 	nodeCtx *node.NodeCtx,
 	secStore *secstore.SecStore,
+	config *config.Config,
 ) incoming.Listener {
 	return &TestListener{
 		bus:       bus,
@@ -50,6 +52,7 @@ func NewTestListener(
 		nodeCtx:   nodeCtx,
 		keysPool:  &mempool.KeysPool{},
 		secStore:  secStore,
+		config:    config,
 	}
 }
 
@@ -87,7 +90,7 @@ func (l *TestListener) Flipper() *flip.Flipper {
 }
 
 func (l *TestListener) Config() *config.Config {
-	return nil
+	return l.config
 }
 
 func (l *TestListener) KeysPool() *mempool.KeysPool {

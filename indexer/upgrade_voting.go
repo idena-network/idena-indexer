@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-func detectUpgradeVotes(upgradesVotes []*upgrade.Votes) []*db.UpgradeVotes {
+func detectUpgradeVotes(upgradesVotes []*upgrade.Votes, currentConsensusVersion config.ConsensusVerson) []*db.UpgradeVotes {
 	now := time.Now().UTC().Unix()
 	activeVotings := detectActiveUpgradeVotings(config.ConsensusVersions, now)
 	if len(activeVotings) == 0 {
@@ -18,6 +18,9 @@ func detectUpgradeVotes(upgradesVotes []*upgrade.Votes) []*db.UpgradeVotes {
 	}
 	var res []*db.UpgradeVotes
 	for _, upgradeVotes := range upgradesVotes {
+		if upgradeVotes.Upgrade <= uint32(currentConsensusVersion) {
+			continue
+		}
 		if _, ok := activeVotings[config.ConsensusVerson(upgradeVotes.Upgrade)]; !ok {
 			continue
 		}
