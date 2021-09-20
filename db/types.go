@@ -37,6 +37,8 @@ const (
 	DustClearingReason                BalanceUpdateReason = 0x9
 	EmbeddedContractReason            BalanceUpdateReason = 0xA
 	EmbeddedContractTerminationReason BalanceUpdateReason = 0xB
+	DelegatorEpochRewardReason        BalanceUpdateReason = 0xC
+	DelegateeEpochRewardReason        BalanceUpdateReason = 0xD
 
 	TimeLockCallTransfer TimeLockCall = 0
 
@@ -420,16 +422,17 @@ type BalanceUpdate struct {
 }
 
 type EpochResult struct {
-	Identities        []EpochIdentity
-	FlipStats         []FlipStats
-	Birthdays         []Birthday
-	MemPoolFlipKeys   []*MemPoolFlipKey
-	FailedValidation  bool
-	EpochRewards      *EpochRewards
-	MinScoreForInvite float32
-	RewardsBounds     []*RewardBounds
-	FlipStatuses      []FlipStatusCount
-	ReportedFlips     uint32
+	Identities             []EpochIdentity
+	FlipStats              []FlipStats
+	Birthdays              []Birthday
+	MemPoolFlipKeys        []*MemPoolFlipKey
+	FailedValidation       bool
+	EpochRewards           *EpochRewards
+	MinScoreForInvite      float32
+	RewardsBounds          []*RewardBounds
+	FlipStatuses           []FlipStatusCount
+	ReportedFlips          uint32
+	DelegateesEpochRewards []DelegateeEpochRewards
 }
 
 type OracleVotingContract struct {
@@ -699,4 +702,20 @@ type FlipStatusCount struct {
 
 type RemovedTransitiveDelegation struct {
 	Delegator, Delegatee common.Address
+}
+
+type DelegateeEpochRewards struct {
+	Address          common.Address
+	TotalRewards     []DelegationEpochReward
+	DelegatorRewards []DelegatorEpochReward
+}
+
+type DelegatorEpochReward struct {
+	Address      common.Address
+	TotalRewards []DelegationEpochReward
+}
+
+type DelegationEpochReward struct {
+	Balance *big.Int
+	Type    byte
 }

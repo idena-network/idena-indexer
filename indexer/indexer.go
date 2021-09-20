@@ -852,7 +852,7 @@ func (indexer *Indexer) detectEpochResult(block *types.Block, ctx *conversionCon
 
 	godAddress := ctx.prevStateReadOnly.State.GodAddress()
 	newEpoch := ctx.newStateReadOnly.State.Epoch()
-	epochRewards, validationRewardsAddresses := indexer.detectEpochRewards(block)
+	epochRewards, validationRewardsAddresses, delegateesEpochRewards := indexer.detectEpochRewards(block)
 	ctx.prevStateReadOnly.State.IterateOverIdentities(func(addr common.Address, identity state.Identity) {
 		shardId := identity.ShiftedShardId()
 		convertedAddress := conversion.ConvertAddress(addr)
@@ -998,16 +998,17 @@ func (indexer *Indexer) detectEpochResult(block *types.Block, ctx *conversionCon
 	}
 
 	return &db.EpochResult{
-		Identities:        identities,
-		FlipStats:         flipsStats,
-		FlipStatuses:      flipStatuses,
-		Birthdays:         birthdays,
-		MemPoolFlipKeys:   memPoolFlipKeys,
-		FailedValidation:  validationStats.Failed,
-		EpochRewards:      epochRewards,
-		MinScoreForInvite: minScoreForInvite,
-		RewardsBounds:     rewardsBounds.getResult(),
-		ReportedFlips:     reportedFlips,
+		Identities:             identities,
+		FlipStats:              flipsStats,
+		FlipStatuses:           flipStatuses,
+		Birthdays:              birthdays,
+		MemPoolFlipKeys:        memPoolFlipKeys,
+		FailedValidation:       validationStats.Failed,
+		EpochRewards:           epochRewards,
+		MinScoreForInvite:      minScoreForInvite,
+		RewardsBounds:          rewardsBounds.getResult(),
+		ReportedFlips:          reportedFlips,
+		DelegateesEpochRewards: delegateesEpochRewards,
 	}
 }
 

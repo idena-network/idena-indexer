@@ -81,6 +81,11 @@ BEGIN
         call save_epoch_flip_statuses(p_epoch, p_data -> 'flipStatuses');
         select clock_timestamp() into l_end;
         call log_performance('save_epoch_flip_statuses', l_start, l_end);
+
+        select clock_timestamp() into l_start;
+        call save_delegatee_epoch_rewards(p_epoch, p_height, p_data -> 'delegateeEpochRewards');
+        select clock_timestamp() into l_end;
+        call log_performance('save_delegatee_epoch_rewards', l_start, l_end);
     end if;
 
 

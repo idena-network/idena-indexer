@@ -53,6 +53,10 @@ func Test_nonIdentityReward(t *testing.T) {
 
 	epochIdentities, err := testCommon.GetEpochIdentities(dbConnector)
 	require.Nil(t, err)
-	require.Equal(t, 2, len(epochIdentities))
-	require.Equal(t, "0.000000000000001", epochIdentities[1].TotalValidationReward.String())
+	require.Equal(t, 1, len(epochIdentities))
+
+	delegateeTotalValidationRewards, err := testCommon.GetDelegateeTotalValidationRewards(dbConnector)
+	require.Nil(t, err)
+	require.Len(t, delegateeTotalValidationRewards, 1)
+	require.Equal(t, "0.000000000000001", delegateeTotalValidationRewards[0].TotalBalance.String())
 }

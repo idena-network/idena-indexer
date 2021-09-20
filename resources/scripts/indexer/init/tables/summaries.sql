@@ -107,3 +107,39 @@ CREATE TABLE IF NOT EXISTS balance_update_summaries_changes
         ON UPDATE NO ACTION
         ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS delegatee_total_validation_rewards
+(
+    epoch                     bigint          NOT NULL,
+    delegatee_address_id      bigint          NOT NULL,
+    total_balance             numeric(30, 18) NOT NULL,
+    validation_balance        numeric(30, 18),
+    flips_balance             numeric(30, 18),
+    invitations_balance       numeric(30, 18),
+    invitations2_balance      numeric(30, 18),
+    invitations3_balance      numeric(30, 18),
+    saved_invites_balance     numeric(30, 18),
+    saved_invites_win_balance numeric(30, 18),
+    reports_balance           numeric(30, 18),
+    delegators                integer         NOT NULL,
+    CONSTRAINT delegatee_total_validation_rewards_pkey PRIMARY KEY (epoch, delegatee_address_id)
+);
+CREATE INDEX IF NOT EXISTS delegatee_total_validation_rewards_api_idx1 on delegatee_total_validation_rewards (epoch, total_balance desc, delegatee_address_id);
+
+CREATE TABLE IF NOT EXISTS delegatee_validation_rewards
+(
+    epoch                     bigint          NOT NULL,
+    delegatee_address_id      bigint          NOT NULL,
+    delegator_address_id      bigint          NOT NULL,
+    total_balance             numeric(30, 18) NOT NULL,
+    validation_balance        numeric(30, 18),
+    flips_balance             numeric(30, 18),
+    invitations_balance       numeric(30, 18),
+    invitations2_balance      numeric(30, 18),
+    invitations3_balance      numeric(30, 18),
+    saved_invites_balance     numeric(30, 18),
+    saved_invites_win_balance numeric(30, 18),
+    reports_balance           numeric(30, 18),
+    CONSTRAINT delegatee_validation_rewards_pkey PRIMARY KEY (epoch, delegatee_address_id, delegator_address_id)
+);
+CREATE INDEX IF NOT EXISTS delegatee_validation_rewards_api_idx1 on delegatee_validation_rewards (epoch, delegatee_address_id, total_balance desc, delegator_address_id);

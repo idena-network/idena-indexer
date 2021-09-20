@@ -89,6 +89,7 @@ type RewardsStats struct {
 	ReportsShare                         *big.Int
 	InvitationsShare                     *big.Int
 	Rewards                              []*RewardStats
+	DelegateesEpochRewards               map[common.Address]*DelegateeEpochRewards
 	AgesByAddress                        map[string]uint16
 	RewardedFlipCids                     []string
 	RewardedInvites                      []*db.RewardedInvite
@@ -102,6 +103,20 @@ type RewardStats struct {
 	Balance *big.Int
 	Stake   *big.Int
 	Type    RewardType
+}
+
+type DelegateeEpochRewards struct {
+	TotalRewards           map[RewardType]*EpochReward
+	DelegatorsEpochRewards map[common.Address]*DelegatorEpochRewards
+}
+
+type DelegatorEpochRewards struct {
+	EpochRewards map[RewardType]*EpochReward
+}
+
+type EpochReward struct {
+	Balance *big.Int
+	Stake   *big.Int
 }
 
 type IdentityStateChange struct {

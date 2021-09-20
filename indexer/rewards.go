@@ -10,14 +10,14 @@ import (
 	"math/big"
 )
 
-func (indexer *Indexer) detectEpochRewards(block *types.Block) (*db.EpochRewards, map[common.Address]struct{}) {
+func (indexer *Indexer) detectEpochRewards(block *types.Block) (*db.EpochRewards, map[common.Address]struct{}, []db.DelegateeEpochRewards) {
 	if !block.Header.Flags().HasFlag(types.ValidationFinished) {
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	rewardsStats := indexer.statsHolder().GetStats().RewardsStats
 	if rewardsStats == nil {
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	epochRewards := &db.EpochRewards{}
@@ -33,7 +33,7 @@ func (indexer *Indexer) detectEpochRewards(block *types.Block) (*db.EpochRewards
 	epochRewards.SavedInviteRewards = convertSavedInviteRewards(rewardsStats.SavedInviteRewardsCountByAddrAndType)
 	epochRewards.ReportedFlipRewards = rewardsStats.ReportedFlipRewards
 
-	return epochRewards, validationRewardsAddresses
+	return epochRewards, validationRewardsAddresses, convertDelegateesEpochRewards(rewardsStats.DelegateesEpochRewards)
 }
 
 func convertBadAuthors(validationResults map[common.ShardId]*types.ValidationResults) []*db.BadAuthor {

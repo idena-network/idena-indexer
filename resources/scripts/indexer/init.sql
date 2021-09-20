@@ -264,6 +264,15 @@ ON CONFLICT DO NOTHING;
 INSERT INTO dic_balance_update_reasons
 values (10, 'EmbeddedContract')
 ON CONFLICT DO NOTHING;
+INSERT INTO dic_balance_update_reasons
+values (11, 'EmbeddedContractTerm')
+ON CONFLICT DO NOTHING;
+INSERT INTO dic_balance_update_reasons
+values (12, 'DelegatorEpochReward')
+ON CONFLICT DO NOTHING;
+INSERT INTO dic_balance_update_reasons
+values (13, 'DelegateeEpochReward')
+ON CONFLICT DO NOTHING;
 
 CREATE TABLE IF NOT EXISTS epochs
 (
@@ -3355,6 +3364,11 @@ BEGIN
     DELETE FROM epoch_reward_bounds WHERE epoch > l_epoch OR NOT l_is_epoch_last_block AND epoch = l_epoch;
     DELETE FROM total_rewards WHERE epoch > l_epoch OR NOT l_is_epoch_last_block AND epoch = l_epoch;
     DELETE FROM epoch_flip_statuses WHERE epoch > l_epoch OR NOT l_is_epoch_last_block AND epoch = l_epoch;
+    DELETE FROM removed_transitive_delegations WHERE epoch > l_epoch OR NOT l_is_epoch_last_block AND epoch = l_epoch;
+    DELETE FROM delegatee_validation_rewards WHERE epoch > l_epoch OR NOT l_is_epoch_last_block AND epoch = l_epoch;
+    DELETE
+    FROM delegatee_total_validation_rewards
+    WHERE epoch > l_epoch OR NOT l_is_epoch_last_block AND epoch = l_epoch;
 
     DELETE FROM address_summaries;
     DELETE FROM balances;

@@ -183,33 +183,29 @@ func (c *statsCollector) SetTotalZeroWalletFund(amount *big.Int) {
 }
 
 func (c *statsCollector) AddValidationReward(balanceDest, stakeDest common.Address, age uint16, balance, stake *big.Int) {
-	if balanceDest == stakeDest {
-		c.addReward(balanceDest, balance, stake, Validation)
-	} else {
-		c.addReward(balanceDest, balance, big.NewInt(0), Validation)
-		c.addReward(stakeDest, big.NewInt(0), stake, Validation)
+	baseRewardRecipient := stakeDest
+	c.addReward(baseRewardRecipient, balance, stake, Validation)
+	if balanceDest != stakeDest {
+		c.addDelegateeReward(stakeDest, balanceDest, balance, nil, Validation)
 	}
 
 	c.initRewardStats()
 	if c.stats.RewardsStats.AgesByAddress == nil {
 		c.stats.RewardsStats.AgesByAddress = make(map[string]uint16)
 	}
-	baseRewardRecipient := stakeDest
 	c.stats.RewardsStats.AgesByAddress[conversion.ConvertAddress(baseRewardRecipient)] = age + 1
 
 	c.addAddrTotalReward(baseRewardRecipient, balance, stake)
 }
 
 func (c *statsCollector) AddFlipsReward(balanceDest, stakeDest common.Address, balance, stake *big.Int, flipsToReward []*types.FlipToReward) {
-	if balanceDest == stakeDest {
-		c.addReward(balanceDest, balance, stake, Flips)
-	} else {
-		c.addReward(balanceDest, balance, big.NewInt(0), Flips)
-		c.addReward(stakeDest, big.NewInt(0), stake, Flips)
+	baseRewardRecipient := stakeDest
+	c.addReward(baseRewardRecipient, balance, stake, Flips)
+	if balanceDest != stakeDest {
+		c.addDelegateeReward(stakeDest, balanceDest, balance, nil, Flips)
 	}
 	c.addRewardedFlips(flipsToReward)
 
-	baseRewardRecipient := stakeDest
 	c.addAddrTotalReward(baseRewardRecipient, balance, stake)
 }
 
@@ -225,13 +221,11 @@ func (c *statsCollector) addRewardedFlips(flipsToReward []*types.FlipToReward) {
 }
 
 func (c *statsCollector) AddReportedFlipsReward(balanceDest, stakeDest common.Address, shardId common.ShardId, flipIdx int, balance *big.Int, stake *big.Int) {
-	if balanceDest == stakeDest {
-		c.addReward(balanceDest, balance, stake, ReportedFlips)
-	} else {
-		c.addReward(balanceDest, balance, big.NewInt(0), ReportedFlips)
-		c.addReward(stakeDest, big.NewInt(0), stake, ReportedFlips)
-	}
 	baseRewardRecipient := stakeDest
+	c.addReward(baseRewardRecipient, balance, stake, ReportedFlips)
+	if balanceDest != stakeDest {
+		c.addDelegateeReward(stakeDest, balanceDest, balance, nil, ReportedFlips)
+	}
 	c.addReportedFlipReward(baseRewardRecipient, shardId, flipIdx, balance, stake)
 
 	c.addAddrTotalReward(baseRewardRecipient, balance, stake)
@@ -274,13 +268,11 @@ func (c *statsCollector) AddInvitationsReward(balanceDest, stakeDest common.Addr
 		log.Warn(err.Error())
 		return
 	}
-	if balanceDest == stakeDest {
-		c.addReward(balanceDest, balance, stake, rewardType)
-	} else {
-		c.addReward(balanceDest, balance, big.NewInt(0), rewardType)
-		c.addReward(stakeDest, big.NewInt(0), stake, rewardType)
-	}
 	baseRewardRecipient := stakeDest
+	c.addReward(baseRewardRecipient, balance, stake, rewardType)
+	if balanceDest != stakeDest {
+		c.addDelegateeReward(stakeDest, balanceDest, balance, nil, rewardType)
+	}
 	c.addRewardedInvite(baseRewardRecipient, txHash, rewardType, epochHeight)
 
 	c.addAddrTotalReward(baseRewardRecipient, balance, stake)
@@ -403,6 +395,57 @@ func (c *statsCollector) increaseEpochRewardIfExists(rewardsStats *RewardStats) 
 	rewardsByAddr[rewardsStats.Address] = rewardsStats
 	c.pending.epochRewardsByTypeAndAddr[rewardsStats.Type] = rewardsByAddr
 	return false
+}
+
+func (c *statsCollector) addDelegateeReward(delegator, delegatee common.Address, balance, stake *big.Int, rewardType RewardType) {
+	if (balance == nil || balance.Sign() == 0) && (stake == nil || stake.Sign() == 0) {
+		return
+	}
+	if balance == nil {
+		balance = new(big.Int)
+	}
+	if stake == nil {
+		stake = new(big.Int)
+	}
+	c.initRewardStats()
+	if c.stats.RewardsStats.DelegateesEpochRewards == nil {
+		c.stats.RewardsStats.DelegateesEpochRewards = make(map[common.Address]*DelegateeEpochRewards)
+	}
+	delegateeEpochRewards, ok := c.stats.RewardsStats.DelegateesEpochRewards[delegatee]
+	if !ok {
+		delegateeEpochRewards = &DelegateeEpochRewards{
+			TotalRewards:           make(map[RewardType]*EpochReward),
+			DelegatorsEpochRewards: make(map[common.Address]*DelegatorEpochRewards),
+		}
+		c.stats.RewardsStats.DelegateesEpochRewards[delegatee] = delegateeEpochRewards
+	}
+	totalReward, ok := delegateeEpochRewards.TotalRewards[rewardType]
+	if !ok {
+		totalReward = &EpochReward{
+			Balance: new(big.Int),
+			Stake:   new(big.Int),
+		}
+		delegateeEpochRewards.TotalRewards[rewardType] = totalReward
+	}
+	totalReward.Balance.Add(totalReward.Balance, balance)
+	totalReward.Stake.Add(totalReward.Stake, stake)
+	delegatorEpochRewards, ok := delegateeEpochRewards.DelegatorsEpochRewards[delegator]
+	if !ok {
+		delegatorEpochRewards = &DelegatorEpochRewards{
+			EpochRewards: make(map[RewardType]*EpochReward),
+		}
+		delegateeEpochRewards.DelegatorsEpochRewards[delegator] = delegatorEpochRewards
+	}
+	delegatorEpochReward, ok := delegatorEpochRewards.EpochRewards[rewardType]
+	if !ok {
+		delegatorEpochReward = &EpochReward{
+			Balance: new(big.Int),
+			Stake:   new(big.Int),
+		}
+		delegatorEpochRewards.EpochRewards[rewardType] = delegatorEpochReward
+	}
+	delegatorEpochReward.Balance.Add(delegatorEpochReward.Balance, balance)
+	delegatorEpochReward.Stake.Add(delegatorEpochReward.Stake, stake)
 }
 
 func (c *statsCollector) AddProposerReward(balanceDest, stakeDest common.Address, balance, stake *big.Int) {
@@ -669,33 +712,72 @@ func (c *statsCollector) BeginDustClearingBalanceUpdate(addr common.Address, app
 
 func (c *statsCollector) CompleteBalanceUpdate(appState *appstate.AppState) {
 	balanceUpdates := c.completeBalanceUpdates(appState)
+
+	if len(balanceUpdates) == 2 && balanceUpdates[0].Reason == balanceUpdates[1].Reason &&
+		balanceUpdates[0].Reason == db.EpochRewardReason && balanceUpdates[0].Address != balanceUpdates[1].Address {
+		var delegatorBalanceUpdate, delegateeBalanceUpdate *db.BalanceUpdate
+		if !isBalanceChanged(balanceUpdates[0]) {
+			delegatorBalanceUpdate = balanceUpdates[0]
+			delegateeBalanceUpdate = balanceUpdates[1]
+		} else {
+			delegatorBalanceUpdate = balanceUpdates[1]
+			delegateeBalanceUpdate = balanceUpdates[0]
+		}
+		var delegatorBalanceUpdateOld *big.Int
+		if pendingDelegatorBalanceUpdate, ok := c.getPendingBalanceUpdate(db.DelegatorEpochRewardReason, delegatorBalanceUpdate.Address); ok {
+			delegatorBalanceUpdateOld = pendingDelegatorBalanceUpdate.BalanceOld
+		} else {
+			delegatorBalanceUpdateOld = delegatorBalanceUpdate.BalanceOld
+		}
+		rewardBalanceUpdate := &db.BalanceUpdate{
+			Address:    delegatorBalanceUpdate.Address,
+			BalanceOld: delegatorBalanceUpdate.BalanceOld,
+			StakeOld:   delegatorBalanceUpdate.StakeOld,
+			PenaltyOld: delegatorBalanceUpdate.PenaltyOld,
+			BalanceNew: new(big.Int).Add(delegatorBalanceUpdateOld,
+				new(big.Int).Sub(delegateeBalanceUpdate.BalanceNew, delegateeBalanceUpdate.BalanceOld)),
+			StakeNew:   delegatorBalanceUpdate.StakeNew,
+			PenaltyNew: delegatorBalanceUpdate.PenaltyNew,
+			TxHash:     nil,
+			Reason:     db.EpochRewardReason,
+		}
+		delegatorBalanceUpdate = &db.BalanceUpdate{
+			Address:    rewardBalanceUpdate.Address,
+			BalanceOld: rewardBalanceUpdate.BalanceNew,
+			StakeOld:   rewardBalanceUpdate.StakeNew,
+			PenaltyOld: rewardBalanceUpdate.PenaltyNew,
+			BalanceNew: delegatorBalanceUpdate.BalanceNew,
+			StakeNew:   delegatorBalanceUpdate.StakeNew,
+			PenaltyNew: delegatorBalanceUpdate.PenaltyNew,
+			TxHash:     nil,
+			Reason:     db.DelegatorEpochRewardReason,
+		}
+		delegateeBalanceUpdate.Reason = db.DelegateeEpochRewardReason
+		if !c.handleMultipleBalanceUpdate(rewardBalanceUpdate) {
+			c.stats.BalanceUpdates = append(c.stats.BalanceUpdates, rewardBalanceUpdate)
+			c.afterBalanceUpdate(rewardBalanceUpdate.Address)
+		}
+		if !c.handleMultipleBalanceUpdate(delegatorBalanceUpdate) {
+			c.stats.BalanceUpdates = append(c.stats.BalanceUpdates, delegatorBalanceUpdate)
+			c.afterBalanceUpdate(delegatorBalanceUpdate.Address)
+		}
+		if !c.handleMultipleBalanceUpdate(delegateeBalanceUpdate) {
+			c.stats.BalanceUpdates = append(c.stats.BalanceUpdates, delegateeBalanceUpdate)
+			c.afterBalanceUpdate(delegateeBalanceUpdate.Address)
+		}
+		return
+	}
+
 	for _, balanceUpdate := range balanceUpdates {
-		if !isBalanceChanged(balanceUpdate) {
+		if !isBalanceOrStakeOrPenaltyChanged(balanceUpdate) {
 			continue
 		}
 		if balanceUpdate.Reason == db.DustClearingReason {
 			c.addBurntCoins(balanceUpdate.Address, balanceUpdate.BalanceOld, db.DustClearingBurntCoins, nil)
 		}
 		if balanceUpdate.Reason == db.EpochRewardReason || balanceUpdate.Reason == db.CommitteeRewardReason || balanceUpdate.Reason == db.VerifiedStakeTransferReason {
-			if c.pending.balanceUpdatesByReasonAndAddr == nil {
-				c.pending.balanceUpdatesByReasonAndAddr = make(map[db.BalanceUpdateReason]map[common.Address]*db.BalanceUpdate)
-			}
-			balanceUpdatesByAddr, ok := c.pending.balanceUpdatesByReasonAndAddr[balanceUpdate.Reason]
-			if !ok {
-				balanceUpdatesByAddr = make(map[common.Address]*db.BalanceUpdate)
-				c.pending.balanceUpdatesByReasonAndAddr[balanceUpdate.Reason] = balanceUpdatesByAddr
-			}
-			if balanceUpdatesByAddr == nil {
-				balanceUpdatesByAddr = map[common.Address]*db.BalanceUpdate{
-					balanceUpdate.Address: balanceUpdate,
-				}
-			} else if bu, ok := balanceUpdatesByAddr[balanceUpdate.Address]; ok {
-				bu.BalanceNew = balanceUpdate.BalanceNew
-				bu.StakeNew = balanceUpdate.StakeNew
-				bu.PenaltyNew = balanceUpdate.PenaltyNew
+			if c.handleMultipleBalanceUpdate(balanceUpdate) {
 				continue
-			} else {
-				balanceUpdatesByAddr[balanceUpdate.Address] = balanceUpdate
 			}
 		}
 		c.stats.BalanceUpdates = append(c.stats.BalanceUpdates, balanceUpdate)
@@ -703,10 +785,50 @@ func (c *statsCollector) CompleteBalanceUpdate(appState *appstate.AppState) {
 	}
 }
 
-func isBalanceChanged(balanceUpdate *db.BalanceUpdate) bool {
+func (c *statsCollector) getPendingBalanceUpdate(reason db.BalanceUpdateReason, addr common.Address) (*db.BalanceUpdate, bool) {
+	if c.pending.balanceUpdatesByReasonAndAddr == nil {
+		return nil, false
+	}
+	reasonBalanceUpdatesByAddr, ok := c.pending.balanceUpdatesByReasonAndAddr[reason]
+	if !ok {
+		return nil, false
+	}
+	balanceUpdate, ok := reasonBalanceUpdatesByAddr[addr]
+	return balanceUpdate, ok
+}
+
+func (c *statsCollector) handleMultipleBalanceUpdate(balanceUpdate *db.BalanceUpdate) bool {
+	if c.pending.balanceUpdatesByReasonAndAddr == nil {
+		c.pending.balanceUpdatesByReasonAndAddr = make(map[db.BalanceUpdateReason]map[common.Address]*db.BalanceUpdate)
+	}
+	balanceUpdatesByAddr, ok := c.pending.balanceUpdatesByReasonAndAddr[balanceUpdate.Reason]
+	if !ok {
+		balanceUpdatesByAddr = make(map[common.Address]*db.BalanceUpdate)
+		c.pending.balanceUpdatesByReasonAndAddr[balanceUpdate.Reason] = balanceUpdatesByAddr
+	}
+	if bu, ok := balanceUpdatesByAddr[balanceUpdate.Address]; ok {
+		bu.BalanceNew = balanceUpdate.BalanceNew
+		bu.StakeNew = balanceUpdate.StakeNew
+		bu.PenaltyNew = balanceUpdate.PenaltyNew
+		if balanceUpdate.Reason == db.DelegatorEpochRewardReason {
+			bu.BalanceOld = balanceUpdate.BalanceOld
+			bu.StakeOld = balanceUpdate.StakeOld
+			bu.PenaltyOld = balanceUpdate.PenaltyOld
+		}
+		return true
+	}
+	balanceUpdatesByAddr[balanceUpdate.Address] = balanceUpdate
+	return false
+}
+
+func isBalanceOrStakeOrPenaltyChanged(balanceUpdate *db.BalanceUpdate) bool {
 	return balanceUpdate.BalanceOld.Cmp(balanceUpdate.BalanceNew) != 0 ||
 		balanceUpdate.StakeOld.Cmp(balanceUpdate.StakeNew) != 0 ||
 		valueOrZero(balanceUpdate.PenaltyOld).Cmp(valueOrZero(balanceUpdate.PenaltyNew)) != 0
+}
+
+func isBalanceChanged(balanceUpdate *db.BalanceUpdate) bool {
+	return balanceUpdate.BalanceOld.Cmp(balanceUpdate.BalanceNew) != 0
 }
 
 func valueOrZero(v *big.Int) *big.Int {
@@ -1405,7 +1527,7 @@ func (c *statsCollector) AddTxReceipt(txReceipt *types.TxReceipt, appState *apps
 			c.stats.TimeLockContractTerminations = append(c.stats.TimeLockContractTerminations, c.pending.tx.timeLockContractTermination)
 		}
 		for _, balanceUpdate := range c.pending.tx.contractBalanceUpdatesByAddr {
-			if !isBalanceChanged(balanceUpdate) {
+			if !isBalanceOrStakeOrPenaltyChanged(balanceUpdate) {
 				continue
 			}
 			c.stats.BalanceUpdates = append(c.stats.BalanceUpdates, balanceUpdate)

@@ -289,7 +289,7 @@ func Test_complexCommitteeRewardBalanceUpdates3blocks(t *testing.T) {
 	}
 	summariesChanges, err := testCommon.GetBalanceUpdateSummariesChanges(dbConnector)
 	require.Nil(t, err)
-	require.Len(t, summariesChanges, 19)
+	require.Len(t, summariesChanges, 5)
 
 	// When
 	err = dbAccessor.ResetTo(12)
@@ -327,7 +327,7 @@ func Test_complexCommitteeRewardBalanceUpdates3blocks(t *testing.T) {
 	}
 	summariesChanges, err = testCommon.GetBalanceUpdateSummariesChanges(dbConnector)
 	require.Nil(t, err)
-	require.Len(t, summariesChanges, 16)
+	require.Len(t, summariesChanges, 2)
 }
 
 func Test_complexCommitteeRewardBalanceUpdates6blocks(t *testing.T) {
@@ -693,6 +693,7 @@ func applyBlock(bus eventbus.Bus, block *types2.Block, appState *appstate.AppSta
 	if err := appState.Commit(block); err != nil {
 		return err
 	}
+	appState.ValidatorsCache.Load()
 	bus.Publish(&events.NewBlockEvent{
 		Block: block,
 	})

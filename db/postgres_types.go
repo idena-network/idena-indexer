@@ -905,6 +905,29 @@ type removedTransitiveDelegation struct {
 	Delegatee string `json:"delegatee"`
 }
 
+type delegateeEpochRewards struct {
+	Address          string                 `json:"address"`
+	TotalReward      delegationEpochReward  `json:"totalReward"`
+	DelegatorRewards []delegatorEpochReward `json:"delegatorRewards"`
+}
+
+type delegatorEpochReward struct {
+	Address     string                `json:"address"`
+	TotalReward delegationEpochReward `json:"totalReward"`
+}
+
+type delegationEpochReward struct {
+	Total           decimal.Decimal  `json:"total"`
+	Validation      *decimal.Decimal `json:"validation,omitempty"`
+	Flips           *decimal.Decimal `json:"flips,omitempty"`
+	Invitations     *decimal.Decimal `json:"invitations,omitempty"`
+	Invitations2    *decimal.Decimal `json:"invitations2,omitempty"`
+	Invitations3    *decimal.Decimal `json:"invitations3,omitempty"`
+	SavedInvites    *decimal.Decimal `json:"savedInvites,omitempty"`
+	SavedInvitesWin *decimal.Decimal `json:"savedInvitesWin,omitempty"`
+	Reports         *decimal.Decimal `json:"reports,omitempty"`
+}
+
 func getData(
 	delegationSwitches []*DelegationSwitch,
 	upgradesVotes []*UpgradeVotes,
@@ -957,6 +980,49 @@ func getData(
 			})
 		}
 	}
+	return res
+}
+
+const (
+	validation     byte = 0
+	flips          byte = 1
+	invitations    byte = 2
+	invitations2   byte = 5
+	invitations3   byte = 6
+	savedInvite    byte = 7
+	savedInviteWin byte = 8
+	reportedFlips  byte = 9
+)
+
+func convertDelegationEpochRewards(items []DelegationEpochReward) delegationEpochReward {
+	res := delegationEpochReward{}
+	if len(items) == 0 {
+		return res
+	}
+	total := new(big.Int)
+	for _, item := range items {
+		total.Add(total, item.Balance)
+		balance := blockchain.ConvertToFloat(item.Balance)
+		switch item.Type {
+		case validation:
+			res.Validation = &balance
+		case flips:
+			res.Flips = &balance
+		case invitations:
+			res.Invitations = &balance
+		case invitations2:
+			res.Invitations2 = &balance
+		case invitations3:
+			res.Invitations3 = &balance
+		case savedInvite:
+			res.SavedInvites = &balance
+		case savedInviteWin:
+			res.SavedInvitesWin = &balance
+		case reportedFlips:
+			res.Reports = &balance
+		}
+	}
+	res.Total = blockchain.ConvertToFloat(total)
 	return res
 }
 
@@ -1043,9 +1109,10 @@ type upgrade struct {
 }
 
 type epochResultData struct {
-	FlipStatuses  []FlipStatusCount `json:"flipStatuses,omitempty"`
-	RewardsBounds []rewardBounds    `json:"rewardsBounds,omitempty"`
-	ReportedFlips uint32            `json:"reportedFlips"`
+	FlipStatuses           []FlipStatusCount       `json:"flipStatuses,omitempty"`
+	RewardsBounds          []rewardBounds          `json:"rewardsBounds,omitempty"`
+	ReportedFlips          uint32                  `json:"reportedFlips"`
+	DelegateesEpochRewards []delegateeEpochRewards `json:"delegateeEpochRewards,omitempty"`
 }
 
 func (v *epochResultData) Value() (driver.Value, error) {
@@ -1060,7 +1127,12 @@ type rewardBounds struct {
 	MaxAddress string          `json:"maxAddress"`
 }
 
-func getEpochResultData(rewardsBounds []*RewardBounds, flipStatuses []FlipStatusCount, reportedFlips uint32) *epochResultData {
+func getEpochResultData(
+	rewardsBounds []*RewardBounds,
+	flipStatuses []FlipStatusCount,
+	reportedFlips uint32,
+	delegateesEpochRewards []DelegateeEpochRewards,
+) *epochResultData {
 	res := &epochResultData{
 		FlipStatuses:  flipStatuses,
 		ReportedFlips: reportedFlips,
@@ -1075,6 +1147,25 @@ func getEpochResultData(rewardsBounds []*RewardBounds, flipStatuses []FlipStatus
 				MaxAmount:  blockchain.ConvertToFloat(incomingRewardBounds.Max.Amount),
 				MaxAddress: conversion.ConvertAddress(incomingRewardBounds.Max.Address),
 			})
+		}
+	}
+	if len(delegateesEpochRewards) > 0 {
+		res.DelegateesEpochRewards = make([]delegateeEpochRewards, 0, len(delegateesEpochRewards))
+		for _, incomingItem := range delegateesEpochRewards {
+			item := delegateeEpochRewards{
+				Address:     conversion.ConvertAddress(incomingItem.Address),
+				TotalReward: convertDelegationEpochRewards(incomingItem.TotalRewards),
+			}
+			if len(incomingItem.DelegatorRewards) > 0 {
+				item.DelegatorRewards = make([]delegatorEpochReward, 0, len(incomingItem.DelegatorRewards))
+				for _, incomingDelegatorReward := range incomingItem.DelegatorRewards {
+					item.DelegatorRewards = append(item.DelegatorRewards, delegatorEpochReward{
+						Address:     conversion.ConvertAddress(incomingDelegatorReward.Address),
+						TotalReward: convertDelegationEpochRewards(incomingDelegatorReward.TotalRewards),
+					})
+				}
+			}
+			res.DelegateesEpochRewards = append(res.DelegateesEpochRewards, item)
 		}
 	}
 	return res

@@ -2080,3 +2080,174 @@ func GetUpgradeVotingHistorySummaries(db *sql.DB) ([]UpgradeVotingHistorySummary
 	}
 	return res, nil
 }
+
+type DelegateeTotalValidationReward struct {
+	Epoch                  int
+	DelegateeAddress       string
+	TotalBalance           decimal.Decimal
+	ValidationBalance      *decimal.Decimal
+	FlipsBalance           *decimal.Decimal
+	InvitationsBalance     *decimal.Decimal
+	Invitations2Balance    *decimal.Decimal
+	Invitations3Balance    *decimal.Decimal
+	SavedInvitesBalance    *decimal.Decimal
+	SavedInvitesWinBalance *decimal.Decimal
+	ReportsBalance         *decimal.Decimal
+	Delegators             int
+}
+
+func GetDelegateeTotalValidationRewards(db *sql.DB) ([]DelegateeTotalValidationReward, error) {
+	rows, err := db.Query(`select t.epoch,
+       a.address,
+       t.total_balance,
+       t.validation_balance,
+       t.flips_balance,
+       t.invitations_balance,
+       t.invitations2_balance,
+       t.invitations3_balance,
+       t.saved_invites_balance,
+       t.saved_invites_win_balance,
+       t.reports_balance,
+       t.delegators
+from delegatee_total_validation_rewards t
+         join addresses a on a.id = t.delegatee_address_id
+order by epoch, delegatee_address_id`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var res []DelegateeTotalValidationReward
+	for rows.Next() {
+		item := DelegateeTotalValidationReward{}
+		var validationBalance, flipsBalance, invitationsBalance, invitations2Balance, invitations3Balance, savedInvitesBalance, savedInvitesWinBalance, reportsBalance NullDecimal
+		err := rows.Scan(
+			&item.Epoch,
+			&item.DelegateeAddress,
+			&item.TotalBalance,
+			&validationBalance,
+			&flipsBalance,
+			&invitationsBalance,
+			&invitations2Balance,
+			&invitations3Balance,
+			&savedInvitesBalance,
+			&savedInvitesWinBalance,
+			&reportsBalance,
+			&item.Delegators,
+		)
+		if validationBalance.Valid {
+			item.ValidationBalance = &validationBalance.Decimal
+		}
+		if flipsBalance.Valid {
+			item.FlipsBalance = &flipsBalance.Decimal
+		}
+		if invitationsBalance.Valid {
+			item.InvitationsBalance = &invitationsBalance.Decimal
+		}
+		if invitations2Balance.Valid {
+			item.Invitations2Balance = &invitations2Balance.Decimal
+		}
+		if invitations3Balance.Valid {
+			item.Invitations3Balance = &invitations3Balance.Decimal
+		}
+		if savedInvitesBalance.Valid {
+			item.SavedInvitesBalance = &savedInvitesBalance.Decimal
+		}
+		if savedInvitesWinBalance.Valid {
+			item.SavedInvitesWinBalance = &savedInvitesWinBalance.Decimal
+		}
+		if reportsBalance.Valid {
+			item.ReportsBalance = &reportsBalance.Decimal
+		}
+		if err != nil {
+			return nil, err
+		}
+		res = append(res, item)
+	}
+	return res, nil
+}
+
+type DelegateeValidationReward struct {
+	Epoch                  int
+	DelegateeAddress       string
+	DelegatorAddress       string
+	TotalBalance           decimal.Decimal
+	ValidationBalance      *decimal.Decimal
+	FlipsBalance           *decimal.Decimal
+	InvitationsBalance     *decimal.Decimal
+	Invitations2Balance    *decimal.Decimal
+	Invitations3Balance    *decimal.Decimal
+	SavedInvitesBalance    *decimal.Decimal
+	SavedInvitesWinBalance *decimal.Decimal
+	ReportsBalance         *decimal.Decimal
+}
+
+func GetDelegateeValidationRewards(db *sql.DB) ([]DelegateeValidationReward, error) {
+	rows, err := db.Query(`select t.epoch,
+       a.address,
+       a2.address,
+       t.total_balance,
+       t.validation_balance,
+       t.flips_balance,
+       t.invitations_balance,
+       t.invitations2_balance,
+       t.invitations3_balance,
+       t.saved_invites_balance,
+       t.saved_invites_win_balance,
+       t.reports_balance
+from delegatee_validation_rewards t
+         join addresses a on a.id = t.delegatee_address_id
+         join addresses a2 on a2.id = t.delegator_address_id
+order by epoch, delegatee_address_id`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var res []DelegateeValidationReward
+	for rows.Next() {
+		item := DelegateeValidationReward{}
+		var validationBalance, flipsBalance, invitationsBalance, invitations2Balance, invitations3Balance, savedInvitesBalance, savedInvitesWinBalance, reportsBalance NullDecimal
+		err := rows.Scan(
+			&item.Epoch,
+			&item.DelegateeAddress,
+			&item.DelegatorAddress,
+			&item.TotalBalance,
+			&validationBalance,
+			&flipsBalance,
+			&invitationsBalance,
+			&invitations2Balance,
+			&invitations3Balance,
+			&savedInvitesBalance,
+			&savedInvitesWinBalance,
+			&reportsBalance,
+		)
+		if validationBalance.Valid {
+			item.ValidationBalance = &validationBalance.Decimal
+		}
+		if flipsBalance.Valid {
+			item.FlipsBalance = &flipsBalance.Decimal
+		}
+		if invitationsBalance.Valid {
+			item.InvitationsBalance = &invitationsBalance.Decimal
+		}
+		if invitations2Balance.Valid {
+			item.Invitations2Balance = &invitations2Balance.Decimal
+		}
+		if invitations3Balance.Valid {
+			item.Invitations3Balance = &invitations3Balance.Decimal
+		}
+		if savedInvitesBalance.Valid {
+			item.SavedInvitesBalance = &savedInvitesBalance.Decimal
+		}
+		if savedInvitesWinBalance.Valid {
+			item.SavedInvitesWinBalance = &savedInvitesWinBalance.Decimal
+		}
+		if reportsBalance.Valid {
+			item.ReportsBalance = &reportsBalance.Decimal
+		}
+		if err != nil {
+			return nil, err
+		}
+		res = append(res, item)
+	}
+	return res, nil
+}

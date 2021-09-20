@@ -8,6 +8,8 @@ import (
 	"github.com/idena-network/idena-go/core/state"
 	"github.com/idena-network/idena-go/crypto"
 	"github.com/idena-network/idena-go/stats/types"
+	"github.com/idena-network/idena-go/tests"
+	"github.com/idena-network/idena-indexer/db"
 	testCommon "github.com/idena-network/idena-indexer/tests/common"
 	"github.com/ipfs/go-cid"
 	"github.com/stretchr/testify/require"
@@ -282,10 +284,21 @@ func Test_complex(t *testing.T) {
 		},
 	})
 
-	statsCollector.AddValidationReward(addr, addr, 100, new(big.Int).SetUint64(200), new(big.Int).SetUint64(100))
-	statsCollector.AddFlipsReward(addr, addr, new(big.Int).SetUint64(400), new(big.Int).SetUint64(300), nil)
+	delegatee := tests.GetRandAddr()
+	statsCollector.AddValidationReward(delegatee, addr, 100, new(big.Int).SetUint64(200), new(big.Int).SetUint64(100))
+	statsCollector.AddFlipsReward(delegatee, addr, new(big.Int).SetUint64(400), new(big.Int).SetUint64(300), nil)
 	rewardedInvitationTxHash := deleteFlipTx.Hash()
-	statsCollector.AddInvitationsReward(addr, addr, new(big.Int).SetUint64(600), new(big.Int).SetUint64(500), 2, &rewardedInvitationTxHash, 99, false)
+	statsCollector.AddInvitationsReward(delegatee, addr, new(big.Int).SetUint64(600), new(big.Int).SetUint64(500), 2, &rewardedInvitationTxHash, 99, false)
+
+	statsCollector.BeginEpochRewardBalanceUpdate(delegatee, addr, appState)
+	appState.State.AddBalance(delegatee, new(big.Int).SetUint64(1))
+	appState.State.AddStake(addr, new(big.Int).SetUint64(5))
+	statsCollector.CompleteBalanceUpdate(appState)
+
+	statsCollector.BeginEpochRewardBalanceUpdate(delegatee, addr, appState)
+	appState.State.AddBalance(delegatee, new(big.Int).SetUint64(10))
+	appState.State.AddStake(addr, new(big.Int).SetUint64(50))
+	statsCollector.CompleteBalanceUpdate(appState)
 
 	height++
 	block = buildBlock(height)
@@ -320,6 +333,69 @@ func Test_complex(t *testing.T) {
 	require.Equal(t, 99, *rewardedInvitations[0].EpochHeight)
 	require.Equal(t, 7, rewardedInvitations[0].InviteTxId)
 
+	balanceUpdates, err := testCommon.GetBalanceUpdates(dbConnector)
+	require.Nil(t, err)
+	require.Len(t, balanceUpdates, 3)
+
+	require.Equal(t, addr.Hex(), balanceUpdates[0].Address)
+	require.Equal(t, "0", balanceUpdates[0].BalanceOld.String())
+	require.Equal(t, "0", balanceUpdates[0].StakeOld.String())
+	require.Nil(t, balanceUpdates[0].PenaltyOld)
+	require.Equal(t, "0.000000000000000011", balanceUpdates[0].BalanceNew.String())
+	require.Equal(t, "0.000000000000000055", balanceUpdates[0].StakeNew.String())
+	require.Nil(t, balanceUpdates[0].PenaltyNew)
+	require.Equal(t, db.EpochRewardReason, balanceUpdates[0].Reason)
+
+	require.Equal(t, addr.Hex(), balanceUpdates[1].Address)
+	require.Equal(t, "0.000000000000000011", balanceUpdates[1].BalanceOld.String())
+	require.Equal(t, "0.000000000000000055", balanceUpdates[1].StakeOld.String())
+	require.Nil(t, balanceUpdates[1].PenaltyOld)
+	require.Equal(t, "0", balanceUpdates[1].BalanceNew.String())
+	require.Equal(t, "0.000000000000000055", balanceUpdates[1].StakeNew.String())
+	require.Nil(t, balanceUpdates[1].PenaltyNew)
+	require.Equal(t, db.DelegatorEpochRewardReason, balanceUpdates[1].Reason)
+
+	require.Equal(t, delegatee.Hex(), balanceUpdates[2].Address)
+	require.Equal(t, "0", balanceUpdates[2].BalanceOld.String())
+	require.Equal(t, "0", balanceUpdates[2].StakeOld.String())
+	require.Nil(t, balanceUpdates[2].PenaltyOld)
+	require.Equal(t, "0.000000000000000011", balanceUpdates[2].BalanceNew.String())
+	require.Equal(t, "0", balanceUpdates[2].StakeNew.String())
+	require.Nil(t, balanceUpdates[2].PenaltyNew)
+	require.Equal(t, db.DelegateeEpochRewardReason, balanceUpdates[2].Reason)
+
+	delegateeTotalValidationRewards, err := testCommon.GetDelegateeTotalValidationRewards(dbConnector)
+	require.Nil(t, err)
+	require.Len(t, delegateeTotalValidationRewards, 1)
+	require.Equal(t, 1, delegateeTotalValidationRewards[0].Epoch)
+	require.Equal(t, delegatee.Hex(), delegateeTotalValidationRewards[0].DelegateeAddress)
+	require.Equal(t, "0.0000000000000012", delegateeTotalValidationRewards[0].TotalBalance.String())
+	require.Equal(t, "0.0000000000000002", delegateeTotalValidationRewards[0].ValidationBalance.String())
+	require.Equal(t, "0.0000000000000004", delegateeTotalValidationRewards[0].FlipsBalance.String())
+	require.Equal(t, "0.0000000000000006", delegateeTotalValidationRewards[0].Invitations2Balance.String())
+	require.Nil(t, delegateeTotalValidationRewards[0].InvitationsBalance)
+	require.Nil(t, delegateeTotalValidationRewards[0].Invitations3Balance)
+	require.Nil(t, delegateeTotalValidationRewards[0].SavedInvitesBalance)
+	require.Nil(t, delegateeTotalValidationRewards[0].SavedInvitesWinBalance)
+	require.Nil(t, delegateeTotalValidationRewards[0].ReportsBalance)
+	require.Equal(t, 1, delegateeTotalValidationRewards[0].Delegators)
+
+	delegateeValidationRewards, err := testCommon.GetDelegateeValidationRewards(dbConnector)
+	require.Nil(t, err)
+	require.Len(t, delegateeValidationRewards, 1)
+	require.Equal(t, 1, delegateeValidationRewards[0].Epoch)
+	require.Equal(t, delegatee.Hex(), delegateeValidationRewards[0].DelegateeAddress)
+	require.Equal(t, addr.Hex(), delegateeValidationRewards[0].DelegatorAddress)
+	require.Equal(t, "0.0000000000000012", delegateeValidationRewards[0].TotalBalance.String())
+	require.Equal(t, "0.0000000000000002", delegateeValidationRewards[0].ValidationBalance.String())
+	require.Equal(t, "0.0000000000000004", delegateeValidationRewards[0].FlipsBalance.String())
+	require.Equal(t, "0.0000000000000006", delegateeValidationRewards[0].Invitations2Balance.String())
+	require.Nil(t, delegateeValidationRewards[0].InvitationsBalance)
+	require.Nil(t, delegateeValidationRewards[0].Invitations3Balance)
+	require.Nil(t, delegateeValidationRewards[0].SavedInvitesBalance)
+	require.Nil(t, delegateeValidationRewards[0].SavedInvitesWinBalance)
+	require.Nil(t, delegateeValidationRewards[0].ReportsBalance)
+
 	// When
 	err = dbAccessor.ResetTo(heightToReset)
 	// Then
@@ -333,4 +409,8 @@ func Test_complex(t *testing.T) {
 	rewardBounds, err = testCommon.GetRewardBounds(dbConnector)
 	require.Nil(t, err)
 	require.Empty(t, rewardBounds)
+
+	balanceUpdates, err = testCommon.GetBalanceUpdates(dbConnector)
+	require.Nil(t, err)
+	require.Empty(t, balanceUpdates)
 }

@@ -254,6 +254,135 @@ func TestStatsCollector_EpochRewardBalanceUpdate(t *testing.T) {
 	require.Equal(t, big.NewInt(0), c.stats.BalanceUpdates[1].StakeNew)
 }
 
+func TestStatsCollector_EpochRewardBalanceUpdateWithDelegatee(t *testing.T) {
+	c := &statsCollector{}
+	c.EnableCollecting()
+	delegator, delegatee := tests.GetRandAddr(), tests.GetRandAddr()
+	appState, _ := appstate.NewAppState(db.NewMemDB(), eventbus.New())
+
+	// when
+	c.BeginEpochRewardBalanceUpdate(delegator, delegatee, appState)
+	appState.State.AddStake(delegator, big.NewInt(1))
+	appState.State.AddBalance(delegatee, big.NewInt(2))
+	c.CompleteBalanceUpdate(appState)
+	// then
+	require.Equal(t, 0, len(c.pending.balanceUpdates))
+	require.Equal(t, 1, len(c.pending.balanceUpdatesByReasonAndAddr[db2.EpochRewardReason]))
+	require.Equal(t, 1, len(c.pending.balanceUpdatesByReasonAndAddr[db2.DelegatorEpochRewardReason]))
+	require.Equal(t, 1, len(c.pending.balanceUpdatesByReasonAndAddr[db2.DelegateeEpochRewardReason]))
+	require.Equal(t, 3, len(c.stats.BalanceUpdates))
+
+	require.Equal(t, delegator, c.stats.BalanceUpdates[0].Address)
+	require.Equal(t, db2.EpochRewardReason, c.stats.BalanceUpdates[0].Reason)
+	require.Nil(t, c.stats.BalanceUpdates[0].TxHash)
+	require.Equal(t, big.NewInt(0), c.stats.BalanceUpdates[0].BalanceOld)
+	require.Equal(t, big.NewInt(0), c.stats.BalanceUpdates[0].StakeOld)
+	require.Equal(t, big.NewInt(2), c.stats.BalanceUpdates[0].BalanceNew)
+	require.Equal(t, big.NewInt(1), c.stats.BalanceUpdates[0].StakeNew)
+
+	require.Equal(t, delegator, c.stats.BalanceUpdates[1].Address)
+	require.Equal(t, db2.DelegatorEpochRewardReason, c.stats.BalanceUpdates[1].Reason)
+	require.Nil(t, c.stats.BalanceUpdates[1].TxHash)
+	require.Equal(t, big.NewInt(2), c.stats.BalanceUpdates[1].BalanceOld)
+	require.Equal(t, big.NewInt(1), c.stats.BalanceUpdates[1].StakeOld)
+	require.Equal(t, big.NewInt(0), c.stats.BalanceUpdates[1].BalanceNew)
+	require.Equal(t, big.NewInt(1), c.stats.BalanceUpdates[1].StakeNew)
+
+	require.Equal(t, delegatee, c.stats.BalanceUpdates[2].Address)
+	require.Equal(t, db2.DelegateeEpochRewardReason, c.stats.BalanceUpdates[2].Reason)
+	require.Nil(t, c.stats.BalanceUpdates[2].TxHash)
+	require.Equal(t, big.NewInt(0), c.stats.BalanceUpdates[2].BalanceOld)
+	require.Equal(t, big.NewInt(0), c.stats.BalanceUpdates[2].StakeOld)
+	require.Equal(t, big.NewInt(2), c.stats.BalanceUpdates[2].BalanceNew)
+	require.Equal(t, big.NewInt(0), c.stats.BalanceUpdates[2].StakeNew)
+
+	delegator2, delegator3, delegatee2 := tests.GetRandAddr(), tests.GetRandAddr(), tests.GetRandAddr()
+
+	// when
+	c.BeginEpochRewardBalanceUpdate(delegator2, delegatee2, appState)
+	appState.State.AddStake(delegator2, big.NewInt(3))
+	appState.State.AddBalance(delegatee2, big.NewInt(4))
+	c.CompleteBalanceUpdate(appState)
+	c.BeginEpochRewardBalanceUpdate(delegator2, delegatee2, appState)
+	appState.State.AddStake(delegator2, big.NewInt(5))
+	appState.State.AddBalance(delegatee2, big.NewInt(6))
+	c.CompleteBalanceUpdate(appState)
+	c.BeginEpochRewardBalanceUpdate(delegator3, delegatee, appState)
+	appState.State.AddStake(delegator3, big.NewInt(7))
+	appState.State.AddBalance(delegatee, big.NewInt(8))
+	c.CompleteBalanceUpdate(appState)
+	// then
+	require.Equal(t, 0, len(c.pending.balanceUpdates))
+	require.Equal(t, 3, len(c.pending.balanceUpdatesByReasonAndAddr[db2.EpochRewardReason]))
+	require.Equal(t, 3, len(c.pending.balanceUpdatesByReasonAndAddr[db2.DelegatorEpochRewardReason]))
+	require.Equal(t, 2, len(c.pending.balanceUpdatesByReasonAndAddr[db2.DelegateeEpochRewardReason]))
+	require.Equal(t, 8, len(c.stats.BalanceUpdates))
+
+	require.Equal(t, delegator, c.stats.BalanceUpdates[0].Address)
+	require.Equal(t, db2.EpochRewardReason, c.stats.BalanceUpdates[0].Reason)
+	require.Nil(t, c.stats.BalanceUpdates[0].TxHash)
+	require.Equal(t, big.NewInt(0), c.stats.BalanceUpdates[0].BalanceOld)
+	require.Equal(t, big.NewInt(0), c.stats.BalanceUpdates[0].StakeOld)
+	require.Equal(t, big.NewInt(2), c.stats.BalanceUpdates[0].BalanceNew)
+	require.Equal(t, big.NewInt(1), c.stats.BalanceUpdates[0].StakeNew)
+
+	require.Equal(t, delegator, c.stats.BalanceUpdates[1].Address)
+	require.Equal(t, db2.DelegatorEpochRewardReason, c.stats.BalanceUpdates[1].Reason)
+	require.Nil(t, c.stats.BalanceUpdates[1].TxHash)
+	require.Equal(t, big.NewInt(2), c.stats.BalanceUpdates[1].BalanceOld)
+	require.Equal(t, big.NewInt(1), c.stats.BalanceUpdates[1].StakeOld)
+	require.Equal(t, big.NewInt(0), c.stats.BalanceUpdates[1].BalanceNew)
+	require.Equal(t, big.NewInt(1), c.stats.BalanceUpdates[1].StakeNew)
+
+	require.Equal(t, delegatee, c.stats.BalanceUpdates[2].Address)
+	require.Equal(t, db2.DelegateeEpochRewardReason, c.stats.BalanceUpdates[2].Reason)
+	require.Nil(t, c.stats.BalanceUpdates[2].TxHash)
+	require.Equal(t, big.NewInt(0), c.stats.BalanceUpdates[2].BalanceOld)
+	require.Equal(t, big.NewInt(0), c.stats.BalanceUpdates[2].StakeOld)
+	require.Equal(t, big.NewInt(10), c.stats.BalanceUpdates[2].BalanceNew)
+	require.Equal(t, big.NewInt(0), c.stats.BalanceUpdates[2].StakeNew)
+
+	require.Equal(t, delegator2, c.stats.BalanceUpdates[3].Address)
+	require.Equal(t, db2.EpochRewardReason, c.stats.BalanceUpdates[3].Reason)
+	require.Nil(t, c.stats.BalanceUpdates[3].TxHash)
+	require.Equal(t, big.NewInt(0), c.stats.BalanceUpdates[3].BalanceOld)
+	require.Equal(t, big.NewInt(0), c.stats.BalanceUpdates[3].StakeOld)
+	require.Equal(t, big.NewInt(10), c.stats.BalanceUpdates[3].BalanceNew)
+	require.Equal(t, big.NewInt(8), c.stats.BalanceUpdates[3].StakeNew)
+
+	require.Equal(t, delegator2, c.stats.BalanceUpdates[4].Address)
+	require.Equal(t, db2.DelegatorEpochRewardReason, c.stats.BalanceUpdates[4].Reason)
+	require.Nil(t, c.stats.BalanceUpdates[4].TxHash)
+	require.Equal(t, big.NewInt(10), c.stats.BalanceUpdates[4].BalanceOld)
+	require.Equal(t, big.NewInt(8), c.stats.BalanceUpdates[4].StakeOld)
+	require.Equal(t, big.NewInt(0), c.stats.BalanceUpdates[4].BalanceNew)
+	require.Equal(t, big.NewInt(8), c.stats.BalanceUpdates[4].StakeNew)
+
+	require.Equal(t, delegatee2, c.stats.BalanceUpdates[5].Address)
+	require.Equal(t, db2.DelegateeEpochRewardReason, c.stats.BalanceUpdates[5].Reason)
+	require.Nil(t, c.stats.BalanceUpdates[5].TxHash)
+	require.Equal(t, big.NewInt(0), c.stats.BalanceUpdates[5].BalanceOld)
+	require.Equal(t, big.NewInt(0), c.stats.BalanceUpdates[5].StakeOld)
+	require.Equal(t, big.NewInt(10), c.stats.BalanceUpdates[5].BalanceNew)
+	require.Equal(t, big.NewInt(0), c.stats.BalanceUpdates[5].StakeNew)
+
+	require.Equal(t, delegator3, c.stats.BalanceUpdates[6].Address)
+	require.Equal(t, db2.EpochRewardReason, c.stats.BalanceUpdates[6].Reason)
+	require.Nil(t, c.stats.BalanceUpdates[6].TxHash)
+	require.Equal(t, big.NewInt(0), c.stats.BalanceUpdates[6].BalanceOld)
+	require.Equal(t, big.NewInt(0), c.stats.BalanceUpdates[6].StakeOld)
+	require.Equal(t, big.NewInt(8), c.stats.BalanceUpdates[6].BalanceNew)
+	require.Equal(t, big.NewInt(7), c.stats.BalanceUpdates[6].StakeNew)
+
+	require.Equal(t, delegator3, c.stats.BalanceUpdates[7].Address)
+	require.Equal(t, db2.DelegatorEpochRewardReason, c.stats.BalanceUpdates[7].Reason)
+	require.Nil(t, c.stats.BalanceUpdates[7].TxHash)
+	require.Equal(t, big.NewInt(8), c.stats.BalanceUpdates[7].BalanceOld)
+	require.Equal(t, big.NewInt(7), c.stats.BalanceUpdates[7].StakeOld)
+	require.Equal(t, big.NewInt(0), c.stats.BalanceUpdates[7].BalanceNew)
+	require.Equal(t, big.NewInt(7), c.stats.BalanceUpdates[7].StakeNew)
+}
+
 func TestStatsCollector_DustClearingBalanceUpdate(t *testing.T) {
 	c := &statsCollector{}
 	c.EnableCollecting()
@@ -398,11 +527,11 @@ func TestStatsCollector_AddValidationReward(t *testing.T) {
 		return nil
 	}
 
-	require.Zero(t, find(addr1).Balance.Cmp(big.NewInt(0)))
+	require.Zero(t, find(addr1).Balance.Cmp(big.NewInt(1)))
 	require.Zero(t, find(addr1).Stake.Cmp(big.NewInt(2)))
 	require.Equal(t, Validation, find(addr1).Type)
 
-	require.Zero(t, find(addr2).Balance.Cmp(big.NewInt(10)))
+	require.Zero(t, find(addr2).Balance.Cmp(big.NewInt(3)))
 	require.Zero(t, find(addr2).Stake.Cmp(big.NewInt(4)))
 	require.Equal(t, Validation, find(addr2).Type)
 
@@ -410,9 +539,115 @@ func TestStatsCollector_AddValidationReward(t *testing.T) {
 	require.Zero(t, find(addr3).Stake.Cmp(big.NewInt(5)))
 	require.Equal(t, Validation, find(addr3).Type)
 
-	require.Zero(t, find(addr4).Balance.Cmp(big.NewInt(0)))
+	require.Zero(t, find(addr4).Balance.Cmp(big.NewInt(6)))
 	require.Zero(t, find(addr4).Stake.Cmp(big.NewInt(7)))
 	require.Equal(t, Validation, find(addr4).Type)
+
+	require.Len(t, c.stats.RewardsStats.DelegateesEpochRewards, 1)
+	require.Len(t, c.stats.RewardsStats.DelegateesEpochRewards[addr2].TotalRewards, 1)
+	require.Equal(t, big.NewInt(7), c.stats.RewardsStats.DelegateesEpochRewards[addr2].TotalRewards[Validation].Balance)
+	require.Equal(t, big.NewInt(0), c.stats.RewardsStats.DelegateesEpochRewards[addr2].TotalRewards[Validation].Stake)
+	require.Len(t, c.stats.RewardsStats.DelegateesEpochRewards[addr2].DelegatorsEpochRewards, 2)
+
+	require.Len(t, c.stats.RewardsStats.DelegateesEpochRewards[addr2].DelegatorsEpochRewards[addr1].EpochRewards, 1)
+	require.Equal(t, big.NewInt(1), c.stats.RewardsStats.DelegateesEpochRewards[addr2].DelegatorsEpochRewards[addr1].EpochRewards[Validation].Balance)
+	require.Equal(t, big.NewInt(0), c.stats.RewardsStats.DelegateesEpochRewards[addr2].DelegatorsEpochRewards[addr1].EpochRewards[Validation].Stake)
+
+	require.Len(t, c.stats.RewardsStats.DelegateesEpochRewards[addr2].DelegatorsEpochRewards[addr4].EpochRewards, 1)
+	require.Equal(t, big.NewInt(6), c.stats.RewardsStats.DelegateesEpochRewards[addr2].DelegatorsEpochRewards[addr4].EpochRewards[Validation].Balance)
+	require.Equal(t, big.NewInt(0), c.stats.RewardsStats.DelegateesEpochRewards[addr2].DelegatorsEpochRewards[addr4].EpochRewards[Validation].Stake)
+}
+
+func TestStatsCollector_AddRewardsWithDelegatee(t *testing.T) {
+	c := &statsCollector{}
+	c.EnableCollecting()
+
+	delegator1, delegator2, delegator3, delegator4, delegatee1, delegatee2 := tests.GetRandAddr(), tests.GetRandAddr(), tests.GetRandAddr(), tests.GetRandAddr(), tests.GetRandAddr(), tests.GetRandAddr()
+
+	c.AddValidationReward(delegatee1, delegatee1, 1, new(big.Int).SetInt64(1), new(big.Int).SetInt64(2))
+	c.AddValidationReward(delegatee1, delegator1, 1, new(big.Int).SetInt64(1), new(big.Int).SetInt64(2))
+	c.AddValidationReward(delegatee1, delegator2, 2, new(big.Int).SetInt64(3), new(big.Int).SetInt64(4))
+	c.AddValidationReward(delegatee1, delegator3, 3, new(big.Int).SetInt64(5), new(big.Int).SetInt64(6))
+	c.AddValidationReward(delegatee2, delegator4, 4, new(big.Int).SetInt64(7), new(big.Int).SetInt64(8))
+
+	c.AddFlipsReward(delegatee1, delegatee1, big.NewInt(9), big.NewInt(10), []*types.FlipToReward{
+		{[]byte{0x1}, types.GradeA},
+	})
+	c.AddFlipsReward(delegatee1, delegator1, big.NewInt(9), big.NewInt(10), []*types.FlipToReward{
+		{[]byte{0x1}, types.GradeA},
+	})
+	c.AddFlipsReward(delegatee1, delegator2, big.NewInt(11), big.NewInt(12), []*types.FlipToReward{
+		{[]byte{0x1}, types.GradeA},
+	})
+	c.AddFlipsReward(delegatee1, delegator3, big.NewInt(13), big.NewInt(14), []*types.FlipToReward{
+		{[]byte{0x1}, types.GradeA},
+	})
+	c.AddFlipsReward(delegatee2, delegator4, big.NewInt(15), big.NewInt(16), []*types.FlipToReward{
+		{[]byte{0x1}, types.GradeA},
+	})
+
+	c.SetValidation(&types2.ValidationStats{
+		Shards: map[common.ShardId]*types2.ValidationShardStats{
+			1: {
+				FlipCids: [][]byte{
+					{0x1},
+				},
+			},
+		},
+	})
+
+	c.AddReportedFlipsReward(delegatee1, delegatee1, 1, 1, big.NewInt(17), big.NewInt(18))
+	c.AddReportedFlipsReward(delegatee1, delegator1, 1, 1, big.NewInt(17), big.NewInt(18))
+	c.AddReportedFlipsReward(delegatee1, delegator2, 1, 1, big.NewInt(19), big.NewInt(20))
+	c.AddReportedFlipsReward(delegatee1, delegator3, 1, 1, big.NewInt(21), big.NewInt(22))
+	c.AddReportedFlipsReward(delegatee2, delegator4, 1, 1, big.NewInt(23), big.NewInt(24))
+	c.AddReportedFlipsReward(delegatee2, delegator4, 1, 1, big.NewInt(100), big.NewInt(200))
+
+	txHash := common.Hash{0x1, 0x2}
+	c.AddInvitationsReward(delegatee1, delegatee1, big.NewInt(25), big.NewInt(26), 1, &txHash, 4, false)
+	c.AddInvitationsReward(delegatee1, delegator1, big.NewInt(25), big.NewInt(26), 1, &txHash, 4, false)
+	c.AddInvitationsReward(delegatee1, delegator2, big.NewInt(27), big.NewInt(28), 1, &txHash, 5, false)
+	c.AddInvitationsReward(delegatee1, delegator3, big.NewInt(29), big.NewInt(30), 2, &txHash, 6, false)
+
+	require.Len(t, c.stats.RewardsStats.DelegateesEpochRewards, 2)
+
+	require.Len(t, c.stats.RewardsStats.DelegateesEpochRewards[delegatee1].TotalRewards, 5)
+	require.Equal(t, new(big.Int).SetInt64(9), c.stats.RewardsStats.DelegateesEpochRewards[delegatee1].TotalRewards[Validation].Balance)
+	require.Equal(t, new(big.Int).SetInt64(0), c.stats.RewardsStats.DelegateesEpochRewards[delegatee1].TotalRewards[Validation].Stake)
+
+	require.Equal(t, new(big.Int).SetInt64(33), c.stats.RewardsStats.DelegateesEpochRewards[delegatee1].TotalRewards[Flips].Balance)
+	require.Equal(t, new(big.Int).SetInt64(0), c.stats.RewardsStats.DelegateesEpochRewards[delegatee1].TotalRewards[Flips].Stake)
+
+	require.Equal(t, new(big.Int).SetInt64(57), c.stats.RewardsStats.DelegateesEpochRewards[delegatee1].TotalRewards[ReportedFlips].Balance)
+	require.Equal(t, new(big.Int).SetInt64(0), c.stats.RewardsStats.DelegateesEpochRewards[delegatee1].TotalRewards[ReportedFlips].Stake)
+
+	require.Equal(t, new(big.Int).SetInt64(52), c.stats.RewardsStats.DelegateesEpochRewards[delegatee1].TotalRewards[Invitations].Balance)
+	require.Equal(t, new(big.Int).SetInt64(0), c.stats.RewardsStats.DelegateesEpochRewards[delegatee1].TotalRewards[Invitations].Stake)
+
+	require.Equal(t, new(big.Int).SetInt64(29), c.stats.RewardsStats.DelegateesEpochRewards[delegatee1].TotalRewards[Invitations2].Balance)
+	require.Equal(t, new(big.Int).SetInt64(0), c.stats.RewardsStats.DelegateesEpochRewards[delegatee1].TotalRewards[Invitations2].Stake)
+
+	require.Len(t, c.stats.RewardsStats.DelegateesEpochRewards[delegatee1].DelegatorsEpochRewards, 3)
+	require.Equal(t, new(big.Int).SetInt64(1), c.stats.RewardsStats.DelegateesEpochRewards[delegatee1].DelegatorsEpochRewards[delegator1].EpochRewards[Validation].Balance)
+	require.Equal(t, new(big.Int).SetInt64(0), c.stats.RewardsStats.DelegateesEpochRewards[delegatee1].DelegatorsEpochRewards[delegator1].EpochRewards[Validation].Stake)
+	require.Equal(t, new(big.Int).SetInt64(3), c.stats.RewardsStats.DelegateesEpochRewards[delegatee1].DelegatorsEpochRewards[delegator2].EpochRewards[Validation].Balance)
+	require.Equal(t, new(big.Int).SetInt64(0), c.stats.RewardsStats.DelegateesEpochRewards[delegatee1].DelegatorsEpochRewards[delegator2].EpochRewards[Validation].Stake)
+	require.Equal(t, new(big.Int).SetInt64(5), c.stats.RewardsStats.DelegateesEpochRewards[delegatee1].DelegatorsEpochRewards[delegator3].EpochRewards[Validation].Balance)
+	require.Equal(t, new(big.Int).SetInt64(0), c.stats.RewardsStats.DelegateesEpochRewards[delegatee1].DelegatorsEpochRewards[delegator3].EpochRewards[Validation].Stake)
+
+	require.Len(t, c.stats.RewardsStats.DelegateesEpochRewards[delegatee2].TotalRewards, 3)
+	require.Equal(t, new(big.Int).SetInt64(7), c.stats.RewardsStats.DelegateesEpochRewards[delegatee2].TotalRewards[Validation].Balance)
+	require.Equal(t, new(big.Int).SetInt64(0), c.stats.RewardsStats.DelegateesEpochRewards[delegatee2].TotalRewards[Validation].Stake)
+
+	require.Equal(t, new(big.Int).SetInt64(15), c.stats.RewardsStats.DelegateesEpochRewards[delegatee2].TotalRewards[Flips].Balance)
+	require.Equal(t, new(big.Int).SetInt64(0), c.stats.RewardsStats.DelegateesEpochRewards[delegatee2].TotalRewards[Flips].Stake)
+
+	require.Equal(t, new(big.Int).SetInt64(123), c.stats.RewardsStats.DelegateesEpochRewards[delegatee2].TotalRewards[ReportedFlips].Balance)
+	require.Equal(t, new(big.Int).SetInt64(0), c.stats.RewardsStats.DelegateesEpochRewards[delegatee2].TotalRewards[ReportedFlips].Stake)
+
+	require.Len(t, c.stats.RewardsStats.DelegateesEpochRewards[delegatee2].DelegatorsEpochRewards, 1)
+	require.Equal(t, new(big.Int).SetInt64(123), c.stats.RewardsStats.DelegateesEpochRewards[delegatee2].DelegatorsEpochRewards[delegator4].EpochRewards[ReportedFlips].Balance)
+	require.Equal(t, new(big.Int).SetInt64(0), c.stats.RewardsStats.DelegateesEpochRewards[delegatee2].DelegatorsEpochRewards[delegator4].EpochRewards[ReportedFlips].Stake)
 }
 
 func TestStatsCollector_AddFlipsReward(t *testing.T) {
@@ -454,11 +689,11 @@ func TestStatsCollector_AddFlipsReward(t *testing.T) {
 		return nil
 	}
 
-	require.Zero(t, find(addr1).Balance.Cmp(big.NewInt(0)))
+	require.Zero(t, find(addr1).Balance.Cmp(big.NewInt(1)))
 	require.Zero(t, find(addr1).Stake.Cmp(big.NewInt(2)))
 	require.Equal(t, Flips, find(addr1).Type)
 
-	require.Zero(t, find(addr2).Balance.Cmp(big.NewInt(10)))
+	require.Zero(t, find(addr2).Balance.Cmp(big.NewInt(3)))
 	require.Zero(t, find(addr2).Stake.Cmp(big.NewInt(4)))
 	require.Equal(t, Flips, find(addr2).Type)
 
@@ -466,7 +701,7 @@ func TestStatsCollector_AddFlipsReward(t *testing.T) {
 	require.Zero(t, find(addr3).Stake.Cmp(big.NewInt(5)))
 	require.Equal(t, Flips, find(addr3).Type)
 
-	require.Zero(t, find(addr4).Balance.Cmp(big.NewInt(0)))
+	require.Zero(t, find(addr4).Balance.Cmp(big.NewInt(6)))
 	require.Zero(t, find(addr4).Stake.Cmp(big.NewInt(7)))
 	require.Equal(t, Flips, find(addr4).Type)
 }
@@ -538,11 +773,11 @@ func TestStatsCollector_AddReportedFlipsReward(t *testing.T) {
 		return nil
 	}
 
-	require.Zero(t, find(addr1).Balance.Cmp(big.NewInt(0)))
+	require.Zero(t, find(addr1).Balance.Cmp(big.NewInt(1)))
 	require.Zero(t, find(addr1).Stake.Cmp(big.NewInt(2)))
 	require.Equal(t, ReportedFlips, find(addr1).Type)
 
-	require.Zero(t, find(addr2).Balance.Cmp(big.NewInt(10)))
+	require.Zero(t, find(addr2).Balance.Cmp(big.NewInt(3)))
 	require.Zero(t, find(addr2).Stake.Cmp(big.NewInt(4)))
 	require.Equal(t, ReportedFlips, find(addr2).Type)
 
@@ -550,7 +785,7 @@ func TestStatsCollector_AddReportedFlipsReward(t *testing.T) {
 	require.Zero(t, find(addr3).Stake.Cmp(big.NewInt(5)))
 	require.Equal(t, ReportedFlips, find(addr3).Type)
 
-	require.Zero(t, find(addr4).Balance.Cmp(big.NewInt(0)))
+	require.Zero(t, find(addr4).Balance.Cmp(big.NewInt(6)))
 	require.Zero(t, find(addr4).Stake.Cmp(big.NewInt(7)))
 	require.Equal(t, ReportedFlips, find(addr4).Type)
 }
@@ -585,11 +820,11 @@ func TestStatsCollector_AddInvitationsReward(t *testing.T) {
 		return nil
 	}
 
-	require.Zero(t, find(addr1).Balance.Cmp(big.NewInt(0)))
+	require.Zero(t, find(addr1).Balance.Cmp(big.NewInt(1)))
 	require.Zero(t, find(addr1).Stake.Cmp(big.NewInt(2)))
 	require.Equal(t, Invitations, find(addr1).Type)
 
-	require.Zero(t, find(addr2).Balance.Cmp(big.NewInt(10)))
+	require.Zero(t, find(addr2).Balance.Cmp(big.NewInt(3)))
 	require.Zero(t, find(addr2).Stake.Cmp(big.NewInt(4)))
 	require.Equal(t, Invitations, find(addr2).Type)
 
@@ -597,7 +832,7 @@ func TestStatsCollector_AddInvitationsReward(t *testing.T) {
 	require.Zero(t, find(addr3).Stake.Cmp(big.NewInt(5)))
 	require.Equal(t, Invitations, find(addr3).Type)
 
-	require.Zero(t, find(addr4).Balance.Cmp(big.NewInt(0)))
+	require.Zero(t, find(addr4).Balance.Cmp(big.NewInt(6)))
 	require.Zero(t, find(addr4).Stake.Cmp(big.NewInt(7)))
 	require.Equal(t, Invitations, find(addr4).Type)
 }
