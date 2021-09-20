@@ -86,6 +86,11 @@ BEGIN
         call save_delegatee_epoch_rewards(p_epoch, p_height, p_data -> 'delegateeEpochRewards');
         select clock_timestamp() into l_end;
         call log_performance('save_delegatee_epoch_rewards', l_start, l_end);
+
+        select clock_timestamp() into l_start;
+        call save_validation_rewards_summaries(p_epoch, p_height, p_data -> 'validationRewardsSummaries', p_total.invitations_share);
+        select clock_timestamp() into l_end;
+        call log_performance('save_validation_rewards_summaries', l_start, l_end);
     end if;
 
 

@@ -143,3 +143,23 @@ CREATE TABLE IF NOT EXISTS delegatee_validation_rewards
     CONSTRAINT delegatee_validation_rewards_pkey PRIMARY KEY (epoch, delegatee_address_id, delegator_address_id)
 );
 CREATE INDEX IF NOT EXISTS delegatee_validation_rewards_api_idx1 on delegatee_validation_rewards (epoch, delegatee_address_id, total_balance desc, delegator_address_id);
+CREATE UNIQUE INDEX IF NOT EXISTS delegatee_validation_rewards_api_idx2 on delegatee_validation_rewards (epoch, delegator_address_id);
+
+CREATE TABLE IF NOT EXISTS validation_reward_summaries
+(
+    epoch                     bigint NOT NULL,
+    address_id                bigint NOT NULL,
+    validation                numeric(30, 18),
+    validation_missed         numeric(30, 18),
+    validation_missed_reason  smallint,
+    flips                     numeric(30, 18),
+    flips_missed              numeric(30, 18),
+    flips_missed_reason       smallint,
+    invitations               numeric(30, 18),
+    invitations_missed        numeric(30, 18),
+    invitations_missed_reason smallint,
+    reports                   numeric(30, 18),
+    reports_missed            numeric(30, 18),
+    reports_missed_reason     smallint,
+    CONSTRAINT validation_reward_summaries_pkey PRIMARY KEY (epoch, address_id)
+);

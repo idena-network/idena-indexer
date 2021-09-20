@@ -1109,10 +1109,11 @@ type upgrade struct {
 }
 
 type epochResultData struct {
-	FlipStatuses           []FlipStatusCount       `json:"flipStatuses,omitempty"`
-	RewardsBounds          []rewardBounds          `json:"rewardsBounds,omitempty"`
-	ReportedFlips          uint32                  `json:"reportedFlips"`
-	DelegateesEpochRewards []delegateeEpochRewards `json:"delegateeEpochRewards,omitempty"`
+	FlipStatuses               []FlipStatusCount           `json:"flipStatuses,omitempty"`
+	RewardsBounds              []rewardBounds              `json:"rewardsBounds,omitempty"`
+	ReportedFlips              uint32                      `json:"reportedFlips"`
+	DelegateesEpochRewards     []delegateeEpochRewards     `json:"delegateeEpochRewards,omitempty"`
+	ValidationRewardsSummaries []validationRewardSummaries `json:"validationRewardsSummaries,omitempty"`
 }
 
 func (v *epochResultData) Value() (driver.Value, error) {
@@ -1127,16 +1128,26 @@ type rewardBounds struct {
 	MaxAddress string          `json:"maxAddress"`
 }
 
-func getEpochResultData(
-	rewardsBounds []*RewardBounds,
-	flipStatuses []FlipStatusCount,
-	reportedFlips uint32,
-	delegateesEpochRewards []DelegateeEpochRewards,
-) *epochResultData {
+type validationRewardSummaries struct {
+	Address     string                  `json:"address"`
+	Validation  validationRewardSummary `json:"validation"`
+	Flips       validationRewardSummary `json:"flips"`
+	Invitations validationRewardSummary `json:"invitations"`
+	Reports     validationRewardSummary `json:"reports"`
+}
+
+type validationRewardSummary struct {
+	Earned       decimal.Decimal `json:"earned"`
+	Missed       decimal.Decimal `json:"missed"`
+	MissedReason *byte           `json:"missedReason,omitempty"`
+}
+
+func getEpochResultData(epochResult *EpochResult) *epochResultData {
 	res := &epochResultData{
-		FlipStatuses:  flipStatuses,
-		ReportedFlips: reportedFlips,
+		FlipStatuses:  epochResult.FlipStatuses,
+		ReportedFlips: epochResult.ReportedFlips,
 	}
+	rewardsBounds := epochResult.RewardsBounds
 	if len(rewardsBounds) > 0 {
 		res.RewardsBounds = make([]rewardBounds, 0, len(rewardsBounds))
 		for _, incomingRewardBounds := range rewardsBounds {
@@ -1149,6 +1160,7 @@ func getEpochResultData(
 			})
 		}
 	}
+	delegateesEpochRewards := epochResult.DelegateesEpochRewards
 	if len(delegateesEpochRewards) > 0 {
 		res.DelegateesEpochRewards = make([]delegateeEpochRewards, 0, len(delegateesEpochRewards))
 		for _, incomingItem := range delegateesEpochRewards {
@@ -1168,5 +1180,27 @@ func getEpochResultData(
 			res.DelegateesEpochRewards = append(res.DelegateesEpochRewards, item)
 		}
 	}
+	validationRewardsSummaries := epochResult.ValidationRewardSummaries
+	if len(validationRewardsSummaries) > 0 {
+		res.ValidationRewardsSummaries = make([]validationRewardSummaries, 0, len(validationRewardsSummaries))
+		for _, incomingItem := range validationRewardsSummaries {
+			item := validationRewardSummaries{
+				Address:     incomingItem.Address,
+				Validation:  convertValidationRewardSummary(incomingItem.Validation),
+				Flips:       convertValidationRewardSummary(incomingItem.Flips),
+				Invitations: convertValidationRewardSummary(incomingItem.Invitations),
+				Reports:     convertValidationRewardSummary(incomingItem.Reports),
+			}
+			res.ValidationRewardsSummaries = append(res.ValidationRewardsSummaries, item)
+		}
+	}
 	return res
+}
+
+func convertValidationRewardSummary(v ValidationRewardSummary) validationRewardSummary {
+	return validationRewardSummary{
+		Earned:       blockchain.ConvertToFloat(v.Earned),
+		Missed:       blockchain.ConvertToFloat(v.Missed),
+		MissedReason: v.MissedReason,
+	}
 }

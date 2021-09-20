@@ -837,6 +837,13 @@ func (indexer *Indexer) detectEpochResult(block *types.Block, ctx *conversionCon
 
 	var birthdays []db.Birthday
 	var identities []db.EpochIdentity
+	var validationRewardsSummaries []db.ValidationRewardSummaries
+	var vrsCalculator *validationRewardSummariesCalculator
+	if indexer.statsHolder().GetStats().RewardsStats != nil {
+		vrsCalculator = newValidationRewardSummariesCalculator(
+			indexer.statsHolder().GetStats().RewardsStats,
+		)
+	}
 	memPoolFlipKeysToMigrate := indexer.getMemPoolFlipKeysToMigrate(ctx.prevStateReadOnly.State.Epoch())
 	memPoolFlipKeys := memPoolFlipKeysToMigrate
 	validationStats := indexer.statsHolder().GetStats().ValidationStats
@@ -946,6 +953,24 @@ func (indexer *Indexer) detectEpochResult(block *types.Block, ctx *conversionCon
 		if identity.State != state.Undefined && identity.State != state.Killed && (newIdentityState == state.Killed || newIdentityState == state.Undefined) {
 			collector.killedAddrs[addr] = struct{}{}
 		}
+
+		if vrsCalculator != nil {
+			var potentialValidationRewardAge uint16
+			if identity.State == state.Undefined || identity.State == state.Killed || identity.State == state.Invite || identity.State == state.Candidate {
+				potentialValidationRewardAge = 1
+			} else {
+				potentialValidationRewardAge = newEpoch - uint16(convertedIdentity.BirthEpoch)
+			}
+			validationRewardSummaries := vrsCalculator.calculateValidationRewardSummaries(
+				addr,
+				shardId,
+				potentialValidationRewardAge,
+				identity.Flips,
+				newIdentityState,
+				convertedIdentity.AvailableFlips,
+			)
+			validationRewardsSummaries = append(validationRewardsSummaries, validationRewardSummaries)
+		}
 	})
 
 	for addr := range validationRewardsAddresses {
@@ -998,17 +1023,18 @@ func (indexer *Indexer) detectEpochResult(block *types.Block, ctx *conversionCon
 	}
 
 	return &db.EpochResult{
-		Identities:             identities,
-		FlipStats:              flipsStats,
-		FlipStatuses:           flipStatuses,
-		Birthdays:              birthdays,
-		MemPoolFlipKeys:        memPoolFlipKeys,
-		FailedValidation:       validationStats.Failed,
-		EpochRewards:           epochRewards,
-		MinScoreForInvite:      minScoreForInvite,
-		RewardsBounds:          rewardsBounds.getResult(),
-		ReportedFlips:          reportedFlips,
-		DelegateesEpochRewards: delegateesEpochRewards,
+		Identities:                identities,
+		FlipStats:                 flipsStats,
+		FlipStatuses:              flipStatuses,
+		Birthdays:                 birthdays,
+		MemPoolFlipKeys:           memPoolFlipKeys,
+		FailedValidation:          validationStats.Failed,
+		EpochRewards:              epochRewards,
+		MinScoreForInvite:         minScoreForInvite,
+		RewardsBounds:             rewardsBounds.getResult(),
+		ReportedFlips:             reportedFlips,
+		DelegateesEpochRewards:    delegateesEpochRewards,
+		ValidationRewardSummaries: validationRewardsSummaries,
 	}
 }
 

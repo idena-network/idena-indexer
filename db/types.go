@@ -422,17 +422,18 @@ type BalanceUpdate struct {
 }
 
 type EpochResult struct {
-	Identities             []EpochIdentity
-	FlipStats              []FlipStats
-	Birthdays              []Birthday
-	MemPoolFlipKeys        []*MemPoolFlipKey
-	FailedValidation       bool
-	EpochRewards           *EpochRewards
-	MinScoreForInvite      float32
-	RewardsBounds          []*RewardBounds
-	FlipStatuses           []FlipStatusCount
-	ReportedFlips          uint32
-	DelegateesEpochRewards []DelegateeEpochRewards
+	Identities                []EpochIdentity
+	FlipStats                 []FlipStats
+	Birthdays                 []Birthday
+	MemPoolFlipKeys           []*MemPoolFlipKey
+	FailedValidation          bool
+	EpochRewards              *EpochRewards
+	MinScoreForInvite         float32
+	RewardsBounds             []*RewardBounds
+	FlipStatuses              []FlipStatusCount
+	ReportedFlips             uint32
+	DelegateesEpochRewards    []DelegateeEpochRewards
+	ValidationRewardSummaries []ValidationRewardSummaries
 }
 
 type OracleVotingContract struct {
@@ -718,4 +719,18 @@ type DelegatorEpochReward struct {
 type DelegationEpochReward struct {
 	Balance *big.Int
 	Type    byte
+}
+
+type ValidationRewardSummaries struct {
+	Address     string
+	Validation  ValidationRewardSummary
+	Flips       ValidationRewardSummary
+	Invitations ValidationRewardSummary
+	Reports     ValidationRewardSummary
+}
+
+type ValidationRewardSummary struct {
+	Earned       *big.Int
+	Missed       *big.Int
+	MissedReason *byte
 }

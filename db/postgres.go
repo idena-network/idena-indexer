@@ -252,7 +252,7 @@ func (a *postgresAccessor) saveEpochResult(
 		savedInviteRewards = pq.Array(epochRewards.SavedInviteRewards)
 		reportedFlipRewards = pq.Array(epochRewards.ReportedFlipRewards)
 	}
-	data := getEpochResultData(epochResult.RewardsBounds, epochResult.FlipStatuses, epochResult.ReportedFlips, epochResult.DelegateesEpochRewards)
+	data := getEpochResultData(epochResult)
 	if _, err := tx.Exec(
 		a.getQuery(saveEpochResultQuery),
 		epoch,

@@ -3370,6 +3370,10 @@ BEGIN
     FROM delegatee_total_validation_rewards
     WHERE epoch > l_epoch OR NOT l_is_epoch_last_block AND epoch = l_epoch;
 
+    DELETE
+    FROM validation_reward_summaries
+    WHERE epoch > l_epoch OR NOT l_is_epoch_last_block AND epoch = l_epoch;
+
     DELETE FROM address_summaries;
     DELETE FROM balances;
     DELETE FROM birthdays;
@@ -3673,6 +3677,9 @@ $$
 DECLARE
     l_address_id bigint;
 BEGIN
+    if char_length(p_address) = 0 then
+        raise exception 'empty address to insert';
+    end if;
     SELECT id INTO l_address_id FROM addresses WHERE lower(address) = lower(p_address);
     if l_address_id is null then
         INSERT INTO addresses (address, block_height)
