@@ -1522,28 +1522,7 @@ SELECT s.id AS address_state_id,
        ei.epoch
 FROM address_states s
          JOIN blocks b ON b.height = s.block_height
-         JOIN epoch_identities ei ON s.id = ei.address_state_id
-UNION
-SELECT s.id AS address_state_id,
-       s.address_id,
-       s.prev_id,
-       s.state,
-       s.block_height,
-       max_epoch.epoch
-FROM address_states s
-         JOIN blocks b ON b.height = s.block_height
-         LEFT JOIN temporary_identities ti ON ti.address_id = s.address_id,
-     (SELECT max(epochs.epoch) AS epoch FROM epochs) max_epoch
-         LEFT JOIN epoch_identities ei ON ei.epoch = max_epoch.epoch
-WHERE s.is_actual
-  AND ti.address_id IS NULL
-  AND ei.address_state_id IS NULL
-  AND NOT (b.epoch <> max_epoch.epoch AND (s.state::text = ANY
-    -- 'Undefined', 'Killed'
-                                           (ARRAY [0::smallint, 5::smallint]::text[])));
-
-ALTER TABLE epoch_identity_states
-    OWNER TO postgres;
+         JOIN epoch_identities ei ON s.id = ei.address_state_id;
 
 -- Types
 DO
