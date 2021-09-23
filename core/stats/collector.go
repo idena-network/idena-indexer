@@ -89,6 +89,7 @@ type pendingTx struct {
 	timeLockContract                        *db.TimeLockContract
 	timeLockContractCallTransfer            *db.TimeLockContractCallTransfer
 	timeLockContractTermination             *db.TimeLockContractTermination
+	inviteTxHash                            *common.Hash
 }
 
 type pendingBurntCoins struct {
@@ -771,6 +772,13 @@ func (c *statsCollector) BeginApplyingTx(tx *types.Transaction, appState *appsta
 		recipientState := appState.State.GetIdentityState(*tx.To)
 		c.pending.identityStates = append(c.pending.identityStates, recipientState)
 	}
+	if tx.Type == types.ActivationTx {
+		senderIdentity := appState.State.GetIdentity(sender)
+		inviter := senderIdentity.Inviter
+		if inviter != nil {
+			c.pending.tx.inviteTxHash = &inviter.TxHash
+		}
+	}
 }
 
 func (c *statsCollector) CompleteApplyingTx(appState *appstate.AppState) {
@@ -820,10 +828,9 @@ func (c *statsCollector) collectActivationTx(appState *appstate.AppState) {
 		return
 	}
 	recipient := *tx.To
-	inviter := appState.State.GetInviter(recipient)
 	c.stats.ActivationTxs = append(c.stats.ActivationTxs, db.ActivationTx{
 		TxHash:       conversion.ConvertHash(tx.Hash()),
-		InviteTxHash: conversion.ConvertHash(inviter.TxHash),
+		InviteTxHash: conversion.ConvertHash(*c.pending.tx.inviteTxHash),
 		ShardId:      appState.State.ShardId(recipient),
 	})
 }
