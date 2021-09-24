@@ -193,7 +193,7 @@ func calculateValidationRewardSummary(
 	var missedReason byte
 	if share != nil && (!newState.NewbieOrBetter() || penalized) {
 		ageCoef := float32(math.Pow(float64(age), float64(1)/3))
-		missed = new(big.Int).Mul(share, math2.ToInt(decimal.NewFromFloat32(ageCoef)))
+		missed = math2.ToInt(decimal.NewFromBigInt(share, 0).Mul(decimal.NewFromFloat32(ageCoef)))
 		if missed.Sign() > 0 {
 			if penalized {
 				missedReason = missedRewardReasonPenalty

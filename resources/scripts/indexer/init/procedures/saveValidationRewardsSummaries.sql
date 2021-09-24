@@ -35,6 +35,9 @@ BEGIN
             l_invitations_missed_reason = (l_invitations_reward_summary ->> 'missedReason')::smallint;
             l_invitations_missed =
                     calculate_invitations_missed_reward(p_epoch, l_address_id, l_invitations, p_invitations_share);
+            if l_invitations_missed_reason is not null and l_invitations_missed is null or l_invitations_missed = 0 then
+                l_invitations_missed_reason = null;
+            end if;
             if l_invitations_missed_reason is null and l_invitations_missed > 0 then
                 l_invitations_missed_reason = MISSED_REWARD_REASON_NOT_ALL_INVITES;
             end if;
