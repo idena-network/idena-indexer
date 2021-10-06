@@ -183,12 +183,12 @@ BEGIN
                 l_delegatee_address_id = null;
             end if;
 
-            insert into epoch_identities (epoch, address_state_id, short_point, short_flips, total_short_point,
+            insert into epoch_identities (epoch, address_id, address_state_id, short_point, short_flips, total_short_point,
                                           total_short_flips, long_point, long_flips, approved, missed, required_flips,
                                           available_flips, made_flips, next_epoch_invites, birth_epoch,
                                           total_validation_reward, short_answers, long_answers, wrong_words_flips,
                                           delegatee_address_id, shard_id, new_shard_id)
-            values (p_epoch, l_state_id, l_identity.short_point, l_identity.short_flips, l_identity.total_short_point,
+            values (p_epoch, l_address_id, l_state_id, l_identity.short_point, l_identity.short_flips, l_identity.total_short_point,
                     l_identity.total_short_flips, l_identity.long_point, l_identity.long_flips, l_identity.approved,
                     l_identity.missed, l_identity.required_flips, l_identity.available_flips, l_identity.made_flips,
                     l_identity.next_epoch_invites, l_identity.birth_epoch, 0, l_identity.short_answers,

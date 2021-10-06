@@ -658,6 +658,7 @@ CREATE TABLE IF NOT EXISTS epoch_identities
     delegatee_address_id    bigint,
     shard_id                integer,
     new_shard_id            integer,
+    address_id              bigint          NOT NULL,
     CONSTRAINT epoch_identities_pkey PRIMARY KEY (address_state_id),
     CONSTRAINT epoch_identities_address_state_id_fkey FOREIGN KEY (address_state_id)
         REFERENCES address_states (id) MATCH SIMPLE
@@ -668,6 +669,7 @@ CREATE TABLE IF NOT EXISTS epoch_identities
         ON UPDATE NO ACTION
         ON DELETE NO ACTION
 );
+CREATE UNIQUE INDEX IF NOT EXISTS epoch_identities_api_idx on epoch_identities (address_id, epoch desc);
 
 CREATE TABLE IF NOT EXISTS epoch_identity_interim_states
 (
@@ -3368,11 +3370,13 @@ BEGIN
     DELETE FROM delegatee_validation_rewards WHERE epoch > l_epoch OR NOT l_is_epoch_last_block AND epoch = l_epoch;
     DELETE
     FROM delegatee_total_validation_rewards
-    WHERE epoch > l_epoch OR NOT l_is_epoch_last_block AND epoch = l_epoch;
+    WHERE epoch > l_epoch
+       OR NOT l_is_epoch_last_block AND epoch = l_epoch;
 
     DELETE
     FROM validation_reward_summaries
-    WHERE epoch > l_epoch OR NOT l_is_epoch_last_block AND epoch = l_epoch;
+    WHERE epoch > l_epoch
+       OR NOT l_is_epoch_last_block AND epoch = l_epoch;
 
     DELETE FROM address_summaries;
     DELETE FROM balances;
