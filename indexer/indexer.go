@@ -819,10 +819,12 @@ func convertStatsAnswers(incomingAnswers []statsTypes.FlipAnswerStats) []db.Answ
 
 func convertStatsAnswer(incomingAnswer statsTypes.FlipAnswerStats) db.Answer {
 	return db.Answer{
-		Address: conversion.ConvertAddress(incomingAnswer.Respondent),
-		Answer:  convertAnswer(incomingAnswer.Answer),
-		Point:   incomingAnswer.Point,
-		Grade:   byte(incomingAnswer.Grade),
+		Address:    conversion.ConvertAddress(incomingAnswer.Respondent),
+		Answer:     convertAnswer(incomingAnswer.Answer),
+		Point:      incomingAnswer.Point,
+		Grade:      byte(incomingAnswer.Grade),
+		Index:      uint16(incomingAnswer.Index),
+		Considered: incomingAnswer.Considered,
 	}
 }
 

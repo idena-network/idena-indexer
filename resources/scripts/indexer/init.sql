@@ -771,6 +771,8 @@ CREATE TABLE IF NOT EXISTS answers
     answer              smallint NOT NULL,
     point               real     NOT NULL,
     grade               smallint NOT NULL,
+    index               smallint,
+    considered          boolean,
     CONSTRAINT answers_ei_address_state_id_fkey FOREIGN KEY (ei_address_state_id)
         REFERENCES epoch_identities (address_state_id) MATCH SIMPLE
         ON UPDATE NO ACTION
@@ -807,6 +809,7 @@ CREATE TABLE IF NOT EXISTS flips_to_solve
     ei_address_state_id bigint  NOT NULL,
     flip_tx_id          bigint  NOT NULL,
     is_short            boolean NOT NULL,
+    index               smallint,
     CONSTRAINT flips_to_solve_ei_address_state_id_fkey FOREIGN KEY (ei_address_state_id)
         REFERENCES epoch_identities (address_state_id) MATCH SIMPLE
         ON UPDATE NO ACTION
@@ -1720,12 +1723,14 @@ $$
     BEGIN
         CREATE TYPE tp_answer AS
         (
-            flip_cid character varying(100),
-            address  character(42),
-            is_short boolean,
-            answer   smallint,
-            point    real,
-            grade    smallint
+            flip_cid   character varying(100),
+            address    character(42),
+            is_short   boolean,
+            answer     smallint,
+            point      real,
+            grade      smallint,
+            index      smallint,
+            considered boolean
         );
     EXCEPTION
         WHEN duplicate_object THEN null;
@@ -1802,16 +1807,13 @@ $$;
 DO
 $$
     BEGIN
-        -- Type: tp_flip_to_solve
         CREATE TYPE tp_flip_to_solve AS
         (
             address  character(42),
             cid      character varying(100),
-            is_short boolean
+            is_short boolean,
+            index    smallint
         );
-
-        ALTER TYPE tp_flip_to_solve
-            OWNER TO postgres;
     EXCEPTION
         WHEN duplicate_object THEN null;
     END

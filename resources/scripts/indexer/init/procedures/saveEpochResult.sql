@@ -234,10 +234,11 @@ CREATE OR REPLACE PROCEDURE save_flips_to_solve(p_flips_to_solve tp_flip_to_solv
 AS
 $BODY$
 BEGIN
-    INSERT INTO flips_to_solve (ei_address_state_id, flip_tx_id, is_short)
+    INSERT INTO flips_to_solve (ei_address_state_id, flip_tx_id, is_short, index)
     SELECT cei.address_state_id,
            f.tx_id,
-           flips_to_solve_arr.is_short
+           flips_to_solve_arr.is_short,
+           flips_to_solve_arr.index
     FROM unnest(p_flips_to_solve) AS flips_to_solve_arr
              JOIN flips f ON lower(f.cid) = lower(flips_to_solve_arr.cid)
              JOIN cur_epoch_identities cei ON lower(cei.address) = lower(flips_to_solve_arr.address);
@@ -277,13 +278,15 @@ BEGIN
 
     select clock_timestamp() into l_start;
     if answers is not null then
-        INSERT INTO answers (flip_tx_id, ei_address_state_id, is_short, answer, point, grade)
+        INSERT INTO answers (flip_tx_id, ei_address_state_id, is_short, answer, point, grade, index, considered)
         SELECT f.tx_id,
                cei.address_state_id,
                answers_arr.is_short,
                answers_arr.answer,
                answers_arr.point,
-               answers_arr.grade
+               answers_arr.grade,
+               answers_arr.index,
+               answers_arr.considered
         FROM unnest(answers) AS answers_arr
                  JOIN flips f ON lower(f.cid) = lower(answers_arr.flip_cid)
                  JOIN cur_epoch_identities cei ON lower(cei.address) = lower(answers_arr.address);

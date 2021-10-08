@@ -657,17 +657,19 @@ func (v *txHashId) Scan(value interface{}) error {
 }
 
 type postgresAnswer struct {
-	flipCid string
-	address string
-	isShort bool
-	answer  byte
-	point   float32
-	grade   byte
+	flipCid    string
+	address    string
+	isShort    bool
+	answer     byte
+	point      float32
+	grade      byte
+	index      uint16
+	considered bool
 }
 
 func (v postgresAnswer) Value() (driver.Value, error) {
-	return fmt.Sprintf("(%v,%v,%v,%v,%v,%v)", v.flipCid, v.address, v.isShort, v.answer,
-		v.point, v.grade), nil
+	return fmt.Sprintf("(%v,%v,%v,%v,%v,%v,%v,%v)", v.flipCid, v.address, v.isShort, v.answer,
+		v.point, v.grade, v.index, v.considered), nil
 }
 
 type postgresFlipsState struct {
@@ -690,12 +692,14 @@ func getFlipStatsArrays(stats []FlipStats) (answersArray, statesArray interface 
 	var convertedStates []postgresFlipsState
 	var convertAndAddAnswer = func(isShort bool, flipCid string, answer Answer) {
 		convertedAnswer := postgresAnswer{
-			address: answer.Address,
-			answer:  answer.Answer,
-			point:   answer.Point,
-			isShort: isShort,
-			grade:   answer.Grade,
-			flipCid: flipCid,
+			address:    answer.Address,
+			answer:     answer.Answer,
+			point:      answer.Point,
+			isShort:    isShort,
+			grade:      answer.Grade,
+			flipCid:    flipCid,
+			index:      answer.Index,
+			considered: answer.Considered,
 		}
 		convertedAnswers = append(convertedAnswers, convertedAnswer)
 	}
@@ -776,13 +780,15 @@ type postgresFlipToSolve struct {
 	address string
 	cid     string
 	isShort bool
+	index   uint16
 }
 
 func (v postgresFlipToSolve) Value() (driver.Value, error) {
-	return fmt.Sprintf("(%v,%v,%v)",
+	return fmt.Sprintf("(%v,%v,%v,%v)",
 		v.address,
 		v.cid,
 		v.isShort,
+		v.index,
 	), nil
 }
 
@@ -797,20 +803,21 @@ func getEpochIdentitiesArrays(
 }) {
 	var convertedIdentities []postgresEpochIdentity
 	var convertedFlipsToSolve []postgresFlipToSolve
-	var convertAndAddFlipToSolve = func(address string, flipCid string, isShort bool) {
+	var convertAndAddFlipToSolve = func(address string, flipCid string, isShort bool, index int) {
 		converted := postgresFlipToSolve{
 			cid:     flipCid,
 			isShort: isShort,
 			address: address,
+			index:   uint16(index),
 		}
 		convertedFlipsToSolve = append(convertedFlipsToSolve, converted)
 	}
 	for _, identity := range identities {
-		for _, flipCid := range identity.ShortFlipCidsToSolve {
-			convertAndAddFlipToSolve(identity.Address, flipCid, true)
+		for i, flipCid := range identity.ShortFlipCidsToSolve {
+			convertAndAddFlipToSolve(identity.Address, flipCid, true, i)
 		}
-		for _, flipCid := range identity.LongFlipCidsToSolve {
-			convertAndAddFlipToSolve(identity.Address, flipCid, false)
+		for i, flipCid := range identity.LongFlipCidsToSolve {
+			convertAndAddFlipToSolve(identity.Address, flipCid, false, i)
 		}
 		var shortAnswers, longAnswers uint32
 		if shortAnswerCountsByAddr != nil {

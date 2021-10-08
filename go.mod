@@ -6,10 +6,10 @@ replace github.com/cosmos/iavl => github.com/idena-network/iavl v0.12.3-0.202106
 
 require (
 	github.com/deckarep/golang-set v1.7.1
-	github.com/go-stack/stack v1.8.0
+	github.com/go-stack/stack v1.8.1
 	github.com/gorilla/handlers v1.4.2
 	github.com/gorilla/mux v1.7.3
-	github.com/idena-network/idena-go v0.27.1
+	github.com/idena-network/idena-go v0.27.3-0.20211008125749-266cb1fcc846
 	github.com/ipfs/go-cid v0.0.7
 	github.com/ipfs/interface-go-ipfs-core v0.4.0
 	github.com/lib/pq v1.1.1

@@ -308,10 +308,12 @@ type FlipStats struct {
 }
 
 type Answer struct {
-	Address string
-	Answer  byte
-	Point   float32
-	Grade   byte
+	Address    string
+	Answer     byte
+	Point      float32
+	Grade      byte
+	Index      uint16
+	Considered bool
 }
 
 type FlipKey struct {
