@@ -39,9 +39,11 @@ type validationRewardSummariesCalculator struct {
 
 func newValidationRewardSummariesCalculator(
 	rewardsStats *stats.RewardsStats,
+	validationStats *statsTypes.ValidationStats,
 ) *validationRewardSummariesCalculator {
 	res := &validationRewardSummariesCalculator{
-		rewardsStats: rewardsStats,
+		rewardsStats:    rewardsStats,
+		validationStats: validationStats,
 	}
 	return res
 }
@@ -279,7 +281,7 @@ func calculateReportsRewardSummary(
 	}
 	missedReports := 0
 	for _, flipWithReportConsensus := range flipsWithReportConsensus {
-		if _, ok := rewardedReportedFlips[flipWithReportConsensus]; ok {
+		if _, ok := rewardedReportedFlips[flipWithReportConsensus]; !ok {
 			missedReports++
 		}
 	}

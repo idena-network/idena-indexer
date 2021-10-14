@@ -52,6 +52,8 @@ type pending struct {
 	tx                            *pendingTx
 	identitiesByAddr              map[common.Address]*identityInfo
 	finalCommitteeRewardsByAddr   map[common.Address]*MiningReward
+	linkedBalanceUpdatesByPrev    map[*db.BalanceUpdate]*db.BalanceUpdate
+	linkedBalanceUpdatesByNext    map[*db.BalanceUpdate]*db.BalanceUpdate
 }
 
 type identityInfo struct {
@@ -723,18 +725,12 @@ func (c *statsCollector) CompleteBalanceUpdate(appState *appstate.AppState) {
 			delegatorBalanceUpdate = balanceUpdates[1]
 			delegateeBalanceUpdate = balanceUpdates[0]
 		}
-		var delegatorBalanceUpdateOld *big.Int
-		if pendingDelegatorBalanceUpdate, ok := c.getPendingBalanceUpdate(db.DelegatorEpochRewardReason, delegatorBalanceUpdate.Address); ok {
-			delegatorBalanceUpdateOld = pendingDelegatorBalanceUpdate.BalanceOld
-		} else {
-			delegatorBalanceUpdateOld = delegatorBalanceUpdate.BalanceOld
-		}
 		rewardBalanceUpdate := &db.BalanceUpdate{
 			Address:    delegatorBalanceUpdate.Address,
 			BalanceOld: delegatorBalanceUpdate.BalanceOld,
 			StakeOld:   delegatorBalanceUpdate.StakeOld,
 			PenaltyOld: delegatorBalanceUpdate.PenaltyOld,
-			BalanceNew: new(big.Int).Add(delegatorBalanceUpdateOld,
+			BalanceNew: new(big.Int).Add(delegatorBalanceUpdate.BalanceOld,
 				new(big.Int).Sub(delegateeBalanceUpdate.BalanceNew, delegateeBalanceUpdate.BalanceOld)),
 			StakeNew:   delegatorBalanceUpdate.StakeNew,
 			PenaltyNew: delegatorBalanceUpdate.PenaltyNew,
@@ -815,10 +811,67 @@ func (c *statsCollector) handleMultipleBalanceUpdate(balanceUpdate *db.BalanceUp
 			bu.StakeOld = balanceUpdate.StakeOld
 			bu.PenaltyOld = balanceUpdate.PenaltyOld
 		}
+		c.updateLinkedBalanceUpdates(bu)
 		return true
 	}
 	balanceUpdatesByAddr[balanceUpdate.Address] = balanceUpdate
+
+	if balanceUpdate.Reason == db.EpochRewardReason {
+		if delegatorBalanceUpdate, delegatorBalanceUpdatePresent := c.getPendingBalanceUpdate(db.DelegatorEpochRewardReason, balanceUpdate.Address); delegatorBalanceUpdatePresent {
+			if c.pending.linkedBalanceUpdatesByNext == nil {
+				c.pending.linkedBalanceUpdatesByNext = make(map[*db.BalanceUpdate]*db.BalanceUpdate)
+			}
+			c.pending.linkedBalanceUpdatesByNext[balanceUpdate] = delegatorBalanceUpdate
+			if c.pending.linkedBalanceUpdatesByPrev == nil {
+				c.pending.linkedBalanceUpdatesByPrev = make(map[*db.BalanceUpdate]*db.BalanceUpdate)
+			}
+			c.pending.linkedBalanceUpdatesByPrev[delegatorBalanceUpdate] = balanceUpdate
+		} else {
+			delegateeBalanceUpdate, delegateeBalanceUpdatePresent := c.getPendingBalanceUpdate(db.DelegateeEpochRewardReason, balanceUpdate.Address)
+			if delegateeBalanceUpdatePresent {
+				if c.pending.linkedBalanceUpdatesByNext == nil {
+					c.pending.linkedBalanceUpdatesByNext = make(map[*db.BalanceUpdate]*db.BalanceUpdate)
+				}
+				c.pending.linkedBalanceUpdatesByNext[balanceUpdate] = delegateeBalanceUpdate
+				if c.pending.linkedBalanceUpdatesByPrev == nil {
+					c.pending.linkedBalanceUpdatesByPrev = make(map[*db.BalanceUpdate]*db.BalanceUpdate)
+				}
+				c.pending.linkedBalanceUpdatesByPrev[delegateeBalanceUpdate] = balanceUpdate
+			}
+		}
+	}
+	if balanceUpdate.Reason == db.DelegatorEpochRewardReason || balanceUpdate.Reason == db.DelegateeEpochRewardReason {
+		if epochRewardBalanceUpdate, epochRewardBalanceUpdatePresent := c.getPendingBalanceUpdate(db.EpochRewardReason, balanceUpdate.Address); epochRewardBalanceUpdatePresent {
+			if c.pending.linkedBalanceUpdatesByNext == nil {
+				c.pending.linkedBalanceUpdatesByNext = make(map[*db.BalanceUpdate]*db.BalanceUpdate)
+			}
+			c.pending.linkedBalanceUpdatesByNext[balanceUpdate] = epochRewardBalanceUpdate
+			if c.pending.linkedBalanceUpdatesByPrev == nil {
+				c.pending.linkedBalanceUpdatesByPrev = make(map[*db.BalanceUpdate]*db.BalanceUpdate)
+			}
+			c.pending.linkedBalanceUpdatesByPrev[epochRewardBalanceUpdate] = balanceUpdate
+		}
+	}
+	c.updateLinkedBalanceUpdates(balanceUpdate)
 	return false
+}
+
+func (c *statsCollector) updateLinkedBalanceUpdates(balanceUpdate *db.BalanceUpdate) {
+	if balanceUpdate.Reason != db.DelegateeEpochRewardReason && balanceUpdate.Reason != db.EpochRewardReason &&
+		balanceUpdate.Reason != db.DelegatorEpochRewardReason {
+		return
+	}
+	if prevBalanceUpdate, prevBalanceUpdateOk := c.pending.linkedBalanceUpdatesByNext[balanceUpdate]; prevBalanceUpdateOk {
+		balanceUpdate.BalanceOld = prevBalanceUpdate.BalanceNew
+		balanceUpdate.StakeOld = prevBalanceUpdate.StakeNew
+	} else if nextBalanceUpdate, nextBalanceUpdateOk := c.pending.linkedBalanceUpdatesByPrev[balanceUpdate]; nextBalanceUpdateOk {
+		balanceUpdate.BalanceNew = new(big.Int).Sub(balanceUpdate.BalanceNew, new(big.Int).Sub(nextBalanceUpdate.BalanceNew, nextBalanceUpdate.BalanceOld))
+		balanceUpdate.StakeNew = new(big.Int).Sub(balanceUpdate.StakeNew, new(big.Int).Sub(nextBalanceUpdate.StakeNew, nextBalanceUpdate.StakeOld))
+		nextBalanceUpdate.BalanceNew = new(big.Int).Add(nextBalanceUpdate.BalanceNew, new(big.Int).Sub(balanceUpdate.BalanceNew, nextBalanceUpdate.BalanceOld))
+		nextBalanceUpdate.BalanceOld = balanceUpdate.BalanceNew
+		nextBalanceUpdate.StakeNew = new(big.Int).Add(nextBalanceUpdate.StakeNew, new(big.Int).Sub(balanceUpdate.StakeNew, nextBalanceUpdate.StakeOld))
+		nextBalanceUpdate.StakeOld = balanceUpdate.StakeNew
+	}
 }
 
 func isBalanceOrStakeOrPenaltyChanged(balanceUpdate *db.BalanceUpdate) bool {

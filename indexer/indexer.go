@@ -841,14 +841,15 @@ func (indexer *Indexer) detectEpochResult(block *types.Block, ctx *conversionCon
 	var identities []db.EpochIdentity
 	var validationRewardsSummaries []db.ValidationRewardSummaries
 	var vrsCalculator *validationRewardSummariesCalculator
+	validationStats := indexer.statsHolder().GetStats().ValidationStats
 	if indexer.statsHolder().GetStats().RewardsStats != nil {
 		vrsCalculator = newValidationRewardSummariesCalculator(
 			indexer.statsHolder().GetStats().RewardsStats,
+			validationStats,
 		)
 	}
 	memPoolFlipKeysToMigrate := indexer.getMemPoolFlipKeysToMigrate(ctx.prevStateReadOnly.State.Epoch())
 	memPoolFlipKeys := memPoolFlipKeysToMigrate
-	validationStats := indexer.statsHolder().GetStats().ValidationStats
 
 	authorAddressesByFlipCid := make(map[string]string)
 

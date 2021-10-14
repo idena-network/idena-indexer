@@ -383,6 +383,308 @@ func TestStatsCollector_EpochRewardBalanceUpdateWithDelegatee(t *testing.T) {
 	require.Equal(t, big.NewInt(7), c.stats.BalanceUpdates[7].StakeNew)
 }
 
+func TestStatsCollector_EpochRewardBalanceUpdateWithDelegatee2(t *testing.T) {
+	c := &statsCollector{}
+	c.EnableCollecting()
+	delegator, delegatee := tests.GetRandAddr(), tests.GetRandAddr()
+
+	// when
+	appState, _ := appstate.NewAppState(db.NewMemDB(), eventbus.New())
+	c.BeginEpochRewardBalanceUpdate(delegator, delegatee, appState)
+	appState.State.AddStake(delegator, big.NewInt(1))
+	appState.State.AddBalance(delegatee, big.NewInt(2))
+	c.CompleteBalanceUpdate(appState)
+
+	c.BeginEpochRewardBalanceUpdate(delegatee, delegatee, appState)
+	appState.State.AddStake(delegatee, big.NewInt(3))
+	appState.State.AddBalance(delegatee, big.NewInt(4))
+	c.CompleteBalanceUpdate(appState)
+
+	c.BeginEpochRewardBalanceUpdate(delegator, delegatee, appState)
+	appState.State.AddStake(delegator, big.NewInt(5))
+	appState.State.AddBalance(delegatee, big.NewInt(6))
+	c.CompleteBalanceUpdate(appState)
+
+	// then
+	require.Equal(t, 0, len(c.pending.balanceUpdates))
+	require.Equal(t, 2, len(c.pending.balanceUpdatesByReasonAndAddr[db2.EpochRewardReason]))
+	require.Equal(t, 1, len(c.pending.balanceUpdatesByReasonAndAddr[db2.DelegatorEpochRewardReason]))
+	require.Equal(t, 1, len(c.pending.balanceUpdatesByReasonAndAddr[db2.DelegateeEpochRewardReason]))
+	require.Equal(t, 4, len(c.stats.BalanceUpdates))
+
+	require.Equal(t, delegator, c.stats.BalanceUpdates[0].Address)
+	require.Equal(t, db2.EpochRewardReason, c.stats.BalanceUpdates[0].Reason)
+	require.Nil(t, c.stats.BalanceUpdates[0].TxHash)
+	require.Equal(t, big.NewInt(0), c.stats.BalanceUpdates[0].BalanceOld)
+	require.Equal(t, big.NewInt(0), c.stats.BalanceUpdates[0].StakeOld)
+	require.Equal(t, big.NewInt(8), c.stats.BalanceUpdates[0].BalanceNew)
+	require.Equal(t, big.NewInt(6), c.stats.BalanceUpdates[0].StakeNew)
+
+	require.Equal(t, delegator, c.stats.BalanceUpdates[1].Address)
+	require.Equal(t, db2.DelegatorEpochRewardReason, c.stats.BalanceUpdates[1].Reason)
+	require.Nil(t, c.stats.BalanceUpdates[1].TxHash)
+	require.Equal(t, big.NewInt(8), c.stats.BalanceUpdates[1].BalanceOld)
+	require.Equal(t, big.NewInt(6), c.stats.BalanceUpdates[1].StakeOld)
+	require.Equal(t, big.NewInt(0), c.stats.BalanceUpdates[1].BalanceNew)
+	require.Equal(t, big.NewInt(6), c.stats.BalanceUpdates[1].StakeNew)
+
+	require.Equal(t, delegatee, c.stats.BalanceUpdates[2].Address)
+	require.Equal(t, db2.DelegateeEpochRewardReason, c.stats.BalanceUpdates[2].Reason)
+	require.Nil(t, c.stats.BalanceUpdates[2].TxHash)
+	require.Equal(t, big.NewInt(0), c.stats.BalanceUpdates[2].BalanceOld)
+	require.Equal(t, big.NewInt(0), c.stats.BalanceUpdates[2].StakeOld)
+	require.Equal(t, big.NewInt(8), c.stats.BalanceUpdates[2].BalanceNew)
+	require.Zero(t, c.stats.BalanceUpdates[2].StakeNew.Sign())
+
+	require.Equal(t, delegatee, c.stats.BalanceUpdates[3].Address)
+	require.Equal(t, db2.EpochRewardReason, c.stats.BalanceUpdates[3].Reason)
+	require.Nil(t, c.stats.BalanceUpdates[3].TxHash)
+	require.Equal(t, big.NewInt(8), c.stats.BalanceUpdates[3].BalanceOld)
+	require.Zero(t, c.stats.BalanceUpdates[3].StakeOld.Sign())
+	require.Equal(t, big.NewInt(12), c.stats.BalanceUpdates[3].BalanceNew)
+	require.Equal(t, big.NewInt(3), c.stats.BalanceUpdates[3].StakeNew)
+
+	// when
+	c.CompleteCollecting()
+	c.EnableCollecting()
+	appState, _ = appstate.NewAppState(db.NewMemDB(), eventbus.New())
+
+	c.BeginEpochRewardBalanceUpdate(delegatee, delegatee, appState)
+	appState.State.AddStake(delegatee, big.NewInt(3))
+	appState.State.AddBalance(delegatee, big.NewInt(4))
+	c.CompleteBalanceUpdate(appState)
+
+	c.BeginEpochRewardBalanceUpdate(delegator, delegatee, appState)
+	appState.State.AddStake(delegator, big.NewInt(1))
+	appState.State.AddBalance(delegatee, big.NewInt(2))
+	c.CompleteBalanceUpdate(appState)
+
+	c.BeginEpochRewardBalanceUpdate(delegator, delegatee, appState)
+	appState.State.AddStake(delegator, big.NewInt(5))
+	appState.State.AddBalance(delegatee, big.NewInt(6))
+	c.CompleteBalanceUpdate(appState)
+
+	// then
+	require.Equal(t, 0, len(c.pending.balanceUpdates))
+	require.Equal(t, 2, len(c.pending.balanceUpdatesByReasonAndAddr[db2.EpochRewardReason]))
+	require.Equal(t, 1, len(c.pending.balanceUpdatesByReasonAndAddr[db2.DelegatorEpochRewardReason]))
+	require.Equal(t, 1, len(c.pending.balanceUpdatesByReasonAndAddr[db2.DelegateeEpochRewardReason]))
+	require.Equal(t, 4, len(c.stats.BalanceUpdates))
+
+	require.Equal(t, delegatee, c.stats.BalanceUpdates[0].Address)
+	require.Equal(t, db2.EpochRewardReason, c.stats.BalanceUpdates[0].Reason)
+	require.Nil(t, c.stats.BalanceUpdates[0].TxHash)
+	require.Equal(t, big.NewInt(0), c.stats.BalanceUpdates[0].BalanceOld)
+	require.Equal(t, big.NewInt(0), c.stats.BalanceUpdates[0].StakeOld)
+	require.Equal(t, big.NewInt(4), c.stats.BalanceUpdates[0].BalanceNew)
+	require.Equal(t, big.NewInt(3), c.stats.BalanceUpdates[0].StakeNew)
+
+	require.Equal(t, delegator, c.stats.BalanceUpdates[1].Address)
+	require.Equal(t, db2.EpochRewardReason, c.stats.BalanceUpdates[1].Reason)
+	require.Nil(t, c.stats.BalanceUpdates[1].TxHash)
+	require.Equal(t, big.NewInt(0), c.stats.BalanceUpdates[1].BalanceOld)
+	require.Equal(t, big.NewInt(0), c.stats.BalanceUpdates[1].StakeOld)
+	require.Equal(t, big.NewInt(8), c.stats.BalanceUpdates[1].BalanceNew)
+	require.Equal(t, big.NewInt(6), c.stats.BalanceUpdates[1].StakeNew)
+
+	require.Equal(t, delegator, c.stats.BalanceUpdates[2].Address)
+	require.Equal(t, db2.DelegatorEpochRewardReason, c.stats.BalanceUpdates[2].Reason)
+	require.Nil(t, c.stats.BalanceUpdates[2].TxHash)
+	require.Equal(t, big.NewInt(8), c.stats.BalanceUpdates[2].BalanceOld)
+	require.Equal(t, big.NewInt(6), c.stats.BalanceUpdates[2].StakeOld)
+	require.Equal(t, big.NewInt(0), c.stats.BalanceUpdates[2].BalanceNew)
+	require.Equal(t, big.NewInt(6), c.stats.BalanceUpdates[2].StakeNew)
+
+	require.Equal(t, delegatee, c.stats.BalanceUpdates[3].Address)
+	require.Equal(t, db2.DelegateeEpochRewardReason, c.stats.BalanceUpdates[3].Reason)
+	require.Nil(t, c.stats.BalanceUpdates[3].TxHash)
+	require.Equal(t, big.NewInt(4), c.stats.BalanceUpdates[3].BalanceOld)
+	require.Equal(t, big.NewInt(3), c.stats.BalanceUpdates[3].StakeOld)
+	require.Equal(t, big.NewInt(12), c.stats.BalanceUpdates[3].BalanceNew)
+	require.Equal(t, big.NewInt(3), c.stats.BalanceUpdates[3].StakeNew)
+
+	// when
+	c.CompleteCollecting()
+	c.EnableCollecting()
+	appState, _ = appstate.NewAppState(db.NewMemDB(), eventbus.New())
+
+	delegator2 := tests.GetRandAddr()
+
+	c.BeginEpochRewardBalanceUpdate(delegatee, delegatee, appState)
+	appState.State.AddBalance(delegatee, big.NewInt(2))
+	appState.State.AddStake(delegatee, big.NewInt(1))
+	c.CompleteBalanceUpdate(appState)
+
+	c.BeginEpochRewardBalanceUpdate(delegator, delegatee, appState)
+	appState.State.AddBalance(delegatee, big.NewInt(20))
+	appState.State.AddStake(delegator, big.NewInt(10))
+	c.CompleteBalanceUpdate(appState)
+
+	c.BeginEpochRewardBalanceUpdate(delegatee, delegatee, appState)
+	appState.State.AddBalance(delegatee, big.NewInt(200))
+	appState.State.AddStake(delegatee, big.NewInt(100))
+	c.CompleteBalanceUpdate(appState)
+
+	c.BeginEpochRewardBalanceUpdate(delegator2, delegatee, appState)
+	appState.State.AddBalance(delegatee, big.NewInt(2000))
+	appState.State.AddStake(delegator2, big.NewInt(1000))
+	c.CompleteBalanceUpdate(appState)
+
+	c.BeginEpochRewardBalanceUpdate(delegator, delegatee, appState)
+	appState.State.AddBalance(delegatee, big.NewInt(20000))
+	appState.State.AddStake(delegator, big.NewInt(10000))
+	c.CompleteBalanceUpdate(appState)
+
+	c.BeginEpochRewardBalanceUpdate(delegatee, delegatee, appState)
+	appState.State.AddBalance(delegatee, big.NewInt(200000))
+	appState.State.AddStake(delegatee, big.NewInt(100000))
+	c.CompleteBalanceUpdate(appState)
+
+	// then
+	require.Equal(t, 0, len(c.pending.balanceUpdates))
+	require.Equal(t, 3, len(c.pending.balanceUpdatesByReasonAndAddr[db2.EpochRewardReason]))
+	require.Equal(t, 2, len(c.pending.balanceUpdatesByReasonAndAddr[db2.DelegatorEpochRewardReason]))
+	require.Equal(t, 1, len(c.pending.balanceUpdatesByReasonAndAddr[db2.DelegateeEpochRewardReason]))
+	require.Equal(t, 6, len(c.stats.BalanceUpdates))
+
+	require.Equal(t, delegatee, c.stats.BalanceUpdates[0].Address)
+	require.Equal(t, db2.EpochRewardReason, c.stats.BalanceUpdates[0].Reason)
+	require.Nil(t, c.stats.BalanceUpdates[0].TxHash)
+	require.Equal(t, big.NewInt(0), c.stats.BalanceUpdates[0].BalanceOld)
+	require.Equal(t, big.NewInt(0), c.stats.BalanceUpdates[0].StakeOld)
+	require.Equal(t, big.NewInt(200202), c.stats.BalanceUpdates[0].BalanceNew)
+	require.Equal(t, big.NewInt(100101), c.stats.BalanceUpdates[0].StakeNew)
+
+	require.Equal(t, delegator, c.stats.BalanceUpdates[1].Address)
+	require.Equal(t, db2.EpochRewardReason, c.stats.BalanceUpdates[1].Reason)
+	require.Nil(t, c.stats.BalanceUpdates[1].TxHash)
+	require.Equal(t, big.NewInt(0), c.stats.BalanceUpdates[1].BalanceOld)
+	require.Equal(t, big.NewInt(0), c.stats.BalanceUpdates[1].StakeOld)
+	require.Equal(t, big.NewInt(20020), c.stats.BalanceUpdates[1].BalanceNew)
+	require.Equal(t, big.NewInt(10010), c.stats.BalanceUpdates[1].StakeNew)
+
+	require.Equal(t, delegator, c.stats.BalanceUpdates[2].Address)
+	require.Equal(t, db2.DelegatorEpochRewardReason, c.stats.BalanceUpdates[2].Reason)
+	require.Nil(t, c.stats.BalanceUpdates[2].TxHash)
+	require.Equal(t, big.NewInt(20020), c.stats.BalanceUpdates[2].BalanceOld)
+	require.Equal(t, big.NewInt(10010), c.stats.BalanceUpdates[2].StakeOld)
+	require.Equal(t, big.NewInt(0), c.stats.BalanceUpdates[2].BalanceNew)
+	require.Equal(t, big.NewInt(10010), c.stats.BalanceUpdates[2].StakeNew)
+
+	require.Equal(t, delegatee, c.stats.BalanceUpdates[3].Address)
+	require.Equal(t, db2.DelegateeEpochRewardReason, c.stats.BalanceUpdates[3].Reason)
+	require.Nil(t, c.stats.BalanceUpdates[3].TxHash)
+	require.Equal(t, big.NewInt(200202), c.stats.BalanceUpdates[3].BalanceOld)
+	require.Equal(t, big.NewInt(100101), c.stats.BalanceUpdates[3].StakeOld)
+	require.Equal(t, big.NewInt(222222), c.stats.BalanceUpdates[3].BalanceNew)
+	require.Equal(t, big.NewInt(100101), c.stats.BalanceUpdates[3].StakeNew)
+
+	require.Equal(t, delegator2, c.stats.BalanceUpdates[4].Address)
+	require.Equal(t, db2.EpochRewardReason, c.stats.BalanceUpdates[4].Reason)
+	require.Nil(t, c.stats.BalanceUpdates[4].TxHash)
+	require.Equal(t, big.NewInt(0), c.stats.BalanceUpdates[4].BalanceOld)
+	require.Equal(t, big.NewInt(0), c.stats.BalanceUpdates[4].StakeOld)
+	require.Equal(t, big.NewInt(2000), c.stats.BalanceUpdates[4].BalanceNew)
+	require.Equal(t, big.NewInt(1000), c.stats.BalanceUpdates[4].StakeNew)
+
+	require.Equal(t, delegator2, c.stats.BalanceUpdates[5].Address)
+	require.Equal(t, db2.DelegatorEpochRewardReason, c.stats.BalanceUpdates[5].Reason)
+	require.Nil(t, c.stats.BalanceUpdates[5].TxHash)
+	require.Equal(t, big.NewInt(2000), c.stats.BalanceUpdates[5].BalanceOld)
+	require.Equal(t, big.NewInt(1000), c.stats.BalanceUpdates[5].StakeOld)
+	require.Equal(t, big.NewInt(0), c.stats.BalanceUpdates[5].BalanceNew)
+	require.Equal(t, big.NewInt(1000), c.stats.BalanceUpdates[5].StakeNew)
+
+	// when
+	c.CompleteCollecting()
+	c.EnableCollecting()
+	appState, _ = appstate.NewAppState(db.NewMemDB(), eventbus.New())
+
+	c.BeginEpochRewardBalanceUpdate(delegator2, delegatee, appState)
+	appState.State.AddBalance(delegatee, big.NewInt(2000))
+	appState.State.AddStake(delegator2, big.NewInt(1000))
+	c.CompleteBalanceUpdate(appState)
+
+	c.BeginEpochRewardBalanceUpdate(delegator, delegatee, appState)
+	appState.State.AddBalance(delegatee, big.NewInt(20000))
+	appState.State.AddStake(delegator, big.NewInt(10000))
+	c.CompleteBalanceUpdate(appState)
+
+	c.BeginEpochRewardBalanceUpdate(delegatee, delegatee, appState)
+	appState.State.AddBalance(delegatee, big.NewInt(2))
+	appState.State.AddStake(delegatee, big.NewInt(1))
+	c.CompleteBalanceUpdate(appState)
+
+	c.BeginEpochRewardBalanceUpdate(delegatee, delegatee, appState)
+	appState.State.AddBalance(delegatee, big.NewInt(200000))
+	appState.State.AddStake(delegatee, big.NewInt(100000))
+	c.CompleteBalanceUpdate(appState)
+
+	c.BeginEpochRewardBalanceUpdate(delegator, delegatee, appState)
+	appState.State.AddBalance(delegatee, big.NewInt(20))
+	appState.State.AddStake(delegator, big.NewInt(10))
+	c.CompleteBalanceUpdate(appState)
+
+	c.BeginEpochRewardBalanceUpdate(delegatee, delegatee, appState)
+	appState.State.AddBalance(delegatee, big.NewInt(200))
+	appState.State.AddStake(delegatee, big.NewInt(100))
+	c.CompleteBalanceUpdate(appState)
+
+	require.Equal(t, 0, len(c.pending.balanceUpdates))
+	require.Equal(t, 3, len(c.pending.balanceUpdatesByReasonAndAddr[db2.EpochRewardReason]))
+	require.Equal(t, 2, len(c.pending.balanceUpdatesByReasonAndAddr[db2.DelegatorEpochRewardReason]))
+	require.Equal(t, 1, len(c.pending.balanceUpdatesByReasonAndAddr[db2.DelegateeEpochRewardReason]))
+	require.Equal(t, 6, len(c.stats.BalanceUpdates))
+
+	require.Equal(t, delegator2, c.stats.BalanceUpdates[0].Address)
+	require.Equal(t, db2.EpochRewardReason, c.stats.BalanceUpdates[0].Reason)
+	require.Nil(t, c.stats.BalanceUpdates[0].TxHash)
+	require.Equal(t, big.NewInt(0), c.stats.BalanceUpdates[0].BalanceOld)
+	require.Equal(t, big.NewInt(0), c.stats.BalanceUpdates[0].StakeOld)
+	require.Equal(t, big.NewInt(2000), c.stats.BalanceUpdates[0].BalanceNew)
+	require.Equal(t, big.NewInt(1000), c.stats.BalanceUpdates[0].StakeNew)
+
+	require.Equal(t, delegator2, c.stats.BalanceUpdates[1].Address)
+	require.Equal(t, db2.DelegatorEpochRewardReason, c.stats.BalanceUpdates[1].Reason)
+	require.Nil(t, c.stats.BalanceUpdates[1].TxHash)
+	require.Equal(t, big.NewInt(2000), c.stats.BalanceUpdates[1].BalanceOld)
+	require.Equal(t, big.NewInt(1000), c.stats.BalanceUpdates[1].StakeOld)
+	require.Equal(t, big.NewInt(0), c.stats.BalanceUpdates[1].BalanceNew)
+	require.Equal(t, big.NewInt(1000), c.stats.BalanceUpdates[1].StakeNew)
+
+	require.Equal(t, delegatee, c.stats.BalanceUpdates[2].Address)
+	require.Equal(t, db2.DelegateeEpochRewardReason, c.stats.BalanceUpdates[2].Reason)
+	require.Nil(t, c.stats.BalanceUpdates[2].TxHash)
+	require.Equal(t, big.NewInt(0), c.stats.BalanceUpdates[2].BalanceOld)
+	require.Equal(t, big.NewInt(0), c.stats.BalanceUpdates[2].StakeOld)
+	require.Equal(t, big.NewInt(22020), c.stats.BalanceUpdates[2].BalanceNew)
+	require.Zero(t, c.stats.BalanceUpdates[2].StakeNew.Sign())
+
+	require.Equal(t, delegator, c.stats.BalanceUpdates[3].Address)
+	require.Equal(t, db2.EpochRewardReason, c.stats.BalanceUpdates[3].Reason)
+	require.Nil(t, c.stats.BalanceUpdates[3].TxHash)
+	require.Equal(t, big.NewInt(0), c.stats.BalanceUpdates[3].BalanceOld)
+	require.Equal(t, big.NewInt(0), c.stats.BalanceUpdates[3].StakeOld)
+	require.Equal(t, big.NewInt(20020), c.stats.BalanceUpdates[3].BalanceNew)
+	require.Equal(t, big.NewInt(10010), c.stats.BalanceUpdates[3].StakeNew)
+
+	require.Equal(t, delegator, c.stats.BalanceUpdates[4].Address)
+	require.Equal(t, db2.DelegatorEpochRewardReason, c.stats.BalanceUpdates[4].Reason)
+	require.Nil(t, c.stats.BalanceUpdates[4].TxHash)
+	require.Equal(t, big.NewInt(20020), c.stats.BalanceUpdates[4].BalanceOld)
+	require.Equal(t, big.NewInt(10010), c.stats.BalanceUpdates[4].StakeOld)
+	require.Equal(t, big.NewInt(0), c.stats.BalanceUpdates[4].BalanceNew)
+	require.Equal(t, big.NewInt(10010), c.stats.BalanceUpdates[4].StakeNew)
+
+	require.Equal(t, delegatee, c.stats.BalanceUpdates[5].Address)
+	require.Equal(t, db2.EpochRewardReason, c.stats.BalanceUpdates[5].Reason)
+	require.Nil(t, c.stats.BalanceUpdates[5].TxHash)
+	require.Equal(t, big.NewInt(22020), c.stats.BalanceUpdates[5].BalanceOld)
+	require.Zero(t, c.stats.BalanceUpdates[5].StakeOld.Sign())
+	require.Equal(t, big.NewInt(222222), c.stats.BalanceUpdates[5].BalanceNew)
+	require.Equal(t, big.NewInt(100101), c.stats.BalanceUpdates[5].StakeNew)
+}
+
 func TestStatsCollector_DustClearingBalanceUpdate(t *testing.T) {
 	c := &statsCollector{}
 	c.EnableCollecting()
