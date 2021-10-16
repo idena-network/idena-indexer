@@ -1076,9 +1076,13 @@ func (c *statsCollector) AddContractBalanceUpdate(address common.Address, getCur
 	balanceUpdate, ok := c.pending.tx.contractBalanceUpdatesByAddr[address]
 	if !ok {
 		txHash := c.pending.tx.tx.Hash()
+		var balanceOld *big.Int
+		if b := getCurrentBalance(address); b != nil {
+			balanceOld = new(big.Int).Set(b)
+		}
 		balanceUpdate = &db.BalanceUpdate{
 			Address:    address,
-			BalanceOld: getCurrentBalance(address),
+			BalanceOld: balanceOld,
 			StakeOld:   c.getStakeIfNotKilled(address, appState),
 			PenaltyOld: c.getPenaltyIfNotKilled(address, appState),
 			Reason:     db.EmbeddedContractReason,
