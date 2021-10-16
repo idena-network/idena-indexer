@@ -147,9 +147,13 @@ func (c *validationRewardSummariesCalculator) calculateValidationRewardSummaries
 	invitations := calculateInvitationsRewardSummary(rewardsByType, penalized)
 
 	convertedAddress := conversion.ConvertAddress(address)
+	reportsShare := c.rewardsStats.ReportsShare
+	if reportsShare == nil {
+		reportsShare = new(big.Int).Div(c.rewardsStats.FlipsShare, new(big.Int).SetInt64(5))
+	}
 	reports := calculateReportsRewardSummary(
 		rewardsByType[stats.ReportedFlips],
-		c.rewardsStats.ReportsShare,
+		reportsShare,
 		penalized,
 		c.rewardedReportedFlipsByAddr[convertedAddress],
 		c.flipsWithReportConsensusByRespondent[address],
