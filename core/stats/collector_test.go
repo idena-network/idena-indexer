@@ -1307,3 +1307,163 @@ func Test_BeginEpochRewardBalanceUpdateAndCompleteBalanceUpdate(t *testing.T) {
 
 	require.Len(t, c.stats.BalanceUpdates, 3)
 }
+
+func Test_killedPenaltyBurntCoins(t *testing.T) {
+	c := &statsCollector{}
+	c.EnableCollecting()
+
+	killedAddr1, killedAddr2, killedAddr3, addr1, addr2, addr3 := tests.GetRandAddr(), tests.GetRandAddr(), tests.GetRandAddr(), tests.GetRandAddr(), tests.GetRandAddr(), tests.GetRandAddr()
+	delegatee, killedDelegatee := tests.GetRandAddr(), tests.GetRandAddr()
+
+	appState, _ := appstate.NewAppState(db.NewMemDB(), eventbus.New())
+	appState.State.SetState(killedAddr1, state.Killed)
+	appState.State.SetState(killedAddr2, state.Killed)
+	appState.State.SetState(killedAddr3, state.Killed)
+	appState.State.SetState(killedDelegatee, state.Killed)
+	appState.State.SetState(addr1, state.Newbie)
+	appState.State.SetState(addr2, state.Verified)
+	appState.State.SetState(addr3, state.Human)
+	appState.State.SetState(delegatee, state.Newbie)
+
+	baseReward := new(big.Int).SetInt64(40)
+	baseStake := new(big.Int).SetInt64(10)
+
+	calculateStakeToAdd := func(penaltySub *big.Int) *big.Int {
+		res := new(big.Int).Add(baseReward, baseStake)
+		res.Sub(res, penaltySub)
+		if res.Cmp(baseStake) >= 0 {
+			return new(big.Int).Set(baseStake)
+		}
+		return res
+	}
+
+	// Cases without delegatee
+	penaltySub := new(big.Int).Add(baseReward, baseStake)
+	c.AfterAddStake(killedAddr1, calculateStakeToAdd(penaltySub), appState)
+	c.AddPenaltyBurntCoins(killedAddr1, penaltySub)
+
+	expectedBurnt := int64(50)
+	require.Equal(t, new(big.Int).SetInt64(expectedBurnt), c.stats.BurntCoins)
+
+	penaltySub = new(big.Int).SetInt64(45)
+	c.AfterAddStake(killedAddr2, calculateStakeToAdd(penaltySub), appState)
+	c.AddPenaltyBurntCoins(killedAddr2, penaltySub)
+
+	expectedBurnt += 50
+	require.Equal(t, new(big.Int).SetInt64(expectedBurnt), c.stats.BurntCoins)
+
+	penaltySub = new(big.Int).SetInt64(35)
+	c.AfterAddStake(killedAddr3, calculateStakeToAdd(penaltySub), appState)
+
+	c.AddPenaltyBurntCoins(killedAddr3, penaltySub)
+
+	expectedBurnt += 45
+	require.Equal(t, new(big.Int).SetInt64(expectedBurnt), c.stats.BurntCoins)
+
+	penaltySub = new(big.Int).Add(baseReward, baseStake)
+	c.AfterAddStake(addr1, calculateStakeToAdd(penaltySub), appState)
+	c.AddPenaltyBurntCoins(addr1, penaltySub)
+
+	expectedBurnt += 50
+	require.Equal(t, new(big.Int).SetInt64(expectedBurnt), c.stats.BurntCoins)
+
+	penaltySub = new(big.Int).SetInt64(45)
+	c.AfterAddStake(addr2, calculateStakeToAdd(penaltySub), appState)
+	c.AddPenaltyBurntCoins(addr2, penaltySub)
+
+	expectedBurnt += 45
+	require.Equal(t, new(big.Int).SetInt64(expectedBurnt), c.stats.BurntCoins)
+
+	penaltySub = new(big.Int).SetInt64(35)
+	c.AfterAddStake(addr3, calculateStakeToAdd(penaltySub), appState)
+	c.AddPenaltyBurntCoins(addr3, penaltySub)
+
+	expectedBurnt += 35
+	require.Equal(t, new(big.Int).SetInt64(expectedBurnt), c.stats.BurntCoins)
+
+	// Cases with delegatee
+	penaltySub = new(big.Int).Add(baseReward, baseStake)
+	c.AfterAddStake(killedAddr1, calculateStakeToAdd(penaltySub), appState)
+	c.AddPenaltyBurntCoins(delegatee, penaltySub)
+
+	expectedBurnt += 50
+	require.Equal(t, new(big.Int).SetInt64(expectedBurnt), c.stats.BurntCoins)
+
+	penaltySub = new(big.Int).SetInt64(45)
+	c.AfterAddStake(killedAddr2, calculateStakeToAdd(penaltySub), appState)
+	c.AddPenaltyBurntCoins(delegatee, penaltySub)
+
+	expectedBurnt += 50
+	require.Equal(t, new(big.Int).SetInt64(expectedBurnt), c.stats.BurntCoins)
+
+	penaltySub = new(big.Int).SetInt64(35)
+	c.AfterAddStake(killedAddr3, calculateStakeToAdd(penaltySub), appState)
+	c.AddPenaltyBurntCoins(delegatee, penaltySub)
+
+	expectedBurnt += 45
+	require.Equal(t, new(big.Int).SetInt64(expectedBurnt), c.stats.BurntCoins)
+
+	penaltySub = new(big.Int).Add(baseReward, baseStake)
+	c.AfterAddStake(addr1, calculateStakeToAdd(penaltySub), appState)
+	c.AddPenaltyBurntCoins(delegatee, penaltySub)
+
+	expectedBurnt += 50
+	require.Equal(t, new(big.Int).SetInt64(expectedBurnt), c.stats.BurntCoins)
+
+	penaltySub = new(big.Int).SetInt64(45)
+	c.AfterAddStake(addr2, calculateStakeToAdd(penaltySub), appState)
+	c.AddPenaltyBurntCoins(delegatee, penaltySub)
+
+	expectedBurnt += 45
+	require.Equal(t, new(big.Int).SetInt64(expectedBurnt), c.stats.BurntCoins)
+
+	penaltySub = new(big.Int).SetInt64(35)
+	c.AfterAddStake(addr3, calculateStakeToAdd(penaltySub), appState)
+	c.AddPenaltyBurntCoins(delegatee, penaltySub)
+
+	expectedBurnt += 35
+	require.Equal(t, new(big.Int).SetInt64(expectedBurnt), c.stats.BurntCoins)
+
+	// Cases with killed delegatee
+	penaltySub = new(big.Int).Add(baseReward, baseStake)
+	c.AfterAddStake(killedAddr1, calculateStakeToAdd(penaltySub), appState)
+	c.AddPenaltyBurntCoins(killedDelegatee, penaltySub)
+
+	expectedBurnt += 50
+	require.Equal(t, new(big.Int).SetInt64(expectedBurnt), c.stats.BurntCoins)
+
+	penaltySub = new(big.Int).SetInt64(45)
+	c.AfterAddStake(killedAddr2, calculateStakeToAdd(penaltySub), appState)
+	c.AddPenaltyBurntCoins(killedDelegatee, penaltySub)
+
+	expectedBurnt += 50
+	require.Equal(t, new(big.Int).SetInt64(expectedBurnt), c.stats.BurntCoins)
+
+	penaltySub = new(big.Int).SetInt64(35)
+	c.AfterAddStake(killedAddr3, calculateStakeToAdd(penaltySub), appState)
+	c.AddPenaltyBurntCoins(killedDelegatee, penaltySub)
+
+	expectedBurnt += 45
+	require.Equal(t, new(big.Int).SetInt64(expectedBurnt), c.stats.BurntCoins)
+
+	penaltySub = new(big.Int).Add(baseReward, baseStake)
+	c.AfterAddStake(addr1, calculateStakeToAdd(penaltySub), appState)
+	c.AddPenaltyBurntCoins(killedDelegatee, penaltySub)
+
+	expectedBurnt += 50
+	require.Equal(t, new(big.Int).SetInt64(expectedBurnt), c.stats.BurntCoins)
+
+	penaltySub = new(big.Int).SetInt64(45)
+	c.AfterAddStake(addr2, calculateStakeToAdd(penaltySub), appState)
+	c.AddPenaltyBurntCoins(killedDelegatee, penaltySub)
+
+	expectedBurnt += 45
+	require.Equal(t, new(big.Int).SetInt64(expectedBurnt), c.stats.BurntCoins)
+
+	penaltySub = new(big.Int).SetInt64(35)
+	c.AfterAddStake(addr3, calculateStakeToAdd(penaltySub), appState)
+	c.AddPenaltyBurntCoins(killedDelegatee, penaltySub)
+
+	expectedBurnt += 35
+	require.Equal(t, new(big.Int).SetInt64(expectedBurnt), c.stats.BurntCoins)
+}
