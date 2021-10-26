@@ -1,0 +1,1 @@
+call save_block_proposal($1)

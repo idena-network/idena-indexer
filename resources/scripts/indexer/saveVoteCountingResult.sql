@@ -1,0 +1,1 @@
+call save_vote_counting_result($1)

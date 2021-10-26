@@ -1,0 +1,1 @@
+call delete_old_vote_counting_data($1);

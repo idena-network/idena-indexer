@@ -25,6 +25,11 @@ type Accessor interface {
 	UpdateUpgrades(upgrades []*Upgrade) error
 
 	SavePeersCount(count int, timestamp time.Time) error
+	SaveVoteCountingStepResult(value *VoteCountingStepResult) error
+	SaveVoteCountingResult(value *VoteCountingResult) error
+	SaveProofProposal(value *ProofProposal) error
+	SaveBlockProposal(value *BlockProposal) error
+	DeleteVoteCountingOldData() error
 
 	Destroy()
 	ResetTo(height uint64) error

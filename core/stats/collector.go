@@ -123,19 +123,40 @@ func (c *statsCollector) RemoveMemPoolTx(tx *types.Transaction) {
 }
 
 func (c *statsCollector) SubmitVoteCountingStepResult(round uint64, step uint8, votesByBlock map[common.Hash]map[common.Address]*types.Vote, necessaryVotesCount, checkedRoundVotes int) {
-
+	c.bus.Publish(&VoteCountingStepResultEvent{
+		Round:               round,
+		Step:                step,
+		VotesByBlock:        votesByBlock,
+		NecessaryVotesCount: necessaryVotesCount,
+		CheckedRoundVotes:   checkedRoundVotes,
+	})
 }
 
 func (c *statsCollector) SubmitVoteCountingResult(round uint64, step uint8, validators *validators.StepValidators, hash common.Hash, cert *types.FullBlockCert, err error) {
-
+	c.bus.Publish(&VoteCountingResultEvent{
+		Round:      round,
+		Step:       step,
+		Validators: validators,
+		Hash:       hash,
+		Cert:       cert,
+		Err:        err,
+	})
 }
 
 func (c *statsCollector) SubmitProofProposal(round uint64, hash common.Hash, proposerPubKey []byte, modifier int) {
-
+	c.bus.Publish(&ProofProposalEvent{
+		Round:          round,
+		Hash:           hash,
+		ProposerPubKey: proposerPubKey,
+		Modifier:       int64(modifier),
+	})
 }
 
 func (c *statsCollector) SubmitBlockProposal(proposal *types.BlockProposal, receivingTime time.Time) {
-
+	c.bus.Publish(&BlockProposalEvent{
+		Proposal:      proposal,
+		ReceivingTime: receivingTime,
+	})
 }
 
 func (c *statsCollector) EnableCollecting() {

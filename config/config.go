@@ -26,6 +26,7 @@ type Config struct {
 	UpgradeVotingShortHistoryMinShift int
 	Data                              *DataConfig
 	TreeSnapshotDir                   string
+	VoteCounting                      VoteCountingConfig
 }
 
 type Api struct {
@@ -58,6 +59,10 @@ type DataConfig struct {
 	Enabled    bool
 	Table      string
 	StateTable string
+}
+
+type VoteCountingConfig struct {
+	Enabled bool
 }
 
 func LoadConfig(configPath string) *Config {

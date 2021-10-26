@@ -204,6 +204,22 @@ func initIndexer(config *config.Config, txMemPool transaction.MemPool) (*indexer
 		peersTracker.AddPeersData(peersEvent.PeersData, peersEvent.Time)
 	})
 
+	if config.VoteCounting.Enabled {
+		voteCountingTracker := mempool.NewVoteCountingTracker(dbAccessor, log.New("component", "voteCountingTracker"))
+		statsCollectorEventBus.Subscribe(stats.VoteCountingStepResultEventID, func(e eventbus.Event) {
+			voteCountingTracker.SubmitVoteCountingStepResultEvent(e.(*stats.VoteCountingStepResultEvent))
+		})
+		statsCollectorEventBus.Subscribe(stats.VoteCountingResultEventID, func(e eventbus.Event) {
+			voteCountingTracker.SubmitVoteCountingResultEvent(e.(*stats.VoteCountingResultEvent))
+		})
+		statsCollectorEventBus.Subscribe(stats.ProofProposalEventID, func(e eventbus.Event) {
+			voteCountingTracker.SubmitProofProposalEvent(e.(*stats.ProofProposalEvent))
+		})
+		statsCollectorEventBus.Subscribe(stats.BlockProposalEventID, func(e eventbus.Event) {
+			voteCountingTracker.SubmitBlockProposalEvent(e.(*stats.BlockProposalEvent))
+		})
+	}
+
 	if config.Data != nil && config.Data.Enabled {
 		data.StartDataService(indexerEventBus, dbAccessor, log.New("component", "dataEngine"))
 	}

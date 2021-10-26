@@ -1215,3 +1215,35 @@ func convertValidationRewardSummary(v ValidationRewardSummary) validationRewardS
 		MissedReason: v.MissedReason,
 	}
 }
+
+type voteCountingStepResult struct {
+	Data *VoteCountingStepResult `json:"data"`
+}
+
+func (v *voteCountingStepResult) Value() (driver.Value, error) {
+	return json.Marshal(v)
+}
+
+type voteCountingResult struct {
+	Data *VoteCountingResult `json:"data"`
+}
+
+func (v *voteCountingResult) Value() (driver.Value, error) {
+	return json.Marshal(v)
+}
+
+type proofProposal struct {
+	Data *ProofProposal `json:"data"`
+}
+
+func (v *proofProposal) Value() (driver.Value, error) {
+	return json.Marshal(v)
+}
+
+type blockProposal struct {
+	Data *BlockProposal `json:"data"`
+}
+
+func (v *blockProposal) Value() (driver.Value, error) {
+	return json.Marshal(v)
+}

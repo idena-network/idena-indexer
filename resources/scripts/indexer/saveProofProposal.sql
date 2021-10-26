@@ -1,0 +1,1 @@
+call save_proof_proposal($1)

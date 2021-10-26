@@ -744,3 +744,56 @@ type ValidationRewardSummary struct {
 	Missed       *big.Int
 	MissedReason *byte
 }
+
+type VoteCountingStepResult struct {
+	Timestamp           int64   `json:"timestamp"`
+	Round               uint64  `json:"round"`
+	Step                uint8   `json:"step"`
+	NecessaryVotesCount int     `json:"necessaryVotesCount"`
+	CheckedRoundVotes   int     `json:"checkedRoundVotes"`
+	Votes               []*Vote `json:"votes,omitempty"`
+}
+
+type Vote struct {
+	Voter       common.Address `json:"voter"`
+	ParentHash  common.Hash    `json:"parentHash"`
+	VotedHash   common.Hash    `json:"votedHash"`
+	TurnOffline bool           `json:"turnOffline"`
+	Upgrade     uint32         `json:"upgrade"`
+}
+
+type VoteCountingResult struct {
+	Timestamp  int64           `json:"timestamp"`
+	Round      uint64          `json:"round"`
+	Step       uint8           `json:"step"`
+	Validators *StepValidators `json:"validators"`
+	Hash       common.Hash     `json:"hash"`
+	Cert       *FullBlockCert  `json:"cert"`
+	Err        *string         `json:"err"`
+}
+
+type StepValidators struct {
+	Original  []common.Address `json:"original,omitempty"`
+	Addresses []common.Address `json:"addresses,omitempty"`
+	Size      int              `json:"size"`
+}
+
+type FullBlockCert struct {
+	Votes []*Vote `json:"votes,omitempty"`
+}
+
+type ProofProposal struct {
+	Timestamp int64          `json:"timestamp"`
+	Round     uint64         `json:"round"`
+	Proposer  common.Address `json:"proposer"`
+	Hash      common.Hash    `json:"hash"`
+	Modifier  int64          `json:"modifier"`
+	VrfScore  float64        `json:"vrfScore"`
+}
+
+type BlockProposal struct {
+	ReceivingTime int64          `json:"receivingTime"`
+	Height        uint64         `json:"height"`
+	Proposer      common.Address `json:"proposer"`
+	Hash          common.Hash    `json:"hash"`
+}
