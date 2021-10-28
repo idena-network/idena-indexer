@@ -256,8 +256,9 @@ func (indexer *Indexer) indexBlock(block *types.Block) {
 		}
 
 		if block.Header.Flags().HasFlag(types.ValidationFinished) {
-			indexer.eventBus.Publish(&events.NewEpochEvent{Epoch: uint16(res.dbData.Epoch) + 1})
+			indexer.eventBus.Publish(&events.NewEpochEvent{Epoch: uint16(res.dbData.Epoch) + 1, EpochHeight: block.Height()})
 		}
+		indexer.eventBus.Publish(&events.NewBlockEvent{Height: block.Height(), EpochPeriod: indexer.listener.NodeCtx().AppState.State.ValidationPeriod()})
 
 		log.Info(fmt.Sprintf("Processed block %d", block.Height()))
 
@@ -276,7 +277,12 @@ func (indexer *Indexer) initFirstBlockHeight() {
 	} else {
 		indexer.firstBlockHeight = 1
 	}
-	indexer.eventBus.Publish(&events.CurrentEpochEvent{Epoch: indexer.listener.NodeCtx().AppState.State.Epoch()})
+	indexer.eventBus.Publish(&events.CurrentEpochEvent{
+		Epoch:       indexer.listener.NodeCtx().AppState.State.Epoch(),
+		EpochHeight: indexer.listener.NodeCtx().AppState.State.EpochBlock(),
+		Height:      indexer.listener.NodeCtx().Blockchain.Head.Height(),
+		EpochPeriod: indexer.listener.NodeCtx().AppState.State.ValidationPeriod(),
+	})
 	indexer.firstBlockHeightInitialized = true
 }
 

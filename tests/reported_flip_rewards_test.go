@@ -71,6 +71,7 @@ func Test_reportedFlipRewards(t *testing.T) {
 	statsCollector.AddReportedFlipsReward(reporter1, reporter1, 1, 0, new(big.Int).SetInt64(int64(1000_000)), new(big.Int).SetInt64(int64(100_000)))
 	statsCollector.AddReportedFlipsReward(reporter1, reporter1, 1, 1, new(big.Int).SetInt64(int64(300_000)), new(big.Int).SetInt64(int64(200_000)))
 	statsCollector.AddReportedFlipsReward(reporter2, reporter2, 1, 1, new(big.Int).SetInt64(int64(200_000)), new(big.Int).SetInt64(int64(300_000)))
+	statsCollector.SetTotalReportsReward(new(big.Int), new(big.Int))
 	height++
 	block = buildBlock(height)
 	block.Header.ProposedHeader.Flags = types2.ValidationFinished

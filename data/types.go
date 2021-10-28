@@ -16,4 +16,5 @@ type refreshPeriod = string
 const (
 	refreshPeriodEpoch = "e"
 	refreshPeriodDay   = "d"
+	refreshPeriodHour  = "h"
 )

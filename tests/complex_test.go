@@ -311,6 +311,7 @@ func Test_complex(t *testing.T) {
 	appState.State.AddBalance(delegatee, new(big.Int).SetUint64(10))
 	appState.State.AddStake(addr, new(big.Int).SetUint64(50))
 	statsCollector.CompleteBalanceUpdate(appState)
+	statsCollector.SetTotalReportsReward(new(big.Int), new(big.Int))
 
 	height++
 	block = buildBlock(height)

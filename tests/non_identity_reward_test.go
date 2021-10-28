@@ -43,6 +43,7 @@ func Test_nonIdentityReward(t *testing.T) {
 	statsCollector.EnableCollecting()
 	statsCollector.SetValidation(&types.ValidationStats{})
 	statsCollector.AddValidationReward(rewardedAddress, addr, 1, big.NewInt(1000), big.NewInt(200))
+	statsCollector.SetTotalReportsReward(new(big.Int), new(big.Int))
 	appState.State.IncEpoch()
 	appState.State.ClearFlips(addr)
 	height++

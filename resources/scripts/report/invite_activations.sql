@@ -66,4 +66,4 @@ $$;
 
 INSERT INTO report.dynamic_endpoints
 ("name", refresh_procedure, refresh_period, refresh_delay_minutes, endpoint_method, "limit")
-VALUES ('report.mv_invite_activations', 'report.refresh_invites_daily', 'd', null, 'InviteActivations', null);
+VALUES ('report.mv_invite_activations', 'report.refresh_invites_daily', 'h', null, 'InviteActivations', null);
