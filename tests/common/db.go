@@ -21,6 +21,34 @@ func (n *NullDecimal) Scan(value interface{}) error {
 	return nil
 }
 
+type Block struct {
+	OfflineAddress *string
+}
+
+func GetBlocks(db *sql.DB) ([]Block, error) {
+	rows, err := db.Query(`select offline_a.address offline_address from blocks b left join addresses offline_a on offline_a.id = b.offline_address_id`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var res []Block
+	for rows.Next() {
+		item := Block{}
+		var offlineAddress sql.NullString
+		err := rows.Scan(
+			&offlineAddress,
+		)
+		if err != nil {
+			return nil, err
+		}
+		if offlineAddress.Valid {
+			item.OfflineAddress = &offlineAddress.String
+		}
+		res = append(res, item)
+	}
+	return res, nil
+}
+
 type BalanceUpdateSummary struct {
 	Address    string
 	BalanceIn  decimal.Decimal

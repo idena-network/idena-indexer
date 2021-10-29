@@ -220,6 +220,7 @@ type Block struct {
 	ProposerVrfScore        float64
 	FeeRate                 decimal.Decimal
 	Upgrade                 *uint32
+	OfflineAddress          *string
 }
 
 type Transaction struct {

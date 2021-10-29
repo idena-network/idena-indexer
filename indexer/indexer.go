@@ -604,6 +604,12 @@ func (indexer *Indexer) convertBlock(
 	if incomingBlock.Header.ProposedHeader != nil {
 		upgrade = &incomingBlock.Header.ProposedHeader.Upgrade
 	}
+	var offlineAddress *string
+	if addr := incomingBlock.Header.OfflineAddr(); addr != nil {
+		v := conversion.ConvertAddress(*addr)
+		offlineAddress = &v
+	}
+
 	return db.Block{
 		Height:                  incomingBlock.Height(),
 		Hash:                    conversion.ConvertHash(incomingBlock.Hash()),
@@ -620,6 +626,7 @@ func (indexer *Indexer) convertBlock(
 		ProposerVrfScore:        proposerVrfScore,
 		FeeRate:                 blockchain.ConvertToFloat(ctx.prevStateReadOnly.State.FeePerGas()),
 		Upgrade:                 upgrade,
+		OfflineAddress:          offlineAddress,
 	}, nil
 }
 

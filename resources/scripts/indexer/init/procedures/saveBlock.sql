@@ -10,6 +10,7 @@ CREATE OR REPLACE PROCEDURE save_block(p_height bigint,
                                        p_full_size integer,
                                        p_fee_rate numeric,
                                        p_upgrade integer,
+                                       p_offline_address text,
                                        p_flags text[])
     LANGUAGE 'plpgsql'
 AS
@@ -17,11 +18,15 @@ $BODY$
 DECLARE
     l_empty_count               smallint;
     l_flip_lottery_block_height bigint;
+    l_offline_address_id        bigint;
 BEGIN
+    if p_offline_address is not null and p_offline_address <> '' then
+        SELECT id INTO l_offline_address_id FROM addresses WHERE lower(address) = lower(p_offline_address);
+    end if;
     INSERT INTO blocks (height, hash, epoch, timestamp, is_empty, validators_count, pool_validators_count, body_size,
-                        vrf_proposer_threshold, full_size, fee_rate, upgrade)
+                        vrf_proposer_threshold, full_size, fee_rate, upgrade, offline_address_id)
     VALUES (p_height, p_hash, p_epoch, p_timestamp, p_is_empty, p_original_validators_count, p_pool_validators_count,
-            p_body_size, p_vrf_proposer_threshold, p_full_size, p_fee_rate, p_upgrade);
+            p_body_size, p_vrf_proposer_threshold, p_full_size, p_fee_rate, p_upgrade, l_offline_address_id);
 
     if p_is_empty then
         l_empty_count = 1;

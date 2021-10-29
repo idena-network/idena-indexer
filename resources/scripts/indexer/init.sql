@@ -302,6 +302,7 @@ CREATE TABLE IF NOT EXISTS blocks
     fee_rate               numeric(30, 18)                            NOT NULL,
     upgrade                integer,
     pool_validators_count  integer,
+    offline_address_id     bigint,
     CONSTRAINT blocks_pkey PRIMARY KEY (height),
     CONSTRAINT blocks_epoch_fkey FOREIGN KEY (epoch)
         REFERENCES epochs (epoch) MATCH SIMPLE

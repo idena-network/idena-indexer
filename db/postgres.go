@@ -300,6 +300,7 @@ func (a *postgresAccessor) saveBlock(ctx *context, block Block) error {
 		block.FullSize,
 		block.FeeRate,
 		block.Upgrade,
+		block.OfflineAddress,
 		pq.Array(block.Flags),
 	)
 	return err
