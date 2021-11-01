@@ -235,6 +235,7 @@ type Transaction struct {
 	Payload []byte
 	Size    int
 	Raw     string
+	Nonce   uint32
 }
 
 type ActivationTxTransfer struct {

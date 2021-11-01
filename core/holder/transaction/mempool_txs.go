@@ -271,6 +271,7 @@ func toTransactionDetail(tx *types.Transaction) *types2.TransactionDetail {
 		Tips:   blockchain.ConvertToFloat(tx.Tips),
 		MaxFee: blockchain.ConvertToFloat(tx.MaxFee),
 		Size:   uint32(tx.Size()),
+		Nonce:  tx.AccountNonce,
 	}
 }
 
@@ -293,6 +294,7 @@ func toTransactionSummary(tx *types.Transaction) *types2.TransactionSummary {
 		Tips:   &tips,
 		MaxFee: &maxFee,
 		Size:   uint32(tx.Size()),
+		Nonce:  tx.AccountNonce,
 	}
 }
 

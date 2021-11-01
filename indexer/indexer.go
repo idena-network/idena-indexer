@@ -772,6 +772,7 @@ func (indexer *Indexer) convertTransaction(
 		Fee:     blockchain.ConvertToFloat(indexer.statsHolder().GetStats().FeesByTxHash[incomingTx.Hash()]),
 		Size:    incomingTx.Size(),
 		Raw:     hex.EncodeToString(txRaw),
+		Nonce:   incomingTx.AccountNonce,
 	}
 
 	return tx

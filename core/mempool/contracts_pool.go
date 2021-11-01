@@ -299,6 +299,7 @@ func (c *contractsImpl) applyTxSentToContract(tx *types.Transaction, contractAdd
 		Amount: blockchain.ConvertToFloat(tx.Amount),
 		Tips:   blockchain.ConvertToFloat(tx.Tips),
 		MaxFee: blockchain.ConvertToFloat(tx.MaxFee),
+		Nonce:  tx.AccountNonce,
 	}, contractAddress.Hex())
 }
 

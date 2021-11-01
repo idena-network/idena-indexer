@@ -491,6 +491,7 @@ CREATE TABLE IF NOT EXISTS transactions
     max_fee      numeric(30, 18)                            NOT NULL,
     fee          numeric(30, 18)                            NOT NULL,
     size         integer                                    NOT NULL,
+    nonce        integer                                    NOT NULL,
     CONSTRAINT transactions_pkey PRIMARY KEY (id),
     CONSTRAINT transactions_block_height_fkey FOREIGN KEY (block_height)
         REFERENCES blocks (height) MATCH SIMPLE
@@ -1615,7 +1616,8 @@ $$
             max_fee numeric(30, 18),
             fee     numeric(30, 18),
             size    integer,
-            raw     text
+            raw     text,
+            nonce   integer
         );
 
         ALTER TYPE tp_tx
@@ -2796,8 +2798,10 @@ BEGIN
                     select id into l_to from addresses where lower(address) = lower(tx."to");
                 end if;
                 SELECT id INTO l_address_id FROM addresses WHERE lower(address) = lower(tx."from");
-                INSERT INTO TRANSACTIONS (HASH, BLOCK_HEIGHT, type, "from", "to", AMOUNT, TIPS, MAX_FEE, FEE, SIZE)
-                VALUES (tx.hash, p_height, tx.type, l_address_id, l_to, tx.amount, tx.tips, tx.max_fee, tx.fee, tx.size)
+                INSERT INTO TRANSACTIONS (HASH, BLOCK_HEIGHT, type, "from", "to", AMOUNT, TIPS, MAX_FEE, FEE, SIZE,
+                                          nonce)
+                VALUES (tx.hash, p_height, tx.type, l_address_id, l_to, tx.amount, tx.tips, tx.max_fee, tx.fee, tx.size,
+                        tx.nonce)
                 RETURNING id into l_tx_id;
 
                 INSERT INTO transaction_raws (tx_id, raw) VALUES (l_tx_id, decode(tx.raw, 'hex'));

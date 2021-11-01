@@ -54,8 +54,8 @@ func (v *MemPoolFlipKey) Value() (driver.Value, error) {
 }
 
 func (v Transaction) Value() (driver.Value, error) {
-	return fmt.Sprintf("(%v,%v,%v,%v,%v,%v,%v,%v,%v,%v)",
-		v.Hash, v.Type, v.From, v.To, v.Amount, v.Tips, v.MaxFee, v.Fee, v.Size, v.Raw), nil
+	return fmt.Sprintf("(%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v)",
+		v.Hash, v.Type, v.From, v.To, v.Amount, v.Tips, v.MaxFee, v.Fee, v.Size, v.Raw, v.Nonce), nil
 }
 
 func (v ActivationTxTransfer) Value() (driver.Value, error) {
