@@ -7,8 +7,8 @@ DO
 $$
     DECLARE
         l_record record;
-        l_nonce  smallint;
-        l_epoch  smallint;
+        l_nonce  integer;
+        l_epoch  integer;
     BEGIN
         CREATE TABLE tmp_nonces
         (
@@ -17,11 +17,14 @@ $$
             nonce      integer  NOT NULL
         );
         CREATE UNIQUE INDEX tmp_nonces_pk ON tmp_nonces (address_id);
-        for l_record in SELECT t.id, t.from as address_d, b.epoch
+        for l_record in SELECT t.id, t.from as address_d, b.epoch, t.nonce
                         FROM transactions t
                                  LEFT JOIN blocks b on b.height = t.block_height
-                        ORDER BY id
+                        ORDER BY t.id
             loop
+                if l_record.nonce is not null then
+                    continue;
+                end if;
                 SELECT epoch, nonce INTO l_epoch, l_nonce FROM tmp_nonces WHERE address_id = l_record.address_d;
                 if l_nonce is null then
                     UPDATE transactions SET nonce = 1 WHERE id = l_record.id;
