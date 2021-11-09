@@ -10,6 +10,7 @@ import (
 	"github.com/idena-network/idena-go/common/math"
 	"github.com/idena-network/idena-go/core/appstate"
 	"github.com/idena-network/idena-go/core/state"
+	"github.com/idena-network/idena-go/core/validators"
 	"github.com/idena-network/idena-go/crypto"
 	"github.com/idena-network/idena-go/stats/collector"
 	statsTypes "github.com/idena-network/idena-go/stats/types"
@@ -21,6 +22,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/shopspring/decimal"
 	"math/big"
+	"time"
 )
 
 var (
@@ -118,6 +120,22 @@ func (c *statsCollector) RemoveMemPoolTx(tx *types.Transaction) {
 	c.bus.Publish(&RemovedMemPoolTxEvent{
 		Tx: tx,
 	})
+}
+
+func (c *statsCollector) SubmitVoteCountingStepResult(round uint64, step uint8, votesByBlock map[common.Hash]map[common.Address]*types.Vote, necessaryVotesCount, checkedRoundVotes int) {
+
+}
+
+func (c *statsCollector) SubmitVoteCountingResult(round uint64, step uint8, validators *validators.StepValidators, hash common.Hash, cert *types.FullBlockCert, err error) {
+
+}
+
+func (c *statsCollector) SubmitProofProposal(round uint64, hash common.Hash, proposerPubKey []byte, modifier int) {
+
+}
+
+func (c *statsCollector) SubmitBlockProposal(proposal *types.BlockProposal, receivingTime time.Time) {
+
 }
 
 func (c *statsCollector) EnableCollecting() {
