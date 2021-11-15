@@ -1,0 +1,1 @@
+DROP TYPE tp_tx CASCADE;

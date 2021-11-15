@@ -574,6 +574,13 @@ CREATE TABLE IF NOT EXISTS kill_invitee_tx_transfers
         ON DELETE NO ACTION
 );
 
+CREATE TABLE IF NOT EXISTS short_answer_txs
+(
+    tx_id       bigint   NOT NULL,
+    client_type smallint NOT NULL,
+    CONSTRAINT short_answer_txs_pkey PRIMARY KEY (tx_id)
+);
+
 -- SEQUENCE: address_states_id_seq
 
 -- DROP SEQUENCE address_states_id_seq;
@@ -1596,31 +1603,6 @@ $$
         );
 
         ALTER TYPE tp_balance
-            OWNER TO postgres;
-    EXCEPTION
-        WHEN duplicate_object THEN null;
-    END
-$$;
-
-DO
-$$
-    BEGIN
-        CREATE TYPE tp_tx AS
-        (
-            hash    character(66),
-            type    smallint,
-            "from"  character(42),
-            "to"    character(42),
-            amount  numeric(30, 18),
-            tips    numeric(30, 18),
-            max_fee numeric(30, 18),
-            fee     numeric(30, 18),
-            size    integer,
-            raw     text,
-            nonce   integer
-        );
-
-        ALTER TYPE tp_tx
             OWNER TO postgres;
     EXCEPTION
         WHEN duplicate_object THEN null;
@@ -2707,7 +2689,6 @@ $BODY$;
 CREATE OR REPLACE FUNCTION save_addrs_and_txs(p_height bigint,
                                               p_changes_blocks_count smallint,
                                               addresses tp_address[],
-                                              txs tp_tx[],
                                               p_activation_tx_transfers tp_activation_tx_transfer[],
                                               p_kill_tx_transfers tp_kill_tx_transfer[],
                                               p_kill_invitee_tx_transfers tp_kill_invitee_tx_transfer[],
@@ -2755,16 +2736,8 @@ DECLARE
     address_row              tp_address;
     address_state_change_row tp_address_state_change;
     l_prev_state_id          bigint;
-    tx                       tp_tx;
-    l_tx_id                  bigint;
-    l_to                     bigint;
     res                      tp_tx_hash_id[];
     deleted_flip             tp_deleted_flip;
-    l_invites_count          integer;
-    l_flips_count_diff       integer;
-    l_cur_epoch_min_tx_id    bigint;
-    l_epoch_min_tx_id        bigint;
-    l_epoch_max_tx_id        bigint;
 BEGIN
     if addresses is not null then
         for i in 1..cardinality(addresses)
@@ -2781,62 +2754,8 @@ BEGIN
             end loop;
     end if;
 
-    if txs is not null then
-        l_invites_count = 0;
-        l_flips_count_diff = 0;
-
-        SELECT min_tx_id
-        INTO l_cur_epoch_min_tx_id
-        FROM epoch_summaries
-        WHERE epoch = (SELECT epoch FROM blocks WHERE height = p_height);
-
-        for i in 1..cardinality(txs)
-            loop
-                tx = txs[i];
-                l_to = null;
-                IF char_length(tx."to") > 0 THEN
-                    select id into l_to from addresses where lower(address) = lower(tx."to");
-                end if;
-                SELECT id INTO l_address_id FROM addresses WHERE lower(address) = lower(tx."from");
-                INSERT INTO TRANSACTIONS (HASH, BLOCK_HEIGHT, type, "from", "to", AMOUNT, TIPS, MAX_FEE, FEE, SIZE,
-                                          nonce)
-                VALUES (tx.hash, p_height, tx.type, l_address_id, l_to, tx.amount, tx.tips, tx.max_fee, tx.fee, tx.size,
-                        tx.nonce)
-                RETURNING id into l_tx_id;
-
-                INSERT INTO transaction_raws (tx_id, raw) VALUES (l_tx_id, decode(tx.raw, 'hex'));
-
-                res = array_append(res, (tx.hash, l_tx_id)::tp_tx_hash_id);
-
-                if tx.type = 2 then
-                    -- InviteTx
-                    l_invites_count = l_invites_count + 1;
-                end if;
-                if tx.type = 4 then
-                    -- SubmitFlipTx
-                    l_flips_count_diff = l_flips_count_diff + 1;
-                    CALL update_address_summary(p_address_id => l_address_id, p_flips_diff => 1);
-                end if;
-                if tx.type = 14 then
-                    -- DeleteFlipTx
-                    l_flips_count_diff = l_flips_count_diff - 1;
-                    CALL update_address_summary(p_address_id => l_address_id, p_flips_diff => -1);
-                end if;
-
-                if l_cur_epoch_min_tx_id is null and l_epoch_min_tx_id is null then
-                    l_epoch_min_tx_id = l_tx_id;
-                end if;
-
-                l_epoch_max_tx_id = l_tx_id;
-
-            end loop;
-
-        call update_epoch_summary(p_block_height => p_height,
-                                  p_tx_count_diff => cardinality(txs),
-                                  p_invite_count_diff =>l_invites_count,
-                                  p_flip_count_diff => l_flips_count_diff,
-                                  p_min_tx_id => l_epoch_min_tx_id,
-                                  p_max_tx_id => l_epoch_max_tx_id);
+    if p_data is not null then
+        res = save_txs(p_height, p_data -> 'txs');
     end if;
 
     if p_activation_tx_transfers is not null then
@@ -3024,6 +2943,111 @@ BEGIN
     return res;
 END
 $BODY$;
+
+CREATE OR REPLACE FUNCTION save_txs(p_block_height bigint,
+                                    p_items jsonb)
+    RETURNS tp_tx_hash_id[]
+    LANGUAGE 'plpgsql'
+AS
+$$
+DECLARE
+    l_item                jsonb;
+    l_invites_count       integer;
+    l_flips_count_diff    integer;
+    l_cur_epoch_min_tx_id bigint;
+    l_to                  bigint;
+    l_address_id          bigint;
+    l_tx_id               bigint;
+    l_res                 tp_tx_hash_id[];
+    l_type                smallint;
+    l_epoch_min_tx_id     bigint;
+    l_epoch_max_tx_id     bigint;
+    l_data                jsonb;
+BEGIN
+    if p_items is null then
+        return l_res;
+    end if;
+
+    l_invites_count = 0;
+    l_flips_count_diff = 0;
+
+    SELECT min_tx_id
+    INTO l_cur_epoch_min_tx_id
+    FROM epoch_summaries
+    WHERE epoch = (SELECT epoch FROM blocks WHERE height = p_block_height);
+
+    for i in 0..jsonb_array_length(p_items) - 1
+        loop
+            l_item = (p_items ->> i)::jsonb;
+            l_type = (l_item ->> 'type')::smallint;
+
+            l_to = null;
+            IF char_length((l_item ->> 'to')::text) > 0 THEN
+                select id into l_to from addresses where lower(address) = lower((l_item ->> 'to')::text);
+            end if;
+            SELECT id INTO l_address_id FROM addresses WHERE lower(address) = lower((l_item ->> 'from')::text);
+            INSERT INTO transactions (HASH, BLOCK_HEIGHT, type, "from", "to", AMOUNT, TIPS, MAX_FEE, FEE, SIZE,
+                                      nonce)
+            VALUES ((l_item ->> 'hash')::text,
+                    p_block_height,
+                    l_type,
+                    l_address_id,
+                    l_to,
+                    (l_item ->> 'amount')::numeric,
+                    (l_item ->> 'tips')::numeric,
+                    (l_item ->> 'maxFee')::numeric,
+                    (l_item ->> 'fee')::numeric,
+                    (l_item ->> 'size')::integer,
+                    (l_item ->> 'nonce')::integer)
+            RETURNING id into l_tx_id;
+
+            INSERT INTO transaction_raws (tx_id, raw) VALUES (l_tx_id, decode((l_item ->> 'raw')::text, 'hex'));
+
+            l_res = array_append(l_res, ((l_item ->> 'hash')::text, l_tx_id)::tp_tx_hash_id);
+
+            l_data = l_item -> 'data';
+
+            if l_type = 6 then
+                -- SubmitShortAnswersTx
+                if l_data is not null then
+                    INSERT INTO short_answer_txs (tx_id, client_type)
+                    VALUES (l_tx_id, (l_data ->> 'clientType')::smallint);
+                end if;
+            end if;
+
+            if l_type = 2 then
+                -- InviteTx
+                l_invites_count = l_invites_count + 1;
+            end if;
+            if l_type = 4 then
+                -- SubmitFlipTx
+                l_flips_count_diff = l_flips_count_diff + 1;
+                CALL update_address_summary(p_address_id => l_address_id, p_flips_diff => 1);
+            end if;
+            if l_type = 14 then
+                -- DeleteFlipTx
+                l_flips_count_diff = l_flips_count_diff - 1;
+                CALL update_address_summary(p_address_id => l_address_id, p_flips_diff => -1);
+            end if;
+
+            if l_cur_epoch_min_tx_id is null and l_epoch_min_tx_id is null then
+                l_epoch_min_tx_id = l_tx_id;
+            end if;
+
+            l_epoch_max_tx_id = l_tx_id;
+
+        end loop;
+
+    call update_epoch_summary(p_block_height => p_block_height,
+                              p_tx_count_diff => jsonb_array_length(p_items),
+                              p_invite_count_diff => l_invites_count,
+                              p_flip_count_diff => l_flips_count_diff,
+                              p_min_tx_id => l_epoch_min_tx_id,
+                              p_max_tx_id => l_epoch_max_tx_id);
+
+    return l_res;
+END
+$$;
 
 -- PROCEDURE: save_activation_tx_transfers
 CREATE OR REPLACE PROCEDURE save_activation_tx_transfers(p_activation_tx_transfers tp_activation_tx_transfer[])
@@ -3248,6 +3272,7 @@ DECLARE
     l_epoch               bigint;
     l_is_epoch_last_block boolean;
     l_timestamp           bigint;
+    l_min_tx_id_to_delete bigint;
 BEGIN
 
     SET session_replication_role = replica;
@@ -3266,6 +3291,8 @@ BEGIN
 
     l_epoch = coalesce(l_epoch, 0);
     l_timestamp = coalesce(l_timestamp, 0);
+
+    SELECT min(t.id) INTO l_min_tx_id_to_delete FROM transactions t WHERE t.block_height > p_block_height;
 
     l_is_epoch_last_block = (SELECT exists(SELECT 1
                                            FROM block_flags
@@ -3560,6 +3587,8 @@ BEGIN
           (select t.id
            from transactions t
            where t.block_height > p_block_height);
+
+    DELETE FROM short_answer_txs WHERE tx_id >= l_min_tx_id_to_delete;
 
     delete
     from rewarded_invitations

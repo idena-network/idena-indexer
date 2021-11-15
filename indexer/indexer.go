@@ -761,19 +761,28 @@ func (indexer *Indexer) convertTransaction(
 	}
 
 	tx := db.Transaction{
-		Type:    convertTxType(incomingTx.Type),
-		Payload: incomingTx.Payload,
-		Hash:    txHash,
-		From:    from,
-		To:      to,
-		Amount:  blockchain.ConvertToFloat(incomingTx.Amount),
-		Tips:    blockchain.ConvertToFloat(incomingTx.Tips),
-		MaxFee:  blockchain.ConvertToFloat(incomingTx.MaxFee),
-		Fee:     blockchain.ConvertToFloat(indexer.statsHolder().GetStats().FeesByTxHash[incomingTx.Hash()]),
-		Size:    incomingTx.Size(),
-		Raw:     hex.EncodeToString(txRaw),
-		Nonce:   incomingTx.AccountNonce,
+		Type:   convertTxType(incomingTx.Type),
+		Hash:   txHash,
+		From:   from,
+		To:     to,
+		Amount: blockchain.ConvertToFloat(incomingTx.Amount),
+		Tips:   blockchain.ConvertToFloat(incomingTx.Tips),
+		MaxFee: blockchain.ConvertToFloat(incomingTx.MaxFee),
+		Fee:    blockchain.ConvertToFloat(indexer.statsHolder().GetStats().FeesByTxHash[incomingTx.Hash()]),
+		Size:   incomingTx.Size(),
+		Raw:    hex.EncodeToString(txRaw),
+		Nonce:  incomingTx.AccountNonce,
 	}
+
+	var data interface{}
+	if incomingTx.Type == types.SubmitShortAnswersTx {
+		if attachment := attachments.ParseShortAnswerAttachment(incomingTx); attachment != nil {
+			data = &db.ShortAnswerTxData{
+				ClientType: attachment.ClientType,
+			}
+		}
+	}
+	tx.Data = data
 
 	return tx
 }

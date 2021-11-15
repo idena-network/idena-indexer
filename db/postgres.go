@@ -407,12 +407,11 @@ func (a *postgresAccessor) saveAddressesAndTransactions(
 
 	addressesArray, addressStateChangesArray := getPostgresAddressesAndAddressStateChangesArrays(addresses)
 	var txHashIds []txHashId
-	data := getData(delegationSwitches, upgradesVotes, poolSizes, minersHistoryItem, removedTransitiveDelegations)
+	data := getData(txs, delegationSwitches, upgradesVotes, poolSizes, minersHistoryItem, removedTransitiveDelegations)
 	err := ctx.tx.QueryRow(a.getQuery(insertAddressesAndTransactionsQuery),
 		ctx.blockHeight,
 		a.changesHistoryBlocksCount,
 		addressesArray,
-		pq.Array(txs),
 		pq.Array(activationTxTransfers),
 		pq.Array(killTxs),
 		pq.Array(killInviteeTxTransfers),

@@ -884,6 +884,7 @@ func getRewardAgesArray(agesByAddress map[string]uint16) interface {
 }
 
 type data struct {
+	Txs                          []Transaction                 `json:"txs,omitempty"`
 	DelegationSwitches           []*delegationSwitch           `json:"delegationSwitches,omitempty"`
 	UpgradesVotes                []*upgradeVotes               `json:"upgradesVotes,omitempty"`
 	PoolSizes                    []poolSize                    `json:"poolSizes,omitempty"`
@@ -936,13 +937,16 @@ type delegationEpochReward struct {
 }
 
 func getData(
+	txs []Transaction,
 	delegationSwitches []*DelegationSwitch,
 	upgradesVotes []*UpgradeVotes,
 	poolSizes []PoolSize,
 	minersHistoryItem *MinersHistoryItem,
 	removedTransitiveDelegations []RemovedTransitiveDelegation,
 ) *data {
-	res := &data{}
+	res := &data{
+		Txs: txs,
+	}
 	if len(delegationSwitches) > 0 {
 		res.DelegationSwitches = make([]*delegationSwitch, 0, len(delegationSwitches))
 		for _, incomingDelegationSwitch := range delegationSwitches {

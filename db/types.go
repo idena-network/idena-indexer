@@ -224,18 +224,23 @@ type Block struct {
 }
 
 type Transaction struct {
-	Hash    string
-	Type    uint16
-	From    string
-	To      string
-	Amount  decimal.Decimal
-	Tips    decimal.Decimal
-	MaxFee  decimal.Decimal
-	Fee     decimal.Decimal
-	Payload []byte
-	Size    int
-	Raw     string
-	Nonce   uint32
+	Hash   string          `json:"hash"`
+	Type   uint16          `json:"type"`
+	From   string          `json:"from"`
+	To     string          `json:"to"`
+	Amount decimal.Decimal `json:"amount"`
+	Tips   decimal.Decimal `json:"tips"`
+	MaxFee decimal.Decimal `json:"maxFee"`
+	Fee    decimal.Decimal `json:"fee"`
+	Size   int             `json:"size"`
+	Raw    string          `json:"raw"`
+	Nonce  uint32          `json:"nonce"`
+
+	Data interface{} `json:"data,omitempty"`
+}
+
+type ShortAnswerTxData struct {
+	ClientType byte `json:"clientType"`
 }
 
 type ActivationTxTransfer struct {
