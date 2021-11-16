@@ -1356,3 +1356,7 @@ type blockProposal struct {
 func (v *blockProposal) Value() (driver.Value, error) {
 	return json.Marshal(v)
 }
+
+func (v *MemPoolData) Value() (driver.Value, error) {
+	return json.Marshal(v)
+}

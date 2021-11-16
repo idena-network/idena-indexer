@@ -418,14 +418,16 @@ type BurntCoins struct {
 }
 
 type MemPoolData struct {
-	FlipKeyTimestamps       []*MemPoolActionTimestamp
-	AnswersHashTxTimestamps []*MemPoolActionTimestamp
+	FlipPrivateKeysPackageTimestamps []*MemPoolActionTimestamp `json:"flipPrivateKeysPackageTimestamps,omitempty"`
+	FlipKeyTimestamps                []*MemPoolActionTimestamp `json:"flipKeyTimestamps,omitempty"`
+	AnswersHashTxTimestamps          []*MemPoolActionTimestamp `json:"answersHashTxTimestamps,omitempty"`
+	ShortAnswersTxTimestamps         []*MemPoolActionTimestamp `json:"shortAnswersTxTimestamps,omitempty"`
 }
 
 type MemPoolActionTimestamp struct {
-	Address string
-	Epoch   uint64
-	Time    *big.Int
+	Address string `json:"address"`
+	Epoch   uint64 `json:"epoch"`
+	Time    int64  `json:"timestamp"`
 }
 
 type FlipToLoadContent struct {
