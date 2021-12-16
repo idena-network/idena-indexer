@@ -25,6 +25,7 @@ type Config struct {
 	UpgradeVotingShortHistoryItems    int
 	UpgradeVotingShortHistoryMinShift int
 	Data                              *DataConfig
+	TreeSnapshotDir                   string
 }
 
 type Api struct {

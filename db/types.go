@@ -82,6 +82,7 @@ type Delegation struct {
 
 type Data struct {
 	Epoch                                    uint64
+	PrevStateRoot                            string
 	ValidationTime                           big.Int
 	Block                                    Block
 	ActivationTxTransfers                    []ActivationTxTransfer

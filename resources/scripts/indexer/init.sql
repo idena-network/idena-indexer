@@ -278,15 +278,9 @@ CREATE TABLE IF NOT EXISTS epochs
 (
     epoch           bigint NOT NULL,
     validation_time bigint NOT NULL,
+    root            character(66),
     CONSTRAINT epochs_pkey PRIMARY KEY (epoch)
-)
-    WITH (
-        OIDS = FALSE
-    )
-    TABLESPACE pg_default;
-
-ALTER TABLE epochs
-    OWNER to postgres;
+);
 
 CREATE TABLE IF NOT EXISTS blocks
 (

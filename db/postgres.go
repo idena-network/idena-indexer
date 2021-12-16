@@ -83,7 +83,7 @@ func (a *postgresAccessor) Save(data *Data) error {
 	ctx := newContext(a, tx, data.Epoch, data.Block.Height)
 
 	a.pm.Start("saveEpoch")
-	if err = a.saveEpoch(ctx, data.Epoch, data.ValidationTime); err != nil {
+	if err = a.saveEpoch(ctx, data.Epoch, data.ValidationTime, data.PrevStateRoot); err != nil {
 		return getResultError(err)
 	}
 	a.pm.Complete("saveEpoch")
@@ -281,8 +281,8 @@ func (a *postgresAccessor) saveEpochResult(
 	return nil
 }
 
-func (a *postgresAccessor) saveEpoch(ctx *context, epoch uint64, validationTime big.Int) error {
-	_, err := ctx.tx.Exec(a.getQuery(insertEpochQuery), epoch, validationTime.Int64())
+func (a *postgresAccessor) saveEpoch(ctx *context, epoch uint64, validationTime big.Int, root string) error {
+	_, err := ctx.tx.Exec(a.getQuery(insertEpochQuery), epoch, validationTime.Int64(), root)
 	return err
 }
 

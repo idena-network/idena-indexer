@@ -11,6 +11,7 @@ import (
 	"github.com/idena-network/idena-indexer/core/api"
 	"github.com/idena-network/idena-indexer/core/flip"
 	"github.com/idena-network/idena-indexer/core/holder/online"
+	state2 "github.com/idena-network/idena-indexer/core/holder/state"
 	"github.com/idena-network/idena-indexer/core/holder/transaction"
 	"github.com/idena-network/idena-indexer/core/holder/upgrade"
 	logUtil "github.com/idena-network/idena-indexer/core/log"
@@ -72,7 +73,8 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
-		indexerApi := api.NewApi(currentOnlineIdentitiesHolder, upgradesVoting, txMemPool, contractsMemPool)
+		indexerApi := api.NewApi(currentOnlineIdentitiesHolder, upgradesVoting, txMemPool, contractsMemPool,
+			state2.NewHolder(conf.TreeSnapshotDir, log.New("component", "stateHolder")))
 		ownRi := server.NewRouterInitializer(indexerApi, apiLogger)
 
 		apiServer := server.NewServer(conf.Api.Port, apiLogger)
@@ -221,6 +223,7 @@ func initIndexer(config *config.Config, txMemPool transaction.MemPool) (*indexer
 			config.UpgradeVotingShortHistoryItems,
 			config.UpgradeVotingShortHistoryMinShift,
 			indexerEventBus,
+			config.TreeSnapshotDir,
 		),
 		listener, contractsMemPool, upgradesVoting
 }

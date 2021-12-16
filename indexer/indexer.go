@@ -69,6 +69,7 @@ type Indexer struct {
 	firstBlockHeightInitialized bool
 	upgradeVotingHistoryCtx     *upgradeVotingHistoryCtx
 	eventBus                    eventbus.Bus
+	treeSnapshotDir             string
 }
 
 type upgradeVotingHistoryCtx struct {
@@ -113,6 +114,7 @@ func NewIndexer(
 	upgradeVotingShortHistoryItems int,
 	upgradeVotingShortHistoryMinShift int,
 	eventBus eventbus.Bus,
+	treeSnapshotDir string,
 ) *Indexer {
 	return &Indexer{
 		enabled:          enabled,
@@ -125,6 +127,7 @@ func NewIndexer(
 		pm:               pm,
 		flipLoader:       flipLoader,
 		eventBus:         eventBus,
+		treeSnapshotDir:  treeSnapshotDir,
 		upgradeVotingHistoryCtx: &upgradeVotingHistoryCtx{
 			holder:               upgradesVotingHolder,
 			shortHistoryItems:    upgradeVotingShortHistoryItems,
@@ -239,6 +242,12 @@ func (indexer *Indexer) indexBlock(block *types.Block) {
 		}
 		indexer.pm.Complete("Convert")
 
+		if block.Header.Flags().HasFlag(types.ValidationFinished) {
+			if err := indexer.removeEpochTreeSnapshot(); err != nil {
+				log.Warn(errors.Wrap(err, "failed to remove epoch tree snapshot").Error())
+			}
+		}
+
 		indexer.pm.Start("Save")
 		indexer.saveData(res.dbData)
 		indexer.pm.Complete("Save")
@@ -263,6 +272,9 @@ func (indexer *Indexer) indexBlock(block *types.Block) {
 		log.Info(fmt.Sprintf("Processed block %d", block.Height()))
 
 		indexer.refreshUpgradeVotingHistorySummaries(res.dbData.UpgradesVotes, block.Height())
+		if err := indexer.makeEpochTreeSnapshot(); err != nil {
+			log.Warn(errors.Wrap(err, "failed to make epoch tree snapshot").Error())
+		}
 
 		return
 	}
@@ -422,6 +434,7 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) (*result
 
 	dbData := &db.Data{
 		Epoch:                                    epoch,
+		PrevStateRoot:                            conversion.ConvertHash(prevState.State.Root()),
 		ValidationTime:                           *big.NewInt(ctx.newStateReadOnly.State.NextValidationTime().Unix()),
 		Block:                                    block,
 		ActivationTxTransfers:                    collectorStats.ActivationTxTransfers,

@@ -123,17 +123,3 @@ func GetIP(r *http.Request) string {
 	}
 	return r.RemoteAddr
 }
-
-func WriteTextPlainResponse(w http.ResponseWriter, result string, err error, logger log.Logger) {
-	var bytes []byte
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		bytes = []byte(err.Error())
-	} else {
-		bytes = []byte(result)
-	}
-	w.Header().Set("Content-Type", "text/plain")
-	if _, err := w.Write(bytes); err != nil {
-		logger.Error(fmt.Sprintf("Unable to write API response: %v", err))
-	}
-}

@@ -5,6 +5,7 @@ import (
 	"github.com/idena-network/idena-go/common/hexutil"
 	"github.com/idena-network/idena-go/crypto"
 	"github.com/idena-network/idena-indexer/core/holder/online"
+	"github.com/idena-network/idena-indexer/core/holder/state"
 	"github.com/idena-network/idena-indexer/core/holder/transaction"
 	"github.com/idena-network/idena-indexer/core/holder/upgrade"
 	"github.com/idena-network/idena-indexer/core/mempool"
@@ -19,6 +20,7 @@ type Api struct {
 	upgradesVoting   upgrade.UpgradesVotingHolder
 	memPool          transaction.MemPool
 	contractsMemPool mempool.Contracts
+	stateHolder      state.Holder
 }
 
 func NewApi(
@@ -26,12 +28,14 @@ func NewApi(
 	upgradesVoting upgrade.UpgradesVotingHolder,
 	memPool transaction.MemPool,
 	contractsMemPool mempool.Contracts,
+	stateHolder state.Holder,
 ) *Api {
 	return &Api{
 		onlineIdentities: onlineIdentities,
 		upgradesVoting:   upgradesVoting,
 		memPool:          memPool,
 		contractsMemPool: contractsMemPool,
+		stateHolder:      stateHolder,
 	}
 }
 
@@ -220,4 +224,8 @@ func (a *Api) OnlineValidators(count uint64, continuationToken *string) ([]*type
 		}
 	}
 	return res, nextContinuationToken, nil
+}
+
+func (a *Api) IdentityWithProof(epoch uint64, address string) (*hexutil.Bytes, error) {
+	return a.stateHolder.IdentityWithProof(epoch, common.HexToAddress(address))
 }

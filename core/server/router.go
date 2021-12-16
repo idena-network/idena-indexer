@@ -61,6 +61,9 @@ func (ri *routerInitializer) InitRouter(router *mux.Router) {
 	router.Path(strings.ToLower("/MemPool/Transactions/Count")).HandlerFunc(ri.memPoolTransactionsCount)
 	router.Path(strings.ToLower("/MemPool/OracleVotingContractDeploys")).HandlerFunc(ri.memPoolOracleVotingContractDeploys)
 	router.Path(strings.ToLower("/MemPool/Address/{address}/Contract/{contractAddress}/Txs")).HandlerFunc(ri.memPoolAddressContractTxs)
+
+	router.Path(strings.ToLower("/Address/{address}/IdentityWithProof")).
+		Queries("epoch", "{epoch:[0-9]+}").HandlerFunc(ri.identityWithProof)
 }
 
 func (ri *routerInitializer) onlineIdentitiesCount(w http.ResponseWriter, r *http.Request) {
@@ -194,4 +197,15 @@ func (ri *routerInitializer) onlineValidators(w http.ResponseWriter, r *http.Req
 	}
 	resp, nextContinuationToken, err := ri.api.OnlineValidators(count, continuationToken)
 	WriteResponsePage(w, resp, nextContinuationToken, err, ri.logger)
+}
+
+func (ri *routerInitializer) identityWithProof(w http.ResponseWriter, r *http.Request) {
+	epoch, err := ReadUint(mux.Vars(r), "epoch")
+	if err != nil {
+		WriteErrorResponse(w, err, ri.logger)
+		return
+	}
+	address := mux.Vars(r)["address"]
+	resp, err := ri.api.IdentityWithProof(epoch, address)
+	WriteResponse(w, resp, err, ri.logger)
 }
