@@ -11,8 +11,8 @@ require (
 	github.com/golang/protobuf v1.5.2
 	github.com/gorilla/handlers v1.4.2
 	github.com/gorilla/mux v1.7.3
-	github.com/idena-network/idena-go v0.28.3
-	github.com/ipfs/go-cid v0.0.7
+	github.com/idena-network/idena-go v0.28.4
+	github.com/ipfs/go-cid v0.1.0
 	github.com/ipfs/interface-go-ipfs-core v0.5.2
 	github.com/lib/pq v1.1.1
 	github.com/mholt/archiver/v3 v3.5.1-0.20210112195346-074da64920d3
