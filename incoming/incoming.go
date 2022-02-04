@@ -64,6 +64,7 @@ func NewListener(nodeConfigFile string, bus eventbus.Bus, statsCollector collect
 	cfg.IpfsConf.Routing = "dhtclient"
 	cfg.IpfsConf.PublishPeers = true
 	cfg.Sync.FastSync = false
+	cfg.Mempool.ResetInCeremony = true
 
 	cfgTransform(cfg)
 
