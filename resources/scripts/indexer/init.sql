@@ -2748,7 +2748,7 @@ BEGIN
     end if;
 
     if p_data is not null then
-        res = save_txs(p_height, p_data -> 'txs');
+        res = save_txs(p_height, p_data -> 'txs', p_data -> 'epochSummaryUpdate');
     end if;
 
     if p_activation_tx_transfers is not null then
@@ -2938,105 +2938,112 @@ END
 $BODY$;
 
 CREATE OR REPLACE FUNCTION save_txs(p_block_height bigint,
-                                    p_items jsonb)
+                                    p_items jsonb,
+                                    p_epoch_summary_update jsonb)
     RETURNS tp_tx_hash_id[]
     LANGUAGE 'plpgsql'
 AS
 $$
 DECLARE
-    l_item                jsonb;
-    l_invites_count       integer;
-    l_flips_count_diff    integer;
-    l_cur_epoch_min_tx_id bigint;
-    l_to                  bigint;
-    l_address_id          bigint;
-    l_tx_id               bigint;
-    l_res                 tp_tx_hash_id[];
-    l_type                smallint;
-    l_epoch_min_tx_id     bigint;
-    l_epoch_max_tx_id     bigint;
-    l_data                jsonb;
+    l_item                 jsonb;
+    l_invites_count        integer = 0;
+    l_flips_count_diff     integer = 0;
+    l_cur_epoch_min_tx_id  bigint;
+    l_to                   bigint;
+    l_address_id           bigint;
+    l_tx_id                bigint;
+    l_res                  tp_tx_hash_id[];
+    l_type                 smallint;
+    l_epoch_min_tx_id      bigint;
+    l_epoch_max_tx_id      bigint;
+    l_data                 jsonb;
+    l_candidate_count_diff integer;
+    l_tx_count_diff        integer = 0;
 BEGIN
-    if p_items is null then
-        return l_res;
+
+    if p_items is not null then
+
+        l_tx_count_diff = jsonb_array_length(p_items);
+
+        SELECT min_tx_id
+        INTO l_cur_epoch_min_tx_id
+        FROM epoch_summaries
+        WHERE epoch = (SELECT epoch FROM blocks WHERE height = p_block_height);
+
+        for i in 0..jsonb_array_length(p_items) - 1
+            loop
+                l_item = (p_items ->> i)::jsonb;
+                l_type = (l_item ->> 'type')::smallint;
+
+                l_to = null;
+                IF char_length((l_item ->> 'to')::text) > 0 THEN
+                    select id into l_to from addresses where lower(address) = lower((l_item ->> 'to')::text);
+                end if;
+                SELECT id INTO l_address_id FROM addresses WHERE lower(address) = lower((l_item ->> 'from')::text);
+                INSERT INTO transactions (HASH, BLOCK_HEIGHT, type, "from", "to", AMOUNT, TIPS, MAX_FEE, FEE, SIZE,
+                                          nonce)
+                VALUES ((l_item ->> 'hash')::text,
+                        p_block_height,
+                        l_type,
+                        l_address_id,
+                        l_to,
+                        (l_item ->> 'amount')::numeric,
+                        (l_item ->> 'tips')::numeric,
+                        (l_item ->> 'maxFee')::numeric,
+                        (l_item ->> 'fee')::numeric,
+                        (l_item ->> 'size')::integer,
+                        (l_item ->> 'nonce')::integer)
+                RETURNING id into l_tx_id;
+
+                INSERT INTO transaction_raws (tx_id, raw) VALUES (l_tx_id, decode((l_item ->> 'raw')::text, 'hex'));
+
+                l_res = array_append(l_res, ((l_item ->> 'hash')::text, l_tx_id)::tp_tx_hash_id);
+
+                l_data = l_item -> 'data';
+
+                if l_type = 6 then
+                    -- SubmitShortAnswersTx
+                    if l_data is not null then
+                        INSERT INTO short_answer_txs (tx_id, client_type)
+                        VALUES (l_tx_id, (l_data ->> 'clientType')::smallint);
+                    end if;
+                end if;
+
+                if l_type = 2 then
+                    -- InviteTx
+                    l_invites_count = l_invites_count + 1;
+                end if;
+                if l_type = 4 then
+                    -- SubmitFlipTx
+                    l_flips_count_diff = l_flips_count_diff + 1;
+                    CALL update_address_summary(p_address_id => l_address_id, p_flips_diff => 1);
+                end if;
+                if l_type = 14 then
+                    -- DeleteFlipTx
+                    l_flips_count_diff = l_flips_count_diff - 1;
+                    CALL update_address_summary(p_address_id => l_address_id, p_flips_diff => -1);
+                end if;
+
+                if l_cur_epoch_min_tx_id is null and l_epoch_min_tx_id is null then
+                    l_epoch_min_tx_id = l_tx_id;
+                end if;
+
+                l_epoch_max_tx_id = l_tx_id;
+
+            end loop;
     end if;
 
-    l_invites_count = 0;
-    l_flips_count_diff = 0;
-
-    SELECT min_tx_id
-    INTO l_cur_epoch_min_tx_id
-    FROM epoch_summaries
-    WHERE epoch = (SELECT epoch FROM blocks WHERE height = p_block_height);
-
-    for i in 0..jsonb_array_length(p_items) - 1
-        loop
-            l_item = (p_items ->> i)::jsonb;
-            l_type = (l_item ->> 'type')::smallint;
-
-            l_to = null;
-            IF char_length((l_item ->> 'to')::text) > 0 THEN
-                select id into l_to from addresses where lower(address) = lower((l_item ->> 'to')::text);
-            end if;
-            SELECT id INTO l_address_id FROM addresses WHERE lower(address) = lower((l_item ->> 'from')::text);
-            INSERT INTO transactions (HASH, BLOCK_HEIGHT, type, "from", "to", AMOUNT, TIPS, MAX_FEE, FEE, SIZE,
-                                      nonce)
-            VALUES ((l_item ->> 'hash')::text,
-                    p_block_height,
-                    l_type,
-                    l_address_id,
-                    l_to,
-                    (l_item ->> 'amount')::numeric,
-                    (l_item ->> 'tips')::numeric,
-                    (l_item ->> 'maxFee')::numeric,
-                    (l_item ->> 'fee')::numeric,
-                    (l_item ->> 'size')::integer,
-                    (l_item ->> 'nonce')::integer)
-            RETURNING id into l_tx_id;
-
-            INSERT INTO transaction_raws (tx_id, raw) VALUES (l_tx_id, decode((l_item ->> 'raw')::text, 'hex'));
-
-            l_res = array_append(l_res, ((l_item ->> 'hash')::text, l_tx_id)::tp_tx_hash_id);
-
-            l_data = l_item -> 'data';
-
-            if l_type = 6 then
-                -- SubmitShortAnswersTx
-                if l_data is not null then
-                    INSERT INTO short_answer_txs (tx_id, client_type)
-                    VALUES (l_tx_id, (l_data ->> 'clientType')::smallint);
-                end if;
-            end if;
-
-            if l_type = 2 then
-                -- InviteTx
-                l_invites_count = l_invites_count + 1;
-            end if;
-            if l_type = 4 then
-                -- SubmitFlipTx
-                l_flips_count_diff = l_flips_count_diff + 1;
-                CALL update_address_summary(p_address_id => l_address_id, p_flips_diff => 1);
-            end if;
-            if l_type = 14 then
-                -- DeleteFlipTx
-                l_flips_count_diff = l_flips_count_diff - 1;
-                CALL update_address_summary(p_address_id => l_address_id, p_flips_diff => -1);
-            end if;
-
-            if l_cur_epoch_min_tx_id is null and l_epoch_min_tx_id is null then
-                l_epoch_min_tx_id = l_tx_id;
-            end if;
-
-            l_epoch_max_tx_id = l_tx_id;
-
-        end loop;
+    if p_epoch_summary_update is not null then
+        l_candidate_count_diff = (p_epoch_summary_update ->> 'candidateCountDiff')::integer;
+    end if;
 
     call update_epoch_summary(p_block_height => p_block_height,
-                              p_tx_count_diff => jsonb_array_length(p_items),
+                              p_tx_count_diff => l_tx_count_diff,
                               p_invite_count_diff => l_invites_count,
                               p_flip_count_diff => l_flips_count_diff,
                               p_min_tx_id => l_epoch_min_tx_id,
-                              p_max_tx_id => l_epoch_max_tx_id);
+                              p_max_tx_id => l_epoch_max_tx_id,
+                              p_candidate_count_diff => l_candidate_count_diff);
 
     return l_res;
 END

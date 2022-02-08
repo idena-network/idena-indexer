@@ -73,6 +73,7 @@ type Stats struct {
 	ContractTxsBalanceUpdates                []*db.ContractTxBalanceUpdates
 	ActivationTxs                            []db.ActivationTx
 	RemovedTransitiveDelegations             []db.RemovedTransitiveDelegation
+	EpochSummaryUpdate                       db.EpochSummaryUpdate
 }
 
 type RewardsStats struct {

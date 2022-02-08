@@ -1028,6 +1028,14 @@ func (c *statsCollector) CompleteApplyingTx(appState *appstate.AppState) {
 			c.stats.IdentityStateChangesByTxHashAndAddress = make(map[common.Hash]map[common.Address]*IdentityStateChange)
 		}
 		c.stats.IdentityStateChangesByTxHashAndAddress[tx.Hash()] = changesByAddress
+		for _, stateChange := range changesByAddress {
+			if stateChange.PrevState == state.Candidate && stateChange.NewState != state.Candidate {
+				c.stats.EpochSummaryUpdate.CandidateCountDiff--
+			}
+			if stateChange.NewState == state.Candidate && stateChange.PrevState != state.Candidate {
+				c.stats.EpochSummaryUpdate.CandidateCountDiff++
+			}
+		}
 	}
 
 	c.collectTxSentToContract(appState)

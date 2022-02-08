@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS epoch_summaries
     min_tx_id                 bigint,
     max_tx_id                 bigint,
     reported_flips            integer,
+    candidate_count           bigint          NOT NULL,
     CONSTRAINT epoch_summaries_pkey PRIMARY KEY (epoch),
     CONSTRAINT epoch_summaries_block_height_fkey FOREIGN KEY (block_height)
         REFERENCES blocks (height) MATCH SIMPLE

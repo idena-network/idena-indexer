@@ -138,6 +138,7 @@ type Data struct {
 	PoolSizes                                []PoolSize
 	MinersHistoryItem                        *MinersHistoryItem
 	RemovedTransitiveDelegations             []RemovedTransitiveDelegation
+	EpochSummaryUpdate                       EpochSummaryUpdate
 }
 
 type EpochRewards struct {
@@ -796,4 +797,8 @@ type BlockProposal struct {
 	Height        uint64         `json:"height"`
 	Proposer      common.Address `json:"proposer"`
 	Hash          common.Hash    `json:"hash"`
+}
+
+type EpochSummaryUpdate struct {
+	CandidateCountDiff int `json:"candidateCountDiff,omitempty"`
 }

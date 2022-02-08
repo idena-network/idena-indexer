@@ -890,6 +890,7 @@ type data struct {
 	PoolSizes                    []poolSize                    `json:"poolSizes,omitempty"`
 	MinersHistoryItem            *MinersHistoryItem            `json:"minersHistoryItem,omitempty"`
 	RemovedTransitiveDelegations []removedTransitiveDelegation `json:"removedTransitiveDelegations,omitempty"`
+	EpochSummaryUpdate           EpochSummaryUpdate            `json:"epochSummaryUpdate,omitempty"`
 }
 
 func (v *data) Value() (driver.Value, error) {
@@ -943,9 +944,11 @@ func getData(
 	poolSizes []PoolSize,
 	minersHistoryItem *MinersHistoryItem,
 	removedTransitiveDelegations []RemovedTransitiveDelegation,
+	epochSummaryUpdate EpochSummaryUpdate,
 ) *data {
 	res := &data{
-		Txs: txs,
+		Txs:                txs,
+		EpochSummaryUpdate: epochSummaryUpdate,
 	}
 	if len(delegationSwitches) > 0 {
 		res.DelegationSwitches = make([]*delegationSwitch, 0, len(delegationSwitches))

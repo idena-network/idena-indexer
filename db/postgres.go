@@ -140,6 +140,7 @@ func (a *postgresAccessor) Save(data *Data) error {
 		data.PoolSizes,
 		data.MinersHistoryItem,
 		data.RemovedTransitiveDelegations,
+		data.EpochSummaryUpdate,
 	); err != nil {
 		return getResultError(err)
 	}
@@ -403,11 +404,14 @@ func (a *postgresAccessor) saveAddressesAndTransactions(
 	poolSizes []PoolSize,
 	minersHistoryItem *MinersHistoryItem,
 	removedTransitiveDelegations []RemovedTransitiveDelegation,
+	epochSummaryUpdate EpochSummaryUpdate,
 ) (map[string]int64, error) {
 
 	addressesArray, addressStateChangesArray := getPostgresAddressesAndAddressStateChangesArrays(addresses)
 	var txHashIds []txHashId
-	data := getData(txs, delegationSwitches, upgradesVotes, poolSizes, minersHistoryItem, removedTransitiveDelegations)
+	data := getData(
+		txs, delegationSwitches, upgradesVotes, poolSizes, minersHistoryItem, removedTransitiveDelegations,
+		epochSummaryUpdate)
 	err := ctx.tx.QueryRow(a.getQuery(insertAddressesAndTransactionsQuery),
 		ctx.blockHeight,
 		a.changesHistoryBlocksCount,

@@ -123,7 +123,8 @@ CREATE OR REPLACE PROCEDURE update_epoch_summary(p_block_height bigint,
                                                  p_flip_lottery_block_height bigint DEFAULT null,
                                                  p_min_tx_id bigint DEFAULT null,
                                                  p_max_tx_id bigint DEFAULT null,
-                                                 p_reported_flips integer DEFAULT null)
+                                                 p_reported_flips integer DEFAULT null,
+                                                 p_candidate_count_diff bigint DEFAULT null)
     LANGUAGE 'plpgsql'
 AS
 $$
@@ -148,7 +149,8 @@ BEGIN
         flip_lottery_block_height = coalesce(p_flip_lottery_block_height, flip_lottery_block_height),
         min_tx_id                 = coalesce(p_min_tx_id, min_tx_id),
         max_tx_id                 = coalesce(p_max_tx_id, max_tx_id),
-        reported_flips            = coalesce(p_reported_flips, reported_flips)
+        reported_flips            = coalesce(p_reported_flips, reported_flips),
+        candidate_count           = candidate_count + coalesce(p_candidate_count_diff, 0)
     where epoch = l_epoch
     RETURNING epoch into l_check_epoch;
 
@@ -169,7 +171,8 @@ BEGIN
                                      flip_lottery_block_height,
                                      min_tx_id,
                                      max_tx_id,
-                                     reported_flips)
+                                     reported_flips,
+                                     candidate_count)
         values (l_epoch,
                 coalesce(p_validated_count, 0),
                 coalesce(p_block_count_diff, 0),
@@ -186,7 +189,8 @@ BEGIN
                 p_flip_lottery_block_height,
                 p_min_tx_id,
                 p_max_tx_id,
-                p_reported_flips);
+                p_reported_flips,
+                coalesce(p_candidate_count_diff, 0));
     end if;
 END
 $$;
@@ -234,7 +238,8 @@ BEGIN
      flip_lottery_block_height,
      min_tx_id,
      max_tx_id,
-     reported_flips)
+     reported_flips,
+     candidate_count)
     values (l_epoch,
             0,
             (select count(*)
@@ -281,6 +286,7 @@ BEGIN
              FROM transactions t
                       JOIN blocks b on b.height = t.block_height
              WHERE b.epoch = l_epoch),
-            null);
+            null,
+            (SELECT count(*) FROM address_states WHERE is_actual AND state = 2));
 END
 $$;

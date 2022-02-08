@@ -28,7 +28,7 @@ type conversionCollector struct {
 }
 
 func (collector *conversionCollector) getAddresses() []db.Address {
-	var addresses []db.Address
+	addresses := make([]db.Address, 0, len(collector.addresses))
 	for _, addr := range collector.addresses {
 		addresses = append(addresses, *addr)
 	}

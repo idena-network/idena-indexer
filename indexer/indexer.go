@@ -490,6 +490,7 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) (*result
 		PoolSizes:                                poolSizes,
 		MinersHistoryItem:                        detectMinersHistoryItem(ctx.prevStateReadOnly, ctx.newStateReadOnly),
 		RemovedTransitiveDelegations:             collectorStats.RemovedTransitiveDelegations,
+		EpochSummaryUpdate:                       collectorStats.EpochSummaryUpdate,
 	}
 	resData := &resultData{
 		totalBalance: totalBalance,
@@ -661,7 +662,7 @@ func (indexer *Indexer) convertTransactions(
 	if len(incomingTxs) == 0 {
 		return nil
 	}
-	var txs []db.Transaction
+	txs := make([]db.Transaction, 0, len(incomingTxs))
 	for _, incomingTx := range incomingTxs {
 		txs = append(txs, indexer.convertTransaction(incomingTx, ctx, collector))
 	}
