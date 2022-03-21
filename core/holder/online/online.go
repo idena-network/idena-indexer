@@ -10,6 +10,7 @@ import (
 	"github.com/idena-network/idena-indexer/core/types"
 	"github.com/idena-network/idena-indexer/log"
 	"github.com/shopspring/decimal"
+	"math"
 	"sort"
 	"strings"
 	"time"
@@ -31,6 +32,7 @@ type CurrentOnlineIdentitiesHolder interface {
 	Validators() []*types.Validator
 	OnlineValidatorsCount() int
 	OnlineValidators() []*types.Validator
+	Staking() float64
 }
 
 type currentOnlineIdentitiesCache struct {
@@ -39,13 +41,14 @@ type currentOnlineIdentitiesCache struct {
 	onlineCount          int
 	validators           []*types.Validator
 	onlineValidators     []*types.Validator
+	staking              float64
 }
 
 func NewCurrentOnlineIdentitiesCache(appState *appstate.AppState,
 	chain *blockchain.Blockchain,
 	offlineDetector *blockchain.OfflineDetector) CurrentOnlineIdentitiesHolder {
 	cache := &currentOnlineIdentitiesCache{}
-	cache.set(nil, make(map[string]*Identity), 0, nil, nil)
+	cache.set(nil, make(map[string]*Identity), 0, nil, nil, 0)
 	cache.initialize(appState, chain, offlineDetector)
 	return cache
 }
@@ -86,18 +89,24 @@ func (cache *currentOnlineIdentitiesCache) OnlineValidators() []*types.Validator
 	return cache.onlineValidators
 }
 
+func (cache *currentOnlineIdentitiesCache) Staking() float64 {
+	return cache.staking
+}
+
 func (cache *currentOnlineIdentitiesCache) set(
 	identities []*Identity,
 	identitiesPerAddress map[string]*Identity,
 	onlineCount int,
 	validators []*types.Validator,
 	onlineValidators []*types.Validator,
+	staking float64,
 ) {
 	cache.identities = identities
 	cache.identitiesPerAddress = identitiesPerAddress
 	cache.onlineCount = onlineCount
 	cache.validators = validators
 	cache.onlineValidators = onlineValidators
+	cache.staking = staking
 }
 
 func (cache *currentOnlineIdentitiesCache) initialize(appState *appstate.AppState,
@@ -186,7 +195,12 @@ func (updater *currentOnlineIdentitiesCacheUpdater) update() {
 		}
 	}
 
+	var staking float64
 	appState.State.IterateOverIdentities(func(address common.Address, identity state.Identity) {
+		if identity.State.NewbieOrBetter() && identity.Stake != nil {
+			stake, _ := blockchain.ConvertToFloat(identity.Stake).Float64()
+			staking += math.Pow(stake, 0.9)
+		}
 		if validator := buildValidator(address, identity); validator != nil {
 			validators = append(validators, validator)
 			if validator.Online {
@@ -244,7 +258,7 @@ func (updater *currentOnlineIdentitiesCacheUpdater) update() {
 		})
 	}
 
-	updater.cache.set(identities, identitiesPerAddress, onlineCount, validators, onlineValidators)
+	updater.cache.set(identities, identitiesPerAddress, onlineCount, validators, onlineValidators, staking)
 	finishTime := time.Now()
 	updater.log.Debug("Updated", "duration", finishTime.Sub(startTime))
 }

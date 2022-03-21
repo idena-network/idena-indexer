@@ -229,3 +229,7 @@ func (a *Api) OnlineValidators(count uint64, continuationToken *string) ([]*type
 func (a *Api) IdentityWithProof(epoch uint64, address string) (*hexutil.Bytes, error) {
 	return a.stateHolder.IdentityWithProof(epoch, common.HexToAddress(address))
 }
+
+func (a *Api) Staking() (float64, error) {
+	return a.onlineIdentities.Staking(), nil
+}
