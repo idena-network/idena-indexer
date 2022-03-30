@@ -10,6 +10,7 @@ import (
 	"github.com/idena-network/idena-indexer/config"
 	"github.com/idena-network/idena-indexer/core/api"
 	"github.com/idena-network/idena-indexer/core/flip"
+	"github.com/idena-network/idena-indexer/core/holder/contract"
 	"github.com/idena-network/idena-indexer/core/holder/online"
 	state2 "github.com/idena-network/idena-indexer/core/holder/state"
 	"github.com/idena-network/idena-indexer/core/holder/transaction"
@@ -73,8 +74,10 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
+		appStateHolder := state2.NewAppStateHolder(listener.NodeCtx().AppState, listener.NodeCtx().Blockchain)
+		contractHolder := contract.NewHolder(appStateHolder)
 		indexerApi := api.NewApi(currentOnlineIdentitiesHolder, upgradesVoting, txMemPool, contractsMemPool,
-			state2.NewHolder(conf.TreeSnapshotDir, log.New("component", "stateHolder")))
+			state2.NewHolder(conf.TreeSnapshotDir, log.New("component", "stateHolder")), contractHolder)
 		ownRi := server.NewRouterInitializer(indexerApi, apiLogger)
 
 		apiServer := server.NewServer(conf.Api.Port, apiLogger)

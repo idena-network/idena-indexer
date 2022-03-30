@@ -66,6 +66,8 @@ func (ri *routerInitializer) InitRouter(router *mux.Router) {
 		Queries("epoch", "{epoch:[0-9]+}").HandlerFunc(ri.identityWithProof)
 
 	router.Path(strings.ToLower("/Staking")).HandlerFunc(ri.staking)
+
+	router.Path(strings.ToLower("/Multisig/{address}")).HandlerFunc(ri.multisig)
 }
 
 func (ri *routerInitializer) onlineIdentitiesCount(w http.ResponseWriter, r *http.Request) {
@@ -214,5 +216,11 @@ func (ri *routerInitializer) identityWithProof(w http.ResponseWriter, r *http.Re
 
 func (ri *routerInitializer) staking(w http.ResponseWriter, r *http.Request) {
 	resp, err := ri.api.Staking()
+	WriteResponse(w, resp, err, ri.logger)
+}
+
+func (ri *routerInitializer) multisig(w http.ResponseWriter, r *http.Request) {
+	address := mux.Vars(r)["address"]
+	resp, err := ri.api.Multisig(address)
 	WriteResponse(w, resp, err, ri.logger)
 }

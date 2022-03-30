@@ -783,6 +783,7 @@ CREATE TABLE IF NOT EXISTS oracle_voting_contract_results
         ON UPDATE NO ACTION
         ON DELETE NO ACTION
 );
+
 CREATE TABLE IF NOT EXISTS oracle_voting_contract_results_changes
 (
     change_id       bigint   NOT NULL,

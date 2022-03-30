@@ -4,6 +4,7 @@ import (
 	"github.com/idena-network/idena-go/common"
 	"github.com/idena-network/idena-go/common/hexutil"
 	"github.com/idena-network/idena-go/crypto"
+	"github.com/idena-network/idena-indexer/core/holder/contract"
 	"github.com/idena-network/idena-indexer/core/holder/online"
 	"github.com/idena-network/idena-indexer/core/holder/state"
 	"github.com/idena-network/idena-indexer/core/holder/transaction"
@@ -21,6 +22,7 @@ type Api struct {
 	memPool          transaction.MemPool
 	contractsMemPool mempool.Contracts
 	stateHolder      state.Holder
+	contractHolder   contract.Holder
 }
 
 func NewApi(
@@ -29,6 +31,7 @@ func NewApi(
 	memPool transaction.MemPool,
 	contractsMemPool mempool.Contracts,
 	stateHolder state.Holder,
+	contractHolder contract.Holder,
 ) *Api {
 	return &Api{
 		onlineIdentities: onlineIdentities,
@@ -36,6 +39,7 @@ func NewApi(
 		memPool:          memPool,
 		contractsMemPool: contractsMemPool,
 		stateHolder:      stateHolder,
+		contractHolder:   contractHolder,
 	}
 }
 
@@ -232,4 +236,8 @@ func (a *Api) IdentityWithProof(epoch uint64, address string) (*hexutil.Bytes, e
 
 func (a *Api) Staking() (float64, error) {
 	return a.onlineIdentities.Staking(), nil
+}
+
+func (a *Api) Multisig(address string) (types.Multisig, error) {
+	return a.contractHolder.GetMultisigState(address)
 }
