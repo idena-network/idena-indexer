@@ -231,7 +231,7 @@ func (a *postgresAccessor) saveEpochResult(
 	}
 	var identitiesArray, flipsToSolveArray, answersArray, statesArray, badAuthors, totalRewards, validationRewards,
 		rewardAges, fundRewards, rewardedFlipCids, rewardedInvitations, savedInviteRewards,
-		reportedFlipRewards interface {
+		reportedFlipRewards, rewardStakedAmounts interface {
 		driver.Valuer
 	}
 	var shortAnswerCountsByAddr, longAnswerCountsByAdds, wrongWordsFlipsCountsByAddr map[string]int
@@ -247,6 +247,7 @@ func (a *postgresAccessor) saveEpochResult(
 		totalRewards = epochRewards.Total
 		validationRewards = pq.Array(epochRewards.ValidationRewards)
 		rewardAges = getRewardAgesArray(epochRewards.AgesByAddress)
+		rewardStakedAmounts = getRewardStakedAmountsArray(epochRewards.StakedAmountsByAddress)
 		fundRewards = pq.Array(epochRewards.FundRewards)
 		rewardedFlipCids = pq.Array(epochRewards.RewardedFlipCids)
 		rewardedInvitations = pq.Array(epochRewards.RewardedInvitations)
@@ -268,6 +269,7 @@ func (a *postgresAccessor) saveEpochResult(
 		totalRewards,
 		validationRewards,
 		rewardAges,
+		rewardStakedAmounts,
 		fundRewards,
 		rewardedFlipCids,
 		rewardedInvitations,

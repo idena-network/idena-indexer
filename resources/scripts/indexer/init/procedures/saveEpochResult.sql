@@ -10,6 +10,7 @@ CREATE OR REPLACE PROCEDURE save_epoch_result(p_epoch bigint,
                                               p_total tp_total_epoch_reward,
                                               p_validation_rewards tp_epoch_reward[],
                                               p_ages tp_reward_age[],
+                                              p_staked_amounts tp_reward_staked_amount[],
                                               p_fund_rewards tp_epoch_reward[],
                                               p_rewarded_flip_cids text[],
                                               p_rewarded_invitations tp_rewarded_invitation[],
@@ -63,7 +64,9 @@ BEGIN
     call log_performance('save_flip_stats', l_start, l_end);
 
     select clock_timestamp() into l_start;
-    call save_epoch_rewards(p_epoch, p_height, p_bad_authors, p_total, p_validation_rewards, p_ages, p_fund_rewards,
+    call save_epoch_rewards(p_epoch, p_height, p_bad_authors, p_total, p_validation_rewards, p_ages,
+                            p_staked_amounts,
+                            p_fund_rewards,
                             p_rewarded_flip_cids,
                             p_rewarded_invitations,
                             p_saved_invite_rewards,
@@ -88,7 +91,8 @@ BEGIN
         call log_performance('save_delegatee_epoch_rewards', l_start, l_end);
 
         select clock_timestamp() into l_start;
-        call save_validation_rewards_summaries(p_epoch, p_height, p_data -> 'validationRewardsSummaries', p_total.invitations_share);
+        call save_validation_rewards_summaries(p_epoch, p_height, p_data -> 'validationRewardsSummaries',
+                                               p_total.invitations_share);
         select clock_timestamp() into l_end;
         call log_performance('save_validation_rewards_summaries', l_start, l_end);
     end if;
@@ -183,12 +187,14 @@ BEGIN
                 l_delegatee_address_id = null;
             end if;
 
-            insert into epoch_identities (epoch, address_id, address_state_id, short_point, short_flips, total_short_point,
+            insert into epoch_identities (epoch, address_id, address_state_id, short_point, short_flips,
+                                          total_short_point,
                                           total_short_flips, long_point, long_flips, approved, missed, required_flips,
                                           available_flips, made_flips, next_epoch_invites, birth_epoch,
                                           total_validation_reward, short_answers, long_answers, wrong_words_flips,
                                           delegatee_address_id, shard_id, new_shard_id)
-            values (p_epoch, l_address_id, l_state_id, l_identity.short_point, l_identity.short_flips, l_identity.total_short_point,
+            values (p_epoch, l_address_id, l_state_id, l_identity.short_point, l_identity.short_flips,
+                    l_identity.total_short_point,
                     l_identity.total_short_flips, l_identity.long_point, l_identity.long_flips, l_identity.approved,
                     l_identity.missed, l_identity.required_flips, l_identity.available_flips, l_identity.made_flips,
                     l_identity.next_epoch_invites, l_identity.birth_epoch, 0, l_identity.short_answers,
@@ -214,17 +220,16 @@ BEGIN
 
     SELECT min(height), max(height) INTO l_min_epoch_height, l_max_epoch_height FROM blocks WHERE epoch = p_epoch;
 
-    insert into epoch_identity_interim_states (
-        select s.id, p_height
-        from address_states s
-                 left join temporary_identities ti on ti.address_id = s.address_id
-                 left join cur_epoch_identities ei on ei.address_state_id = s.id
-        where s.block_height >= l_min_epoch_height
-          and s.block_height <= l_max_epoch_height
-          and s.is_actual
-          and s.state in (0, 5)
-          and ti.address_id is null -- exclude temporary identities
-          and ei.address_state_id is null -- exclude epoch identities (at least god node if it was killed before validation)
+    insert into epoch_identity_interim_states (select s.id, p_height
+                                               from address_states s
+                                                        left join temporary_identities ti on ti.address_id = s.address_id
+                                                        left join cur_epoch_identities ei on ei.address_state_id = s.id
+                                               where s.block_height >= l_min_epoch_height
+                                                 and s.block_height <= l_max_epoch_height
+                                                 and s.is_actual
+                                                 and s.state in (0, 5)
+                                                 and ti.address_id is null -- exclude temporary identities
+                                                 and ei.address_state_id is null -- exclude epoch identities (at least god node if it was killed before validation)
     );
 END
 $BODY$;
@@ -318,6 +323,7 @@ CREATE OR REPLACE PROCEDURE save_epoch_rewards(p_epoch bigint,
                                                p_total tp_total_epoch_reward,
                                                p_validation_rewards tp_epoch_reward[],
                                                p_ages tp_reward_age[],
+                                               p_staked_amounts tp_reward_staked_amount[],
                                                p_fund_rewards tp_epoch_reward[],
                                                p_rewarded_flip_cids text[],
                                                p_rewarded_invitations tp_rewarded_invitation[],
@@ -357,6 +363,13 @@ BEGIN
     end if;
     select clock_timestamp() into l_end;
     call log_performance('save_reward_ages', l_start, l_end);
+
+    select clock_timestamp() into l_start;
+    if p_staked_amounts is not null then
+        call save_reward_staked_amounts(p_staked_amounts);
+    end if;
+    select clock_timestamp() into l_end;
+    call log_performance('save_reward_staked_amounts', l_start, l_end);
 
     select clock_timestamp() into l_start;
     if p_fund_rewards is not null then
@@ -429,7 +442,11 @@ BEGIN
                                flips_share,
                                invitations_share,
                                reports,
-                               reports_share)
+                               reports_share,
+                               staking,
+                               candidate,
+                               staking_share,
+                               candidate_share)
     values (p_epoch,
             p_total.total,
             p_total.validation,
@@ -441,7 +458,11 @@ BEGIN
             p_total.flips_share,
             p_total.invitations_share,
             p_total.reports,
-            p_total.reports_share);
+            p_total.reports_share,
+            p_total.staking,
+            p_total.candidate,
+            p_total.staking_share,
+            p_total.candidate_share);
 END
 $BODY$;
 
@@ -481,6 +502,25 @@ BEGIN
                      from cur_epoch_identities
                      where lower(address) = lower(l_age.address)),
                     l_age.age);
+        end loop;
+END
+$BODY$;
+
+CREATE OR REPLACE PROCEDURE save_reward_staked_amounts(p_items tp_reward_staked_amount[])
+    LANGUAGE 'plpgsql'
+AS
+$BODY$
+DECLARE
+    l_item tp_reward_staked_amount;
+BEGIN
+    for i in 1..cardinality(p_items)
+        loop
+            l_item := p_items[i];
+            INSERT INTO reward_staked_amounts (ei_address_state_id, amount)
+            VALUES ((SELECT address_state_id
+                     FROM cur_epoch_identities
+                     WHERE lower(address) = lower(l_item.address)),
+                    l_item.amount);
         end loop;
 END
 $BODY$;

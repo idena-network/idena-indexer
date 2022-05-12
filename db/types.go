@@ -142,15 +142,16 @@ type Data struct {
 }
 
 type EpochRewards struct {
-	BadAuthors          []*BadAuthor
-	Total               *TotalRewards
-	ValidationRewards   []*Reward
-	FundRewards         []*Reward
-	AgesByAddress       map[string]uint16
-	RewardedFlipCids    []string
-	RewardedInvitations []*RewardedInvite
-	SavedInviteRewards  []*SavedInviteRewards
-	ReportedFlipRewards []*ReportedFlipReward
+	BadAuthors             []*BadAuthor
+	Total                  *TotalRewards
+	ValidationRewards      []*Reward
+	FundRewards            []*Reward
+	AgesByAddress          map[string]uint16
+	StakedAmountsByAddress map[string]*big.Int
+	RewardedFlipCids       []string
+	RewardedInvitations    []*RewardedInvite
+	SavedInviteRewards     []*SavedInviteRewards
+	ReportedFlipRewards    []*ReportedFlipReward
 }
 
 type RewardedInvite struct {
@@ -175,12 +176,16 @@ type ReportedFlipReward struct {
 type TotalRewards struct {
 	Total             decimal.Decimal
 	Validation        decimal.Decimal
+	Staking           decimal.Decimal
+	Candidate         decimal.Decimal
 	Flips             decimal.Decimal
 	Reports           decimal.Decimal
 	Invitations       decimal.Decimal
 	FoundationPayouts decimal.Decimal
 	ZeroWalletFund    decimal.Decimal
 	ValidationShare   decimal.Decimal
+	StakingShare      decimal.Decimal
+	CandidateShare    decimal.Decimal
 	FlipsShare        decimal.Decimal
 	ReportsShare      decimal.Decimal
 	InvitationsShare  decimal.Decimal
@@ -478,6 +483,7 @@ type OracleVotingContractCallVoteProof struct {
 	VoteHash            []byte
 	Votes               uint64
 	NewSecretVotesCount *uint64
+	Discriminated       bool
 }
 
 type OracleVotingContractCallVote struct {
@@ -488,6 +494,7 @@ type OracleVotingContractCallVote struct {
 	OptionAllVotes   *uint64 // TODO make non-pointer after deprecated AddOracleVotingCallVoteOld is removed
 	SecretVotesCount *uint64
 	Delegatee        *common.Address
+	Discriminated    bool
 	PrevPoolVote     *byte
 	PrevOptionVotes  *uint64
 }
@@ -738,6 +745,8 @@ type ValidationRewardSummaries struct {
 	Flips       ValidationRewardSummary
 	Invitations ValidationRewardSummary
 	Reports     ValidationRewardSummary
+	Candidate   ValidationRewardSummary
+	Staking     ValidationRewardSummary
 }
 
 type ValidationRewardSummary struct {
@@ -774,9 +783,10 @@ type VoteCountingResult struct {
 }
 
 type StepValidators struct {
-	Original  []common.Address `json:"original,omitempty"`
-	Addresses []common.Address `json:"addresses,omitempty"`
-	Size      int              `json:"size"`
+	Original           []common.Address `json:"original,omitempty"`
+	Validators         []common.Address `json:"validators,omitempty"`
+	ApprovedValidators []common.Address `json:"approvedValidators,omitempty"`
+	Size               int              `json:"size"`
 }
 
 type FullBlockCert struct {

@@ -163,7 +163,7 @@ func deployRefundableOracleLockContracts(t *testing.T, listener incoming.Listene
 
 	var height uint64
 	height++
-	appState.Precommit()
+	appState.Precommit(true)
 	require.Nil(t, appState.CommitAt(height))
 	require.Nil(t, appState.Initialize(height))
 

@@ -65,11 +65,19 @@ BEGIN
                     VALUES (l_uuid, (l_addresses ->> i)::text);
                 end loop;
         end if;
-        l_addresses = (l_validators -> 'addresses')::jsonb;
+        l_addresses = (l_validators -> 'validators')::jsonb;
         if l_addresses is not null then
             for i in 0..jsonb_array_length(l_addresses) - 1
                 loop
-                    INSERT INTO vote_counting_result_validators_addresses (uuid, address)
+                    INSERT INTO vote_counting_result_validators_validators (uuid, address)
+                    VALUES (l_uuid, (l_addresses ->> i)::text);
+                end loop;
+        end if;
+        l_addresses = (l_validators -> 'approvedValidators')::jsonb;
+        if l_addresses is not null then
+            for i in 0..jsonb_array_length(l_addresses) - 1
+                loop
+                    INSERT INTO vote_counting_result_validators_approved_validators (uuid, address)
                     VALUES (l_uuid, (l_addresses ->> i)::text);
                 end loop;
         end if;
@@ -137,7 +145,8 @@ BEGIN
     DROP TABLE IF EXISTS vote_counting_step_result_votes_old;
     DROP TABLE IF EXISTS vote_counting_results_old;
     DROP TABLE IF EXISTS vote_counting_result_validators_original_old;
-    DROP TABLE IF EXISTS vote_counting_result_validators_addresses_old;
+    DROP TABLE IF EXISTS vote_counting_result_validators_validators_old;
+    DROP TABLE IF EXISTS vote_counting_result_validators_approved_validators_old;
     DROP TABLE IF EXISTS vote_counting_result_cert_votes_old;
     DROP TABLE IF EXISTS proof_proposals_old;
     DROP TABLE IF EXISTS block_proposals_old;
@@ -162,9 +171,13 @@ BEGIN
         RENAME TO vote_counting_result_validators_original_old;
     ALTER INDEX vote_counting_result_validators_original_idx1 RENAME TO vote_counting_result_validators_original_old_idx1;
 
-    ALTER TABLE vote_counting_result_validators_addresses
-        RENAME TO vote_counting_result_validators_addresses_old;
-    ALTER INDEX vote_counting_result_validators_addresses_idx1 RENAME TO vote_counting_result_validators_addresses_old_idx1;
+    ALTER TABLE vote_counting_result_validators_validators
+        RENAME TO vote_counting_result_validators_validators_old;
+    ALTER INDEX vote_counting_result_validators_validators_idx1 RENAME TO vote_counting_result_validators_validators_old_idx1;
+
+    ALTER TABLE vote_counting_result_validators_approved_validators
+        RENAME TO vote_counting_result_validators_approved_validators_old;
+    ALTER INDEX vote_counting_result_validators_approved_validators_idx1 RENAME TO vote_counting_result_validators_approved_validators_old_idx1;
 
     ALTER TABLE vote_counting_result_cert_votes
         RENAME TO vote_counting_result_cert_votes_old;

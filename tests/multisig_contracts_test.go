@@ -61,7 +61,7 @@ func deployMultisigContracts(t *testing.T, listener incoming.Listener, bus event
 
 	var height uint64
 	height++
-	appState.Precommit()
+	appState.Precommit(true)
 	require.Nil(t, appState.CommitAt(height))
 	require.Nil(t, appState.Initialize(height))
 

@@ -98,17 +98,20 @@ func (t *voteCountingTracker) SubmitVoteCountingResultEvent(e *stats.VoteCountin
 	eventCopy.Hash = e.Hash
 	eventCopy.Err = e.Err
 	if e.Validators != nil {
-		var originalCopy, addressesCopy mapset.Set
+		var originalCopy, validatorsCopy, approvedValidators mapset.Set
 		if e.Validators.Original != nil {
 			originalCopy = e.Validators.Original.Clone()
 		}
-		if e.Validators.Addresses != nil {
-			addressesCopy = e.Validators.Addresses.Clone()
+		if e.Validators.Validators != nil {
+			validatorsCopy = e.Validators.Validators.Clone()
+		}
+		if e.Validators.ApprovedValidators != nil {
+			approvedValidators = e.Validators.ApprovedValidators.Clone()
 		}
 		eventCopy.Validators = &validators.StepValidators{
-			Original:  originalCopy,
-			Addresses: addressesCopy,
-			Size:      e.Validators.Size,
+			Original:           originalCopy,
+			Validators:         validatorsCopy,
+			ApprovedValidators: approvedValidators,
 		}
 	}
 	if e.Cert != nil {
@@ -251,8 +254,9 @@ func convertVoteCountingResultEvent(value *voteCountingResultEventWrapper) *db.V
 		res.Err = &err
 	}
 	if value.event.Validators != nil {
-		stepValidators := &db.StepValidators{
-			Size: value.event.Validators.Size,
+		stepValidators := &db.StepValidators{}
+		if value.event.Validators.ApprovedValidators != nil {
+			stepValidators.Size = value.event.Validators.ApprovedValidators.Cardinality()
 		}
 		if value.event.Validators.Original != nil {
 			stepValidators.Original = make([]common.Address, 0, value.event.Validators.Original.Cardinality())
@@ -261,10 +265,17 @@ func convertVoteCountingResultEvent(value *voteCountingResultEventWrapper) *db.V
 				return false
 			})
 		}
-		if value.event.Validators.Addresses != nil {
-			stepValidators.Addresses = make([]common.Address, 0, value.event.Validators.Addresses.Cardinality())
-			value.event.Validators.Addresses.Each(func(address interface{}) bool {
-				stepValidators.Addresses = append(stepValidators.Addresses, address.(common.Address))
+		if value.event.Validators.Validators != nil {
+			stepValidators.Validators = make([]common.Address, 0, value.event.Validators.Validators.Cardinality())
+			value.event.Validators.Validators.Each(func(address interface{}) bool {
+				stepValidators.Validators = append(stepValidators.Validators, address.(common.Address))
+				return false
+			})
+		}
+		if value.event.Validators.ApprovedValidators != nil {
+			stepValidators.ApprovedValidators = make([]common.Address, 0, value.event.Validators.ApprovedValidators.Cardinality())
+			value.event.Validators.ApprovedValidators.Each(func(address interface{}) bool {
+				stepValidators.ApprovedValidators = append(stepValidators.ApprovedValidators, address.(common.Address))
 				return false
 			})
 		}

@@ -24,7 +24,7 @@ func Test_upgradeVotingHistory(t *testing.T) {
 	var block *types2.Block
 
 	height = 1
-	appState.Precommit()
+	appState.Precommit(true)
 	require.Nil(t, appState.CommitAt(height))
 	require.Nil(t, appState.Initialize(height))
 
@@ -186,7 +186,7 @@ func Test_upgradeVotingShortHistory(t *testing.T) {
 	var block *types2.Block
 
 	height = 1
-	appState.Precommit()
+	appState.Precommit(true)
 	require.Nil(t, appState.CommitAt(height))
 	require.Nil(t, appState.Initialize(height))
 

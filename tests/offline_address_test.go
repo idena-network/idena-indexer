@@ -16,7 +16,7 @@ func Test_offlineAddress(t *testing.T) {
 	appState := listener.NodeCtx().AppState
 	offlineAddress := tests.GetRandAddr()
 	appState.State.SetState(offlineAddress, state.Verified)
-	appState.Precommit()
+	appState.Precommit(true)
 	height++
 	require.Nil(t, appState.CommitAt(height))
 	require.Nil(t, appState.Initialize(height))

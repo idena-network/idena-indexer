@@ -89,7 +89,7 @@ func deployOracleVotingContracts(t *testing.T, listener incoming.Listener, bus e
 
 	var height uint64
 	height++
-	appState.Precommit()
+	appState.Precommit(true)
 	require.Nil(t, appState.CommitAt(height))
 	require.Nil(t, appState.Initialize(height))
 
@@ -367,110 +367,110 @@ func Test_OracleVotingContractCallStartFail(t *testing.T) {
 	require.Empty(t, balanceUpdates)
 }
 
-func Test_OracleVotingContractCallVoteProofOld(t *testing.T) {
-	db, _, listener, _, bus := testCommon.InitIndexer(true, 0, testCommon.PostgresSchema, "..")
-	defer listener.Destroy()
-
-	appState := listener.NodeCtx().AppState
-	respondentKey, _ := crypto.GenerateKey()
-	respondentAddress := crypto.PubkeyToAddress(respondentKey.PublicKey)
-	addr2 := tests.GetRandAddr()
-	appState.State.SetState(respondentAddress, state.Verified)
-	appState.State.SetPubKey(respondentAddress, []byte{0x1, 0x2})
-	appState.State.SetState(addr2, state.Verified)
-	appState.State.SetPubKey(addr2, []byte{0x2, 0x3})
-
-	// Deploy contract
-	startTime := time.Now().UTC()
-	contractAddress := tests.GetRandAddr()
-	deployOracleVotingContracts(t, listener, bus, startTime, contractAddress, tests.GetRandAddr())
-
-	statsCollector := listener.StatsCollector()
-	// Start voting
-	statsCollector.EnableCollecting()
-	height := uint64(3)
-	block := buildBlock(height)
-	tx := &types.Transaction{AccountNonce: 4, To: &contractAddress}
-	statsCollector.BeginApplyingTx(tx, appState)
-	statsCollector.AddOracleVotingCallStart(1, 123, 2, nil, []byte{0x2, 0x3}, 50, 100)
-	statsCollector.AddTxReceipt(&types.TxReceipt{Success: true, TxHash: tx.Hash(), ContractAddress: contractAddress}, appState)
-	statsCollector.BeginTxBalanceUpdate(tx, appState)
-	appState.State.AddBalance(contractAddress, big.NewInt(54321000))
-	statsCollector.CompleteBalanceUpdate(appState)
-	statsCollector.CompleteApplyingTx(appState)
-	block.Body.Transactions = append(block.Body.Transactions, tx)
-	require.Nil(t, applyBlock(bus, block, appState))
-	statsCollector.CompleteCollecting()
-
-	// Send vote proof
-	statsCollector.EnableCollecting()
-	height = uint64(4)
-	block = buildBlock(height)
-	tx, _ = types.SignTx(&types.Transaction{AccountNonce: 5, To: &contractAddress}, respondentKey)
-	statsCollector.BeginApplyingTx(tx, appState)
-	statsCollector.AddOracleVotingCallVoteProofOld([]byte{0x3, 0x4})
-	statsCollector.AddTxReceipt(&types.TxReceipt{Success: true, TxHash: tx.Hash(), ContractAddress: contractAddress}, appState)
-	statsCollector.BeginTxBalanceUpdate(tx, appState)
-	appState.State.SetBalance(respondentAddress, big.NewInt(2000))
-	appState.State.AddBalance(contractAddress, big.NewInt(3000))
-	statsCollector.CompleteBalanceUpdate(appState)
-	statsCollector.CompleteApplyingTx(appState)
-	block.Body.Transactions = append(block.Body.Transactions, tx)
-	require.Nil(t, applyBlock(bus, block, appState))
-	statsCollector.CompleteCollecting()
-
-	// Then
-	feContracts, err := testCommon.GetOracleVotingContracts(db)
-	require.Nil(t, err)
-	require.Equal(t, 2, len(feContracts))
-
-	voteProofs, err := testCommon.GetOracleVotingContractCallVoteProofs(db)
-	require.Nil(t, err)
-	require.Equal(t, 1, len(voteProofs))
-	require.Equal(t, 1, voteProofs[0].ContractTxId)
-	require.Equal(t, respondentAddress.Hex(), voteProofs[0].Address)
-	require.Equal(t, 5, voteProofs[0].TxId)
-	require.Equal(t, []byte{0x3, 0x4}, voteProofs[0].VoteHash)
-
-	sortedFeContracts, err := testCommon.GetSortedOracleVotingContracts(db)
-	require.Nil(t, err)
-	require.Equal(t, 2, len(sortedFeContracts))
-	require.Equal(t, 1, sortedFeContracts[0].State)
-	require.Equal(t, "000000000000000000000000000000.0000000000101059020000000000000000001", *sortedFeContracts[0].SortKey)
-	require.Equal(t, 0, sortedFeContracts[1].State)
-	require.Equal(t, "000000000000000000000000000000.0000000000000000000000000000000000003", *sortedFeContracts[1].SortKey)
-
-	sortedFeContractCommittees, err := testCommon.GetSortedOracleVotingContractCommittees(db)
-	require.Nil(t, err)
-	require.Equal(t, 2, len(sortedFeContractCommittees))
-
-	for _, committeeMember := range sortedFeContractCommittees {
-		require.Contains(t, []string{respondentAddress.Hex(), addr2.Hex()}, committeeMember.Address)
-		if respondentAddress.Hex() == committeeMember.Address {
-			require.Equal(t, 5, committeeMember.State)
-			require.Nil(t, committeeMember.SortKey)
-		} else {
-			require.Equal(t, 1, committeeMember.State)
-			require.Equal(t, "000000000000000000000000000000.0000000000101059020000000000000000001", *committeeMember.SortKey)
-		}
-		require.Equal(t, 1, committeeMember.TxId)
-		require.Equal(t, respondentAddress.Hex() == committeeMember.Address, committeeMember.Voted)
-	}
-
-	balanceUpdates, err := testCommon.GetBalanceUpdates(db)
-	require.Nil(t, err)
-	require.Equal(t, 3, len(balanceUpdates))
-
-	summaries, err := testCommon.GetOracleVotingSummaries(db)
-	require.Nil(t, err)
-	require.Equal(t, 2, len(summaries))
-	require.Equal(t, 1, summaries[0].ContractTxId)
-	require.Equal(t, 1, summaries[0].VoteProofs)
-	require.Equal(t, 0, summaries[0].Votes)
-	require.Equal(t, 3, summaries[1].ContractTxId)
-	require.Equal(t, 0, summaries[1].VoteProofs)
-	require.Equal(t, 0, summaries[1].Votes)
-}
+//func Test_OracleVotingContractCallVoteProofOld(t *testing.T) {
+//	db, _, listener, _, bus := testCommon.InitIndexer(true, 0, testCommon.PostgresSchema, "..")
+//	defer listener.Destroy()
+//
+//	appState := listener.NodeCtx().AppState
+//	respondentKey, _ := crypto.GenerateKey()
+//	respondentAddress := crypto.PubkeyToAddress(respondentKey.PublicKey)
+//	addr2 := tests.GetRandAddr()
+//	appState.State.SetState(respondentAddress, state.Verified)
+//	appState.State.SetPubKey(respondentAddress, []byte{0x1, 0x2})
+//	appState.State.SetState(addr2, state.Verified)
+//	appState.State.SetPubKey(addr2, []byte{0x2, 0x3})
+//
+//	// Deploy contract
+//	startTime := time.Now().UTC()
+//	contractAddress := tests.GetRandAddr()
+//	deployOracleVotingContracts(t, listener, bus, startTime, contractAddress, tests.GetRandAddr())
+//
+//	statsCollector := listener.StatsCollector()
+//	// Start voting
+//	statsCollector.EnableCollecting()
+//	height := uint64(3)
+//	block := buildBlock(height)
+//	tx := &types.Transaction{AccountNonce: 4, To: &contractAddress}
+//	statsCollector.BeginApplyingTx(tx, appState)
+//	statsCollector.AddOracleVotingCallStart(1, 123, 2, nil, []byte{0x2, 0x3}, 50, 100)
+//	statsCollector.AddTxReceipt(&types.TxReceipt{Success: true, TxHash: tx.Hash(), ContractAddress: contractAddress}, appState)
+//	statsCollector.BeginTxBalanceUpdate(tx, appState)
+//	appState.State.AddBalance(contractAddress, big.NewInt(54321000))
+//	statsCollector.CompleteBalanceUpdate(appState)
+//	statsCollector.CompleteApplyingTx(appState)
+//	block.Body.Transactions = append(block.Body.Transactions, tx)
+//	require.Nil(t, applyBlock(bus, block, appState))
+//	statsCollector.CompleteCollecting()
+//
+//	// Send vote proof
+//	statsCollector.EnableCollecting()
+//	height = uint64(4)
+//	block = buildBlock(height)
+//	tx, _ = types.SignTx(&types.Transaction{AccountNonce: 5, To: &contractAddress}, respondentKey)
+//	statsCollector.BeginApplyingTx(tx, appState)
+//	statsCollector.AddOracleVotingCallVoteProofOld([]byte{0x3, 0x4})
+//	statsCollector.AddTxReceipt(&types.TxReceipt{Success: true, TxHash: tx.Hash(), ContractAddress: contractAddress}, appState)
+//	statsCollector.BeginTxBalanceUpdate(tx, appState)
+//	appState.State.SetBalance(respondentAddress, big.NewInt(2000))
+//	appState.State.AddBalance(contractAddress, big.NewInt(3000))
+//	statsCollector.CompleteBalanceUpdate(appState)
+//	statsCollector.CompleteApplyingTx(appState)
+//	block.Body.Transactions = append(block.Body.Transactions, tx)
+//	require.Nil(t, applyBlock(bus, block, appState))
+//	statsCollector.CompleteCollecting()
+//
+//	// Then
+//	feContracts, err := testCommon.GetOracleVotingContracts(db)
+//	require.Nil(t, err)
+//	require.Equal(t, 2, len(feContracts))
+//
+//	voteProofs, err := testCommon.GetOracleVotingContractCallVoteProofs(db)
+//	require.Nil(t, err)
+//	require.Equal(t, 1, len(voteProofs))
+//	require.Equal(t, 1, voteProofs[0].ContractTxId)
+//	require.Equal(t, respondentAddress.Hex(), voteProofs[0].Address)
+//	require.Equal(t, 5, voteProofs[0].TxId)
+//	require.Equal(t, []byte{0x3, 0x4}, voteProofs[0].VoteHash)
+//
+//	sortedFeContracts, err := testCommon.GetSortedOracleVotingContracts(db)
+//	require.Nil(t, err)
+//	require.Equal(t, 2, len(sortedFeContracts))
+//	require.Equal(t, 1, sortedFeContracts[0].State)
+//	require.Equal(t, "000000000000000000000000000000.0000000000101059020000000000000000001", *sortedFeContracts[0].SortKey)
+//	require.Equal(t, 0, sortedFeContracts[1].State)
+//	require.Equal(t, "000000000000000000000000000000.0000000000000000000000000000000000003", *sortedFeContracts[1].SortKey)
+//
+//	sortedFeContractCommittees, err := testCommon.GetSortedOracleVotingContractCommittees(db)
+//	require.Nil(t, err)
+//	require.Equal(t, 2, len(sortedFeContractCommittees))
+//
+//	for _, committeeMember := range sortedFeContractCommittees {
+//		require.Contains(t, []string{respondentAddress.Hex(), addr2.Hex()}, committeeMember.Address)
+//		if respondentAddress.Hex() == committeeMember.Address {
+//			require.Equal(t, 5, committeeMember.State)
+//			require.Nil(t, committeeMember.SortKey)
+//		} else {
+//			require.Equal(t, 1, committeeMember.State)
+//			require.Equal(t, "000000000000000000000000000000.0000000000101059020000000000000000001", *committeeMember.SortKey)
+//		}
+//		require.Equal(t, 1, committeeMember.TxId)
+//		require.Equal(t, respondentAddress.Hex() == committeeMember.Address, committeeMember.Voted)
+//	}
+//
+//	balanceUpdates, err := testCommon.GetBalanceUpdates(db)
+//	require.Nil(t, err)
+//	require.Equal(t, 3, len(balanceUpdates))
+//
+//	summaries, err := testCommon.GetOracleVotingSummaries(db)
+//	require.Nil(t, err)
+//	require.Equal(t, 2, len(summaries))
+//	require.Equal(t, 1, summaries[0].ContractTxId)
+//	require.Equal(t, 1, summaries[0].VoteProofs)
+//	require.Equal(t, 0, summaries[0].Votes)
+//	require.Equal(t, 3, summaries[1].ContractTxId)
+//	require.Equal(t, 0, summaries[1].VoteProofs)
+//	require.Equal(t, 0, summaries[1].Votes)
+//}
 
 func Test_OracleVotingContractCallVoteProof(t *testing.T) {
 	db, _, listener, _, bus := testCommon.InitIndexer(true, 0, testCommon.PostgresSchema, "..")
@@ -513,7 +513,7 @@ func Test_OracleVotingContractCallVoteProof(t *testing.T) {
 	block = buildBlock(height)
 	tx, _ = types.SignTx(&types.Transaction{AccountNonce: 5, To: &contractAddress}, respondentKey)
 	statsCollector.BeginApplyingTx(tx, appState)
-	statsCollector.AddOracleVotingCallVoteProof([]byte{0x3, 0x4}, pUint64(999))
+	statsCollector.AddOracleVotingCallVoteProof([]byte{0x3, 0x4}, pUint64(999), false)
 	statsCollector.AddTxReceipt(&types.TxReceipt{Success: true, TxHash: tx.Hash(), ContractAddress: contractAddress}, appState)
 	statsCollector.BeginTxBalanceUpdate(tx, appState)
 	appState.State.SetBalance(respondentAddress, big.NewInt(2000))
@@ -581,82 +581,82 @@ func Test_OracleVotingContractCallVoteProof(t *testing.T) {
 	require.Nil(t, summaries[1].EpochWithoutGrowth)
 }
 
-func Test_OracleVotingContractCallVoteProofTwiceOld(t *testing.T) {
-	db, _, listener, _, bus := testCommon.InitIndexer(true, 0, testCommon.PostgresSchema, "..")
-	defer listener.Destroy()
-
-	appState := listener.NodeCtx().AppState
-	respondentKey, _ := crypto.GenerateKey()
-	respondentAddress := crypto.PubkeyToAddress(respondentKey.PublicKey)
-	addr2 := tests.GetRandAddr()
-	appState.State.SetState(respondentAddress, state.Verified)
-	appState.State.SetPubKey(respondentAddress, []byte{0x1, 0x2})
-	appState.State.SetState(addr2, state.Verified)
-	appState.State.SetPubKey(addr2, []byte{0x2, 0x3})
-
-	// Deploy contract
-	startTime := time.Now().UTC()
-	contractAddress := tests.GetRandAddr()
-	deployOracleVotingContracts(t, listener, bus, startTime, contractAddress, tests.GetRandAddr())
-
-	statsCollector := listener.StatsCollector()
-	// Start voting
-	statsCollector.EnableCollecting()
-	height := uint64(3)
-	block := buildBlock(height)
-	tx := &types.Transaction{AccountNonce: 4, To: &contractAddress}
-	statsCollector.BeginApplyingTx(tx, appState)
-	statsCollector.AddOracleVotingCallStart(1, 123, 2, nil, []byte{0x2, 0x3}, 50, 100)
-	statsCollector.AddTxReceipt(&types.TxReceipt{Success: true, TxHash: tx.Hash(), ContractAddress: contractAddress}, appState)
-	statsCollector.BeginTxBalanceUpdate(tx, appState)
-	appState.State.AddBalance(contractAddress, big.NewInt(54321000))
-	statsCollector.CompleteBalanceUpdate(appState)
-	statsCollector.CompleteApplyingTx(appState)
-	block.Body.Transactions = append(block.Body.Transactions, tx)
-	require.Nil(t, applyBlock(bus, block, appState))
-	statsCollector.CompleteCollecting()
-
-	// Send vote proof
-	statsCollector.EnableCollecting()
-	height = uint64(4)
-	block = buildBlock(height)
-	tx, _ = types.SignTx(&types.Transaction{AccountNonce: 5, To: &contractAddress}, respondentKey)
-	statsCollector.BeginApplyingTx(tx, appState)
-	statsCollector.AddOracleVotingCallVoteProofOld([]byte{0x3, 0x4})
-	statsCollector.AddTxReceipt(&types.TxReceipt{Success: true, TxHash: tx.Hash(), ContractAddress: contractAddress}, appState)
-	statsCollector.CompleteApplyingTx(appState)
-	block.Body.Transactions = append(block.Body.Transactions, tx)
-	require.Nil(t, applyBlock(bus, block, appState))
-	statsCollector.CompleteCollecting()
-
-	// Send vote proof again
-	statsCollector.EnableCollecting()
-	height = uint64(5)
-	block = buildBlock(height)
-	tx, _ = types.SignTx(&types.Transaction{AccountNonce: 6, To: &contractAddress}, respondentKey)
-	statsCollector.BeginApplyingTx(tx, appState)
-	statsCollector.AddOracleVotingCallVoteProofOld([]byte{0x4, 0x5})
-	statsCollector.AddTxReceipt(&types.TxReceipt{Success: true, TxHash: tx.Hash(), ContractAddress: contractAddress}, appState)
-	statsCollector.CompleteApplyingTx(appState)
-	block.Body.Transactions = append(block.Body.Transactions, tx)
-	require.Nil(t, applyBlock(bus, block, appState))
-	statsCollector.CompleteCollecting()
-
-	// Then
-	voteProofs, err := testCommon.GetOracleVotingContractCallVoteProofs(db)
-	require.Nil(t, err)
-	require.Equal(t, 2, len(voteProofs))
-
-	summaries, err := testCommon.GetOracleVotingSummaries(db)
-	require.Nil(t, err)
-	require.Equal(t, 2, len(summaries))
-	require.Equal(t, 1, summaries[0].ContractTxId)
-	require.Equal(t, 1, summaries[0].VoteProofs)
-	require.Equal(t, 0, summaries[0].Votes)
-	require.Equal(t, 3, summaries[1].ContractTxId)
-	require.Equal(t, 0, summaries[1].VoteProofs)
-	require.Equal(t, 0, summaries[1].Votes)
-}
+//func Test_OracleVotingContractCallVoteProofTwiceOld(t *testing.T) {
+//	db, _, listener, _, bus := testCommon.InitIndexer(true, 0, testCommon.PostgresSchema, "..")
+//	defer listener.Destroy()
+//
+//	appState := listener.NodeCtx().AppState
+//	respondentKey, _ := crypto.GenerateKey()
+//	respondentAddress := crypto.PubkeyToAddress(respondentKey.PublicKey)
+//	addr2 := tests.GetRandAddr()
+//	appState.State.SetState(respondentAddress, state.Verified)
+//	appState.State.SetPubKey(respondentAddress, []byte{0x1, 0x2})
+//	appState.State.SetState(addr2, state.Verified)
+//	appState.State.SetPubKey(addr2, []byte{0x2, 0x3})
+//
+//	// Deploy contract
+//	startTime := time.Now().UTC()
+//	contractAddress := tests.GetRandAddr()
+//	deployOracleVotingContracts(t, listener, bus, startTime, contractAddress, tests.GetRandAddr())
+//
+//	statsCollector := listener.StatsCollector()
+//	// Start voting
+//	statsCollector.EnableCollecting()
+//	height := uint64(3)
+//	block := buildBlock(height)
+//	tx := &types.Transaction{AccountNonce: 4, To: &contractAddress}
+//	statsCollector.BeginApplyingTx(tx, appState)
+//	statsCollector.AddOracleVotingCallStart(1, 123, 2, nil, []byte{0x2, 0x3}, 50, 100)
+//	statsCollector.AddTxReceipt(&types.TxReceipt{Success: true, TxHash: tx.Hash(), ContractAddress: contractAddress}, appState)
+//	statsCollector.BeginTxBalanceUpdate(tx, appState)
+//	appState.State.AddBalance(contractAddress, big.NewInt(54321000))
+//	statsCollector.CompleteBalanceUpdate(appState)
+//	statsCollector.CompleteApplyingTx(appState)
+//	block.Body.Transactions = append(block.Body.Transactions, tx)
+//	require.Nil(t, applyBlock(bus, block, appState))
+//	statsCollector.CompleteCollecting()
+//
+//	// Send vote proof
+//	statsCollector.EnableCollecting()
+//	height = uint64(4)
+//	block = buildBlock(height)
+//	tx, _ = types.SignTx(&types.Transaction{AccountNonce: 5, To: &contractAddress}, respondentKey)
+//	statsCollector.BeginApplyingTx(tx, appState)
+//	statsCollector.AddOracleVotingCallVoteProofOld([]byte{0x3, 0x4})
+//	statsCollector.AddTxReceipt(&types.TxReceipt{Success: true, TxHash: tx.Hash(), ContractAddress: contractAddress}, appState)
+//	statsCollector.CompleteApplyingTx(appState)
+//	block.Body.Transactions = append(block.Body.Transactions, tx)
+//	require.Nil(t, applyBlock(bus, block, appState))
+//	statsCollector.CompleteCollecting()
+//
+//	// Send vote proof again
+//	statsCollector.EnableCollecting()
+//	height = uint64(5)
+//	block = buildBlock(height)
+//	tx, _ = types.SignTx(&types.Transaction{AccountNonce: 6, To: &contractAddress}, respondentKey)
+//	statsCollector.BeginApplyingTx(tx, appState)
+//	statsCollector.AddOracleVotingCallVoteProofOld([]byte{0x4, 0x5})
+//	statsCollector.AddTxReceipt(&types.TxReceipt{Success: true, TxHash: tx.Hash(), ContractAddress: contractAddress}, appState)
+//	statsCollector.CompleteApplyingTx(appState)
+//	block.Body.Transactions = append(block.Body.Transactions, tx)
+//	require.Nil(t, applyBlock(bus, block, appState))
+//	statsCollector.CompleteCollecting()
+//
+//	// Then
+//	voteProofs, err := testCommon.GetOracleVotingContractCallVoteProofs(db)
+//	require.Nil(t, err)
+//	require.Equal(t, 2, len(voteProofs))
+//
+//	summaries, err := testCommon.GetOracleVotingSummaries(db)
+//	require.Nil(t, err)
+//	require.Equal(t, 2, len(summaries))
+//	require.Equal(t, 1, summaries[0].ContractTxId)
+//	require.Equal(t, 1, summaries[0].VoteProofs)
+//	require.Equal(t, 0, summaries[0].Votes)
+//	require.Equal(t, 3, summaries[1].ContractTxId)
+//	require.Equal(t, 0, summaries[1].VoteProofs)
+//	require.Equal(t, 0, summaries[1].Votes)
+//}
 
 func Test_OracleVotingContractCallVoteProofTwice(t *testing.T) {
 	db, _, listener, _, bus := testCommon.InitIndexer(true, 0, testCommon.PostgresSchema, "..")
@@ -699,7 +699,7 @@ func Test_OracleVotingContractCallVoteProofTwice(t *testing.T) {
 	block = buildBlock(height)
 	tx, _ = types.SignTx(&types.Transaction{AccountNonce: 5, To: &contractAddress}, respondentKey)
 	statsCollector.BeginApplyingTx(tx, appState)
-	statsCollector.AddOracleVotingCallVoteProof([]byte{0x3, 0x4}, pUint64(999))
+	statsCollector.AddOracleVotingCallVoteProof([]byte{0x3, 0x4}, pUint64(999), false)
 	statsCollector.AddTxReceipt(&types.TxReceipt{Success: true, TxHash: tx.Hash(), ContractAddress: contractAddress}, appState)
 	statsCollector.CompleteApplyingTx(appState)
 	block.Body.Transactions = append(block.Body.Transactions, tx)
@@ -712,7 +712,7 @@ func Test_OracleVotingContractCallVoteProofTwice(t *testing.T) {
 	block = buildBlock(height)
 	tx, _ = types.SignTx(&types.Transaction{AccountNonce: 6, To: &contractAddress}, respondentKey)
 	statsCollector.BeginApplyingTx(tx, appState)
-	statsCollector.AddOracleVotingCallVoteProof([]byte{0x4, 0x5}, pUint64(1000))
+	statsCollector.AddOracleVotingCallVoteProof([]byte{0x4, 0x5}, pUint64(1000), false)
 	statsCollector.AddTxReceipt(&types.TxReceipt{Success: true, TxHash: tx.Hash(), ContractAddress: contractAddress}, appState)
 	statsCollector.CompleteApplyingTx(appState)
 	block.Body.Transactions = append(block.Body.Transactions, tx)
@@ -778,7 +778,7 @@ func Test_OracleVotingContractCallVoteProofTwice2(t *testing.T) {
 	block = buildBlock(height)
 	tx, _ = types.SignTx(&types.Transaction{AccountNonce: 5, To: &contractAddress}, respondentKey)
 	statsCollector.BeginApplyingTx(tx, appState)
-	statsCollector.AddOracleVotingCallVoteProof([]byte{0x3, 0x4}, pUint64(999))
+	statsCollector.AddOracleVotingCallVoteProof([]byte{0x3, 0x4}, pUint64(999), false)
 	statsCollector.AddTxReceipt(&types.TxReceipt{Success: true, TxHash: tx.Hash(), ContractAddress: contractAddress}, appState)
 	statsCollector.CompleteApplyingTx(appState)
 	block.Body.Transactions = append(block.Body.Transactions, tx)
@@ -791,7 +791,7 @@ func Test_OracleVotingContractCallVoteProofTwice2(t *testing.T) {
 	block = buildBlock(height)
 	tx, _ = types.SignTx(&types.Transaction{AccountNonce: 6, To: &contractAddress}, respondentKey)
 	statsCollector.BeginApplyingTx(tx, appState)
-	statsCollector.AddOracleVotingCallVoteProof([]byte{0x4, 0x5}, nil)
+	statsCollector.AddOracleVotingCallVoteProof([]byte{0x4, 0x5}, nil, false)
 	statsCollector.AddTxReceipt(&types.TxReceipt{Success: true, TxHash: tx.Hash(), ContractAddress: contractAddress}, appState)
 	statsCollector.CompleteApplyingTx(appState)
 	block.Body.Transactions = append(block.Body.Transactions, tx)
@@ -816,57 +816,57 @@ func Test_OracleVotingContractCallVoteProofTwice2(t *testing.T) {
 	require.Nil(t, summaries[1].SecretVotesCount)
 }
 
-func Test_OracleVotingContractCallVoteOld(t *testing.T) {
-	db, _, listener, _, bus := testCommon.InitIndexer(true, 0, testCommon.PostgresSchema, "..")
-	defer listener.Destroy()
-	appState := listener.NodeCtx().AppState
-	statsCollector := listener.StatsCollector()
-
-	// Deploy contract
-	startTime := time.Now().UTC()
-	contractAddress := tests.GetRandAddr()
-	deployOracleVotingContracts(t, listener, bus, startTime, contractAddress, tests.GetRandAddr())
-
-	// Send vote
-	respondentKey, _ := crypto.GenerateKey()
-	statsCollector.EnableCollecting()
-	height := uint64(3)
-	block := buildBlock(height)
-	tx, _ := types.SignTx(&types.Transaction{AccountNonce: 4, To: &contractAddress}, respondentKey)
-	statsCollector.BeginApplyingTx(tx, appState)
-	statsCollector.AddOracleVotingCallVoteOld(7, []byte{0x4, 0x5})
-	statsCollector.AddTxReceipt(&types.TxReceipt{Success: true, TxHash: tx.Hash(), ContractAddress: contractAddress}, appState)
-	statsCollector.CompleteApplyingTx(appState)
-	block.Body.Transactions = append(block.Body.Transactions, tx)
-	require.Nil(t, applyBlock(bus, block, appState))
-	statsCollector.CompleteCollecting()
-
-	// Then
-	votes, err := testCommon.GetOracleVotingContractCallVotes(db)
-	require.Nil(t, err)
-	require.Equal(t, 1, len(votes))
-	require.Equal(t, 1, votes[0].ContractTxId)
-	require.Equal(t, 4, votes[0].TxId)
-	require.Equal(t, byte(7), votes[0].Vote)
-	require.Equal(t, []byte{0x4, 0x5}, votes[0].Salt)
-
-	summaries, err := testCommon.GetOracleVotingSummaries(db)
-	require.Nil(t, err)
-	require.Equal(t, 2, len(summaries))
-	require.Equal(t, 1, summaries[0].ContractTxId)
-	require.Equal(t, 0, summaries[0].VoteProofs)
-	require.Equal(t, 1, summaries[0].Votes)
-	require.Equal(t, 3, summaries[1].ContractTxId)
-	require.Equal(t, 0, summaries[1].VoteProofs)
-	require.Equal(t, 0, summaries[1].Votes)
-
-	results, err := testCommon.GetOracleVotingResults(db)
-	require.Nil(t, err)
-	require.Equal(t, 1, len(results))
-	require.Equal(t, 1, results[0].ContractTxId)
-	require.Equal(t, 7, results[0].Option)
-	require.Equal(t, 1, results[0].Count)
-}
+//func Test_OracleVotingContractCallVoteOld(t *testing.T) {
+//	db, _, listener, _, bus := testCommon.InitIndexer(true, 0, testCommon.PostgresSchema, "..")
+//	defer listener.Destroy()
+//	appState := listener.NodeCtx().AppState
+//	statsCollector := listener.StatsCollector()
+//
+//	// Deploy contract
+//	startTime := time.Now().UTC()
+//	contractAddress := tests.GetRandAddr()
+//	deployOracleVotingContracts(t, listener, bus, startTime, contractAddress, tests.GetRandAddr())
+//
+//	// Send vote
+//	respondentKey, _ := crypto.GenerateKey()
+//	statsCollector.EnableCollecting()
+//	height := uint64(3)
+//	block := buildBlock(height)
+//	tx, _ := types.SignTx(&types.Transaction{AccountNonce: 4, To: &contractAddress}, respondentKey)
+//	statsCollector.BeginApplyingTx(tx, appState)
+//	statsCollector.AddOracleVotingCallVoteOld(7, []byte{0x4, 0x5})
+//	statsCollector.AddTxReceipt(&types.TxReceipt{Success: true, TxHash: tx.Hash(), ContractAddress: contractAddress}, appState)
+//	statsCollector.CompleteApplyingTx(appState)
+//	block.Body.Transactions = append(block.Body.Transactions, tx)
+//	require.Nil(t, applyBlock(bus, block, appState))
+//	statsCollector.CompleteCollecting()
+//
+//	// Then
+//	votes, err := testCommon.GetOracleVotingContractCallVotes(db)
+//	require.Nil(t, err)
+//	require.Equal(t, 1, len(votes))
+//	require.Equal(t, 1, votes[0].ContractTxId)
+//	require.Equal(t, 4, votes[0].TxId)
+//	require.Equal(t, byte(7), votes[0].Vote)
+//	require.Equal(t, []byte{0x4, 0x5}, votes[0].Salt)
+//
+//	summaries, err := testCommon.GetOracleVotingSummaries(db)
+//	require.Nil(t, err)
+//	require.Equal(t, 2, len(summaries))
+//	require.Equal(t, 1, summaries[0].ContractTxId)
+//	require.Equal(t, 0, summaries[0].VoteProofs)
+//	require.Equal(t, 1, summaries[0].Votes)
+//	require.Equal(t, 3, summaries[1].ContractTxId)
+//	require.Equal(t, 0, summaries[1].VoteProofs)
+//	require.Equal(t, 0, summaries[1].Votes)
+//
+//	results, err := testCommon.GetOracleVotingResults(db)
+//	require.Nil(t, err)
+//	require.Equal(t, 1, len(results))
+//	require.Equal(t, 1, results[0].ContractTxId)
+//	require.Equal(t, 7, results[0].Option)
+//	require.Equal(t, 1, results[0].Count)
+//}
 
 func Test_OracleVotingContractCallVote(t *testing.T) {
 	db, _, listener, _, bus := testCommon.InitIndexer(true, 0, testCommon.PostgresSchema, "..")
@@ -886,7 +886,7 @@ func Test_OracleVotingContractCallVote(t *testing.T) {
 	block := buildBlock(height)
 	tx, _ := types.SignTx(&types.Transaction{AccountNonce: 4, To: &contractAddress}, respondentKey)
 	statsCollector.BeginApplyingTx(tx, appState)
-	statsCollector.AddOracleVotingCallVote(7, []byte{0x4, 0x5}, pUint64(1), 2, pUint64(3), nil, nil, nil)
+	statsCollector.AddOracleVotingCallVote(7, []byte{0x4, 0x5}, pUint64(1), 2, pUint64(3), nil, nil, nil, false)
 	statsCollector.AddTxReceipt(&types.TxReceipt{Success: true, TxHash: tx.Hash(), ContractAddress: contractAddress}, appState)
 	statsCollector.CompleteApplyingTx(appState)
 	block.Body.Transactions = append(block.Body.Transactions, tx)
@@ -948,7 +948,7 @@ func Test_OracleVotingContractCallVoteWithDelegatee1(t *testing.T) {
 	tx, _ := types.SignTx(&types.Transaction{AccountNonce: 4, To: &contractAddress}, respondentKey)
 	statsCollector.BeginApplyingTx(tx, appState)
 	delegatee := tests.GetRandAddr()
-	statsCollector.AddOracleVotingCallVote(7, []byte{0x4, 0x5}, pUint64(1), 2, pUint64(3), &delegatee, nil, nil)
+	statsCollector.AddOracleVotingCallVote(7, []byte{0x4, 0x5}, pUint64(1), 2, pUint64(3), &delegatee, nil, nil, false)
 	statsCollector.AddTxReceipt(&types.TxReceipt{Success: true, TxHash: tx.Hash(), ContractAddress: contractAddress}, appState)
 	statsCollector.CompleteApplyingTx(appState)
 	block.Body.Transactions = append(block.Body.Transactions, tx)
@@ -1010,7 +1010,7 @@ func Test_OracleVotingContractCallVoteWithDelegatee2(t *testing.T) {
 	tx, _ := types.SignTx(&types.Transaction{AccountNonce: 4, To: &contractAddress}, respondentKey)
 	statsCollector.BeginApplyingTx(tx, appState)
 	delegatee := tests.GetRandAddr()
-	statsCollector.AddOracleVotingCallVote(7, []byte{0x4, 0x5}, nil, 2, pUint64(3), &delegatee, []byte{8}, pUint64(4))
+	statsCollector.AddOracleVotingCallVote(7, []byte{0x4, 0x5}, nil, 2, pUint64(3), &delegatee, []byte{8}, pUint64(4), false)
 	statsCollector.AddTxReceipt(&types.TxReceipt{Success: true, TxHash: tx.Hash(), ContractAddress: contractAddress}, appState)
 	statsCollector.CompleteApplyingTx(appState)
 	block.Body.Transactions = append(block.Body.Transactions, tx)
@@ -1135,47 +1135,47 @@ func Test_OracleVotingContractCallFinish(t *testing.T) {
 	require.Equal(t, "0", finishes[1].OwnerReward.String())
 }
 
-func Test_OracleVotingContractCallProlongationOld(t *testing.T) {
-	db, _, listener, _, bus := testCommon.InitIndexer(true, 0, testCommon.PostgresSchema, "..")
-	defer listener.Destroy()
-	appState := listener.NodeCtx().AppState
-	statsCollector := listener.StatsCollector()
-
-	// Deploy contract
-	startTime := time.Now().UTC()
-	contractAddress := tests.GetRandAddr()
-	deployOracleVotingContracts(t, listener, bus, startTime, contractAddress, tests.GetRandAddr())
-
-	// Send prolongation
-	respondentKey, _ := crypto.GenerateKey()
-	statsCollector.EnableCollecting()
-	height := uint64(3)
-	block := buildBlock(height)
-	tx, _ := types.SignTx(&types.Transaction{AccountNonce: 4, To: &contractAddress}, respondentKey)
-	statsCollector.BeginApplyingTx(tx, appState)
-	startBlock := uint64(7)
-	statsCollector.AddOracleVotingCallProlongationOld(&startBlock, 7890, []byte{0x4, 0x5}, 999, 999)
-	statsCollector.AddTxReceipt(&types.TxReceipt{Success: true, TxHash: tx.Hash(), ContractAddress: contractAddress}, appState)
-	statsCollector.CompleteApplyingTx(appState)
-	block.Body.Transactions = append(block.Body.Transactions, tx)
-	require.Nil(t, applyBlock(bus, block, appState))
-	statsCollector.CompleteCollecting()
-
-	// Then
-	prolongations, err := testCommon.GetOracleVotingContractCallProlongations(db)
-	require.Nil(t, err)
-	require.Equal(t, 1, len(prolongations))
-	require.Equal(t, 1, prolongations[0].ContractTxId)
-	require.Equal(t, 4, prolongations[0].TxId)
-	require.Equal(t, 7, *prolongations[0].StartBlock)
-	require.Equal(t, 7890, prolongations[0].Epoch)
-	require.Equal(t, []byte{0x4, 0x5}, prolongations[0].VrfSeed)
-
-	sortedFeContracts, err := testCommon.GetSortedOracleVotingContracts(db)
-	require.Nil(t, err)
-	require.Equal(t, 2, len(sortedFeContracts))
-	require.Equal(t, 7890, *sortedFeContracts[0].Epoch)
-}
+//func Test_OracleVotingContractCallProlongationOld(t *testing.T) {
+//	db, _, listener, _, bus := testCommon.InitIndexer(true, 0, testCommon.PostgresSchema, "..")
+//	defer listener.Destroy()
+//	appState := listener.NodeCtx().AppState
+//	statsCollector := listener.StatsCollector()
+//
+//	// Deploy contract
+//	startTime := time.Now().UTC()
+//	contractAddress := tests.GetRandAddr()
+//	deployOracleVotingContracts(t, listener, bus, startTime, contractAddress, tests.GetRandAddr())
+//
+//	// Send prolongation
+//	respondentKey, _ := crypto.GenerateKey()
+//	statsCollector.EnableCollecting()
+//	height := uint64(3)
+//	block := buildBlock(height)
+//	tx, _ := types.SignTx(&types.Transaction{AccountNonce: 4, To: &contractAddress}, respondentKey)
+//	statsCollector.BeginApplyingTx(tx, appState)
+//	startBlock := uint64(7)
+//	statsCollector.AddOracleVotingCallProlongationOld(&startBlock, 7890, []byte{0x4, 0x5}, 999, 999)
+//	statsCollector.AddTxReceipt(&types.TxReceipt{Success: true, TxHash: tx.Hash(), ContractAddress: contractAddress}, appState)
+//	statsCollector.CompleteApplyingTx(appState)
+//	block.Body.Transactions = append(block.Body.Transactions, tx)
+//	require.Nil(t, applyBlock(bus, block, appState))
+//	statsCollector.CompleteCollecting()
+//
+//	// Then
+//	prolongations, err := testCommon.GetOracleVotingContractCallProlongations(db)
+//	require.Nil(t, err)
+//	require.Equal(t, 1, len(prolongations))
+//	require.Equal(t, 1, prolongations[0].ContractTxId)
+//	require.Equal(t, 4, prolongations[0].TxId)
+//	require.Equal(t, 7, *prolongations[0].StartBlock)
+//	require.Equal(t, 7890, prolongations[0].Epoch)
+//	require.Equal(t, []byte{0x4, 0x5}, prolongations[0].VrfSeed)
+//
+//	sortedFeContracts, err := testCommon.GetSortedOracleVotingContracts(db)
+//	require.Nil(t, err)
+//	require.Equal(t, 2, len(sortedFeContracts))
+//	require.Equal(t, 7890, *sortedFeContracts[0].Epoch)
+//}
 
 func Test_OracleVotingContractCallProlongation(t *testing.T) {
 	db, _, listener, _, bus := testCommon.InitIndexer(true, 0, testCommon.PostgresSchema, "..")
@@ -1525,134 +1525,134 @@ func Test_OracleVotingContractSetNewCommitteeAndSwitchToCountingState(t *testing
 	require.Equal(t, "000000000000000000000000000000.0000000000000000000000000000000000003", *sortedFeContractCommittees[0].SortKey)
 }
 
-func Test_ClearOldEpochNotVotedCommitteeOld(t *testing.T) {
-	db, _, listener, dbAccessor, bus := testCommon.InitIndexer(true, 10, testCommon.PostgresSchema, "..")
-	defer listener.Destroy()
-
-	appState := listener.NodeCtx().AppState
-	respondentKey, _ := crypto.GenerateKey()
-	respondentAddress := crypto.PubkeyToAddress(respondentKey.PublicKey)
-	addr2 := tests.GetRandAddr()
-	appState.State.SetState(respondentAddress, state.Verified)
-	appState.State.SetPubKey(respondentAddress, []byte{0x1, 0x2})
-	appState.State.SetState(addr2, state.Verified)
-	appState.State.SetPubKey(addr2, []byte{0x2, 0x3})
-
-	// Deploy contract
-	startTime := time.Now().UTC()
-	contractAddress := tests.GetRandAddr()
-	deployOracleVotingContracts(t, listener, bus, startTime, contractAddress, tests.GetRandAddr())
-
-	statsCollector := listener.StatsCollector()
-	// Start voting
-	statsCollector.EnableCollecting()
-	height := uint64(3)
-	block := buildBlock(height)
-	tx := &types.Transaction{AccountNonce: 4, To: &contractAddress}
-	statsCollector.BeginApplyingTx(tx, appState)
-	statsCollector.AddOracleVotingCallStart(1, 123, 2, nil, []byte{0x2, 0x3}, 50, 100)
-	statsCollector.AddTxReceipt(&types.TxReceipt{Success: true, TxHash: tx.Hash(), ContractAddress: contractAddress}, appState)
-	statsCollector.BeginTxBalanceUpdate(tx, appState)
-	appState.State.AddBalance(contractAddress, big.NewInt(54321000))
-	statsCollector.CompleteBalanceUpdate(appState)
-	statsCollector.CompleteApplyingTx(appState)
-	block.Body.Transactions = append(block.Body.Transactions, tx)
-	require.Nil(t, applyBlock(bus, block, appState))
-	statsCollector.CompleteCollecting()
-
-	// Send vote proof
-	statsCollector.EnableCollecting()
-	height = uint64(4)
-	block = buildBlock(height)
-	tx, _ = types.SignTx(&types.Transaction{AccountNonce: 5, To: &contractAddress}, respondentKey)
-	statsCollector.BeginApplyingTx(tx, appState)
-	statsCollector.AddOracleVotingCallVoteProofOld([]byte{0x3, 0x4})
-	statsCollector.AddTxReceipt(&types.TxReceipt{Success: true, TxHash: tx.Hash(), ContractAddress: contractAddress}, appState)
-	statsCollector.BeginTxBalanceUpdate(tx, appState)
-	appState.State.SetBalance(respondentAddress, big.NewInt(2000))
-	appState.State.AddBalance(contractAddress, big.NewInt(3000))
-	statsCollector.CompleteBalanceUpdate(appState)
-	statsCollector.CompleteApplyingTx(appState)
-	block.Body.Transactions = append(block.Body.Transactions, tx)
-	require.Nil(t, applyBlock(bus, block, appState))
-	statsCollector.CompleteCollecting()
-
-	// Then
-	sortedFeContractCommittees, err := testCommon.GetSortedOracleVotingContractCommittees(db)
-	require.Nil(t, err)
-	require.Equal(t, 2, len(sortedFeContractCommittees))
-	for _, committeeMember := range sortedFeContractCommittees {
-		require.Contains(t, []string{respondentAddress.Hex(), addr2.Hex()}, committeeMember.Address)
-		if respondentAddress.Hex() == committeeMember.Address {
-			require.Equal(t, 5, committeeMember.State)
-			require.Nil(t, committeeMember.SortKey)
-		} else {
-			require.Equal(t, 1, committeeMember.State)
-			require.Equal(t, "000000000000000000000000000000.0000000000101059020000000000000000001", *committeeMember.SortKey)
-		}
-		require.Equal(t, 1, committeeMember.TxId)
-		require.Equal(t, respondentAddress.Hex() == committeeMember.Address, committeeMember.Voted)
-	}
-
-	statsCollector.EnableCollecting()
-	require.Nil(t, applyBlock(bus, buildBlock(5), appState))
-	statsCollector.CompleteCollecting()
-
-	statsCollector.EnableCollecting()
-	appState.State.SetEpochBlock(6)
-	appState.State.SetGlobalEpoch(3)
-	require.Nil(t, applyBlock(bus, buildBlock(6), appState))
-	statsCollector.CompleteCollecting()
-
-	sortedFeContractCommittees, err = testCommon.GetSortedOracleVotingContractCommittees(db)
-	require.Nil(t, err)
-	require.Equal(t, 2, len(sortedFeContractCommittees))
-	for _, committeeMember := range sortedFeContractCommittees {
-		require.Contains(t, []string{respondentAddress.Hex(), addr2.Hex()}, committeeMember.Address)
-		if respondentAddress.Hex() == committeeMember.Address {
-			require.Equal(t, 5, committeeMember.State)
-			require.Nil(t, committeeMember.SortKey)
-		} else {
-			require.Equal(t, 1, committeeMember.State)
-			require.Equal(t, "000000000000000000000000000000.0000000000101059020000000000000000001", *committeeMember.SortKey)
-		}
-		require.Equal(t, 1, committeeMember.TxId)
-		require.Equal(t, respondentAddress.Hex() == committeeMember.Address, committeeMember.Voted)
-	}
-
-	statsCollector.EnableCollecting()
-	require.Nil(t, applyBlock(bus, buildBlock(7), appState))
-	statsCollector.CompleteCollecting()
-
-	sortedFeContractCommittees, err = testCommon.GetSortedOracleVotingContractCommittees(db)
-	require.Nil(t, err)
-	require.Equal(t, 1, len(sortedFeContractCommittees))
-	for _, committeeMember := range sortedFeContractCommittees {
-		require.Equal(t, respondentAddress.Hex(), committeeMember.Address)
-		require.Equal(t, 5, committeeMember.State)
-		require.Nil(t, committeeMember.SortKey)
-		require.Equal(t, 1, committeeMember.TxId)
-		require.Equal(t, respondentAddress.Hex() == committeeMember.Address, committeeMember.Voted)
-	}
-
-	// Reset
-	require.Nil(t, dbAccessor.ResetTo(6))
-	sortedFeContractCommittees, err = testCommon.GetSortedOracleVotingContractCommittees(db)
-	require.Nil(t, err)
-	require.Equal(t, 2, len(sortedFeContractCommittees))
-	for _, committeeMember := range sortedFeContractCommittees {
-		require.Contains(t, []string{respondentAddress.Hex(), addr2.Hex()}, committeeMember.Address)
-		if respondentAddress.Hex() == committeeMember.Address {
-			require.Equal(t, 5, committeeMember.State)
-			require.Nil(t, committeeMember.SortKey)
-		} else {
-			require.Equal(t, 1, committeeMember.State)
-			require.Equal(t, "000000000000000000000000000000.0000000000101059020000000000000000001", *committeeMember.SortKey)
-		}
-		require.Equal(t, 1, committeeMember.TxId)
-		require.Equal(t, respondentAddress.Hex() == committeeMember.Address, committeeMember.Voted)
-	}
-}
+//func Test_ClearOldEpochNotVotedCommitteeOld(t *testing.T) {
+//	db, _, listener, dbAccessor, bus := testCommon.InitIndexer(true, 10, testCommon.PostgresSchema, "..")
+//	defer listener.Destroy()
+//
+//	appState := listener.NodeCtx().AppState
+//	respondentKey, _ := crypto.GenerateKey()
+//	respondentAddress := crypto.PubkeyToAddress(respondentKey.PublicKey)
+//	addr2 := tests.GetRandAddr()
+//	appState.State.SetState(respondentAddress, state.Verified)
+//	appState.State.SetPubKey(respondentAddress, []byte{0x1, 0x2})
+//	appState.State.SetState(addr2, state.Verified)
+//	appState.State.SetPubKey(addr2, []byte{0x2, 0x3})
+//
+//	// Deploy contract
+//	startTime := time.Now().UTC()
+//	contractAddress := tests.GetRandAddr()
+//	deployOracleVotingContracts(t, listener, bus, startTime, contractAddress, tests.GetRandAddr())
+//
+//	statsCollector := listener.StatsCollector()
+//	// Start voting
+//	statsCollector.EnableCollecting()
+//	height := uint64(3)
+//	block := buildBlock(height)
+//	tx := &types.Transaction{AccountNonce: 4, To: &contractAddress}
+//	statsCollector.BeginApplyingTx(tx, appState)
+//	statsCollector.AddOracleVotingCallStart(1, 123, 2, nil, []byte{0x2, 0x3}, 50, 100)
+//	statsCollector.AddTxReceipt(&types.TxReceipt{Success: true, TxHash: tx.Hash(), ContractAddress: contractAddress}, appState)
+//	statsCollector.BeginTxBalanceUpdate(tx, appState)
+//	appState.State.AddBalance(contractAddress, big.NewInt(54321000))
+//	statsCollector.CompleteBalanceUpdate(appState)
+//	statsCollector.CompleteApplyingTx(appState)
+//	block.Body.Transactions = append(block.Body.Transactions, tx)
+//	require.Nil(t, applyBlock(bus, block, appState))
+//	statsCollector.CompleteCollecting()
+//
+//	// Send vote proof
+//	statsCollector.EnableCollecting()
+//	height = uint64(4)
+//	block = buildBlock(height)
+//	tx, _ = types.SignTx(&types.Transaction{AccountNonce: 5, To: &contractAddress}, respondentKey)
+//	statsCollector.BeginApplyingTx(tx, appState)
+//	statsCollector.AddOracleVotingCallVoteProofOld([]byte{0x3, 0x4})
+//	statsCollector.AddTxReceipt(&types.TxReceipt{Success: true, TxHash: tx.Hash(), ContractAddress: contractAddress}, appState)
+//	statsCollector.BeginTxBalanceUpdate(tx, appState)
+//	appState.State.SetBalance(respondentAddress, big.NewInt(2000))
+//	appState.State.AddBalance(contractAddress, big.NewInt(3000))
+//	statsCollector.CompleteBalanceUpdate(appState)
+//	statsCollector.CompleteApplyingTx(appState)
+//	block.Body.Transactions = append(block.Body.Transactions, tx)
+//	require.Nil(t, applyBlock(bus, block, appState))
+//	statsCollector.CompleteCollecting()
+//
+//	// Then
+//	sortedFeContractCommittees, err := testCommon.GetSortedOracleVotingContractCommittees(db)
+//	require.Nil(t, err)
+//	require.Equal(t, 2, len(sortedFeContractCommittees))
+//	for _, committeeMember := range sortedFeContractCommittees {
+//		require.Contains(t, []string{respondentAddress.Hex(), addr2.Hex()}, committeeMember.Address)
+//		if respondentAddress.Hex() == committeeMember.Address {
+//			require.Equal(t, 5, committeeMember.State)
+//			require.Nil(t, committeeMember.SortKey)
+//		} else {
+//			require.Equal(t, 1, committeeMember.State)
+//			require.Equal(t, "000000000000000000000000000000.0000000000101059020000000000000000001", *committeeMember.SortKey)
+//		}
+//		require.Equal(t, 1, committeeMember.TxId)
+//		require.Equal(t, respondentAddress.Hex() == committeeMember.Address, committeeMember.Voted)
+//	}
+//
+//	statsCollector.EnableCollecting()
+//	require.Nil(t, applyBlock(bus, buildBlock(5), appState))
+//	statsCollector.CompleteCollecting()
+//
+//	statsCollector.EnableCollecting()
+//	appState.State.SetEpochBlock(6)
+//	appState.State.SetGlobalEpoch(3)
+//	require.Nil(t, applyBlock(bus, buildBlock(6), appState))
+//	statsCollector.CompleteCollecting()
+//
+//	sortedFeContractCommittees, err = testCommon.GetSortedOracleVotingContractCommittees(db)
+//	require.Nil(t, err)
+//	require.Equal(t, 2, len(sortedFeContractCommittees))
+//	for _, committeeMember := range sortedFeContractCommittees {
+//		require.Contains(t, []string{respondentAddress.Hex(), addr2.Hex()}, committeeMember.Address)
+//		if respondentAddress.Hex() == committeeMember.Address {
+//			require.Equal(t, 5, committeeMember.State)
+//			require.Nil(t, committeeMember.SortKey)
+//		} else {
+//			require.Equal(t, 1, committeeMember.State)
+//			require.Equal(t, "000000000000000000000000000000.0000000000101059020000000000000000001", *committeeMember.SortKey)
+//		}
+//		require.Equal(t, 1, committeeMember.TxId)
+//		require.Equal(t, respondentAddress.Hex() == committeeMember.Address, committeeMember.Voted)
+//	}
+//
+//	statsCollector.EnableCollecting()
+//	require.Nil(t, applyBlock(bus, buildBlock(7), appState))
+//	statsCollector.CompleteCollecting()
+//
+//	sortedFeContractCommittees, err = testCommon.GetSortedOracleVotingContractCommittees(db)
+//	require.Nil(t, err)
+//	require.Equal(t, 1, len(sortedFeContractCommittees))
+//	for _, committeeMember := range sortedFeContractCommittees {
+//		require.Equal(t, respondentAddress.Hex(), committeeMember.Address)
+//		require.Equal(t, 5, committeeMember.State)
+//		require.Nil(t, committeeMember.SortKey)
+//		require.Equal(t, 1, committeeMember.TxId)
+//		require.Equal(t, respondentAddress.Hex() == committeeMember.Address, committeeMember.Voted)
+//	}
+//
+//	// Reset
+//	require.Nil(t, dbAccessor.ResetTo(6))
+//	sortedFeContractCommittees, err = testCommon.GetSortedOracleVotingContractCommittees(db)
+//	require.Nil(t, err)
+//	require.Equal(t, 2, len(sortedFeContractCommittees))
+//	for _, committeeMember := range sortedFeContractCommittees {
+//		require.Contains(t, []string{respondentAddress.Hex(), addr2.Hex()}, committeeMember.Address)
+//		if respondentAddress.Hex() == committeeMember.Address {
+//			require.Equal(t, 5, committeeMember.State)
+//			require.Nil(t, committeeMember.SortKey)
+//		} else {
+//			require.Equal(t, 1, committeeMember.State)
+//			require.Equal(t, "000000000000000000000000000000.0000000000101059020000000000000000001", *committeeMember.SortKey)
+//		}
+//		require.Equal(t, 1, committeeMember.TxId)
+//		require.Equal(t, respondentAddress.Hex() == committeeMember.Address, committeeMember.Voted)
+//	}
+//}
 
 func Test_ClearOldEpochNotVotedCommittee(t *testing.T) {
 	db, _, listener, dbAccessor, bus := testCommon.InitIndexer(true, 10, testCommon.PostgresSchema, "..")
@@ -1695,7 +1695,7 @@ func Test_ClearOldEpochNotVotedCommittee(t *testing.T) {
 	block = buildBlock(height)
 	tx, _ = types.SignTx(&types.Transaction{AccountNonce: 5, To: &contractAddress}, respondentKey)
 	statsCollector.BeginApplyingTx(tx, appState)
-	statsCollector.AddOracleVotingCallVoteProof([]byte{0x3, 0x4}, pUint64(90))
+	statsCollector.AddOracleVotingCallVoteProof([]byte{0x3, 0x4}, pUint64(90), false)
 	statsCollector.AddTxReceipt(&types.TxReceipt{Success: true, TxHash: tx.Hash(), ContractAddress: contractAddress}, appState)
 	statsCollector.BeginTxBalanceUpdate(tx, appState)
 	appState.State.SetBalance(respondentAddress, big.NewInt(2000))
@@ -1783,116 +1783,116 @@ func Test_ClearOldEpochNotVotedCommittee(t *testing.T) {
 	}
 }
 
-func Test_ClearTerminatedContractCommitteeOld(t *testing.T) {
-	db, _, listener, dbAccessor, bus := testCommon.InitIndexer(true, 10, testCommon.PostgresSchema, "..")
-	defer listener.Destroy()
-
-	appState := listener.NodeCtx().AppState
-	respondentKey, _ := crypto.GenerateKey()
-	respondentAddress := crypto.PubkeyToAddress(respondentKey.PublicKey)
-	addr2 := tests.GetRandAddr()
-	appState.State.SetState(respondentAddress, state.Verified)
-	appState.State.SetPubKey(respondentAddress, []byte{0x1, 0x2})
-	appState.State.SetState(addr2, state.Verified)
-	appState.State.SetPubKey(addr2, []byte{0x2, 0x3})
-
-	// Deploy contract
-	startTime := time.Now().UTC()
-	contractAddress := tests.GetRandAddr()
-	deployOracleVotingContracts(t, listener, bus, startTime, contractAddress, tests.GetRandAddr())
-
-	statsCollector := listener.StatsCollector()
-	// Start voting
-	statsCollector.EnableCollecting()
-	height := uint64(3)
-	block := buildBlock(height)
-	tx := &types.Transaction{AccountNonce: 4, To: &contractAddress}
-	statsCollector.BeginApplyingTx(tx, appState)
-	statsCollector.AddOracleVotingCallStart(1, 123, 2, nil, []byte{0x2, 0x3}, 50, 100)
-	statsCollector.AddTxReceipt(&types.TxReceipt{Success: true, TxHash: tx.Hash(), ContractAddress: contractAddress}, appState)
-	statsCollector.BeginTxBalanceUpdate(tx, appState)
-	appState.State.AddBalance(contractAddress, big.NewInt(54321000))
-	statsCollector.CompleteBalanceUpdate(appState)
-	statsCollector.CompleteApplyingTx(appState)
-	block.Body.Transactions = append(block.Body.Transactions, tx)
-	require.Nil(t, applyBlock(bus, block, appState))
-	statsCollector.CompleteCollecting()
-
-	// Send vote proof
-	statsCollector.EnableCollecting()
-	height = uint64(4)
-	block = buildBlock(height)
-	tx, _ = types.SignTx(&types.Transaction{AccountNonce: 5, To: &contractAddress}, respondentKey)
-	statsCollector.BeginApplyingTx(tx, appState)
-	statsCollector.AddOracleVotingCallVoteProofOld([]byte{0x3, 0x4})
-	statsCollector.AddTxReceipt(&types.TxReceipt{Success: true, TxHash: tx.Hash(), ContractAddress: contractAddress}, appState)
-	statsCollector.BeginTxBalanceUpdate(tx, appState)
-	appState.State.SetBalance(respondentAddress, big.NewInt(2000))
-	appState.State.AddBalance(contractAddress, big.NewInt(3000))
-	statsCollector.CompleteBalanceUpdate(appState)
-	statsCollector.CompleteApplyingTx(appState)
-	block.Body.Transactions = append(block.Body.Transactions, tx)
-	require.Nil(t, applyBlock(bus, block, appState))
-	statsCollector.CompleteCollecting()
-
-	sortedFeContractCommittees, err := testCommon.GetSortedOracleVotingContractCommittees(db)
-	require.Nil(t, err)
-	require.Equal(t, 2, len(sortedFeContractCommittees))
-	for _, committeeMember := range sortedFeContractCommittees {
-		require.Contains(t, []string{respondentAddress.Hex(), addr2.Hex()}, committeeMember.Address)
-		if respondentAddress.Hex() == committeeMember.Address {
-			require.Equal(t, 5, committeeMember.State)
-			require.Nil(t, committeeMember.SortKey)
-		} else {
-			require.Equal(t, 1, committeeMember.State)
-			require.Equal(t, "000000000000000000000000000000.0000000000101059020000000000000000001", *committeeMember.SortKey)
-		}
-		require.Equal(t, 1, committeeMember.TxId)
-		require.Equal(t, respondentAddress.Hex() == committeeMember.Address, committeeMember.Voted)
-	}
-
-	// Send termination
-	statsCollector.EnableCollecting()
-	height = uint64(5)
-	block = buildBlock(height)
-	tx, _ = types.SignTx(&types.Transaction{AccountNonce: 6, To: &contractAddress}, respondentKey)
-	statsCollector.BeginApplyingTx(tx, appState)
-	statsCollector.AddOracleVotingTermination(big.NewInt(7800), big.NewInt(7900), nil)
-	statsCollector.AddTxReceipt(&types.TxReceipt{Success: true, TxHash: tx.Hash(), ContractAddress: contractAddress}, appState)
-	statsCollector.CompleteApplyingTx(appState)
-	block.Body.Transactions = append(block.Body.Transactions, tx)
-	require.Nil(t, applyBlock(bus, block, appState))
-	statsCollector.CompleteCollecting()
-
-	sortedFeContractCommittees, err = testCommon.GetSortedOracleVotingContractCommittees(db)
-	require.Nil(t, err)
-	require.Equal(t, 1, len(sortedFeContractCommittees))
-	for _, committeeMember := range sortedFeContractCommittees {
-		require.Equal(t, respondentAddress.Hex(), committeeMember.Address)
-		require.Equal(t, 4, committeeMember.State)
-		require.Nil(t, committeeMember.SortKey)
-		require.Equal(t, 1, committeeMember.TxId)
-		require.Equal(t, respondentAddress.Hex() == committeeMember.Address, committeeMember.Voted)
-	}
-
-	// Reset
-	require.Nil(t, dbAccessor.ResetTo(4))
-	sortedFeContractCommittees, err = testCommon.GetSortedOracleVotingContractCommittees(db)
-	require.Nil(t, err)
-	require.Equal(t, 2, len(sortedFeContractCommittees))
-	for _, committeeMember := range sortedFeContractCommittees {
-		require.Contains(t, []string{respondentAddress.Hex(), addr2.Hex()}, committeeMember.Address)
-		if respondentAddress.Hex() == committeeMember.Address {
-			require.Equal(t, 5, committeeMember.State)
-			require.Nil(t, committeeMember.SortKey)
-		} else {
-			require.Equal(t, 1, committeeMember.State)
-			require.Equal(t, "000000000000000000000000000000.0000000000101059020000000000000000001", *committeeMember.SortKey)
-		}
-		require.Equal(t, 1, committeeMember.TxId)
-		require.Equal(t, respondentAddress.Hex() == committeeMember.Address, committeeMember.Voted)
-	}
-}
+//func Test_ClearTerminatedContractCommitteeOld(t *testing.T) {
+//	db, _, listener, dbAccessor, bus := testCommon.InitIndexer(true, 10, testCommon.PostgresSchema, "..")
+//	defer listener.Destroy()
+//
+//	appState := listener.NodeCtx().AppState
+//	respondentKey, _ := crypto.GenerateKey()
+//	respondentAddress := crypto.PubkeyToAddress(respondentKey.PublicKey)
+//	addr2 := tests.GetRandAddr()
+//	appState.State.SetState(respondentAddress, state.Verified)
+//	appState.State.SetPubKey(respondentAddress, []byte{0x1, 0x2})
+//	appState.State.SetState(addr2, state.Verified)
+//	appState.State.SetPubKey(addr2, []byte{0x2, 0x3})
+//
+//	// Deploy contract
+//	startTime := time.Now().UTC()
+//	contractAddress := tests.GetRandAddr()
+//	deployOracleVotingContracts(t, listener, bus, startTime, contractAddress, tests.GetRandAddr())
+//
+//	statsCollector := listener.StatsCollector()
+//	// Start voting
+//	statsCollector.EnableCollecting()
+//	height := uint64(3)
+//	block := buildBlock(height)
+//	tx := &types.Transaction{AccountNonce: 4, To: &contractAddress}
+//	statsCollector.BeginApplyingTx(tx, appState)
+//	statsCollector.AddOracleVotingCallStart(1, 123, 2, nil, []byte{0x2, 0x3}, 50, 100)
+//	statsCollector.AddTxReceipt(&types.TxReceipt{Success: true, TxHash: tx.Hash(), ContractAddress: contractAddress}, appState)
+//	statsCollector.BeginTxBalanceUpdate(tx, appState)
+//	appState.State.AddBalance(contractAddress, big.NewInt(54321000))
+//	statsCollector.CompleteBalanceUpdate(appState)
+//	statsCollector.CompleteApplyingTx(appState)
+//	block.Body.Transactions = append(block.Body.Transactions, tx)
+//	require.Nil(t, applyBlock(bus, block, appState))
+//	statsCollector.CompleteCollecting()
+//
+//	// Send vote proof
+//	statsCollector.EnableCollecting()
+//	height = uint64(4)
+//	block = buildBlock(height)
+//	tx, _ = types.SignTx(&types.Transaction{AccountNonce: 5, To: &contractAddress}, respondentKey)
+//	statsCollector.BeginApplyingTx(tx, appState)
+//	statsCollector.AddOracleVotingCallVoteProofOld([]byte{0x3, 0x4})
+//	statsCollector.AddTxReceipt(&types.TxReceipt{Success: true, TxHash: tx.Hash(), ContractAddress: contractAddress}, appState)
+//	statsCollector.BeginTxBalanceUpdate(tx, appState)
+//	appState.State.SetBalance(respondentAddress, big.NewInt(2000))
+//	appState.State.AddBalance(contractAddress, big.NewInt(3000))
+//	statsCollector.CompleteBalanceUpdate(appState)
+//	statsCollector.CompleteApplyingTx(appState)
+//	block.Body.Transactions = append(block.Body.Transactions, tx)
+//	require.Nil(t, applyBlock(bus, block, appState))
+//	statsCollector.CompleteCollecting()
+//
+//	sortedFeContractCommittees, err := testCommon.GetSortedOracleVotingContractCommittees(db)
+//	require.Nil(t, err)
+//	require.Equal(t, 2, len(sortedFeContractCommittees))
+//	for _, committeeMember := range sortedFeContractCommittees {
+//		require.Contains(t, []string{respondentAddress.Hex(), addr2.Hex()}, committeeMember.Address)
+//		if respondentAddress.Hex() == committeeMember.Address {
+//			require.Equal(t, 5, committeeMember.State)
+//			require.Nil(t, committeeMember.SortKey)
+//		} else {
+//			require.Equal(t, 1, committeeMember.State)
+//			require.Equal(t, "000000000000000000000000000000.0000000000101059020000000000000000001", *committeeMember.SortKey)
+//		}
+//		require.Equal(t, 1, committeeMember.TxId)
+//		require.Equal(t, respondentAddress.Hex() == committeeMember.Address, committeeMember.Voted)
+//	}
+//
+//	// Send termination
+//	statsCollector.EnableCollecting()
+//	height = uint64(5)
+//	block = buildBlock(height)
+//	tx, _ = types.SignTx(&types.Transaction{AccountNonce: 6, To: &contractAddress}, respondentKey)
+//	statsCollector.BeginApplyingTx(tx, appState)
+//	statsCollector.AddOracleVotingTermination(big.NewInt(7800), big.NewInt(7900), nil)
+//	statsCollector.AddTxReceipt(&types.TxReceipt{Success: true, TxHash: tx.Hash(), ContractAddress: contractAddress}, appState)
+//	statsCollector.CompleteApplyingTx(appState)
+//	block.Body.Transactions = append(block.Body.Transactions, tx)
+//	require.Nil(t, applyBlock(bus, block, appState))
+//	statsCollector.CompleteCollecting()
+//
+//	sortedFeContractCommittees, err = testCommon.GetSortedOracleVotingContractCommittees(db)
+//	require.Nil(t, err)
+//	require.Equal(t, 1, len(sortedFeContractCommittees))
+//	for _, committeeMember := range sortedFeContractCommittees {
+//		require.Equal(t, respondentAddress.Hex(), committeeMember.Address)
+//		require.Equal(t, 4, committeeMember.State)
+//		require.Nil(t, committeeMember.SortKey)
+//		require.Equal(t, 1, committeeMember.TxId)
+//		require.Equal(t, respondentAddress.Hex() == committeeMember.Address, committeeMember.Voted)
+//	}
+//
+//	// Reset
+//	require.Nil(t, dbAccessor.ResetTo(4))
+//	sortedFeContractCommittees, err = testCommon.GetSortedOracleVotingContractCommittees(db)
+//	require.Nil(t, err)
+//	require.Equal(t, 2, len(sortedFeContractCommittees))
+//	for _, committeeMember := range sortedFeContractCommittees {
+//		require.Contains(t, []string{respondentAddress.Hex(), addr2.Hex()}, committeeMember.Address)
+//		if respondentAddress.Hex() == committeeMember.Address {
+//			require.Equal(t, 5, committeeMember.State)
+//			require.Nil(t, committeeMember.SortKey)
+//		} else {
+//			require.Equal(t, 1, committeeMember.State)
+//			require.Equal(t, "000000000000000000000000000000.0000000000101059020000000000000000001", *committeeMember.SortKey)
+//		}
+//		require.Equal(t, 1, committeeMember.TxId)
+//		require.Equal(t, respondentAddress.Hex() == committeeMember.Address, committeeMember.Voted)
+//	}
+//}
 
 func Test_ClearTerminatedContractCommittee(t *testing.T) {
 	db, _, listener, dbAccessor, bus := testCommon.InitIndexer(true, 10, testCommon.PostgresSchema, "..")
@@ -1935,7 +1935,7 @@ func Test_ClearTerminatedContractCommittee(t *testing.T) {
 	block = buildBlock(height)
 	tx, _ = types.SignTx(&types.Transaction{AccountNonce: 5, To: &contractAddress}, respondentKey)
 	statsCollector.BeginApplyingTx(tx, appState)
-	statsCollector.AddOracleVotingCallVoteProof([]byte{0x3, 0x4}, pUint64(90))
+	statsCollector.AddOracleVotingCallVoteProof([]byte{0x3, 0x4}, pUint64(90), false)
 	statsCollector.AddTxReceipt(&types.TxReceipt{Success: true, TxHash: tx.Hash(), ContractAddress: contractAddress}, appState)
 	statsCollector.BeginTxBalanceUpdate(tx, appState)
 	appState.State.SetBalance(respondentAddress, big.NewInt(2000))
@@ -2020,7 +2020,7 @@ func Test_OracleVotingContractDeployBigMinPayment(t *testing.T) {
 
 	var height uint64
 	height++
-	appState.Precommit()
+	appState.Precommit(true)
 	require.Nil(t, appState.CommitAt(height))
 	require.Nil(t, appState.Initialize(height))
 

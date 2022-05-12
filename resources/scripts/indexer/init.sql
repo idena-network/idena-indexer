@@ -123,6 +123,9 @@ ON CONFLICT DO NOTHING;
 INSERT INTO dic_tx_types
 VALUES (21, 'StoreToIpfsTx')
 ON CONFLICT DO NOTHING;
+INSERT INTO dic_tx_types
+VALUES (22, 'ReplenishStakeTx')
+ON CONFLICT DO NOTHING;
 
 CREATE TABLE IF NOT EXISTS dic_flip_statuses
 (
@@ -175,34 +178,40 @@ CREATE TABLE IF NOT EXISTS dic_epoch_reward_types
 );
 
 INSERT INTO dic_epoch_reward_types
-values (0, 'Validation')
+VALUES (0, 'Validation')
 ON CONFLICT DO NOTHING;
 INSERT INTO dic_epoch_reward_types
-values (1, 'Flips')
+VALUES (1, 'Flips')
 ON CONFLICT DO NOTHING;
 INSERT INTO dic_epoch_reward_types
-values (2, 'Invitations')
+VALUES (2, 'Invitations')
 ON CONFLICT DO NOTHING;
 INSERT INTO dic_epoch_reward_types
-values (3, 'FoundationPayouts')
+VALUES (3, 'FoundationPayouts')
 ON CONFLICT DO NOTHING;
 INSERT INTO dic_epoch_reward_types
-values (4, 'ZeroWalletFund')
+VALUES (4, 'ZeroWalletFund')
 ON CONFLICT DO NOTHING;
 INSERT INTO dic_epoch_reward_types
-values (5, 'Invitations2')
+VALUES (5, 'Invitations2')
 ON CONFLICT DO NOTHING;
 INSERT INTO dic_epoch_reward_types
-values (6, 'Invitations3')
+VALUES (6, 'Invitations3')
 ON CONFLICT DO NOTHING;
 INSERT INTO dic_epoch_reward_types
-values (7, 'SavedInvite')
+VALUES (7, 'SavedInvite')
 ON CONFLICT DO NOTHING;
 INSERT INTO dic_epoch_reward_types
-values (8, 'SavedInviteWin')
+VALUES (8, 'SavedInviteWin')
 ON CONFLICT DO NOTHING;
 INSERT INTO dic_epoch_reward_types
-values (9, 'Reports')
+VALUES (9, 'Reports')
+ON CONFLICT DO NOTHING;
+INSERT INTO dic_epoch_reward_types
+VALUES (10, 'Staking')
+ON CONFLICT DO NOTHING;
+INSERT INTO dic_epoch_reward_types
+VALUES (11, 'Candidate')
 ON CONFLICT DO NOTHING;
 
 CREATE TABLE IF NOT EXISTS dic_bad_author_reasons
@@ -1080,6 +1089,10 @@ CREATE TABLE IF NOT EXISTS total_rewards
     invitations_share numeric(30, 18) NOT NULL,
     reports           numeric(30, 18),
     reports_share     numeric(30, 18),
+    staking           numeric(30, 18),
+    candidate        numeric(30, 18),
+    staking_share     numeric(30, 18),
+    candidate_share  numeric(30, 18),
     CONSTRAINT total_rewards_pkey PRIMARY KEY (epoch),
     CONSTRAINT total_rewards_epoch_fkey FOREIGN KEY (epoch)
         REFERENCES epochs (epoch) MATCH SIMPLE
@@ -1114,10 +1127,6 @@ CREATE TABLE IF NOT EXISTS validation_rewards
 ALTER TABLE validation_rewards
     OWNER to postgres;
 
--- Table: reward_ages
-
--- DROP TABLE reward_ages;
-
 CREATE TABLE IF NOT EXISTS reward_ages
 (
     ei_address_state_id bigint  NOT NULL,
@@ -1134,6 +1143,13 @@ CREATE TABLE IF NOT EXISTS reward_ages
 
 ALTER TABLE reward_ages
     OWNER to postgres;
+
+CREATE TABLE IF NOT EXISTS reward_staked_amounts
+(
+    ei_address_state_id bigint          NOT NULL,
+    amount              numeric(30, 18) NOT NULL,
+    CONSTRAINT reward_staked_amounts_pkey PRIMARY KEY (ei_address_state_id)
+);
 
 -- Table: fund_rewards
 
@@ -1840,11 +1856,15 @@ $$
         (
             total             numeric(30, 18),
             validation        numeric(30, 18),
+            staking           numeric(30, 18),
+            candidate        numeric(30, 18),
             flips             numeric(30, 18),
             invitations       numeric(30, 18),
             foundation        numeric(30, 18),
             zero_wallet       numeric(30, 18),
             validation_share  numeric(30, 18),
+            staking_share     numeric(30, 18),
+            candidate_share  numeric(30, 18),
             flips_share       numeric(30, 18),
             invitations_share numeric(30, 18),
             reports           numeric(30, 18),
@@ -1889,6 +1909,19 @@ $$
 
         ALTER TYPE tp_reward_age
             OWNER TO postgres;
+    EXCEPTION
+        WHEN duplicate_object THEN null;
+    END
+$$;
+
+DO
+$$
+    BEGIN
+        CREATE TYPE tp_reward_staked_amount AS
+        (
+            address character(42),
+            amount  numeric(30, 18)
+        );
     EXCEPTION
         WHEN duplicate_object THEN null;
     END
@@ -2085,7 +2118,8 @@ $$
         (
             tx_hash            text,
             vote_hash          text,
-            secret_votes_count bigint
+            secret_votes_count bigint,
+            discriminated      boolean
         );
     EXCEPTION
         WHEN duplicate_object THEN null;
@@ -2105,7 +2139,8 @@ $$
             secret_votes_count bigint,
             delegatee          text,
             prev_pool_vote     smallint,
-            prev_option_votes  bigint
+            prev_option_votes  bigint,
+            discriminated      boolean
         );
     EXCEPTION
         WHEN duplicate_object THEN null;
@@ -3238,29 +3273,27 @@ BEGIN
     FROM cur_epoch_identities;
 
     insert into flips_queue
-        (
-            select f.cid, coalesce(fk.key, mpfk.key) "key", 0, l_last_block_timestamp + 30 * 60
-            from flips f
+        (select f.cid, coalesce(fk.key, mpfk.key) "key", 0, l_last_block_timestamp + 30 * 60
+         from flips f
 
-                     join transactions t on f.tx_id = t.id
+                  join transactions t on f.tx_id = t.id
 
-                     left join (select distinct on (t.from) fk.key, t.from
-                                from flip_keys fk
-                                         join transactions t on t.id = fk.tx_id
-                                WHERE fk.tx_id >= l_epoch_min_tx_id
-                                  AND fk.tx_id <= l_max_tx_id) fk on t.from = fk.from
+                  left join (select distinct on (t.from) fk.key, t.from
+                             from flip_keys fk
+                                      join transactions t on t.id = fk.tx_id
+                             WHERE fk.tx_id >= l_epoch_min_tx_id
+                               AND fk.tx_id <= l_max_tx_id) fk on t.from = fk.from
 
-                     left join (select mpfk.key, s.address_id
-                                from mem_pool_flip_keys mpfk
-                                         join address_states s on s.id = mpfk.ei_address_state_id
-                                WHERE mpfk.ei_address_state_id >= l_epoch_min_address_state_id
-                                  AND mpfk.ei_address_state_id <= l_epoch_max_address_state_id) mpfk
-                               on t.from = mpfk.address_id
+                  left join (select mpfk.key, s.address_id
+                             from mem_pool_flip_keys mpfk
+                                      join address_states s on s.id = mpfk.ei_address_state_id
+                             WHERE mpfk.ei_address_state_id >= l_epoch_min_address_state_id
+                               AND mpfk.ei_address_state_id <= l_epoch_max_address_state_id) mpfk
+                            on t.from = mpfk.address_id
 
-            where f.tx_id >= l_epoch_min_tx_id
-              AND f.tx_id <= l_max_tx_id
-              AND (fk.key is not null or mpfk.key is not null)
-        );
+         where f.tx_id >= l_epoch_min_tx_id
+           AND f.tx_id <= l_max_tx_id
+           AND (fk.key is not null or mpfk.key is not null));
 END
 $BODY$;
 
@@ -3301,15 +3334,13 @@ BEGIN
 
     delete
     from flips_queue
-    where lower(cid) in (
-        select f.cid
-        from flips f,
-             transactions t,
-             blocks b
-        where f.tx_id = t.id
-          and t.block_height = b.height
-          and b.epoch + 1 > l_epoch
-    );
+    where lower(cid) in (select f.cid
+                         from flips f,
+                              transactions t,
+                              blocks b
+                         where f.tx_id = t.id
+                           and t.block_height = b.height
+                           and b.epoch + 1 > l_epoch);
 
     delete
     from flip_pics
@@ -3453,6 +3484,13 @@ BEGIN
 
     delete
     from reward_ages
+    where ei_address_state_id in
+          (select id
+           from address_states
+           where block_height > p_block_height);
+
+    delete
+    from reward_staked_amounts
     where ei_address_state_id in
           (select id
            from address_states

@@ -107,14 +107,14 @@ func (r *Restorer) collectIdentityData() ([]db.Birthday, []*db.PoolSize, []*db.D
 			BirthEpoch: uint64(birthEpoch),
 		})
 
-		if identity.Delegatee != nil {
-			poolDelegatorsByAddr[*identity.Delegatee]++
-			if _, ok := poolSizesByAddr[*identity.Delegatee]; !ok {
-				poolSizesByAddr[*identity.Delegatee] = uint64(appState.ValidatorsCache.PoolSize(*identity.Delegatee))
+		if identity.Delegatee() != nil {
+			poolDelegatorsByAddr[*identity.Delegatee()]++
+			if _, ok := poolSizesByAddr[*identity.Delegatee()]; !ok {
+				poolSizesByAddr[*identity.Delegatee()] = uint64(appState.ValidatorsCache.PoolSize(*identity.Delegatee()))
 			}
 			delegation := &db.Delegation{
 				Delegator: addr,
-				Delegatee: *identity.Delegatee,
+				Delegatee: *identity.Delegatee(),
 			}
 			delegations = append(delegations, delegation)
 			if identity.State.NewbieOrBetter() || identity.State == state.Suspended || identity.State == state.Zombie {

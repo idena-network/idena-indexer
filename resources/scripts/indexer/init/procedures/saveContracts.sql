@@ -166,8 +166,9 @@ BEGIN
             l_secret_votes_count = null_if_negative_bigint(l_item.secret_votes_count);
 
             INSERT INTO oracle_voting_contract_call_vote_proofs (call_tx_id, ov_contract_tx_id, address_id, vote_hash,
-                                                                 secret_votes_count)
-            VALUES (l_tx_id, l_contract_tx_id, l_address_id, decode(l_item.vote_hash, 'hex'), l_secret_votes_count);
+                                                                 secret_votes_count, discriminated)
+            VALUES (l_tx_id, l_contract_tx_id, l_address_id, decode(l_item.vote_hash, 'hex'), l_secret_votes_count,
+                    l_item.discriminated);
 
             if l_is_first then
                 call update_sorted_oracle_voting_contract_committees(p_block_height, l_contract_tx_id, l_address_id,
@@ -228,14 +229,15 @@ BEGIN
             l_prev_pool_vote = null_if_negative_bigint(l_item.prev_pool_vote)::smallint;
             INSERT INTO oracle_voting_contract_call_votes (call_tx_id, ov_contract_tx_id, vote, salt, option_votes,
                                                            option_all_votes, secret_votes_count, delegatee_address_id,
-                                                           prev_pool_vote, prev_option_votes)
+                                                           prev_pool_vote, prev_option_votes, discriminated)
             VALUES (l_tx_id, l_contract_tx_id, l_item.vote, decode(l_item.salt, 'hex'),
                     l_option_votes,
                     l_option_all_votes,
                     null_if_negative_bigint(l_item.secret_votes_count),
                     l_delegatee_address_id,
                     l_prev_pool_vote,
-                    l_prev_option_votes);
+                    l_prev_option_votes,
+                    l_item.discriminated);
 
             call update_oracle_voting_contract_summaries(p_block_height, l_contract_tx_id, 0, 1, null, null, null, 0,
                                                          l_item.secret_votes_count, null);

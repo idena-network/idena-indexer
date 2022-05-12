@@ -173,7 +173,7 @@ func (updater *currentOnlineIdentitiesCacheUpdater) update() {
 	buildValidator := func(address common.Address, identity state.Identity) *types.Validator {
 		var size uint32
 		isPool := appState.ValidatorsCache.IsPool(address)
-		if identity.State.NewbieOrBetter() && identity.Delegatee == nil && !isPool {
+		if identity.State.NewbieOrBetter() && identity.Delegatee() == nil && !isPool {
 			size = 1
 		} else if isPool {
 			size = uint32(appState.ValidatorsCache.PoolSize(address))
@@ -208,8 +208,8 @@ func (updater *currentOnlineIdentitiesCacheUpdater) update() {
 			}
 		}
 		var delegatee *Identity
-		if identity.Delegatee != nil {
-			delegeteeAddr := *identity.Delegatee
+		if identity.Delegatee() != nil {
+			delegeteeAddr := *identity.Delegatee()
 			if delegatee = poolsByAddress[delegeteeAddr]; delegatee == nil {
 				delegatee = buildIdentity(delegeteeAddr, appState.State.GetIdentity(delegeteeAddr), nil, nil)
 				poolsByAddress[delegeteeAddr] = delegatee

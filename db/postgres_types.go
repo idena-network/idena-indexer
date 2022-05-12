@@ -93,14 +93,18 @@ func (v *TotalRewards) Value() (driver.Value, error) {
 	if v == nil {
 		return nil, nil
 	}
-	return fmt.Sprintf("(%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v)",
+	return fmt.Sprintf("(%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v)",
 		v.Total,
 		v.Validation,
+		v.Staking,
+		v.Candidate,
 		v.Flips,
 		v.Invitations,
 		v.FoundationPayouts,
 		v.ZeroWalletFund,
 		v.ValidationShare,
+		v.StakingShare,
+		v.CandidateShare,
 		v.FlipsShare,
 		v.InvitationsShare,
 		v.Reports,
@@ -232,10 +236,11 @@ func (v *OracleVotingContractCallStart) Value() (driver.Value, error) {
 }
 
 func (v *OracleVotingContractCallVoteProof) Value() (driver.Value, error) {
-	return fmt.Sprintf("(%v,%v,%v)",
+	return fmt.Sprintf("(%v,%v,%v,%v)",
 		conversion.ConvertHash(v.TxHash),
 		hex.EncodeToString(v.VoteHash),
 		negativeIfNilUint64(v.NewSecretVotesCount),
+		v.Discriminated,
 	), nil
 }
 
@@ -244,7 +249,7 @@ func (v *OracleVotingContractCallVote) Value() (driver.Value, error) {
 	if v.Delegatee != nil && !v.Delegatee.IsEmpty() {
 		delegatee = conversion.ConvertAddress(*v.Delegatee)
 	}
-	return fmt.Sprintf("(%v,%v,%v,%v,%v,%v,%v,%v,%v)",
+	return fmt.Sprintf("(%v,%v,%v,%v,%v,%v,%v,%v,%v,%v)",
 		conversion.ConvertHash(v.TxHash),
 		v.Vote,
 		hex.EncodeToString(v.Salt),
@@ -254,6 +259,7 @@ func (v *OracleVotingContractCallVote) Value() (driver.Value, error) {
 		delegatee,
 		negativeIfNilByte(v.PrevPoolVote),
 		negativeIfNilUint64(v.PrevOptionVotes),
+		v.Discriminated,
 	), nil
 }
 
@@ -869,6 +875,18 @@ func (v postgresRewardAge) Value() (driver.Value, error) {
 	), nil
 }
 
+type postgresRewardStakedAmount struct {
+	address string
+	amount  decimal.Decimal
+}
+
+func (v postgresRewardStakedAmount) Value() (driver.Value, error) {
+	return fmt.Sprintf("(%v,%v)",
+		v.address,
+		v.amount,
+	), nil
+}
+
 func getRewardAgesArray(agesByAddress map[string]uint16) interface {
 	driver.Valuer
 	sql.Scanner
@@ -878,6 +896,20 @@ func getRewardAgesArray(agesByAddress map[string]uint16) interface {
 		converted = append(converted, postgresRewardAge{
 			address: address,
 			age:     age,
+		})
+	}
+	return pq.Array(converted)
+}
+
+func getRewardStakedAmountsArray(stakedAmountsByAddress map[string]*big.Int) interface {
+	driver.Valuer
+	sql.Scanner
+} {
+	var converted []postgresRewardStakedAmount
+	for address, amount := range stakedAmountsByAddress {
+		converted = append(converted, postgresRewardStakedAmount{
+			address: address,
+			amount:  blockchain.ConvertToFloat(amount),
 		})
 	}
 	return pq.Array(converted)
@@ -935,6 +967,8 @@ type delegationEpochReward struct {
 	SavedInvites    *decimal.Decimal `json:"savedInvites,omitempty"`
 	SavedInvitesWin *decimal.Decimal `json:"savedInvitesWin,omitempty"`
 	Reports         *decimal.Decimal `json:"reports,omitempty"`
+	Candidate       *decimal.Decimal `json:"candidate,omitempty"`
+	Staking         *decimal.Decimal `json:"staking,omitempty"`
 }
 
 func getData(
@@ -1006,6 +1040,8 @@ const (
 	savedInvite    byte = 7
 	savedInviteWin byte = 8
 	reportedFlips  byte = 9
+	staking        byte = 10
+	candidate      byte = 11
 )
 
 func convertDelegationEpochRewards(items []DelegationEpochReward) delegationEpochReward {
@@ -1034,6 +1070,10 @@ func convertDelegationEpochRewards(items []DelegationEpochReward) delegationEpoc
 			res.SavedInvitesWin = &balance
 		case reportedFlips:
 			res.Reports = &balance
+		case candidate:
+			res.Candidate = &balance
+		case staking:
+			res.Staking = &balance
 		}
 	}
 	res.Total = blockchain.ConvertToFloat(total)
@@ -1145,6 +1185,8 @@ type rewardBounds struct {
 type validationRewardSummaries struct {
 	Address     string                  `json:"address"`
 	Validation  validationRewardSummary `json:"validation"`
+	Candidate   validationRewardSummary `json:"candidate"`
+	Staking     validationRewardSummary `json:"staking"`
 	Flips       validationRewardSummary `json:"flips"`
 	Invitations validationRewardSummary `json:"invitations"`
 	Reports     validationRewardSummary `json:"reports"`
@@ -1201,6 +1243,8 @@ func getEpochResultData(epochResult *EpochResult) *epochResultData {
 			item := validationRewardSummaries{
 				Address:     incomingItem.Address,
 				Validation:  convertValidationRewardSummary(incomingItem.Validation),
+				Candidate:   convertValidationRewardSummary(incomingItem.Candidate),
+				Staking:     convertValidationRewardSummary(incomingItem.Staking),
 				Flips:       convertValidationRewardSummary(incomingItem.Flips),
 				Invitations: convertValidationRewardSummary(incomingItem.Invitations),
 				Reports:     convertValidationRewardSummary(incomingItem.Reports),

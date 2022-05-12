@@ -48,12 +48,19 @@ BEGIN
     );
     CREATE INDEX IF NOT EXISTS vote_counting_result_validators_original_idx1 on vote_counting_result_validators_original (uuid);
 
-    CREATE TABLE IF NOT EXISTS vote_counting_result_validators_addresses
+    CREATE TABLE IF NOT EXISTS vote_counting_result_validators_validators
     (
         uuid    character(36) NOT NULL,
         address character(42)
     );
-    CREATE INDEX IF NOT EXISTS vote_counting_result_validators_addresses_idx1 on vote_counting_result_validators_addresses (uuid);
+    CREATE INDEX IF NOT EXISTS vote_counting_result_validators_validators_idx1 on vote_counting_result_validators_validators (uuid);
+
+    CREATE TABLE IF NOT EXISTS vote_counting_result_validators_approved_validators
+    (
+        uuid    character(36) NOT NULL,
+        address character(42)
+    );
+    CREATE INDEX IF NOT EXISTS vote_counting_result_validators_approved_validators_idx1 on vote_counting_result_validators_approved_validators (uuid);
 
     CREATE TABLE IF NOT EXISTS vote_counting_result_cert_votes
     (

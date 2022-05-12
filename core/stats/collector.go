@@ -195,6 +195,18 @@ func (c *statsCollector) SetTotalValidationReward(amount *big.Int, share *big.In
 	c.stats.RewardsStats.ValidationShare = share
 }
 
+func (c *statsCollector) SetTotalStakingReward(amount *big.Int, share *big.Int) {
+	c.initRewardStats()
+	c.stats.RewardsStats.Staking = amount
+	c.stats.RewardsStats.StakingShare = share
+}
+
+func (c *statsCollector) SetTotalCandidateReward(amount *big.Int, share *big.Int) {
+	c.initRewardStats()
+	c.stats.RewardsStats.Candidate = amount
+	c.stats.RewardsStats.CandidateShare = share
+}
+
 func (c *statsCollector) SetTotalFlipsReward(amount *big.Int, share *big.Int) {
 	c.initRewardStats()
 	c.stats.RewardsStats.Flips = amount
@@ -235,6 +247,34 @@ func (c *statsCollector) AddValidationReward(balanceDest, stakeDest common.Addre
 		c.stats.RewardsStats.AgesByAddress = make(map[string]uint16)
 	}
 	c.stats.RewardsStats.AgesByAddress[conversion.ConvertAddress(baseRewardRecipient)] = age + 1
+
+	c.addAddrTotalReward(baseRewardRecipient, balance, stake)
+}
+
+func (c *statsCollector) AddCandidateReward(balanceDest, stakeDest common.Address, balance, stake *big.Int) {
+	baseRewardRecipient := stakeDest
+	c.addReward(baseRewardRecipient, balance, stake, Candidate)
+	if balanceDest != stakeDest {
+		c.addDelegateeReward(stakeDest, balanceDest, balance, nil, Candidate)
+	}
+	c.initRewardStats()
+	c.addAddrTotalReward(baseRewardRecipient, balance, stake)
+}
+
+func (c *statsCollector) AddStakingReward(balanceDest, stakeDest common.Address, stakedAmount *big.Int, balance, stake *big.Int) {
+	baseRewardRecipient := stakeDest
+	c.addReward(baseRewardRecipient, balance, stake, Staking)
+	if balanceDest != stakeDest {
+		c.addDelegateeReward(stakeDest, balanceDest, balance, nil, Staking)
+	}
+
+	c.initRewardStats()
+	if stakedAmount != nil {
+		if c.stats.RewardsStats.StakedAmountsByAddress == nil {
+			c.stats.RewardsStats.StakedAmountsByAddress = make(map[string]*big.Int)
+		}
+		c.stats.RewardsStats.StakedAmountsByAddress[conversion.ConvertAddress(baseRewardRecipient)] = new(big.Int).Set(stakedAmount)
+	}
 
 	c.addAddrTotalReward(baseRewardRecipient, balance, stake)
 }
@@ -1203,30 +1243,18 @@ func (c *statsCollector) AddOracleVotingCallStart(state byte, startBlock uint64,
 	}
 }
 
-func (c *statsCollector) AddOracleVotingCallVoteProofOld(voteHash []byte) {
-	c.AddOracleVotingCallVoteProof(voteHash, nil)
-}
-
-func (c *statsCollector) AddOracleVotingCallVoteProof(voteHash []byte, newSecretVotesCount *uint64) {
+func (c *statsCollector) AddOracleVotingCallVoteProof(voteHash []byte, newSecretVotesCount *uint64, discriminated bool) {
 	tx := c.pending.tx.tx
 	c.pending.tx.oracleVotingContractCallVoteProof = &db.OracleVotingContractCallVoteProof{
 		TxHash:              tx.Hash(),
 		VoteHash:            voteHash,
 		NewSecretVotesCount: newSecretVotesCount,
-	}
-}
-
-func (c *statsCollector) AddOracleVotingCallVoteOld(vote byte, salt []byte) {
-	tx := c.pending.tx.tx
-	c.pending.tx.oracleVotingContractCallVote = &db.OracleVotingContractCallVote{
-		TxHash: tx.Hash(),
-		Vote:   vote,
-		Salt:   salt,
+		Discriminated:       discriminated,
 	}
 }
 
 func (c *statsCollector) AddOracleVotingCallVote(vote byte, salt []byte, newOptionVotes *uint64, newOptionAllVotes uint64,
-	newSecretVotesCount *uint64, delegatee *common.Address, prevPoolVote []byte, newPrevOptionVotes *uint64) {
+	newSecretVotesCount *uint64, delegatee *common.Address, prevPoolVote []byte, newPrevOptionVotes *uint64, discriminated bool) {
 	tx := c.pending.tx.tx
 	var prevPoolVoteByte *byte
 	if prevPoolVote != nil {
@@ -1241,6 +1269,7 @@ func (c *statsCollector) AddOracleVotingCallVote(vote byte, salt []byte, newOpti
 		OptionAllVotes:   &newOptionAllVotes,
 		SecretVotesCount: newSecretVotesCount,
 		Delegatee:        delegatee,
+		Discriminated:    discriminated,
 		PrevPoolVote:     prevPoolVoteByte,
 		PrevOptionVotes:  newPrevOptionVotes,
 	}
@@ -1256,10 +1285,6 @@ func (c *statsCollector) AddOracleVotingCallFinish(state byte, result *byte, fun
 		OracleReward: oracleReward,
 		OwnerReward:  ownerReward,
 	}
-}
-
-func (c *statsCollector) AddOracleVotingCallProlongationOld(startBlock *uint64, epoch uint16, vrfSeed []byte, committeeSize, networkSize uint64) {
-	c.AddOracleVotingCallProlongation(startBlock, epoch, vrfSeed, committeeSize, networkSize, nil, nil)
 }
 
 func (c *statsCollector) AddOracleVotingCallProlongation(startBlock *uint64, epoch uint16, vrfSeed []byte, committeeSize, networkSize uint64,
@@ -1704,6 +1729,10 @@ func (c *statsCollector) AddRemovedTransitiveDelegation(delegator, delegatee com
 		Delegator: delegator,
 		Delegatee: delegatee,
 	})
+}
+
+func (c *statsCollector) BeginSavedStakeBalanceUpdate(addr common.Address, appState *appstate.AppState) {
+	// do nothing
 }
 
 func (c *statsCollector) Disable() {

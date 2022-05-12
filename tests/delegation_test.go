@@ -31,20 +31,20 @@ func Test_delegation(t *testing.T) {
 	key2, _ := crypto.GenerateKey()
 	addr2 := crypto.PubkeyToAddress(key2.PublicKey)
 	appState.State.SetState(addr2, state.Human)
-	appState.IdentityState.Add(addr2)
+	appState.IdentityState.SetValidated(addr2, true)
 	appState.State.SetBirthday(addr2, 2)
 
 	key3, _ := crypto.GenerateKey()
 	delegatee2 := crypto.PubkeyToAddress(key3.PublicKey)
 	appState.State.SetState(delegatee2, state.Human)
-	appState.IdentityState.Add(delegatee2)
+	appState.IdentityState.SetValidated(delegatee2, true)
 	appState.State.SetBirthday(delegatee2, 3)
 
 	var height uint64
 	var block *types2.Block
 
 	height = 1
-	appState.Precommit()
+	appState.Precommit(true)
 	require.Nil(t, appState.CommitAt(height))
 	require.Nil(t, appState.Initialize(height))
 

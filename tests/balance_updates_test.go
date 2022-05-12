@@ -25,7 +25,7 @@ func Test_committeeRewardZeroBlocksCount(t *testing.T) {
 	addr := tests.GetRandAddr()
 	appState := listener.NodeCtx().AppState
 	appState.State.SetState(addr, state.Verified)
-	appState.Precommit()
+	appState.Precommit(true)
 	require.Nil(t, appState.CommitAt(1))
 	require.Nil(t, appState.Initialize(1))
 
@@ -96,7 +96,7 @@ func Test_changeCommitteeRewardBlocksCount(t *testing.T) {
 	addr := tests.GetRandAddr()
 	appState := listener.NodeCtx().AppState
 	appState.State.SetState(addr, state.Verified)
-	appState.Precommit()
+	appState.Precommit(true)
 	require.Nil(t, appState.CommitAt(1))
 	require.Nil(t, appState.Initialize(1))
 
@@ -163,7 +163,7 @@ func Test_complexCommitteeRewardBalanceUpdates3blocks(t *testing.T) {
 	appState := listener.NodeCtx().AppState
 	appState.State.SetState(addr1, state.Verified)
 	appState.State.SetState(addr2, state.Newbie)
-	appState.Precommit()
+	appState.Precommit(true)
 	require.Nil(t, appState.CommitAt(1))
 	require.Nil(t, appState.Initialize(1))
 
@@ -339,7 +339,7 @@ func Test_complexCommitteeRewardBalanceUpdates6blocks(t *testing.T) {
 	appState := listener.NodeCtx().AppState
 	appState.State.SetState(addr1, state.Verified)
 	appState.State.SetState(addr2, state.Newbie)
-	appState.Precommit()
+	appState.Precommit(true)
 	require.Nil(t, appState.CommitAt(1))
 	require.Nil(t, appState.Initialize(1))
 
@@ -471,7 +471,7 @@ func Test_reset(t *testing.T) {
 	appState := listener.NodeCtx().AppState
 	appState.State.SetState(addr1, state.Verified)
 	appState.State.SetState(addr2, state.Human)
-	appState.Precommit()
+	appState.Precommit(true)
 	require.Nil(t, appState.CommitAt(1))
 	require.Nil(t, appState.Initialize(1))
 
@@ -553,7 +553,7 @@ func Test_penalty(t *testing.T) {
 	addr := tests.GetRandAddr()
 	appState := listener.NodeCtx().AppState
 	appState.State.SetState(addr, state.Verified)
-	appState.Precommit()
+	appState.Precommit(true)
 	require.Nil(t, appState.CommitAt(1))
 	require.Nil(t, appState.Initialize(1))
 
@@ -678,8 +678,8 @@ func updateBalanceAndComplete(
 
 func applyBlockWithHeight(bus eventbus.Bus, height uint64, appState *appstate.AppState) error {
 	block := buildBlock(height)
-	appState.Precommit()
-	if err := appState.Commit(block); err != nil {
+	appState.Precommit(true)
+	if err := appState.Commit(block, true); err != nil {
 		return err
 	}
 	bus.Publish(&events.NewBlockEvent{
@@ -689,8 +689,8 @@ func applyBlockWithHeight(bus eventbus.Bus, height uint64, appState *appstate.Ap
 }
 
 func applyBlock(bus eventbus.Bus, block *types2.Block, appState *appstate.AppState) error {
-	appState.Precommit()
-	if err := appState.Commit(block); err != nil {
+	appState.Precommit(true)
+	if err := appState.Commit(block, true); err != nil {
 		return err
 	}
 	appState.ValidatorsCache.Load()

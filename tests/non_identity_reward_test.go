@@ -33,7 +33,7 @@ func Test_nonIdentityReward(t *testing.T) {
 	appState.State.SetState(addr, state.Verified)
 	rewardedAddress := tests.GetRandAddr()
 	appState.State.SetBalance(rewardedAddress, big.NewInt(5000))
-	appState.Precommit()
+	appState.Precommit(true)
 	height++
 	require.Nil(t, appState.CommitAt(height))
 	require.Nil(t, appState.Initialize(height))

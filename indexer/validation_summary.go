@@ -1,6 +1,7 @@
 package indexer
 
 import (
+	"github.com/idena-network/idena-go/blockchain"
 	"github.com/idena-network/idena-go/blockchain/types"
 	"github.com/idena-network/idena-go/common"
 	math2 "github.com/idena-network/idena-go/common/math"
@@ -105,8 +106,10 @@ func (c *validationRewardSummariesCalculator) calculateValidationRewardSummaries
 	shardId common.ShardId,
 	age uint16,
 	identityFlips []state.IdentityFlip,
+	prevState state.IdentityState,
 	newState state.IdentityState,
 	availableFlips uint8,
+	prevStake *big.Int,
 ) db.ValidationRewardSummaries {
 	if !c.initialized {
 		c.init()
@@ -126,6 +129,22 @@ func (c *validationRewardSummariesCalculator) calculateValidationRewardSummaries
 		penalized,
 		age,
 		c.rewardsStats.ValidationShare,
+	)
+
+	candidate := calculateCandidateRewardSummary(
+		rewardsByType[stats.Candidate],
+		prevState,
+		newState,
+		penalized,
+		c.rewardsStats.CandidateShare,
+	)
+
+	staking := calculateStakingRewardSummary(
+		rewardsByType[stats.Staking],
+		newState,
+		penalized,
+		c.rewardsStats.StakingShare,
+		prevStake,
 	)
 
 	var missedValidation bool
@@ -162,6 +181,8 @@ func (c *validationRewardSummariesCalculator) calculateValidationRewardSummaries
 	return db.ValidationRewardSummaries{
 		Address:     convertedAddress,
 		Validation:  validation,
+		Candidate:   candidate,
+		Staking:     staking,
 		Flips:       flips,
 		Invitations: invitations,
 		Reports:     reports,
@@ -200,6 +221,68 @@ func calculateValidationRewardSummary(
 	if share != nil && (!newState.NewbieOrBetter() || penalized) {
 		ageCoef := float32(math.Pow(float64(age), float64(1)/3))
 		missed = math2.ToInt(decimal.NewFromBigInt(share, 0).Mul(decimal.NewFromFloat32(ageCoef)))
+		if missed.Sign() > 0 {
+			if penalized {
+				missedReason = missedRewardReasonPenalty
+			} else {
+				missedReason = missedRewardReasonNotValidated
+			}
+		}
+	}
+	return db.ValidationRewardSummary{
+		Earned:       earned,
+		Missed:       missed,
+		MissedReason: missedRewardReasonOrNil(missedReason),
+	}
+}
+
+func calculateCandidateRewardSummary(
+	reward *big.Int,
+	prevState state.IdentityState,
+	newState state.IdentityState,
+	penalized bool,
+	share *big.Int,
+) db.ValidationRewardSummary {
+	var earned *big.Int
+	if reward != nil {
+		earned = new(big.Int).Set(reward)
+	}
+	var missed *big.Int
+	var missedReason byte
+	if share != nil && prevState == state.Candidate && (!newState.NewbieOrBetter() || penalized) {
+		missed = new(big.Int).Set(share)
+		if missed.Sign() > 0 {
+			if penalized {
+				missedReason = missedRewardReasonPenalty
+			} else {
+				missedReason = missedRewardReasonNotValidated
+			}
+		}
+	}
+	return db.ValidationRewardSummary{
+		Earned:       earned,
+		Missed:       missed,
+		MissedReason: missedRewardReasonOrNil(missedReason),
+	}
+}
+
+func calculateStakingRewardSummary(
+	reward *big.Int,
+	newState state.IdentityState,
+	penalized bool,
+	share *big.Int,
+	stake *big.Int,
+) db.ValidationRewardSummary {
+	var earned *big.Int
+	if reward != nil {
+		earned = new(big.Int).Set(reward)
+	}
+	var missed *big.Int
+	var missedReason byte
+	if share != nil && stake != nil && stake.Sign() > 0 && (!newState.NewbieOrBetter() || penalized) {
+		stakeF, _ := blockchain.ConvertToFloat(stake).Float64()
+		weight := math.Pow(stakeF, 0.9)
+		missed = math2.ToInt(decimal.NewFromBigInt(share, 0).Mul(decimal.NewFromFloat(weight)))
 		if missed.Sign() > 0 {
 			if penalized {
 				missedReason = missedRewardReasonPenalty

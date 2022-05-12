@@ -23,6 +23,8 @@ const (
 	SavedInvite       RewardType = 7
 	SavedInviteWin    RewardType = 8
 	ReportedFlips     RewardType = 9
+	Staking           RewardType = 10
+	Candidate         RewardType = 11
 )
 
 type Stats struct {
@@ -80,18 +82,23 @@ type RewardsStats struct {
 	ValidationResults                    map[common.ShardId]*types.ValidationResults
 	Total                                *big.Int
 	Validation                           *big.Int
+	Staking                              *big.Int
+	Candidate                            *big.Int
 	Flips                                *big.Int
 	Reports                              *big.Int
 	Invitations                          *big.Int
 	FoundationPayouts                    *big.Int
 	ZeroWalletFund                       *big.Int
 	ValidationShare                      *big.Int
+	StakingShare                         *big.Int
+	CandidateShare                       *big.Int
 	FlipsShare                           *big.Int
 	ReportsShare                         *big.Int
 	InvitationsShare                     *big.Int
 	Rewards                              []*RewardStats
 	DelegateesEpochRewards               map[common.Address]*DelegateeEpochRewards
 	AgesByAddress                        map[string]uint16
+	StakedAmountsByAddress               map[string]*big.Int
 	RewardedFlipCids                     []string
 	RewardedInvites                      []*db.RewardedInvite
 	SavedInviteRewardsCountByAddrAndType map[common.Address]map[RewardType]uint8

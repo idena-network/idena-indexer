@@ -900,8 +900,8 @@ func (indexer *Indexer) detectEpochResult(block *types.Block, ctx *conversionCon
 	godAddress := ctx.prevStateReadOnly.State.GodAddress()
 	newEpoch := ctx.newStateReadOnly.State.Epoch()
 	epochRewards, validationRewardsAddresses, delegateesEpochRewards := indexer.detectEpochRewards(block)
-	ctx.prevStateReadOnly.State.IterateOverIdentities(func(addr common.Address, identity state.Identity) {
-		shardId := identity.ShiftedShardId()
+	ctx.prevStateReadOnly.State.IterateOverIdentities(func(addr common.Address, prevStateIdentity state.Identity) {
+		shardId := prevStateIdentity.ShiftedShardId()
 		convertedAddress := conversion.ConvertAddress(addr)
 		convertedIdentity := db.EpochIdentity{}
 		convertedIdentity.ShardId = shardId
@@ -910,12 +910,11 @@ func (indexer *Indexer) detectEpochResult(block *types.Block, ctx *conversionCon
 		newIdentityState := ctx.newStateReadOnly.State.GetIdentityState(addr)
 		convertedIdentity.State = convertIdentityState(newIdentityState)
 		convertedIdentity.RequiredFlips = ctx.prevStateReadOnly.State.GetRequiredFlips(addr)
-		identityPrevState := ctx.prevStateReadOnly.State.GetIdentity(addr)
-		convertedIdentity.AvailableFlips = identityPrevState.GetMaximumAvailableFlips()
+		convertedIdentity.AvailableFlips = prevStateIdentity.GetMaximumAvailableFlips()
 		convertedIdentity.MadeFlips = ctx.prevStateReadOnly.State.GetMadeFlips(addr)
 		convertedIdentity.NextEpochInvites = ctx.newStateReadOnly.State.GetInvites(addr)
-		if identity.Delegatee != nil {
-			convertedIdentity.DelegateeAddress = conversion.ConvertAddress(*identity.Delegatee)
+		if prevStateIdentity.Delegatee() != nil {
+			convertedIdentity.DelegateeAddress = conversion.ConvertAddress(*prevStateIdentity.Delegatee())
 		}
 		validationShardStats := validationStats.Shards[shardId]
 		var identityStats *statsTypes.IdentityStats
@@ -931,10 +930,10 @@ func (indexer *Indexer) detectEpochResult(block *types.Block, ctx *conversionCon
 				convertedIdentity.TotalShortPoint, convertedIdentity.TotalShortFlips = common.CalculateIdentityScores(ctx.newStateReadOnly.State.GetScores(addr),
 					ctx.newStateReadOnly.State.GetShortFlipPoints(addr), ctx.newStateReadOnly.State.GetQualifiedFlipsCount(addr))
 			} else if identityStats.Missed {
-				convertedIdentity.TotalShortPoint, convertedIdentity.TotalShortFlips = common.CalculateIdentityScores(identity.Scores,
+				convertedIdentity.TotalShortPoint, convertedIdentity.TotalShortFlips = common.CalculateIdentityScores(prevStateIdentity.Scores,
 					ctx.prevStateReadOnly.State.GetShortFlipPoints(addr), ctx.prevStateReadOnly.State.GetQualifiedFlipsCount(addr))
 			} else {
-				convertedIdentity.TotalShortPoint, convertedIdentity.TotalShortFlips = calculateNewTotalScore(identity.Scores,
+				convertedIdentity.TotalShortPoint, convertedIdentity.TotalShortFlips = calculateNewTotalScore(prevStateIdentity.Scores,
 					identityStats.ShortPoint, identityStats.ShortFlips, ctx.prevStateReadOnly.State.GetShortFlipPoints(addr),
 					ctx.prevStateReadOnly.State.GetQualifiedFlipsCount(addr))
 			}
@@ -948,32 +947,32 @@ func (indexer *Indexer) detectEpochResult(block *types.Block, ctx *conversionCon
 		} else {
 			convertedIdentity.Approved = false
 			convertedIdentity.Missed = true
-			convertedIdentity.TotalShortPoint, convertedIdentity.TotalShortFlips = common.CalculateIdentityScores(identity.Scores,
+			convertedIdentity.TotalShortPoint, convertedIdentity.TotalShortFlips = common.CalculateIdentityScores(prevStateIdentity.Scores,
 				ctx.prevStateReadOnly.State.GetShortFlipPoints(addr), ctx.prevStateReadOnly.State.GetQualifiedFlipsCount(addr))
 		}
 
-		if identityPrevState.State == state.Invite || identityPrevState.State == state.Candidate {
+		if prevStateIdentity.State == state.Invite || prevStateIdentity.State == state.Candidate {
 			convertedIdentity.BirthEpoch = uint64(ctx.prevStateReadOnly.State.Epoch())
 		} else {
-			convertedIdentity.BirthEpoch = uint64(identityPrevState.Birthday)
+			convertedIdentity.BirthEpoch = uint64(prevStateIdentity.Birthday)
 		}
 
 		identities = append(identities, convertedIdentity)
 		delete(validationRewardsAddresses, addr)
 
-		birthday := detectBirthday(addr, identity.Birthday, ctx.newStateReadOnly.State.GetIdentity(addr).Birthday)
+		birthday := detectBirthday(addr, prevStateIdentity.Birthday, ctx.newStateReadOnly.State.GetIdentity(addr).Birthday)
 		if birthday != nil {
 			birthdays = append(birthdays, *birthday)
 		}
 
 		if memPoolFlipKeysToMigrate == nil {
-			memPoolFlipKey := indexer.detectMemPoolFlipKey(addr, identity)
+			memPoolFlipKey := indexer.detectMemPoolFlipKey(addr, prevStateIdentity)
 			if memPoolFlipKey != nil {
 				memPoolFlipKeys = append(memPoolFlipKeys, memPoolFlipKey)
 			}
 		}
 
-		for _, identityFlip := range identity.Flips {
+		for _, identityFlip := range prevStateIdentity.Flips {
 			flipCid, err := cid.Parse(identityFlip.Cid)
 			if err != nil {
 				log.Error(fmt.Sprintf("Unable to parse flip cid %v", identityFlip.Cid))
@@ -990,13 +989,13 @@ func (indexer *Indexer) detectEpochResult(block *types.Block, ctx *conversionCon
 			}
 		}
 
-		if identity.State != state.Undefined && identity.State != state.Killed && (newIdentityState == state.Killed || newIdentityState == state.Undefined) {
+		if prevStateIdentity.State != state.Undefined && prevStateIdentity.State != state.Killed && (newIdentityState == state.Killed || newIdentityState == state.Undefined) {
 			collector.killedAddrs[addr] = struct{}{}
 		}
 
 		if vrsCalculator != nil {
 			var potentialValidationRewardAge uint16
-			if identity.State == state.Undefined || identity.State == state.Killed || identity.State == state.Invite || identity.State == state.Candidate {
+			if prevStateIdentity.State == state.Undefined || prevStateIdentity.State == state.Killed || prevStateIdentity.State == state.Invite || prevStateIdentity.State == state.Candidate {
 				potentialValidationRewardAge = 1
 			} else {
 				potentialValidationRewardAge = newEpoch - uint16(convertedIdentity.BirthEpoch)
@@ -1005,9 +1004,11 @@ func (indexer *Indexer) detectEpochResult(block *types.Block, ctx *conversionCon
 				addr,
 				shardId,
 				potentialValidationRewardAge,
-				identity.Flips,
+				prevStateIdentity.Flips,
+				prevStateIdentity.State,
 				newIdentityState,
 				convertedIdentity.AvailableFlips,
+				prevStateIdentity.Stake,
 			)
 			validationRewardsSummaries = append(validationRewardsSummaries, validationRewardSummaries)
 		}

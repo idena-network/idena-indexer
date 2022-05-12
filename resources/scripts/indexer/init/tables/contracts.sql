@@ -146,6 +146,7 @@ CREATE TABLE IF NOT EXISTS oracle_voting_contract_call_vote_proofs
     address_id         bigint NOT NULL,
     vote_hash          bytea,
     secret_votes_count bigint,
+    discriminated      boolean,
     CONSTRAINT oracle_voting_contract_call_vote_proofs_pkey PRIMARY KEY (call_tx_id),
     CONSTRAINT oracle_voting_contract_call_vote_proofs_call_tx_fkey FOREIGN KEY (call_tx_id)
         REFERENCES transactions (id) MATCH SIMPLE
@@ -174,6 +175,7 @@ CREATE TABLE IF NOT EXISTS oracle_voting_contract_call_votes
     delegatee_address_id bigint,
     prev_pool_vote       smallint,
     prev_option_votes    bigint,
+    discriminated        boolean,
     CONSTRAINT oracle_voting_contract_call_votes_pkey PRIMARY KEY (call_tx_id),
     CONSTRAINT oracle_voting_contract_call_votes_call_tx_fkey FOREIGN KEY (call_tx_id)
         REFERENCES transactions (id) MATCH SIMPLE

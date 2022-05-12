@@ -24,13 +24,17 @@ BEGIN
                                                             validation_balance, flips_balance, invitations_balance,
                                                             invitations2_balance, invitations3_balance,
                                                             saved_invites_balance, saved_invites_win_balance,
-                                                            reports_balance, delegators)
+                                                            reports_balance, candidate_balance, staking_balance,
+                                                            delegators)
             VALUES (p_epoch, l_delegatee_address_id, (l_delegation_reward ->> 'total')::numeric,
                     (l_delegation_reward ->> 'validation')::numeric, (l_delegation_reward ->> 'flips')::numeric,
                     (l_delegation_reward ->> 'invitations')::numeric, (l_delegation_reward ->> 'invitations2')::numeric,
                     (l_delegation_reward ->> 'invitations3')::numeric,
                     (l_delegation_reward ->> 'savedInvites')::numeric,
-                    (l_delegation_reward ->> 'savedInvitesWin')::numeric, (l_delegation_reward ->> 'reports')::numeric,
+                    (l_delegation_reward ->> 'savedInvitesWin')::numeric,
+                    (l_delegation_reward ->> 'reports')::numeric,
+                    (l_delegation_reward ->> 'candidate')::numeric,
+                    (l_delegation_reward ->> 'staking')::numeric,
                     jsonb_array_length(l_item -> 'delegatorRewards'));
 
             for j in 0..jsonb_array_length(l_item -> 'delegatorRewards') - 1
@@ -45,15 +49,19 @@ BEGIN
                                                               validation_balance, flips_balance, invitations_balance,
                                                               invitations2_balance, invitations3_balance,
                                                               saved_invites_balance, saved_invites_win_balance,
+                                                              candidate_balance, staking_balance,
                                                               reports_balance)
                     VALUES (p_epoch, l_delegatee_address_id, l_delegator_address_id,
                             (l_delegation_reward ->> 'total')::numeric,
-                            (l_delegation_reward ->> 'validation')::numeric, (l_delegation_reward ->> 'flips')::numeric,
+                            (l_delegation_reward ->> 'validation')::numeric,
+                            (l_delegation_reward ->> 'flips')::numeric,
                             (l_delegation_reward ->> 'invitations')::numeric,
                             (l_delegation_reward ->> 'invitations2')::numeric,
                             (l_delegation_reward ->> 'invitations3')::numeric,
                             (l_delegation_reward ->> 'savedInvites')::numeric,
                             (l_delegation_reward ->> 'savedInvitesWin')::numeric,
+                            (l_delegation_reward ->> 'candidate')::numeric,
+                            (l_delegation_reward ->> 'staking')::numeric,
                             (l_delegation_reward ->> 'reports')::numeric);
                 end loop;
         end loop;

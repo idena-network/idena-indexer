@@ -10,6 +10,8 @@ DECLARE
     l_item                                        jsonb;
     l_address_id                                  bigint;
     l_validation_reward_summary                   jsonb;
+    l_candidate_reward_summary                   jsonb;
+    l_staking_reward_summary                      jsonb;
     l_flips_reward_summary                        jsonb;
     l_invitations_reward_summary                  jsonb;
     l_reports_reward_summary                      jsonb;
@@ -27,6 +29,8 @@ BEGIN
             l_address_id = get_address_id_or_insert(p_block_height, (l_item ->> 'address')::text);
 
             l_validation_reward_summary = l_item -> 'validation';
+            l_candidate_reward_summary = l_item -> 'candidate';
+            l_staking_reward_summary = l_item -> 'staking';
             l_flips_reward_summary = l_item -> 'flips';
             l_invitations_reward_summary = l_item -> 'invitations';
             l_reports_reward_summary = l_item -> 'reports';
@@ -45,7 +49,9 @@ BEGIN
             INSERT INTO validation_reward_summaries (epoch, address_id, validation, validation_missed,
                                                      validation_missed_reason, flips, flips_missed, flips_missed_reason,
                                                      invitations, invitations_missed, invitations_missed_reason,
-                                                     reports, reports_missed, reports_missed_reason)
+                                                     reports, reports_missed, reports_missed_reason,
+                                                     candidate, candidate_missed, candidate_missed_reason,
+                                                     staking, staking_missed, staking_missed_reason)
             VALUES (p_epoch, l_address_id,
                     null_if_zero((l_validation_reward_summary ->> 'earned')::numeric),
                     null_if_zero((l_validation_reward_summary ->> 'missed')::numeric),
@@ -58,7 +64,13 @@ BEGIN
                     l_invitations_missed_reason,
                     null_if_zero((l_reports_reward_summary ->> 'earned')::numeric),
                     null_if_zero((l_reports_reward_summary ->> 'missed')::numeric),
-                    (l_reports_reward_summary ->> 'missedReason')::smallint);
+                    (l_reports_reward_summary ->> 'missedReason')::smallint,
+                    null_if_zero((l_candidate_reward_summary ->> 'earned')::numeric),
+                    null_if_zero((l_candidate_reward_summary ->> 'missed')::numeric),
+                    (l_candidate_reward_summary ->> 'missedReason')::smallint,
+                    null_if_zero((l_staking_reward_summary ->> 'earned')::numeric),
+                    null_if_zero((l_staking_reward_summary ->> 'missed')::numeric),
+                    (l_staking_reward_summary ->> 'missedReason')::smallint);
 
         end loop;
 END
