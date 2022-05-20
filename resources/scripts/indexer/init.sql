@@ -850,6 +850,7 @@ CREATE TABLE IF NOT EXISTS balances
         ON DELETE NO ACTION
 );
 CREATE INDEX IF NOT EXISTS balances_balance_address_id_idx on balances (balance desc, address_id);
+CREATE INDEX IF NOT EXISTS balances_stake_address_id_api_idx on balances (stake desc, address_id);
 
 -- Table: birthdays
 
