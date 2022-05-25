@@ -130,4 +130,4 @@ $$;
 
 INSERT INTO report.dynamic_endpoints
 ("name", refresh_procedure, refresh_period, refresh_delay_minutes, endpoint_method, "limit")
-VALUES ('report.mv_coins', 'report.refresh_coins_daily', 'd', null, 'Coins', null);
+VALUES ('report.mv_coins', 'report.refresh_coins_daily', 'h', null, 'Coins', null);
