@@ -5,6 +5,7 @@ go 1.16
 replace github.com/cosmos/iavl => github.com/idena-network/iavl v0.12.3-0.20210604085842-854e73deab29
 
 require (
+	github.com/andybalholm/brotli v1.0.4 // indirect
 	github.com/cosmos/iavl v0.15.3
 	github.com/deckarep/golang-set v1.7.1
 	github.com/go-stack/stack v1.8.1

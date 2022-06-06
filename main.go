@@ -132,6 +132,9 @@ func initIndexer(config *config.Config, txMemPool transaction.MemPool) (*indexer
 	nodeEventBus.Subscribe(events.NewTxEventID,
 		func(e eventbus.Event) {
 			newTxEvent := e.(*events.NewTxEvent)
+			if newTxEvent.Deferred {
+				return
+			}
 			contractsMemPoolBus.Publish(newTxEvent)
 			tx := newTxEvent.Tx
 			if err := txMemPool.AddTransaction(tx); err != nil {
