@@ -54,6 +54,8 @@ type Stats struct {
 	OracleVotingContractCallProlongations    []*db.OracleVotingContractCallProlongation
 	OracleVotingContractCallAddStakes        []*db.OracleVotingContractCallAddStake
 	OracleVotingContractTerminations         []*db.OracleVotingContractTermination
+	NewActualOracleVotingContracts           []common.Address
+	NewNotActualOracleVotingContracts        []common.Address
 	OracleLockContracts                      []*db.OracleLockContract
 	OracleLockContractCallCheckOracleVotings []*db.OracleLockContractCallCheckOracleVoting
 	OracleLockContractCallPushes             []*db.OracleLockContractCallPush

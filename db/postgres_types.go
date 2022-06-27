@@ -916,13 +916,14 @@ func getRewardStakedAmountsArray(stakedAmountsByAddress map[string]*big.Int) int
 }
 
 type data struct {
-	Txs                          []Transaction                 `json:"txs,omitempty"`
-	DelegationSwitches           []*delegationSwitch           `json:"delegationSwitches,omitempty"`
-	UpgradesVotes                []*upgradeVotes               `json:"upgradesVotes,omitempty"`
-	PoolSizes                    []poolSize                    `json:"poolSizes,omitempty"`
-	MinersHistoryItem            *MinersHistoryItem            `json:"minersHistoryItem,omitempty"`
-	RemovedTransitiveDelegations []removedTransitiveDelegation `json:"removedTransitiveDelegations,omitempty"`
-	EpochSummaryUpdate           EpochSummaryUpdate            `json:"epochSummaryUpdate,omitempty"`
+	Txs                            []Transaction                 `json:"txs,omitempty"`
+	DelegationSwitches             []*delegationSwitch           `json:"delegationSwitches,omitempty"`
+	UpgradesVotes                  []*upgradeVotes               `json:"upgradesVotes,omitempty"`
+	PoolSizes                      []poolSize                    `json:"poolSizes,omitempty"`
+	MinersHistoryItem              *MinersHistoryItem            `json:"minersHistoryItem,omitempty"`
+	RemovedTransitiveDelegations   []removedTransitiveDelegation `json:"removedTransitiveDelegations,omitempty"`
+	EpochSummaryUpdate             EpochSummaryUpdate            `json:"epochSummaryUpdate,omitempty"`
+	OracleVotingContractsToProlong []string                      `json:"oracleVotingContractsToProlong,omitempty"`
 }
 
 func (v *data) Value() (driver.Value, error) {
@@ -979,6 +980,7 @@ func getData(
 	minersHistoryItem *MinersHistoryItem,
 	removedTransitiveDelegations []RemovedTransitiveDelegation,
 	epochSummaryUpdate EpochSummaryUpdate,
+	oracleVotingContractsToProlong []common.Address,
 ) *data {
 	res := &data{
 		Txs:                txs,
@@ -1026,6 +1028,12 @@ func getData(
 				Delegator: conversion.ConvertAddress(item.Delegator),
 				Delegatee: conversion.ConvertAddress(item.Delegatee),
 			})
+		}
+	}
+	if len(oracleVotingContractsToProlong) > 0 {
+		res.OracleVotingContractsToProlong = make([]string, 0, len(oracleVotingContractsToProlong))
+		for _, item := range oracleVotingContractsToProlong {
+			res.OracleVotingContractsToProlong = append(res.OracleVotingContractsToProlong, conversion.ConvertAddress(item))
 		}
 	}
 	return res

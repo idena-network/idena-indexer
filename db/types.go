@@ -139,6 +139,7 @@ type Data struct {
 	MinersHistoryItem                        *MinersHistoryItem
 	RemovedTransitiveDelegations             []RemovedTransitiveDelegation
 	EpochSummaryUpdate                       EpochSummaryUpdate
+	OracleVotingContractsToProlong           []common.Address
 }
 
 type EpochRewards struct {

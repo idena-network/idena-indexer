@@ -701,3 +701,38 @@ BEGIN
         end loop;
 END
 $$;
+
+CREATE OR REPLACE PROCEDURE save_oracle_voting_contracts_to_prolong(p_block_height bigint,
+                                                                    p_items jsonb)
+    LANGUAGE 'plpgsql'
+AS
+$$
+DECLARE
+    SOVC_STATE_CAN_BE_PROLONGED CONSTANT smallint = 6;
+    l_item                               text;
+    l_contract_address_id                bigint;
+    l_contract_tx_id                     bigint;
+BEGIN
+
+    if p_items is null then
+        return;
+    end if;
+
+    for i in 0..jsonb_array_length(p_items) - 1
+        loop
+            l_item = (p_items ->> i)::text;
+
+            SELECT id INTO l_contract_address_id FROM addresses WHERE lower(address) = lower(l_item);
+
+            SELECT tx_id
+            INTO l_contract_tx_id
+            FROM contracts
+            WHERE contract_address_id = l_contract_address_id;
+
+            call update_sorted_oracle_voting_contract_state(p_block_height, l_contract_tx_id,
+                                                            SOVC_STATE_CAN_BE_PROLONGED, null);
+
+
+        end loop;
+END
+$$;

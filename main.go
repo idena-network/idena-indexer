@@ -246,6 +246,7 @@ func initIndexer(config *config.Config, txMemPool transaction.MemPool) (*indexer
 			config.UpgradeVotingShortHistoryMinShift,
 			indexerEventBus,
 			config.TreeSnapshotDir,
+			dbAccessor,
 		),
 		listener, contractsMemPool, upgradesVoting
 }

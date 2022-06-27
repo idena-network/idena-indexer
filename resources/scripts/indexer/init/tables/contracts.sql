@@ -46,6 +46,9 @@ ON CONFLICT DO NOTHING;
 INSERT INTO dic_oracle_voting_contract_states
 VALUES (5, 'Voted')
 ON CONFLICT DO NOTHING;
+INSERT INTO dic_oracle_voting_contract_states
+VALUES (6, 'CanBeProlonged')
+ON CONFLICT DO NOTHING;
 
 CREATE TABLE IF NOT EXISTS tx_receipts
 (

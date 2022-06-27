@@ -1,6 +1,7 @@
 package db
 
 import (
+	"github.com/idena-network/idena-go/common"
 	data2 "github.com/idena-network/idena-indexer/data"
 	"math/big"
 	"time"
@@ -30,6 +31,8 @@ type Accessor interface {
 	SaveProofProposal(value *ProofProposal) error
 	SaveBlockProposal(value *BlockProposal) error
 	DeleteVoteCountingOldData() error
+
+	ActualOracleVotings() ([]common.Address, error)
 
 	Destroy()
 	ResetTo(height uint64) error

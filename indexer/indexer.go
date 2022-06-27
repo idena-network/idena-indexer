@@ -19,6 +19,7 @@ import (
 	"github.com/idena-network/idena-indexer/core/conversion"
 	"github.com/idena-network/idena-indexer/core/flip"
 	"github.com/idena-network/idena-indexer/core/holder/upgrade"
+	"github.com/idena-network/idena-indexer/core/loader/contract/embedded/voting"
 	"github.com/idena-network/idena-indexer/core/mempool"
 	"github.com/idena-network/idena-indexer/core/restore"
 	"github.com/idena-network/idena-indexer/core/stats"
@@ -70,6 +71,7 @@ type Indexer struct {
 	upgradeVotingHistoryCtx     *upgradeVotingHistoryCtx
 	eventBus                    eventbus.Bus
 	treeSnapshotDir             string
+	actualOracleVotingsLoader   voting.ActualOracleVotingsLoader
 }
 
 type upgradeVotingHistoryCtx struct {
@@ -88,6 +90,9 @@ type resultData struct {
 	totalBalance *big.Int
 	totalStake   *big.Int
 	flipTxs      []flipTx
+
+	newActualOracleVotings    []common.Address
+	newNotActualOracleVotings []common.Address
 }
 
 type flipTx struct {
@@ -115,19 +120,21 @@ func NewIndexer(
 	upgradeVotingShortHistoryMinShift int,
 	eventBus eventbus.Bus,
 	treeSnapshotDir string,
+	actualOracleVotingsLoader voting.ActualOracleVotingsLoader,
 ) *Indexer {
 	return &Indexer{
-		enabled:          enabled,
-		listener:         listener,
-		memPoolIndexer:   mempoolIndexer,
-		db:               dbAccessor,
-		restorer:         restorer,
-		secondaryStorage: secondaryStorage,
-		restore:          restoreInitially,
-		pm:               pm,
-		flipLoader:       flipLoader,
-		eventBus:         eventBus,
-		treeSnapshotDir:  treeSnapshotDir,
+		enabled:                   enabled,
+		listener:                  listener,
+		memPoolIndexer:            mempoolIndexer,
+		db:                        dbAccessor,
+		restorer:                  restorer,
+		secondaryStorage:          secondaryStorage,
+		restore:                   restoreInitially,
+		pm:                        pm,
+		flipLoader:                flipLoader,
+		eventBus:                  eventBus,
+		treeSnapshotDir:           treeSnapshotDir,
+		actualOracleVotingsLoader: actualOracleVotingsLoader,
 		upgradeVotingHistoryCtx: &upgradeVotingHistoryCtx{
 			holder:               upgradesVotingHolder,
 			shortHistoryItems:    upgradeVotingShortHistoryItems,
@@ -323,6 +330,7 @@ func (indexer *Indexer) getHeightToIndex() uint64 {
 }
 
 func (indexer *Indexer) loadState() *indexerState {
+	log.Debug("Start loading state")
 	for {
 		lastHeight, err := indexer.db.GetLastHeight()
 		if err != nil {
@@ -330,8 +338,16 @@ func (indexer *Indexer) loadState() *indexerState {
 			indexer.waitForRetry()
 			continue
 		}
+		actualVotings, err := indexer.actualOracleVotingsLoader.ActualOracleVotings()
+		log.Debug(fmt.Sprintf("Initial actual oracle votings: %v", len(actualVotings)))
+		if err != nil {
+			log.Error(fmt.Sprintf("Unable to get actual oracle votings: %v", err))
+			indexer.waitForRetry()
+			continue
+		}
 		return &indexerState{
-			lastIndexedHeight: lastHeight,
+			lastIndexedHeight:        lastHeight,
+			actualOracleVotingHolder: newActualOracleVotingHolder(actualVotings),
 		}
 	}
 }
@@ -432,6 +448,8 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) (*result
 		return epochResult.Identities
 	}(), ctx.prevStateReadOnly, ctx.newStateReadOnly)
 
+	oracleVotingsToProlong := detectOracleVotingsToProlong(indexer.state.actualOracleVotingHolder.contracts, ctx.newStateReadOnly, incomingBlock.Header, indexer.listener.NodeCtx().Blockchain.Config())
+
 	dbData := &db.Data{
 		Epoch:                                    epoch,
 		PrevStateRoot:                            conversion.ConvertHash(prevState.State.Root()),
@@ -491,12 +509,14 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) (*result
 		MinersHistoryItem:                        detectMinersHistoryItem(ctx.prevStateReadOnly, ctx.newStateReadOnly),
 		RemovedTransitiveDelegations:             collectorStats.RemovedTransitiveDelegations,
 		EpochSummaryUpdate:                       collectorStats.EpochSummaryUpdate,
+		OracleVotingContractsToProlong:           oracleVotingsToProlong,
 	}
 	resData := &resultData{
 		totalBalance: totalBalance,
 		totalStake:   totalStake,
 		flipTxs:      collector.flipTxs,
 	}
+	resData.newActualOracleVotings, resData.newNotActualOracleVotings = collectorStats.NewActualOracleVotingContracts, collectorStats.NewNotActualOracleVotingContracts
 	return &result{
 		dbData:  dbData,
 		resData: resData,
@@ -1264,6 +1284,9 @@ func (indexer *Indexer) applyOnState(data *result) {
 	indexer.state.lastIndexedHeight = data.dbData.Block.Height
 	indexer.state.totalBalance = data.resData.totalBalance
 	indexer.state.totalStake = data.resData.totalStake
+	indexer.state.actualOracleVotingHolder.add(data.resData.newActualOracleVotings)
+	indexer.state.actualOracleVotingHolder.remove(data.resData.newNotActualOracleVotings)
+	indexer.state.actualOracleVotingHolder.remove(data.dbData.OracleVotingContractsToProlong)
 }
 
 func (indexer *Indexer) waitForRetry() {

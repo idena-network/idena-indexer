@@ -1549,6 +1549,8 @@ func (c *statsCollector) AddTxReceipt(txReceipt *types.TxReceipt, appState *apps
 				appState,
 			)
 			c.stats.OracleVotingContractCallStarts = append(c.stats.OracleVotingContractCallStarts, oracleVotingContractCallStart)
+			contractAddress := c.pending.tx.tx.To
+			c.stats.NewActualOracleVotingContracts = append(c.stats.NewActualOracleVotingContracts, *contractAddress)
 		}
 		if c.pending.tx.oracleVotingContractCallVoteProof != nil {
 			callMethod := db.OracleVotingCallVoteProof
@@ -1564,6 +1566,8 @@ func (c *statsCollector) AddTxReceipt(txReceipt *types.TxReceipt, appState *apps
 			callMethod := db.OracleVotingCallFinish
 			contractCallMethod = &callMethod
 			c.stats.OracleVotingContractCallFinishes = append(c.stats.OracleVotingContractCallFinishes, c.pending.tx.oracleVotingContractCallFinish)
+			contractAddress := c.pending.tx.tx.To
+			c.stats.NewNotActualOracleVotingContracts = append(c.stats.NewNotActualOracleVotingContracts, *contractAddress)
 		}
 		if c.pending.tx.oracleVotingContractCallProlongation != nil {
 			callMethod := db.OracleVotingCallProlong
@@ -1577,6 +1581,8 @@ func (c *statsCollector) AddTxReceipt(txReceipt *types.TxReceipt, appState *apps
 				appState,
 			)
 			c.stats.OracleVotingContractCallProlongations = append(c.stats.OracleVotingContractCallProlongations, oracleVotingContractCallProlongation)
+			contractAddress := c.pending.tx.tx.To
+			c.stats.NewActualOracleVotingContracts = append(c.stats.NewActualOracleVotingContracts, *contractAddress)
 		}
 		if c.pending.tx.oracleVotingContractCallAddStake != nil {
 			callMethod := db.OracleVotingCallAddStake
@@ -1585,6 +1591,8 @@ func (c *statsCollector) AddTxReceipt(txReceipt *types.TxReceipt, appState *apps
 		}
 		if c.pending.tx.oracleVotingContractTermination != nil {
 			c.stats.OracleVotingContractTerminations = append(c.stats.OracleVotingContractTerminations, c.pending.tx.oracleVotingContractTermination)
+			contractAddress := c.pending.tx.tx.To
+			c.stats.NewNotActualOracleVotingContracts = append(c.stats.NewNotActualOracleVotingContracts, *contractAddress)
 		}
 		if c.pending.tx.oracleLockContract != nil {
 			c.stats.OracleLockContracts = append(c.stats.OracleLockContracts, c.pending.tx.oracleLockContract)

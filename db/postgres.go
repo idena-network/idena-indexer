@@ -115,6 +115,7 @@ func (a *postgresAccessor) Save(data *Data) error {
 		data.OracleVotingContractCallProlongations,
 		data.OracleVotingContractCallAddStakes,
 		data.OracleVotingContractTerminations,
+		data.OracleVotingContractsToProlong,
 		data.ClearOldEpochCommittees,
 		data.OracleLockContracts,
 		data.OracleLockContractCallCheckOracleVotings,
@@ -381,6 +382,7 @@ func (a *postgresAccessor) saveAddressesAndTransactions(
 	oracleVotingContractCallProlongations []*OracleVotingContractCallProlongation,
 	oracleVotingContractCallAddStakes []*OracleVotingContractCallAddStake,
 	oracleVotingContractTerminations []*OracleVotingContractTermination,
+	oracleVotingContractsToProlong []common.Address,
 	clearOldEpochCommittees bool,
 	oracleLockContracts []*OracleLockContract,
 	oracleLockContractCallCheckOracleVotings []*OracleLockContractCallCheckOracleVoting,
@@ -413,7 +415,7 @@ func (a *postgresAccessor) saveAddressesAndTransactions(
 	var txHashIds []txHashId
 	data := getData(
 		txs, delegationSwitches, upgradesVotes, poolSizes, minersHistoryItem, removedTransitiveDelegations,
-		epochSummaryUpdate)
+		epochSummaryUpdate, oracleVotingContractsToProlong)
 	err := ctx.tx.QueryRow(a.getQuery(insertAddressesAndTransactionsQuery),
 		ctx.blockHeight,
 		a.changesHistoryBlocksCount,
