@@ -1091,9 +1091,9 @@ CREATE TABLE IF NOT EXISTS total_rewards
     reports           numeric(30, 18),
     reports_share     numeric(30, 18),
     staking           numeric(30, 18),
-    candidate        numeric(30, 18),
+    candidate         numeric(30, 18),
     staking_share     numeric(30, 18),
-    candidate_share  numeric(30, 18),
+    candidate_share   numeric(30, 18),
     CONSTRAINT total_rewards_pkey PRIMARY KEY (epoch),
     CONSTRAINT total_rewards_epoch_fkey FOREIGN KEY (epoch)
         REFERENCES epochs (epoch) MATCH SIMPLE
@@ -1858,14 +1858,14 @@ $$
             total             numeric(30, 18),
             validation        numeric(30, 18),
             staking           numeric(30, 18),
-            candidate        numeric(30, 18),
+            candidate         numeric(30, 18),
             flips             numeric(30, 18),
             invitations       numeric(30, 18),
             foundation        numeric(30, 18),
             zero_wallet       numeric(30, 18),
             validation_share  numeric(30, 18),
             staking_share     numeric(30, 18),
-            candidate_share  numeric(30, 18),
+            candidate_share   numeric(30, 18),
             flips_share       numeric(30, 18),
             invitations_share numeric(30, 18),
             reports           numeric(30, 18),
@@ -3332,6 +3332,8 @@ BEGIN
                                            FROM block_flags
                                            WHERE block_height = p_block_height
                                              AND flag = 'ValidationFinished'));
+
+    DELETE FROM oracle_voting_contract_authors_and_open_voters WHERE deploy_or_vote_tx_id >= l_min_tx_id_to_delete;
 
     delete
     from flips_queue

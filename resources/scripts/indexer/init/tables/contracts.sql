@@ -797,3 +797,13 @@ CREATE TABLE IF NOT EXISTS oracle_voting_contract_results_changes
         ON UPDATE NO ACTION
         ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS oracle_voting_contract_authors_and_open_voters
+(
+    deploy_or_vote_tx_id bigint NOT NULL,
+    address_id           bigint NOT NULL,
+    contract_tx_id       bigint NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS ovc_authors_and_open_voters_pkey ON oracle_voting_contract_authors_and_open_voters (deploy_or_vote_tx_id);
+CREATE UNIQUE INDEX IF NOT EXISTS ovc_authors_and_open_voters_ukey ON oracle_voting_contract_authors_and_open_voters (address_id, contract_tx_id);
+CREATE INDEX IF NOT EXISTS ovc_authors_and_open_voters_api ON oracle_voting_contract_authors_and_open_voters (address_id, contract_tx_id, deploy_or_vote_tx_id desc);
