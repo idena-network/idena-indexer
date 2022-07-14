@@ -234,7 +234,7 @@ func (a *Api) IdentityWithProof(epoch uint64, address string) (*hexutil.Bytes, e
 	return a.stateHolder.IdentityWithProof(epoch, common.HexToAddress(address))
 }
 
-func (a *Api) Staking() (float64, error) {
+func (a *Api) Staking() (types.Staking, error) {
 	return a.onlineIdentities.Staking(), nil
 }
 

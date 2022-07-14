@@ -83,3 +83,8 @@ type MultisigSigner struct {
 	DescAddress string          `json:"destAddress"`
 	Amount      decimal.Decimal `json:"amount"`
 }
+
+type Staking struct {
+	Weight       float64 `json:"weight"`
+	MinersWeight float64 `json:"minersWeight"`
+}
