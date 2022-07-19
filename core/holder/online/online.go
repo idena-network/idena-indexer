@@ -197,16 +197,22 @@ func (updater *currentOnlineIdentitiesCacheUpdater) update() {
 	}
 
 	var stakeWeight, minersStakeWeight float64
+	var minerStakeWeights []float64
 	calculateStakeWeight := func(stake *big.Int) float64 {
 		stakeF, _ := blockchain.ConvertToFloat(stake).Float64()
 		return math.Pow(stakeF, 0.9)
 	}
 	appState.State.IterateOverIdentities(func(address common.Address, identity state.Identity) {
-		if identity.State.NewbieOrBetter() && identity.Stake != nil {
-			weight := calculateStakeWeight(identity.Stake)
+		if identity.State.NewbieOrBetter() {
+			stake := identity.Stake
+			if stake == nil {
+				stake = new(big.Int)
+			}
+			weight := calculateStakeWeight(stake)
 			stakeWeight += weight
 			if appState.ValidatorsCache.IsOnlineIdentity(address) || identity.Delegatee() != nil && appState.ValidatorsCache.IsOnlineIdentity(*identity.Delegatee()) {
 				minersStakeWeight += weight
+				minerStakeWeights = addToSorted(minerStakeWeights, weight)
 			}
 		}
 		if validator := buildValidator(address, identity); validator != nil {
@@ -266,10 +272,34 @@ func (updater *currentOnlineIdentitiesCacheUpdater) update() {
 		})
 	}
 
+	averageMinerWeight1 := minersStakeWeight / float64(len(minerStakeWeights))
+	averageMinerWeight2 := calculateAverage(minerStakeWeights, 101)
 	updater.cache.set(identities, identitiesPerAddress, onlineCount, validators, onlineValidators, types.Staking{
-		Weight:       stakeWeight,
-		MinersWeight: minersStakeWeight,
+		Weight:             stakeWeight,
+		MinersWeight:       minersStakeWeight,
+		AverageMinerWeight: (averageMinerWeight1 + averageMinerWeight2) / 2.0,
 	})
 	finishTime := time.Now()
 	updater.log.Debug("Updated", "duration", finishTime.Sub(startTime))
+}
+
+func addToSorted(values []float64, value float64) []float64 {
+	index := sort.Search(len(values), func(i int) bool { return values[i] > value })
+	values = append(values, 0)
+	copy(values[index+1:], values[index:])
+	values[index] = value
+	return values
+}
+
+func calculateAverage(values []float64, n int) float64 {
+	step, total, cnt := float64(len(values))/float64(n), 0.0, 0
+	for i := 0; i < n; i++ {
+		index := int(math.Round(step * float64(i)))
+		if index >= len(values) {
+			index = len(values) - 1
+		}
+		total += values[index]
+		cnt++
+	}
+	return total / float64(cnt)
 }
