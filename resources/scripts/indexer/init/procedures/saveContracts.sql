@@ -260,7 +260,7 @@ BEGIN
             end if;
 
             INSERT INTO oracle_voting_contract_authors_and_open_voters (deploy_or_vote_tx_id, contract_tx_id, address_id)
-            VALUES (l_tx_id, l_tx_id, l_sender_address_id)
+            VALUES (l_tx_id, l_contract_tx_id, l_sender_address_id)
             ON CONFLICT DO NOTHING;
         end loop;
 END
