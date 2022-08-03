@@ -195,7 +195,11 @@ func negativeIfNilUint64(v *uint64) int64 {
 }
 
 func (v *OracleVotingContract) Value() (driver.Value, error) {
-	return fmt.Sprintf("(%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v)",
+	var refundRecipient string
+	if v.RefundRecipient != nil {
+		refundRecipient = conversion.ConvertAddress(*v.RefundRecipient)
+	}
+	return fmt.Sprintf("(%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v)",
 		conversion.ConvertHash(v.TxHash),
 		conversion.ConvertAddress(v.ContractAddress),
 		blockchain.ConvertToFloat(v.Stake),
@@ -209,6 +213,9 @@ func (v *OracleVotingContract) Value() (driver.Value, error) {
 		v.Quorum,
 		v.CommitteeSize,
 		v.OwnerFee,
+		negativeIfNil(v.OwnerDeposit),
+		negativeIfNil(v.OracleRewardFund),
+		refundRecipient,
 	), nil
 }
 

@@ -103,17 +103,20 @@ CREATE TABLE IF NOT EXISTS tx_receipts
 
 CREATE TABLE IF NOT EXISTS oracle_voting_contracts
 (
-    contract_tx_id         bigint   NOT NULL,
-    start_time             bigint   NOT NULL,
-    voting_duration        bigint   NOT NULL,
-    voting_min_payment     numeric(48, 18),
-    fact                   bytea,
-    public_voting_duration bigint   NOT NULL,
-    winner_threshold       smallint NOT NULL,
-    quorum                 smallint NOT NULL,
-    committee_size         bigint   NOT NULL,
-    owner_fee              smallint NOT NULL,
-    state                  smallint NOT NULL,
+    contract_tx_id              bigint   NOT NULL,
+    start_time                  bigint   NOT NULL,
+    voting_duration             bigint   NOT NULL,
+    voting_min_payment          numeric(48, 18),
+    fact                        bytea,
+    public_voting_duration      bigint   NOT NULL,
+    winner_threshold            smallint NOT NULL,
+    quorum                      smallint NOT NULL,
+    committee_size              bigint   NOT NULL,
+    owner_fee                   smallint NOT NULL,
+    state                       smallint NOT NULL,
+    owner_deposit               numeric(48, 18),
+    oracle_reward_fund          numeric(48, 18),
+    refund_recipient_address_id bigint,
     CONSTRAINT fec_pkey PRIMARY KEY (contract_tx_id),
     CONSTRAINT fec_contract_tx_id_fkey FOREIGN KEY (contract_tx_id)
         REFERENCES contracts (tx_id) MATCH SIMPLE

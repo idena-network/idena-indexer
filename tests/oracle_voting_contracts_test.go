@@ -101,9 +101,10 @@ func deployOracleVotingContracts(t *testing.T, listener incoming.Listener, bus e
 
 	// Success
 	tx := &types.Transaction{AccountNonce: 1, Type: types.DeployContractTx}
+	refundRecipient := addr1
 	statsCollector.BeginApplyingTx(tx, appState)
 	statsCollector.AddOracleVotingDeploy(addr1, uint64(startTime.Unix()), new(big.Int).SetUint64(23400), []byte{0x1, 0x2},
-		0, 1, 2, 3, 4, 5, 7)
+		0, 1, 2, 3, 4, 5, 7, new(big.Int).SetUint64(3000), new(big.Int).SetUint64(4000), &refundRecipient)
 	statsCollector.AddContractStake(new(big.Int).SetUint64(12300))
 	statsCollector.AddTxReceipt(&types.TxReceipt{Success: true, TxHash: tx.Hash(), GasUsed: 11, GasCost: big.NewInt(1100), ContractAddress: addr1, Method: "deploy1"}, appState)
 	statsCollector.CompleteApplyingTx(appState)
@@ -114,7 +115,7 @@ func deployOracleVotingContracts(t *testing.T, listener incoming.Listener, bus e
 	tx = &types.Transaction{AccountNonce: 2, Type: types.DeployContractTx}
 	statsCollector.BeginApplyingTx(tx, appState)
 	statsCollector.AddOracleVotingDeploy(failedContractAddress, uint64(startTime.Unix()), new(big.Int).SetUint64(23400), []byte{0x1, 0x2},
-		0, 1, 2, 3, 4, 5, 7)
+		0, 1, 2, 3, 4, 5, 7, nil, nil, nil)
 	statsCollector.AddContractStake(new(big.Int).SetUint64(12300))
 	statsCollector.AddTxReceipt(&types.TxReceipt{Success: false, TxHash: tx.Hash(), Error: errors.New("error message"), Method: "deploy2"}, appState)
 	statsCollector.CompleteApplyingTx(appState)
@@ -124,7 +125,7 @@ func deployOracleVotingContracts(t *testing.T, listener incoming.Listener, bus e
 	tx = &types.Transaction{AccountNonce: 3, Type: types.DeployContractTx}
 	statsCollector.BeginApplyingTx(tx, appState)
 	statsCollector.AddOracleVotingDeploy(addr2, uint64(startTime.Unix()), nil, []byte{},
-		0, 11, 12, 13, 14, 15, 17)
+		0, 11, 12, 13, 14, 15, 17, nil, nil, nil)
 	statsCollector.AddContractStake(new(big.Int).SetUint64(12300))
 	statsCollector.AddTxReceipt(&types.TxReceipt{Success: true, TxHash: tx.Hash(), GasUsed: 33, GasCost: big.NewInt(3300), ContractAddress: addr2, Method: "deploy3"}, appState)
 	statsCollector.CompleteApplyingTx(appState)
@@ -2035,7 +2036,7 @@ func Test_OracleVotingContractDeployBigMinPayment(t *testing.T) {
 	minPayment, ok := new(big.Int).SetString("9999999999999999999999999999999000000000000000000", 10)
 	require.True(t, ok)
 	statsCollector.AddOracleVotingDeploy(contractAddress1, uint64(startTime.Unix()), minPayment, []byte{0x1, 0x2},
-		0, 1, 2, 3, 4, 5, 7)
+		0, 1, 2, 3, 4, 5, 7, nil, nil, nil)
 	statsCollector.AddContractStake(new(big.Int).SetUint64(12300))
 	statsCollector.AddTxReceipt(&types.TxReceipt{Success: true, TxHash: tx.Hash(), GasUsed: 11, GasCost: big.NewInt(1100), ContractAddress: contractAddress1, Method: "deploy1"}, appState)
 	statsCollector.CompleteApplyingTx(appState)

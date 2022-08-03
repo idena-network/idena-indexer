@@ -1276,7 +1276,8 @@ func (c *statsCollector) AddContractTerminationBurntCoins(address common.Address
 }
 
 func (c *statsCollector) AddOracleVotingDeploy(contractAddress common.Address, startTime uint64, votingMinPayment *big.Int,
-	fact []byte, state byte, votingDuration, publicVotingDuration uint64, winnerThreshold, quorum byte, committeeSize uint64, ownerFee byte) {
+	fact []byte, state byte, votingDuration, publicVotingDuration uint64, winnerThreshold, quorum byte, committeeSize uint64,
+	ownerFee byte, ownerDeposit, oracleRewardFund *big.Int, refundRecipient *common.Address) {
 	tx := c.pending.tx.tx
 	c.pending.tx.oracleVotingContractDeploy = &db.OracleVotingContract{
 		TxHash:               tx.Hash(),
@@ -1292,6 +1293,9 @@ func (c *statsCollector) AddOracleVotingDeploy(contractAddress common.Address, s
 		Quorum:               quorum,
 		CommitteeSize:        committeeSize,
 		OwnerFee:             ownerFee,
+		OwnerDeposit:         ownerDeposit,
+		OracleRewardFund:     oracleRewardFund,
+		RefundRecipient:      refundRecipient,
 	}
 }
 

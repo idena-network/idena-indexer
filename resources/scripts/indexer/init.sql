@@ -2117,7 +2117,10 @@ $$
             winner_threshold       smallint,
             quorum                 smallint,
             committee_size         bigint,
-            owner_fee              smallint
+            owner_fee              smallint,
+            owner_deposit          numeric,
+            oracle_reward_fund     numeric,
+            refund_recipient       text
         );
     EXCEPTION
         WHEN duplicate_object THEN null;

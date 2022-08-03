@@ -472,6 +472,9 @@ type OracleVotingContract struct {
 	Quorum               byte
 	CommitteeSize        uint64
 	OwnerFee             byte
+	OwnerDeposit         *big.Int
+	OracleRewardFund     *big.Int
+	RefundRecipient      *common.Address
 }
 
 type OracleVotingContractCallStart struct {

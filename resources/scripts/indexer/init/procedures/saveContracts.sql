@@ -33,6 +33,7 @@ DECLARE
     l_tx_id                              bigint;
     l_estimated_oracle_reward            numeric;
     l_voting_min_payment                 numeric;
+    l_refund_recipient_address_id        bigint;
 BEGIN
     for i in 1..cardinality(p_items)
         loop
@@ -53,12 +54,20 @@ BEGIN
                 l_voting_min_payment = MAX_VOTING_MIN_PAYMENT;
             end if;
 
+            l_refund_recipient_address_id = null;
+            if l_item.refund_recipient is not null and l_item.refund_recipient <> '' then
+                l_refund_recipient_address_id = get_address_id_or_insert(p_block_height, l_item.refund_recipient);
+            end if;
+
             INSERT INTO oracle_voting_contracts (contract_tx_id, start_time, voting_duration,
                                                  voting_min_payment, fact, public_voting_duration, winner_threshold,
-                                                 quorum, committee_size, owner_fee, state)
+                                                 quorum, committee_size, owner_fee, state,
+                                                 owner_deposit, oracle_reward_fund, refund_recipient_address_id)
             VALUES (l_tx_id, l_item.start_time, l_item.voting_duration, l_voting_min_payment,
                     decode(l_item.fact, 'hex'), l_item.public_voting_duration, l_item.winner_threshold, l_item.quorum,
-                    l_item.committee_size, l_item.owner_fee, l_item.state);
+                    l_item.committee_size, l_item.owner_fee, l_item.state,
+                    null_if_negative_numeric(l_item.owner_deposit), null_if_negative_numeric(l_item.oracle_reward_fund),
+                    l_refund_recipient_address_id);
 
             l_estimated_oracle_reward = calculate_estimated_oracle_reward(0, l_tx_id);
             INSERT INTO sorted_oracle_voting_contracts (contract_tx_id, author_address_id, sort_key, state, state_tx_id,

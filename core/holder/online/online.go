@@ -292,6 +292,9 @@ func addToSorted(values []float64, value float64) []float64 {
 }
 
 func calculateAverage(values []float64, n int) float64 {
+	if len(values) == 0 {
+		return 0
+	}
 	step, total, cnt := float64(len(values))/float64(n), 0.0, 0
 	for i := 0; i < n; i++ {
 		index := int(math.Round(step * float64(i)))

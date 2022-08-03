@@ -493,10 +493,30 @@ type OracleVotingContract struct {
 	CommitteeSize        int
 	OwnerFee             int
 	Epoch                int
+	OwnerDeposit         *decimal.Decimal
+	OracleRewardFund     *decimal.Decimal
+	RefundRecipient      *string
 }
 
 func GetOracleVotingContracts(db *sql.DB) ([]OracleVotingContract, error) {
-	rows, err := db.Query(`select * from oracle_voting_contracts order by contract_tx_id`)
+	rows, err := db.Query(`
+select ovc.contract_tx_id,
+       ovc.start_time,
+       ovc.voting_duration,
+       ovc.voting_min_payment,
+       ovc.fact,
+       ovc.public_voting_duration,
+       ovc.winner_threshold,
+       ovc.quorum,
+       ovc.committee_size,
+       ovc.owner_fee,
+       ovc.state,
+       ovc.owner_deposit,
+       ovc.oracle_reward_fund,
+       a.address refund_recipient
+from oracle_voting_contracts ovc
+         left join addresses a on a.id = ovc.refund_recipient_address_id
+order by ovc.contract_tx_id`)
 	if err != nil {
 		return nil, err
 	}
@@ -504,7 +524,8 @@ func GetOracleVotingContracts(db *sql.DB) ([]OracleVotingContract, error) {
 	var res []OracleVotingContract
 	for rows.Next() {
 		item := OracleVotingContract{}
-		var votingMinPayment NullDecimal
+		var votingMinPayment, ownerDeposit, oracleRewardFund NullDecimal
+		var refundRecipient sql.NullString
 		err := rows.Scan(
 			&item.TxId,
 			&item.StartTime,
@@ -517,12 +538,24 @@ func GetOracleVotingContracts(db *sql.DB) ([]OracleVotingContract, error) {
 			&item.CommitteeSize,
 			&item.OwnerFee,
 			&item.Epoch,
+			&ownerDeposit,
+			&oracleRewardFund,
+			&refundRecipient,
 		)
 		if err != nil {
 			return nil, err
 		}
 		if votingMinPayment.Valid {
 			item.VotingMinPayment = &votingMinPayment.Decimal
+		}
+		if ownerDeposit.Valid {
+			item.OwnerDeposit = &ownerDeposit.Decimal
+		}
+		if oracleRewardFund.Valid {
+			item.OracleRewardFund = &oracleRewardFund.Decimal
+		}
+		if refundRecipient.Valid {
+			item.RefundRecipient = &refundRecipient.String
 		}
 		res = append(res, item)
 	}
