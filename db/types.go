@@ -475,6 +475,7 @@ type OracleVotingContract struct {
 	OwnerDeposit         *big.Int
 	OracleRewardFund     *big.Int
 	RefundRecipient      *common.Address
+	Hash                 []byte
 }
 
 type OracleVotingContractCallStart struct {

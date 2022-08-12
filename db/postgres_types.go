@@ -199,7 +199,7 @@ func (v *OracleVotingContract) Value() (driver.Value, error) {
 	if v.RefundRecipient != nil {
 		refundRecipient = conversion.ConvertAddress(*v.RefundRecipient)
 	}
-	return fmt.Sprintf("(%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v)",
+	return fmt.Sprintf("(%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v)",
 		conversion.ConvertHash(v.TxHash),
 		conversion.ConvertAddress(v.ContractAddress),
 		blockchain.ConvertToFloat(v.Stake),
@@ -216,6 +216,7 @@ func (v *OracleVotingContract) Value() (driver.Value, error) {
 		negativeIfNil(v.OwnerDeposit),
 		negativeIfNil(v.OracleRewardFund),
 		refundRecipient,
+		hex.EncodeToString(v.Hash),
 	), nil
 }
 

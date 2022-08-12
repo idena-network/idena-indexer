@@ -803,7 +803,7 @@ func Test_ResetOracleVotingContracts(t *testing.T) {
 		tx := &types.Transaction{AccountNonce: 4}
 		statsCollector.BeginApplyingTx(tx, appState)
 		statsCollector.AddOracleVotingDeploy(tests.GetRandAddr(), uint64(startTime.Unix()), new(big.Int).SetUint64(23400), []byte{0x1, 0x2},
-			0, 1, 2, 3, 4, 5, 7, nil, nil, nil)
+			0, 1, 2, 3, 4, 5, 7, nil, nil, nil, nil)
 		statsCollector.AddContractStake(new(big.Int).SetUint64(12300))
 		statsCollector.AddTxReceipt(&types.TxReceipt{Success: true, TxHash: tx.Hash(), GasUsed: 11, GasCost: big.NewInt(1100)}, appState)
 		statsCollector.CompleteApplyingTx(appState)

@@ -117,6 +117,7 @@ CREATE TABLE IF NOT EXISTS oracle_voting_contracts
     owner_deposit               numeric(48, 18),
     oracle_reward_fund          numeric(48, 18),
     refund_recipient_address_id bigint,
+    hash                        bytea,
     CONSTRAINT fec_pkey PRIMARY KEY (contract_tx_id),
     CONSTRAINT fec_contract_tx_id_fkey FOREIGN KEY (contract_tx_id)
         REFERENCES contracts (tx_id) MATCH SIMPLE

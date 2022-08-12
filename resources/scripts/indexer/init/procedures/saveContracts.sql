@@ -62,12 +62,12 @@ BEGIN
             INSERT INTO oracle_voting_contracts (contract_tx_id, start_time, voting_duration,
                                                  voting_min_payment, fact, public_voting_duration, winner_threshold,
                                                  quorum, committee_size, owner_fee, state,
-                                                 owner_deposit, oracle_reward_fund, refund_recipient_address_id)
+                                                 owner_deposit, oracle_reward_fund, refund_recipient_address_id, hash)
             VALUES (l_tx_id, l_item.start_time, l_item.voting_duration, l_voting_min_payment,
                     decode(l_item.fact, 'hex'), l_item.public_voting_duration, l_item.winner_threshold, l_item.quorum,
                     l_item.committee_size, l_item.owner_fee, l_item.state,
                     null_if_negative_numeric(l_item.owner_deposit), null_if_negative_numeric(l_item.oracle_reward_fund),
-                    l_refund_recipient_address_id);
+                    l_refund_recipient_address_id, decode(l_item.hash, 'hex'));
 
             l_estimated_oracle_reward = calculate_estimated_oracle_reward(0, l_tx_id);
             INSERT INTO sorted_oracle_voting_contracts (contract_tx_id, author_address_id, sort_key, state, state_tx_id,

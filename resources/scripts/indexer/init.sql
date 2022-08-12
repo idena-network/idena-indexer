@@ -2120,7 +2120,8 @@ $$
             owner_fee              smallint,
             owner_deposit          numeric,
             oracle_reward_fund     numeric,
-            refund_recipient       text
+            refund_recipient       text,
+            hash                   text
         );
     EXCEPTION
         WHEN duplicate_object THEN null;

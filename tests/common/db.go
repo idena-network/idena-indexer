@@ -496,6 +496,7 @@ type OracleVotingContract struct {
 	OwnerDeposit         *decimal.Decimal
 	OracleRewardFund     *decimal.Decimal
 	RefundRecipient      *string
+	Hash                 []byte
 }
 
 func GetOracleVotingContracts(db *sql.DB) ([]OracleVotingContract, error) {
@@ -513,7 +514,8 @@ select ovc.contract_tx_id,
        ovc.state,
        ovc.owner_deposit,
        ovc.oracle_reward_fund,
-       a.address refund_recipient
+       a.address refund_recipient,
+       ovc.hash
 from oracle_voting_contracts ovc
          left join addresses a on a.id = ovc.refund_recipient_address_id
 order by ovc.contract_tx_id`)
@@ -541,6 +543,7 @@ order by ovc.contract_tx_id`)
 			&ownerDeposit,
 			&oracleRewardFund,
 			&refundRecipient,
+			&item.Hash,
 		)
 		if err != nil {
 			return nil, err
