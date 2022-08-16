@@ -469,7 +469,7 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) (*result
 		Addresses:                                collector.getAddresses(),
 		ChangedBalances:                          balanceUpdates,
 		Coins:                                    coins,
-		Penalties:                                convertChargedPenalties(collectorStats.ChargedPenaltiesByAddr),
+		Penalties:                                convertChargedPenalties(collectorStats.ChargedPenaltiesByAddr, collectorStats.ChargedPenaltySecondsByAddr),
 		MiningRewards:                            convertMiningRewards(collectorStats.MiningRewards),
 		BurntCoinsPerAddr:                        collectorStats.BurntCoinsByAddr,
 		BalanceUpdates:                           collectorStats.BalanceUpdates,

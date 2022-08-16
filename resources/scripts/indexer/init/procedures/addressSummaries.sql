@@ -29,28 +29,22 @@ DECLARE
     rec     record;
 BEGIN
     SELECT max(epoch) INTO l_epoch FROM epoch_identities;
-    INSERT INTO address_summaries (
-        SELECT address_id, made_flips, wrong_words_flips
-        FROM (
-                 SELECT s.address_id,
-                        coalesce(sum(ei.made_flips), 0)        made_flips,
-                        coalesce(sum(ei.wrong_words_flips), 0) wrong_words_flips
-                 FROM epoch_identities ei
-                          JOIN address_states s ON s.id = ei.address_State_id
-                 GROUP BY s.address_id
-             ) t
-        WHERE t.made_flips > 0
-           OR t.wrong_words_flips > 0
-    );
+    INSERT INTO address_summaries (SELECT address_id, made_flips, wrong_words_flips
+                                   FROM (SELECT s.address_id,
+                                                coalesce(sum(ei.made_flips), 0)        made_flips,
+                                                coalesce(sum(ei.wrong_words_flips), 0) wrong_words_flips
+                                         FROM epoch_identities ei
+                                                  JOIN address_states s ON s.id = ei.address_State_id
+                                         GROUP BY s.address_id) t
+                                   WHERE t.made_flips > 0
+                                      OR t.wrong_words_flips > 0);
 
-    for rec in (
-        SELECT t.from, count(*) cnt
-        FROM flips f
-                 JOIN transactions t ON t.id = f.tx_id
-                 JOIN blocks b ON b.height = t.block_height AND b.epoch > l_epoch
-        WHERE f.delete_tx_id is null
-        GROUP BY t.from
-    )
+    for rec in (SELECT t.from, count(*) cnt
+                FROM flips f
+                         JOIN transactions t ON t.id = f.tx_id
+                         JOIN blocks b ON b.height = t.block_height AND b.epoch > l_epoch
+                WHERE f.delete_tx_id is null
+                GROUP BY t.from)
         loop
             CALL update_address_summary(p_address_id => rec."from", p_flips_diff => rec.cnt::integer);
         end loop;

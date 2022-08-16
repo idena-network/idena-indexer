@@ -18,7 +18,11 @@ import (
 )
 
 func (v *MiningReward) Value() (driver.Value, error) {
-	return fmt.Sprintf("(%v,%v,%v,%v)", v.Address, v.Balance, v.Stake, v.Proposer), nil
+	var stakeWeight float64
+	if v.StakeWeight != nil {
+		stakeWeight, _ = v.StakeWeight.Float64()
+	}
+	return fmt.Sprintf("(%v,%v,%v,%v,%v)", v.Address, v.Balance, v.Stake, v.Proposer, stakeWeight), nil
 }
 
 func (v Balance) Value() (driver.Value, error) {
@@ -30,14 +34,17 @@ func (v *BalanceUpdate) Value() (driver.Value, error) {
 	if v.TxHash != nil {
 		txHash = conversion.ConvertHash(*v.TxHash)
 	}
-	return fmt.Sprintf("(%v,%v,%v,%v,%v,%v,%v,%v,%v)",
+	return fmt.Sprintf("(%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v)",
 		conversion.ConvertAddress(v.Address),
 		blockchain.ConvertToFloat(v.BalanceOld),
 		blockchain.ConvertToFloat(v.StakeOld),
 		blockchain.ConvertToFloat(v.PenaltyOld),
+		v.PenaltySecondsOld,
 		blockchain.ConvertToFloat(v.BalanceNew),
 		blockchain.ConvertToFloat(v.StakeNew),
 		blockchain.ConvertToFloat(v.PenaltyNew),
+		v.PenaltySecondsNew,
+		blockchain.ConvertToFloat(v.PenaltyPayment),
 		txHash,
 		v.Reason), nil
 }
@@ -146,9 +153,9 @@ func (v *ReportedFlipReward) Value() (driver.Value, error) {
 	), nil
 }
 
-func (p Penalty) Value() (driver.Value, error) {
-	return fmt.Sprintf("(%v,%v)", p.Address, p.Penalty), nil
-}
+//func (p Penalty) Value() (driver.Value, error) {
+//	return fmt.Sprintf("(%v,%v,%v)", p.Address, p.Penalty, p.Seconds), nil
+//}
 
 func (v FlipWords) Value() (driver.Value, error) {
 	return fmt.Sprintf("(%v,%v,%v,%v)", v.Cid, v.Word1, v.Word2, v.TxHash), nil

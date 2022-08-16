@@ -529,21 +529,32 @@ func (c *statsCollector) addDelegateeReward(delegator, delegatee common.Address,
 	delegatorEpochReward.Stake.Add(delegatorEpochReward.Stake, stake)
 }
 
-func (c *statsCollector) AddProposerReward(balanceDest, stakeDest common.Address, balance, stake *big.Int) {
+func (c *statsCollector) AddProposerReward(balanceDest, stakeDest common.Address, balance, stake *big.Int, stakeWeight *big.Float) {
 	if balanceDest == stakeDest {
-		c.addMiningReward(balanceDest, balance, stake, true)
+		c.addMiningReward(balanceDest, balance, stake, stakeWeight, true)
 		return
 	}
-	c.addMiningReward(balanceDest, balance, new(big.Int), true)
-	c.addMiningReward(stakeDest, new(big.Int), stake, true)
+	c.addMiningReward(balanceDest, balance, new(big.Int), stakeWeight, true)
+	c.addMiningReward(stakeDest, new(big.Int), stake, stakeWeight, true)
 }
 
-func (c *statsCollector) AddFinalCommitteeReward(balanceDest, stakeDest common.Address, balance *big.Int, stake *big.Int) {
-	if balanceDest == stakeDest {
-		c.addFinalCommitteeReward(balanceDest, balance, stake)
-	} else {
-		c.addFinalCommitteeReward(balanceDest, balance, new(big.Int))
-		c.addFinalCommitteeReward(stakeDest, new(big.Int), stake)
+func (c *statsCollector) AddFinalCommitteeReward(balanceDest, stakeDest common.Address, balance *big.Int, stake *big.Int, stakeWeight *big.Float) {
+	if balance == nil {
+		balance = new(big.Int)
+	}
+	if stake == nil {
+		stake = new(big.Int)
+	}
+	if balance.Sign() != 0 || stake.Sign() != 0 {
+		if stakeWeight == nil {
+			stakeWeight = math.Zero()
+		}
+		if balanceDest == stakeDest {
+			c.addFinalCommitteeReward(balanceDest, balance, stake, stakeWeight)
+		} else {
+			c.addFinalCommitteeReward(balanceDest, balance, new(big.Int), stakeWeight)
+			c.addFinalCommitteeReward(stakeDest, new(big.Int), stake, stakeWeight)
+		}
 	}
 	if c.stats.OriginalFinalCommittee == nil {
 		c.stats.OriginalFinalCommittee = make(map[common.Address]struct{})
@@ -562,41 +573,47 @@ func (c *statsCollector) initFinalCommitteeRewardsByAddr() {
 	c.pending.finalCommitteeRewardsByAddr = make(map[common.Address]*MiningReward)
 }
 
-func (c *statsCollector) addFinalCommitteeReward(addr common.Address, balance *big.Int, stake *big.Int) {
+func (c *statsCollector) addFinalCommitteeReward(addr common.Address, balance *big.Int, stake *big.Int, stakeWeight *big.Float) {
 	c.initFinalCommitteeRewardsByAddr()
 	reward, ok := c.pending.finalCommitteeRewardsByAddr[addr]
 	if ok {
 		reward.Balance.Add(reward.Balance, balance)
 		reward.Stake.Add(reward.Stake, stake)
+		reward.StakeWeight.Add(reward.StakeWeight, stakeWeight)
 		return
 	}
-	if reward = c.addMiningReward(addr, balance, stake, false); reward != nil {
+	if reward = c.addMiningReward(addr, balance, stake, stakeWeight, false); reward != nil {
 		c.pending.finalCommitteeRewardsByAddr[addr] = reward
 	}
 }
 
-func (c *statsCollector) addMiningReward(addr common.Address, balance *big.Int, stake *big.Int, isProposerReward bool) *MiningReward {
-	if (balance == nil || balance.Sign() == 0) && (stake == nil || stake.Sign() == 0) {
+func (c *statsCollector) addMiningReward(addr common.Address, balance *big.Int, stake *big.Int, stakeWeight *big.Float, isProposerReward bool) *MiningReward {
+	if balance == nil {
+		balance = new(big.Int)
+	}
+	if stake == nil {
+		stake = new(big.Int)
+	}
+	if balance.Sign() == 0 && stake.Sign() == 0 {
 		return nil
 	}
+	if stakeWeight == nil {
+		stakeWeight = math.Zero()
+	}
 	res := &MiningReward{
-		Address:  addr,
-		Balance:  new(big.Int).Set(balance),
-		Stake:    new(big.Int).Set(stake),
-		Proposer: isProposerReward,
+		Address:     addr,
+		Balance:     new(big.Int).Set(balance),
+		Stake:       new(big.Int).Set(stake),
+		StakeWeight: math.Zero().Set(stakeWeight),
+		Proposer:    isProposerReward,
 	}
 	c.stats.MiningRewards = append(c.stats.MiningRewards, res)
 	return res
 }
 
-func (c *statsCollector) AfterSubPenalty(addr common.Address, amount *big.Int, appState *appstate.AppState) {
-}
-
-func (c *statsCollector) BeforeClearPenalty(addr common.Address, appState *appstate.AppState) {
-}
-
-func (c *statsCollector) BeforeSetPenalty(addr common.Address, amount *big.Int, appState *appstate.AppState) {
+func (c *statsCollector) BeforeSetPenalty(addr common.Address, amount *big.Int, seconds uint16, appState *appstate.AppState) {
 	c.addChargedPenalty(addr, amount)
+	c.addChargedPenaltySeconds(addr, seconds)
 }
 
 func (c *statsCollector) addChargedPenalty(addr common.Address, amount *big.Int) {
@@ -612,6 +629,21 @@ func (c *statsCollector) initChargedPenaltiesByAddr() {
 		return
 	}
 	c.stats.ChargedPenaltiesByAddr = make(map[common.Address]*big.Int)
+}
+
+func (c *statsCollector) addChargedPenaltySeconds(addr common.Address, value uint16) {
+	if value == 0 {
+		return
+	}
+	c.initChargedPenaltySecondsByAddr()
+	c.stats.ChargedPenaltySecondsByAddr[addr] = value
+}
+
+func (c *statsCollector) initChargedPenaltySecondsByAddr() {
+	if c.stats.ChargedPenaltySecondsByAddr != nil {
+		return
+	}
+	c.stats.ChargedPenaltySecondsByAddr = make(map[common.Address]uint16)
 }
 
 func (c *statsCollector) AddMintedCoins(amount *big.Int) {
@@ -739,56 +771,56 @@ func (c *statsCollector) AddKillInviteeTxStakeTransfer(tx *types.Transaction, st
 }
 
 func (c *statsCollector) BeginVerifiedStakeTransferBalanceUpdate(addrFrom, addrTo common.Address, appState *appstate.AppState) {
-	c.addPendingBalanceUpdate(addrFrom, appState, db.VerifiedStakeTransferReason, nil)
+	c.addPendingBalanceUpdate(addrFrom, appState, db.VerifiedStakeTransferReason, nil, nil)
 	if addrFrom != addrTo {
-		c.addPendingBalanceUpdate(addrTo, appState, db.VerifiedStakeTransferReason, nil)
+		c.addPendingBalanceUpdate(addrTo, appState, db.VerifiedStakeTransferReason, nil, nil)
 	}
 }
 
 func (c *statsCollector) BeginTxBalanceUpdate(tx *types.Transaction, appState *appstate.AppState) {
 	sender, _ := types.Sender(tx)
 	txHash := tx.Hash()
-	c.addPendingBalanceUpdate(sender, appState, db.TxReason, &txHash)
+	c.addPendingBalanceUpdate(sender, appState, db.TxReason, &txHash, nil)
 	if tx.To != nil && *tx.To != sender {
-		c.addPendingBalanceUpdate(*tx.To, appState, db.TxReason, &txHash)
+		c.addPendingBalanceUpdate(*tx.To, appState, db.TxReason, &txHash, nil)
 	}
 }
 
-func (c *statsCollector) BeginProposerRewardBalanceUpdate(balanceDest, stakeDest common.Address, appState *appstate.AppState) {
-	c.addPendingBalanceUpdate(balanceDest, appState, db.ProposerRewardReason, nil)
+func (c *statsCollector) BeginProposerRewardBalanceUpdate(balanceDest, stakeDest common.Address, potentialPenaltyPayment *big.Int, appState *appstate.AppState) {
+	c.addPendingBalanceUpdate(balanceDest, appState, db.ProposerRewardReason, nil, potentialPenaltyPayment)
 	if balanceDest != stakeDest {
-		c.addPendingBalanceUpdate(stakeDest, appState, db.ProposerRewardReason, nil)
+		c.addPendingBalanceUpdate(stakeDest, appState, db.ProposerRewardReason, nil, nil)
 	}
 }
 
-func (c *statsCollector) BeginCommitteeRewardBalanceUpdate(balanceDest, stakeDest common.Address, appState *appstate.AppState) {
-	c.addPendingBalanceUpdate(balanceDest, appState, db.CommitteeRewardReason, nil)
+func (c *statsCollector) BeginCommitteeRewardBalanceUpdate(balanceDest, stakeDest common.Address, potentialPenaltyPayment *big.Int, appState *appstate.AppState) {
+	c.addPendingBalanceUpdate(balanceDest, appState, db.CommitteeRewardReason, nil, potentialPenaltyPayment)
 	if balanceDest != stakeDest {
-		c.addPendingBalanceUpdate(stakeDest, appState, db.CommitteeRewardReason, nil)
+		c.addPendingBalanceUpdate(stakeDest, appState, db.CommitteeRewardReason, nil, nil)
 	}
 }
 
 func (c *statsCollector) BeginEpochRewardBalanceUpdate(balanceDest, stakeDest common.Address, appState *appstate.AppState) {
-	c.addPendingBalanceUpdate(balanceDest, appState, db.EpochRewardReason, nil)
+	c.addPendingBalanceUpdate(balanceDest, appState, db.EpochRewardReason, nil, nil)
 	if balanceDest != stakeDest {
-		c.addPendingBalanceUpdate(stakeDest, appState, db.EpochRewardReason, nil)
+		c.addPendingBalanceUpdate(stakeDest, appState, db.EpochRewardReason, nil, nil)
 	}
 }
 
 func (c *statsCollector) BeginFailedValidationBalanceUpdate(addr common.Address, appState *appstate.AppState) {
-	c.addPendingBalanceUpdate(addr, appState, db.FailedValidationReason, nil)
+	c.addPendingBalanceUpdate(addr, appState, db.FailedValidationReason, nil, nil)
 }
 
 func (c *statsCollector) BeginPenaltyBalanceUpdate(addr common.Address, appState *appstate.AppState) {
-	c.addPendingBalanceUpdate(addr, appState, db.PenaltyReason, nil)
+	c.addPendingBalanceUpdate(addr, appState, db.PenaltyReason, nil, nil)
 }
 
 func (c *statsCollector) BeginEpochPenaltyResetBalanceUpdate(addr common.Address, appState *appstate.AppState) {
-	c.addPendingBalanceUpdate(addr, appState, db.EpochPenaltyResetReason, nil)
+	c.addPendingBalanceUpdate(addr, appState, db.EpochPenaltyResetReason, nil, nil)
 }
 
 func (c *statsCollector) BeginDustClearingBalanceUpdate(addr common.Address, appState *appstate.AppState) {
-	c.addPendingBalanceUpdate(addr, appState, db.DustClearingReason, nil)
+	c.addPendingBalanceUpdate(addr, appState, db.DustClearingReason, nil, nil)
 }
 
 func (c *statsCollector) CompleteBalanceUpdate(appState *appstate.AppState) {
@@ -805,27 +837,33 @@ func (c *statsCollector) CompleteBalanceUpdate(appState *appstate.AppState) {
 			delegateeBalanceUpdate = balanceUpdates[0]
 		}
 		rewardBalanceUpdate := &db.BalanceUpdate{
-			Address:    delegatorBalanceUpdate.Address,
-			BalanceOld: delegatorBalanceUpdate.BalanceOld,
-			StakeOld:   delegatorBalanceUpdate.StakeOld,
-			PenaltyOld: delegatorBalanceUpdate.PenaltyOld,
+			Address:           delegatorBalanceUpdate.Address,
+			BalanceOld:        delegatorBalanceUpdate.BalanceOld,
+			StakeOld:          delegatorBalanceUpdate.StakeOld,
+			PenaltyOld:        delegatorBalanceUpdate.PenaltyOld,
+			PenaltySecondsOld: delegatorBalanceUpdate.PenaltySecondsOld,
 			BalanceNew: new(big.Int).Add(delegatorBalanceUpdate.BalanceOld,
 				new(big.Int).Sub(delegateeBalanceUpdate.BalanceNew, delegateeBalanceUpdate.BalanceOld)),
-			StakeNew:   delegatorBalanceUpdate.StakeNew,
-			PenaltyNew: delegatorBalanceUpdate.PenaltyNew,
-			TxHash:     nil,
-			Reason:     db.EpochRewardReason,
+			StakeNew:          delegatorBalanceUpdate.StakeNew,
+			PenaltyNew:        delegatorBalanceUpdate.PenaltyNew,
+			PenaltySecondsNew: delegatorBalanceUpdate.PenaltySecondsNew,
+			PenaltyPayment:    nil,
+			TxHash:            nil,
+			Reason:            db.EpochRewardReason,
 		}
 		delegatorBalanceUpdate = &db.BalanceUpdate{
-			Address:    rewardBalanceUpdate.Address,
-			BalanceOld: rewardBalanceUpdate.BalanceNew,
-			StakeOld:   rewardBalanceUpdate.StakeNew,
-			PenaltyOld: rewardBalanceUpdate.PenaltyNew,
-			BalanceNew: delegatorBalanceUpdate.BalanceNew,
-			StakeNew:   delegatorBalanceUpdate.StakeNew,
-			PenaltyNew: delegatorBalanceUpdate.PenaltyNew,
-			TxHash:     nil,
-			Reason:     db.DelegatorEpochRewardReason,
+			Address:           rewardBalanceUpdate.Address,
+			BalanceOld:        rewardBalanceUpdate.BalanceNew,
+			StakeOld:          rewardBalanceUpdate.StakeNew,
+			PenaltyOld:        rewardBalanceUpdate.PenaltyNew,
+			PenaltySecondsOld: rewardBalanceUpdate.PenaltySecondsNew,
+			BalanceNew:        delegatorBalanceUpdate.BalanceNew,
+			StakeNew:          delegatorBalanceUpdate.StakeNew,
+			PenaltyNew:        delegatorBalanceUpdate.PenaltyNew,
+			PenaltySecondsNew: delegatorBalanceUpdate.PenaltySecondsNew,
+			PenaltyPayment:    nil,
+			TxHash:            nil,
+			Reason:            db.DelegatorEpochRewardReason,
 		}
 		delegateeBalanceUpdate.Reason = db.DelegateeEpochRewardReason
 		if !c.handleMultipleBalanceUpdate(rewardBalanceUpdate) {
@@ -885,10 +923,19 @@ func (c *statsCollector) handleMultipleBalanceUpdate(balanceUpdate *db.BalanceUp
 		bu.BalanceNew = balanceUpdate.BalanceNew
 		bu.StakeNew = balanceUpdate.StakeNew
 		bu.PenaltyNew = balanceUpdate.PenaltyNew
+		bu.PenaltySecondsNew = balanceUpdate.PenaltySecondsNew
+		if balanceUpdate.PenaltyPayment != nil {
+			if bu.PenaltyPayment == nil {
+				bu.PenaltyPayment = new(big.Int)
+			}
+			bu.PenaltyPayment = new(big.Int).Add(bu.PenaltyPayment, balanceUpdate.PenaltyPayment)
+		}
 		if balanceUpdate.Reason == db.DelegatorEpochRewardReason {
 			bu.BalanceOld = balanceUpdate.BalanceOld
 			bu.StakeOld = balanceUpdate.StakeOld
 			bu.PenaltyOld = balanceUpdate.PenaltyOld
+			bu.PenaltySecondsOld = balanceUpdate.PenaltySecondsOld
+			bu.PenaltyPayment = balanceUpdate.PenaltyPayment
 		}
 		c.updateLinkedBalanceUpdates(bu)
 		return true
@@ -956,7 +1003,9 @@ func (c *statsCollector) updateLinkedBalanceUpdates(balanceUpdate *db.BalanceUpd
 func isBalanceOrStakeOrPenaltyChanged(balanceUpdate *db.BalanceUpdate) bool {
 	return balanceUpdate.BalanceOld.Cmp(balanceUpdate.BalanceNew) != 0 ||
 		balanceUpdate.StakeOld.Cmp(balanceUpdate.StakeNew) != 0 ||
-		valueOrZero(balanceUpdate.PenaltyOld).Cmp(valueOrZero(balanceUpdate.PenaltyNew)) != 0
+		valueOrZero(balanceUpdate.PenaltyOld).Cmp(valueOrZero(balanceUpdate.PenaltyNew)) != 0 ||
+		balanceUpdate.PenaltySecondsOld != balanceUpdate.PenaltySecondsNew ||
+		balanceUpdate.PenaltyPayment != nil && balanceUpdate.PenaltyPayment.Sign() > 0
 }
 
 func isBalanceChanged(balanceUpdate *db.BalanceUpdate) bool {
@@ -975,14 +1024,22 @@ func (c *statsCollector) addPendingBalanceUpdate(
 	appState *appstate.AppState,
 	reason db.BalanceUpdateReason,
 	txHash *common.Hash,
+	potentialPenaltyPayment *big.Int,
 ) {
+	penaltySecondsOld := c.getPenaltySecondsIfNotKilled(addr, appState)
+	var penaltyPayment *big.Int
+	if potentialPenaltyPayment != nil && penaltySecondsOld > 0 {
+		penaltyPayment = new(big.Int).Set(potentialPenaltyPayment)
+	}
 	c.pending.balanceUpdates = append(c.pending.balanceUpdates, &db.BalanceUpdate{
-		Address:    addr,
-		BalanceOld: appState.State.GetBalance(addr),
-		StakeOld:   c.getStakeIfNotKilled(addr, appState),
-		PenaltyOld: c.getPenaltyIfNotKilled(addr, appState),
-		Reason:     reason,
-		TxHash:     txHash,
+		Address:           addr,
+		BalanceOld:        appState.State.GetBalance(addr),
+		StakeOld:          c.getStakeIfNotKilled(addr, appState),
+		PenaltyOld:        c.getPenaltyIfNotKilled(addr, appState),
+		PenaltySecondsOld: penaltySecondsOld,
+		PenaltyPayment:    penaltyPayment,
+		Reason:            reason,
+		TxHash:            txHash,
 	})
 }
 
@@ -991,6 +1048,7 @@ func (c *statsCollector) completeBalanceUpdates(appState *appstate.AppState) []*
 		balanceUpdate.BalanceNew = appState.State.GetBalance(balanceUpdate.Address)
 		balanceUpdate.StakeNew = c.getStakeIfNotKilled(balanceUpdate.Address, appState)
 		balanceUpdate.PenaltyNew = c.getPenaltyIfNotKilled(balanceUpdate.Address, appState)
+		balanceUpdate.PenaltySecondsNew = c.getPenaltySecondsIfNotKilled(balanceUpdate.Address, appState)
 	}
 	balanceUpdates := c.pending.balanceUpdates
 	c.pending.balanceUpdates = nil
@@ -1009,6 +1067,14 @@ func (c *statsCollector) getPenaltyIfNotKilled(addr common.Address, appState *ap
 		return common.Big0
 	}
 	return appState.State.GetIdentity(addr).Penalty // State.GetPenalty is not used since it may add new identity to state
+}
+
+func (c *statsCollector) getPenaltySecondsIfNotKilled(addr common.Address, appState *appstate.AppState) uint16 {
+	if appState.State.GetIdentityState(addr) == state.Killed {
+		return 0
+	}
+	identity := appState.State.GetIdentity(addr)
+	return identity.PenaltySeconds()
 }
 
 func (c *statsCollector) SetCommitteeRewardShare(amount *big.Int) {
@@ -1168,18 +1234,21 @@ func (c *statsCollector) AddContractBalanceUpdate(address common.Address, getCur
 			balanceOld = new(big.Int).Set(b)
 		}
 		balanceUpdate = &db.BalanceUpdate{
-			Address:    address,
-			BalanceOld: balanceOld,
-			StakeOld:   c.getStakeIfNotKilled(address, appState),
-			PenaltyOld: c.getPenaltyIfNotKilled(address, appState),
-			Reason:     db.EmbeddedContractReason,
-			TxHash:     &txHash,
+			Address:           address,
+			BalanceOld:        balanceOld,
+			StakeOld:          c.getStakeIfNotKilled(address, appState),
+			PenaltyOld:        c.getPenaltyIfNotKilled(address, appState),
+			PenaltySecondsOld: c.getPenaltySecondsIfNotKilled(address, appState),
+			PenaltyPayment:    nil,
+			Reason:            db.EmbeddedContractReason,
+			TxHash:            &txHash,
 		}
 		c.pending.tx.contractBalanceUpdatesByAddr[address] = balanceUpdate
 	}
 	balanceUpdate.BalanceNew = newBalance
 	balanceUpdate.StakeNew = balanceUpdate.StakeOld
 	balanceUpdate.PenaltyNew = balanceUpdate.PenaltyOld
+	balanceUpdate.PenaltySecondsNew = balanceUpdate.PenaltySecondsOld
 }
 
 func (c *statsCollector) AddContractBurntCoins(address common.Address, getAmount collector.GetBalanceFunc) {

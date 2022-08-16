@@ -4,6 +4,7 @@ import (
 	"github.com/idena-network/idena-go/blockchain"
 	"github.com/idena-network/idena-go/blockchain/types"
 	"github.com/idena-network/idena-go/common"
+	"github.com/idena-network/idena-go/common/math"
 	"github.com/idena-network/idena-indexer/core/conversion"
 	"github.com/idena-network/idena-indexer/core/stats"
 	"github.com/idena-network/idena-indexer/db"
@@ -123,10 +124,11 @@ func convertMiningRewards(rewards []*stats.MiningReward) []*db.MiningReward {
 	res := make([]*db.MiningReward, len(rewards))
 	for idx, reward := range rewards {
 		res[idx] = &db.MiningReward{
-			Address:  conversion.ConvertAddress(reward.Address),
-			Balance:  blockchain.ConvertToFloat(reward.Balance),
-			Stake:    blockchain.ConvertToFloat(reward.Stake),
-			Proposer: reward.Proposer,
+			Address:     conversion.ConvertAddress(reward.Address),
+			Balance:     blockchain.ConvertToFloat(reward.Balance),
+			Stake:       blockchain.ConvertToFloat(reward.Stake),
+			Proposer:    reward.Proposer,
+			StakeWeight: math.Zero().Set(reward.StakeWeight),
 		}
 	}
 	return res

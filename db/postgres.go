@@ -533,7 +533,7 @@ func (a *postgresAccessor) savePenalty(ctx *context, penalty *Penalty) error {
 	if penalty == nil {
 		return nil
 	}
-	_, err := ctx.tx.Exec(a.getQuery(insertPenaltyQuery), penalty.Address, penalty.Penalty, ctx.blockHeight)
+	_, err := ctx.tx.Exec(a.getQuery(insertPenaltyQuery), penalty.Address, penalty.Penalty, penalty.Seconds, ctx.blockHeight)
 	return errors.Wrapf(err, "unable to save penalty")
 }
 

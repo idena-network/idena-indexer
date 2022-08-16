@@ -35,6 +35,7 @@ type Stats struct {
 	OriginalFinalCommittee                   map[common.Address]struct{}
 	PoolFinalCommittee                       map[common.Address]struct{}
 	ChargedPenaltiesByAddr                   map[common.Address]*big.Int
+	ChargedPenaltySecondsByAddr              map[common.Address]uint16
 	BurntCoins                               *big.Int
 	BurntCoinsByAddr                         map[common.Address][]*db.BurntCoins
 	MintedCoins                              *big.Int
@@ -135,8 +136,9 @@ type IdentityStateChange struct {
 }
 
 type MiningReward struct {
-	Address  common.Address
-	Balance  *big.Int
-	Stake    *big.Int
-	Proposer bool
+	Address     common.Address
+	Balance     *big.Int
+	Stake       *big.Int
+	StakeWeight *big.Float
+	Proposer    bool
 }

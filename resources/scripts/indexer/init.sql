@@ -444,6 +444,7 @@ CREATE TABLE IF NOT EXISTS mining_rewards
     balance      numeric(30, 18) NOT NULL,
     stake        numeric(30, 18) NOT NULL,
     proposer     boolean         NOT NULL,
+    stake_weight double precision,
     CONSTRAINT mining_rewards_address_id_fkey FOREIGN KEY (address_id)
         REFERENCES addresses (id) MATCH SIMPLE
         ON UPDATE NO ACTION
@@ -1051,10 +1052,11 @@ ALTER SEQUENCE penalties_id_seq
 
 CREATE TABLE IF NOT EXISTS penalties
 (
-    id           bigint          NOT NULL DEFAULT nextval('penalties_id_seq'::regclass),
-    address_id   bigint          NOT NULL,
-    penalty      numeric(30, 18) NOT NULL,
-    block_height bigint          NOT NULL,
+    id              bigint          NOT NULL DEFAULT nextval('penalties_id_seq'::regclass),
+    address_id      bigint          NOT NULL,
+    penalty         numeric(30, 18) NOT NULL,
+    block_height    bigint          NOT NULL,
+    penalty_seconds smallint,
     CONSTRAINT penalties_pkey PRIMARY KEY (id),
     CONSTRAINT penalties_address_id_fkey FOREIGN KEY (address_id)
         REFERENCES addresses (id) MATCH SIMPLE
@@ -1433,6 +1435,9 @@ CREATE TABLE IF NOT EXISTS balance_updates
     last_block_height      bigint,
     committee_reward_share numeric(30, 18),
     blocks_count           integer,
+    penalty_seconds_old    smallint,
+    penalty_seconds_new    smallint,
+    penalty_payment        numeric(30, 18),
     CONSTRAINT balance_updates_pkey PRIMARY KEY (id),
     CONSTRAINT balance_updates_address_id_fkey FOREIGN KEY (address_id)
         REFERENCES addresses (id) MATCH SIMPLE
@@ -1462,15 +1467,18 @@ CREATE INDEX IF NOT EXISTS balance_updates_block_height_idx on balance_updates (
 
 CREATE TABLE IF NOT EXISTS latest_committee_reward_balance_updates
 (
-    block_height      bigint          NOT NULL,
-    address_id        bigint          NOT NULL,
-    balance_old       numeric(30, 18) NOT NULL,
-    stake_old         numeric(30, 18) NOT NULL,
-    penalty_old       numeric(30, 18),
-    balance_new       numeric(30, 18) NOT NULL,
-    stake_new         numeric(30, 18) NOT NULL,
-    penalty_new       numeric(30, 18),
-    balance_update_id bigint          NOT NULL,
+    block_height        bigint          NOT NULL,
+    address_id          bigint          NOT NULL,
+    balance_old         numeric(30, 18) NOT NULL,
+    stake_old           numeric(30, 18) NOT NULL,
+    penalty_old         numeric(30, 18),
+    balance_new         numeric(30, 18) NOT NULL,
+    stake_new           numeric(30, 18) NOT NULL,
+    penalty_new         numeric(30, 18),
+    balance_update_id   bigint          NOT NULL,
+    penalty_seconds_old smallint,
+    penalty_seconds_new smallint,
+    penalty_payment     numeric(30, 18),
     CONSTRAINT latest_committee_reward_balance_updates_pkey PRIMARY KEY (block_height, address_id),
     CONSTRAINT latest_committee_reward_balance_updates_block_height_fkey FOREIGN KEY (block_height)
         REFERENCES blocks (height) MATCH SIMPLE
@@ -1569,10 +1577,11 @@ $$
         -- Type: tp_mining_reward
         CREATE TYPE tp_mining_reward AS
         (
-            address  character(42),
-            balance  numeric(30, 18),
-            stake    numeric(30, 18),
-            proposer boolean
+            address      character(42),
+            balance      numeric(30, 18),
+            stake        numeric(30, 18),
+            proposer     boolean,
+            stake_weight double precision
         );
 
         ALTER TYPE tp_mining_reward
@@ -2058,15 +2067,18 @@ $$
     BEGIN
         CREATE TYPE tp_balance_update AS
         (
-            address     text,
-            balance_old numeric(30, 18),
-            stake_old   numeric(30, 18),
-            penalty_old numeric(30, 18),
-            balance_new numeric(30, 18),
-            stake_new   numeric(30, 18),
-            penalty_new numeric(30, 18),
-            tx_hash     text,
-            reason      smallint
+            address             text,
+            balance_old         numeric(30, 18),
+            stake_old           numeric(30, 18),
+            penalty_old         numeric(30, 18),
+            penalty_seconds_old smallint,
+            balance_new         numeric(30, 18),
+            stake_new           numeric(30, 18),
+            penalty_new         numeric(30, 18),
+            penalty_seconds_new smallint,
+            penalty_payment     numeric(30, 18),
+            tx_hash             text,
+            reason              smallint
         );
     EXCEPTION
         WHEN duplicate_object THEN null;
@@ -2477,9 +2489,9 @@ BEGIN
     for i in 1..cardinality(mr)
         loop
             mr_row = mr[i];
-            insert into mining_rewards (address_id, block_height, balance, stake, proposer)
+            insert into mining_rewards (address_id, block_height, balance, stake, proposer, stake_weight)
             values ((select id from addresses where lower(address) = lower(mr_row.address)), height,
-                    mr_row.balance, mr_row.stake, mr_row.proposer);
+                    mr_row.balance, mr_row.stake, mr_row.proposer, mr_row.stake_weight);
         end loop;
 END
 $BODY$;
@@ -2573,16 +2585,20 @@ BEGIN
                     l_tx_id = null;
                 end if;
                 l_address_id = get_address_id_or_insert(p_block_height, l_balance_update.address);
-                insert into balance_updates (address_id, balance_old, stake_old, penalty_old, balance_new, stake_new,
-                                             penalty_new, reason, block_height, tx_id, last_block_height,
-                                             committee_reward_share, blocks_count)
+                insert into balance_updates (address_id, balance_old, stake_old, penalty_old, penalty_seconds_old,
+                                             balance_new, stake_new, penalty_new, penalty_seconds_new, penalty_payment,
+                                             reason, block_height, tx_id, last_block_height, committee_reward_share,
+                                             blocks_count)
                 values (l_address_id,
                         l_balance_update.balance_old,
                         l_balance_update.stake_old,
                         null_if_zero(l_balance_update.penalty_old),
+                        null_if_zero_smallint(l_balance_update.penalty_seconds_old),
                         l_balance_update.balance_new,
                         l_balance_update.stake_new,
                         null_if_zero(l_balance_update.penalty_new),
+                        null_if_zero_smallint(l_balance_update.penalty_seconds_new),
+                        null_if_zero(l_balance_update.penalty_payment),
                         l_balance_update.reason,
                         p_block_height,
                         l_tx_id,
@@ -2623,23 +2639,28 @@ BEGIN
 
     if l_reason = COMMITTEE_REASON and l_committee_reward = p_committee_reward_share then
         update balance_updates
-        set balance_new       = p_update.balance_new,
-            stake_new         = p_update.stake_new,
-            penalty_new       = null_if_zero(p_update.penalty_new),
-            blocks_count      = blocks_count + 1,
-            last_block_height = p_block_height
+        set balance_new         = p_update.balance_new,
+            stake_new           = p_update.stake_new,
+            penalty_new         = null_if_zero(p_update.penalty_new),
+            penalty_seconds_new = null_if_zero_smallint(p_update.penalty_seconds_new),
+            penalty_payment     = null_if_zero(coalesce(penalty_payment, 0) + coalesce(p_update.penalty_payment, 0)),
+            blocks_count        = blocks_count + 1,
+            last_block_height   = p_block_height
         where id = l_balance_update_id;
     else
-        insert into balance_updates (address_id, balance_old, stake_old, penalty_old, balance_new, stake_new,
-                                     penalty_new, reason, block_height, tx_id, last_block_height,
-                                     committee_reward_share, blocks_count)
+        insert into balance_updates (address_id, balance_old, stake_old, penalty_old, penalty_seconds_old, balance_new,
+                                     stake_new, penalty_new, penalty_seconds_new, penalty_payment, reason, block_height,
+                                     tx_id, last_block_height, committee_reward_share, blocks_count)
         values (l_address_id,
                 p_update.balance_old,
                 p_update.stake_old,
                 null_if_zero(p_update.penalty_old),
+                null_if_zero_smallint(p_update.penalty_seconds_old),
                 p_update.balance_new,
                 p_update.stake_new,
                 null_if_zero(p_update.penalty_new),
+                null_if_zero_smallint(p_update.penalty_seconds_new),
+                null_if_zero(p_update.penalty_payment),
                 COMMITTEE_REASON,
                 p_block_height,
                 null,
@@ -2650,15 +2671,19 @@ BEGIN
     end if;
 
     insert into latest_committee_reward_balance_updates (block_height, address_id, balance_old, stake_old, penalty_old,
-                                                         balance_new, stake_new, penalty_new, balance_update_id)
+                                                         penalty_seconds_old, balance_new, stake_new, penalty_new,
+                                                         penalty_seconds_new, penalty_payment, balance_update_id)
     values (p_block_height,
             l_address_id,
             p_update.balance_old,
             p_update.stake_old,
             null_if_zero(p_update.penalty_old),
+            null_if_zero_smallint(p_update.penalty_seconds_old),
             p_update.balance_new,
             p_update.stake_new,
             null_if_zero(p_update.penalty_new),
+            null_if_zero_smallint(p_update.penalty_seconds_new),
+            null_if_zero(p_update.penalty_payment),
             l_balance_update_id);
 END
 $BODY$;
@@ -2670,6 +2695,19 @@ AS
 $BODY$
 BEGIN
     if v = 0.0 then
+        return null;
+    end if;
+    return v;
+END
+$BODY$;
+
+CREATE OR REPLACE FUNCTION null_if_zero_smallint(v smallint)
+    RETURNS numeric
+    LANGUAGE 'plpgsql'
+AS
+$BODY$
+BEGIN
+    if v = 0 then
         return null;
     end if;
     return v;
@@ -3713,7 +3751,14 @@ BEGIN
 
     delete from balance_updates where block_height > p_block_height;
 
-    for rec in select block_height, address_id, balance_old, stake_old, penalty_old, balance_update_id
+    for rec in select block_height,
+                      address_id,
+                      balance_old,
+                      stake_old,
+                      penalty_old,
+                      penalty_seconds_old,
+                      penalty_payment,
+                      balance_update_id
                from latest_committee_reward_balance_updates
                where block_height > p_block_height
                order by block_height desc
@@ -3725,11 +3770,13 @@ BEGIN
               and block_height < rec.block_height;
 
             update balance_updates
-            set balance_new       = rec.balance_old,
-                stake_new         = rec.stake_old,
-                penalty_new       = rec.penalty_old,
-                blocks_count      = blocks_count - 1,
-                last_block_height = l_last_block_height
+            set balance_new         = rec.balance_old,
+                stake_new           = rec.stake_old,
+                penalty_new         = rec.penalty_old,
+                penalty_seconds_new = rec.penalty_seconds_old,
+                penalty_payment     = null_if_zero(coalesce(penalty_payment, 0) - coalesce(rec.penalty_payment, 0)),
+                blocks_count        = blocks_count - 1,
+                last_block_height   = l_last_block_height
             where id = rec.balance_update_id;
         end loop;
 

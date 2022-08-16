@@ -205,10 +205,11 @@ type BadAuthor struct {
 }
 
 type MiningReward struct {
-	Address  string
-	Balance  decimal.Decimal
-	Stake    decimal.Decimal
-	Proposer bool
+	Address     string
+	Balance     decimal.Decimal
+	Stake       decimal.Decimal
+	Proposer    bool
+	StakeWeight *big.Float
 }
 
 type Block struct {
@@ -390,6 +391,7 @@ type AddressFlipCid struct {
 type Penalty struct {
 	Address string
 	Penalty decimal.Decimal
+	Seconds uint16
 }
 
 type Birthday struct {
@@ -427,15 +429,18 @@ type FailedFlipContent struct {
 }
 
 type BalanceUpdate struct {
-	Address    common.Address
-	BalanceOld *big.Int
-	StakeOld   *big.Int
-	PenaltyOld *big.Int
-	BalanceNew *big.Int
-	StakeNew   *big.Int
-	PenaltyNew *big.Int
-	TxHash     *common.Hash
-	Reason     BalanceUpdateReason
+	Address           common.Address
+	BalanceOld        *big.Int
+	StakeOld          *big.Int
+	PenaltyOld        *big.Int
+	PenaltySecondsOld uint16
+	BalanceNew        *big.Int
+	StakeNew          *big.Int
+	PenaltyNew        *big.Int
+	PenaltySecondsNew uint16
+	PenaltyPayment    *big.Int
+	TxHash            *common.Hash
+	Reason            BalanceUpdateReason
 }
 
 type EpochResult struct {

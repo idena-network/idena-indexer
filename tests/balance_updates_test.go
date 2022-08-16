@@ -613,7 +613,7 @@ func addProposerReward(
 	stake *big.Int,
 	appState *appstate.AppState,
 ) {
-	collector.BeginProposerRewardBalanceUpdate(addr, addr, appState)
+	collector.BeginProposerRewardBalanceUpdate(addr, addr, nil, appState)
 	updateBalanceAndComplete(collector, addr, balance, stake, appState.State.GetPenalty(addr), appState)
 }
 
@@ -624,7 +624,7 @@ func addCommitteeReward(
 	stake *big.Int,
 	appState *appstate.AppState,
 ) {
-	collector.BeginCommitteeRewardBalanceUpdate(addr, addr, appState)
+	collector.BeginCommitteeRewardBalanceUpdate(addr, addr, nil, appState)
 	updateBalanceAndComplete(collector, addr, balance, stake, appState.State.GetPenalty(addr), appState)
 }
 
@@ -672,7 +672,7 @@ func updateBalanceAndComplete(
 	if stake != nil {
 		appState.State.AddStake(addr, stake)
 	}
-	appState.State.SetPenalty(addr, penalty)
+	appState.State.SetPenalty(addr, penalty, 0)
 	collector.CompleteBalanceUpdate(appState)
 }
 

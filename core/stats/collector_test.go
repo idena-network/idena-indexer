@@ -37,7 +37,7 @@ func TestStatsCollector_PenaltyBalanceUpdate(t *testing.T) {
 	c.CompleteCollecting()
 	c.EnableCollecting()
 	c.BeginPenaltyBalanceUpdate(addr, appState)
-	appState.State.SetPenalty(addr, big.NewInt(1))
+	appState.State.SetPenalty(addr, big.NewInt(1), 0)
 	c.CompleteBalanceUpdate(appState)
 	// then
 	require.Equal(t, 0, len(c.pending.balanceUpdates))
@@ -53,7 +53,7 @@ func TestStatsCollector_PenaltyBalanceUpdate(t *testing.T) {
 	c.CompleteCollecting()
 	c.EnableCollecting()
 	c.BeginPenaltyBalanceUpdate(addr, appState)
-	appState.State.SetPenalty(addr, big.NewInt(2))
+	appState.State.SetPenalty(addr, big.NewInt(2), 0)
 	c.CompleteBalanceUpdate(appState)
 	// then
 	require.Equal(t, 0, len(c.pending.balanceUpdates))
@@ -89,7 +89,7 @@ func TestStatsCollector_ProposerRewardBalanceUpdate(t *testing.T) {
 	appState, _ := appstate.NewAppState(db.NewMemDB(), eventbus.New())
 
 	// when
-	c.BeginProposerRewardBalanceUpdate(addr, addr, appState)
+	c.BeginProposerRewardBalanceUpdate(addr, addr, nil, appState)
 	c.CompleteBalanceUpdate(appState)
 	// then
 	require.Equal(t, 0, len(c.pending.balanceUpdates))
@@ -99,10 +99,10 @@ func TestStatsCollector_ProposerRewardBalanceUpdate(t *testing.T) {
 	// when
 	c.CompleteCollecting()
 	c.EnableCollecting()
-	c.BeginProposerRewardBalanceUpdate(addr, addr, appState)
+	c.BeginProposerRewardBalanceUpdate(addr, addr, nil, appState)
 	appState.State.SetBalance(addr, big.NewInt(12))
 	appState.State.AddStake(addr, big.NewInt(2))
-	appState.State.SetPenalty(addr, big.NewInt(3))
+	appState.State.SetPenalty(addr, big.NewInt(3), 0)
 	c.CompleteBalanceUpdate(appState)
 	// then
 	require.Equal(t, 0, len(c.pending.balanceUpdates))
@@ -121,7 +121,7 @@ func TestStatsCollector_ProposerRewardBalanceUpdate(t *testing.T) {
 	// when
 	c.CompleteCollecting()
 	c.EnableCollecting()
-	c.BeginProposerRewardBalanceUpdate(addr, addr, appState)
+	c.BeginProposerRewardBalanceUpdate(addr, addr, nil, appState)
 	appState.State.SetState(addr, state.Killed)
 	c.CompleteBalanceUpdate(appState)
 	require.Equal(t, 0, len(c.pending.balanceUpdates))
@@ -725,7 +725,7 @@ func TestStatsCollector_contractBalanceUpdate(t *testing.T) {
 
 	appState.State.SetBalance(sender, big.NewInt(1))
 	appState.State.AddStake(address2, big.NewInt(2))
-	appState.State.SetPenalty(address2, big.NewInt(3))
+	appState.State.SetPenalty(address2, big.NewInt(3), 0)
 
 	tx := tests.GetFullTx(1, 1, key, types.SendTx, nil, nil, nil)
 	c.BeginApplyingTx(tx, appState)
@@ -1145,10 +1145,10 @@ func TestStatsCollector_AddProposerReward(t *testing.T) {
 
 	addr1, addr2, addr3 := tests.GetRandAddr(), tests.GetRandAddr(), tests.GetRandAddr()
 
-	c.AddProposerReward(addr1, addr1, nil, nil)
+	c.AddProposerReward(addr1, addr1, nil, nil, nil)
 	require.Empty(t, c.stats.MiningRewards)
 
-	c.AddProposerReward(addr2, addr1, big.NewInt(1), big.NewInt(2))
+	c.AddProposerReward(addr2, addr1, big.NewInt(1), big.NewInt(2), nil)
 	require.Len(t, c.stats.MiningRewards, 2)
 
 	require.True(t, c.stats.MiningRewards[0].Proposer)
@@ -1164,7 +1164,7 @@ func TestStatsCollector_AddProposerReward(t *testing.T) {
 	c.CompleteCollecting()
 	c.EnableCollecting()
 
-	c.AddProposerReward(addr3, addr3, big.NewInt(3), big.NewInt(4))
+	c.AddProposerReward(addr3, addr3, big.NewInt(3), big.NewInt(4), nil)
 	require.Len(t, c.stats.MiningRewards, 1)
 
 	require.True(t, c.stats.MiningRewards[0].Proposer)
@@ -1179,9 +1179,9 @@ func TestStatsCollector_AddFinalCommitteeReward(t *testing.T) {
 
 	addr1, addr2, addr3 := tests.GetRandAddr(), tests.GetRandAddr(), tests.GetRandAddr()
 
-	c.AddFinalCommitteeReward(addr1, addr1, big.NewInt(1), big.NewInt(2))
-	c.AddFinalCommitteeReward(addr1, addr2, big.NewInt(3), big.NewInt(4))
-	c.AddFinalCommitteeReward(addr3, addr3, big.NewInt(5), big.NewInt(6))
+	c.AddFinalCommitteeReward(addr1, addr1, big.NewInt(1), big.NewInt(2), nil)
+	c.AddFinalCommitteeReward(addr1, addr2, big.NewInt(3), big.NewInt(4), nil)
+	c.AddFinalCommitteeReward(addr3, addr3, big.NewInt(5), big.NewInt(6), nil)
 
 	require.Len(t, c.stats.MiningRewards, 3)
 
@@ -1233,7 +1233,7 @@ func Test_BeginProposerRewardBalanceUpdateAndCompleteBalanceUpdate(t *testing.T)
 
 	addr1, addr2 := tests.GetRandAddr(), tests.GetRandAddr()
 	appState, _ := appstate.NewAppState(db.NewMemDB(), eventbus.New())
-	c.BeginProposerRewardBalanceUpdate(addr1, addr1, appState)
+	c.BeginProposerRewardBalanceUpdate(addr1, addr1, nil, appState)
 
 	require.Len(t, c.pending.balanceUpdates, 1)
 	for _, bu := range c.pending.balanceUpdates {
@@ -1248,7 +1248,7 @@ func Test_BeginProposerRewardBalanceUpdateAndCompleteBalanceUpdate(t *testing.T)
 	c.CompleteCollecting()
 	c.EnableCollecting()
 
-	c.BeginProposerRewardBalanceUpdate(addr1, addr2, appState)
+	c.BeginProposerRewardBalanceUpdate(addr1, addr2, nil, appState)
 
 	require.Len(t, c.pending.balanceUpdates, 2)
 	for _, bu := range c.pending.balanceUpdates {
@@ -1268,9 +1268,9 @@ func Test_BeginCommitteeRewardBalanceUpdateAndCompleteBalanceUpdate(t *testing.T
 
 	addr1, addr2, addr3 := tests.GetRandAddr(), tests.GetRandAddr(), tests.GetRandAddr()
 	appState, _ := appstate.NewAppState(db.NewMemDB(), eventbus.New())
-	c.BeginCommitteeRewardBalanceUpdate(addr1, addr1, appState)
-	c.BeginCommitteeRewardBalanceUpdate(addr1, addr2, appState)
-	c.BeginCommitteeRewardBalanceUpdate(addr1, addr3, appState)
+	c.BeginCommitteeRewardBalanceUpdate(addr1, addr1, nil, appState)
+	c.BeginCommitteeRewardBalanceUpdate(addr1, addr2, nil, appState)
+	c.BeginCommitteeRewardBalanceUpdate(addr1, addr3, nil, appState)
 
 	require.Len(t, c.pending.balanceUpdates, 5)
 	for _, bu := range c.pending.balanceUpdates {
