@@ -39,6 +39,7 @@ const (
 	EmbeddedContractTerminationReason BalanceUpdateReason = 0xB
 	DelegatorEpochRewardReason        BalanceUpdateReason = 0xC
 	DelegateeEpochRewardReason        BalanceUpdateReason = 0xD
+	IdentityClearingReason            BalanceUpdateReason = 0xE
 
 	TimeLockCallTransfer TimeLockCall = 0
 

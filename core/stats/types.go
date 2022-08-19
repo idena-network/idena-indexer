@@ -79,6 +79,7 @@ type Stats struct {
 	ActivationTxs                            []db.ActivationTx
 	RemovedTransitiveDelegations             []db.RemovedTransitiveDelegation
 	EpochSummaryUpdate                       db.EpochSummaryUpdate
+	KilledInactiveIdentities                 map[common.Address]struct{}
 }
 
 type RewardsStats struct {

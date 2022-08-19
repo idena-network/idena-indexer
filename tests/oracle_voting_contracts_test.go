@@ -2012,7 +2012,7 @@ func pUint64(v uint64) *uint64 {
 	return &v
 }
 
-func Test_OracleVotingContractDeployBigMinPayment(t *testing.T) {
+func Test_OracleVotingContractDeployBigMinPaymentAndOracleRewardFund(t *testing.T) {
 	_, _, listener, _, bus := testCommon.InitIndexer(true, 0, testCommon.PostgresSchema, "..")
 	defer listener.Destroy()
 
@@ -2037,8 +2037,9 @@ func Test_OracleVotingContractDeployBigMinPayment(t *testing.T) {
 	statsCollector.BeginApplyingTx(tx, appState)
 	minPayment, ok := new(big.Int).SetString("9999999999999999999999999999999000000000000000000", 10)
 	require.True(t, ok)
+	oracleRewardFund := new(big.Int).Set(minPayment)
 	statsCollector.AddOracleVotingDeploy(contractAddress1, uint64(startTime.Unix()), minPayment, []byte{0x1, 0x2},
-		0, 1, 2, 3, 4, 5, 7, nil, nil, nil, nil)
+		0, 1, 2, 3, 4, 5, 7, nil, oracleRewardFund, nil, nil)
 	statsCollector.AddContractStake(new(big.Int).SetUint64(12300))
 	statsCollector.AddTxReceipt(&types.TxReceipt{Success: true, TxHash: tx.Hash(), GasUsed: 11, GasCost: big.NewInt(1100), ContractAddress: contractAddress1, Method: "deploy1"}, appState)
 	statsCollector.CompleteApplyingTx(appState)

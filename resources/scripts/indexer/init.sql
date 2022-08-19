@@ -241,46 +241,49 @@ CREATE TABLE IF NOT EXISTS dic_balance_update_reasons
 );
 
 INSERT INTO dic_balance_update_reasons
-values (0, 'Tx')
+VALUES (0, 'Tx')
 ON CONFLICT DO NOTHING;
 INSERT INTO dic_balance_update_reasons
-values (1, 'VerifiedStake')
+VALUES (1, 'VerifiedStake')
 ON CONFLICT DO NOTHING;
 INSERT INTO dic_balance_update_reasons
-values (2, 'ProposerReward')
+VALUES (2, 'ProposerReward')
 ON CONFLICT DO NOTHING;
 INSERT INTO dic_balance_update_reasons
-values (3, 'CommitteeReward')
+VALUES (3, 'CommitteeReward')
 ON CONFLICT DO NOTHING;
 INSERT INTO dic_balance_update_reasons
-values (4, 'EpochReward')
+VALUES (4, 'EpochReward')
 ON CONFLICT DO NOTHING;
 INSERT INTO dic_balance_update_reasons
-values (5, 'FailedValidation')
+VALUES (5, 'FailedValidation')
 ON CONFLICT DO NOTHING;
 INSERT INTO dic_balance_update_reasons
-values (6, 'Penalty')
+VALUES (6, 'Penalty')
 ON CONFLICT DO NOTHING;
 INSERT INTO dic_balance_update_reasons
-values (7, 'EpochPenaltyReset')
+VALUES (7, 'EpochPenaltyReset')
 ON CONFLICT DO NOTHING;
 INSERT INTO dic_balance_update_reasons
-values (8, 'Initial')
+VALUES (8, 'Initial')
 ON CONFLICT DO NOTHING;
 INSERT INTO dic_balance_update_reasons
-values (9, 'DustClearing')
+VALUES (9, 'DustClearing')
 ON CONFLICT DO NOTHING;
 INSERT INTO dic_balance_update_reasons
-values (10, 'EmbeddedContract')
+VALUES (10, 'EmbeddedContract')
 ON CONFLICT DO NOTHING;
 INSERT INTO dic_balance_update_reasons
-values (11, 'EmbeddedContractTerm')
+VALUES (11, 'EmbeddedContractTerm')
 ON CONFLICT DO NOTHING;
 INSERT INTO dic_balance_update_reasons
-values (12, 'DelegatorEpochReward')
+VALUES (12, 'DelegatorEpochReward')
 ON CONFLICT DO NOTHING;
 INSERT INTO dic_balance_update_reasons
-values (13, 'DelegateeEpochReward')
+VALUES (13, 'DelegateeEpochReward')
+ON CONFLICT DO NOTHING;
+INSERT INTO dic_balance_update_reasons
+VALUES (14, 'IdentityClearing')
 ON CONFLICT DO NOTHING;
 
 CREATE TABLE IF NOT EXISTS epochs

@@ -819,6 +819,17 @@ func (c *statsCollector) BeginEpochPenaltyResetBalanceUpdate(addr common.Address
 	c.addPendingBalanceUpdate(addr, appState, db.EpochPenaltyResetReason, nil, nil)
 }
 
+func (c *statsCollector) BeginIdentityClearingBalanceUpdate(addr common.Address, appState *appstate.AppState) {
+	c.addPendingBalanceUpdate(addr, appState, db.IdentityClearingReason, nil, nil)
+	if stake := c.getStakeIfNotKilled(addr, appState); stake != nil && stake.Sign() > 0 {
+		c.AddKilledBurntCoins(addr, stake)
+	}
+	if c.stats.KilledInactiveIdentities == nil {
+		c.stats.KilledInactiveIdentities = make(map[common.Address]struct{})
+	}
+	c.stats.KilledInactiveIdentities[addr] = struct{}{}
+}
+
 func (c *statsCollector) BeginDustClearingBalanceUpdate(addr common.Address, appState *appstate.AppState) {
 	c.addPendingBalanceUpdate(addr, appState, db.DustClearingReason, nil, nil)
 }

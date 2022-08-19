@@ -403,6 +403,10 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) (*result
 		killedAddrs: make(map[common.Address]struct{}),
 	}
 	collectorStats := indexer.statsHolder().GetStats()
+	for killed := range collectorStats.KilledInactiveIdentities {
+		collector.killedAddrs[killed] = struct{}{}
+	}
+
 	epoch := uint64(prevState.State.Epoch())
 
 	indexer.pm.Complete("InitCtx")

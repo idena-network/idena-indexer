@@ -27,6 +27,7 @@ DECLARE
     CONTRACT_TYPE_ORACLE_VOTING CONSTANT smallint        = 2;
     SOVC_STATE_PENDING          CONSTANT smallint        = 0;
     MAX_VOTING_MIN_PAYMENT      CONSTANT numeric(48, 18) = 999999999999999999999999999999;
+    MAX_ORACLE_REWARD_FUND      CONSTANT numeric(48, 18) = MAX_VOTING_MIN_PAYMENT;
     l_item                               tp_oracle_voting_contract;
     l_contract_address_id                bigint;
     l_author_address_id                  bigint;
@@ -34,6 +35,7 @@ DECLARE
     l_estimated_oracle_reward            numeric;
     l_voting_min_payment                 numeric;
     l_refund_recipient_address_id        bigint;
+    l_oracle_reward_fund                 numeric;
 BEGIN
     for i in 1..cardinality(p_items)
         loop
@@ -54,6 +56,11 @@ BEGIN
                 l_voting_min_payment = MAX_VOTING_MIN_PAYMENT;
             end if;
 
+            l_oracle_reward_fund = null_if_negative_numeric(l_item.oracle_reward_fund);
+            if l_oracle_reward_fund is not null and l_oracle_reward_fund > MAX_ORACLE_REWARD_FUND then
+                l_oracle_reward_fund = MAX_ORACLE_REWARD_FUND;
+            end if;
+
             l_refund_recipient_address_id = null;
             if l_item.refund_recipient is not null and l_item.refund_recipient <> '' then
                 l_refund_recipient_address_id = get_address_id_or_insert(p_block_height, l_item.refund_recipient);
@@ -66,7 +73,7 @@ BEGIN
             VALUES (l_tx_id, l_item.start_time, l_item.voting_duration, l_voting_min_payment,
                     decode(l_item.fact, 'hex'), l_item.public_voting_duration, l_item.winner_threshold, l_item.quorum,
                     l_item.committee_size, l_item.owner_fee, l_item.state,
-                    null_if_negative_numeric(l_item.owner_deposit), null_if_negative_numeric(l_item.oracle_reward_fund),
+                    null_if_negative_numeric(l_item.owner_deposit), l_oracle_reward_fund,
                     l_refund_recipient_address_id, decode(l_item.hash, 'hex'));
 
             l_estimated_oracle_reward = calculate_estimated_oracle_reward(0, l_tx_id);

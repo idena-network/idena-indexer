@@ -24,7 +24,7 @@ import (
 )
 
 const (
-	PostgresConnStr = "postgres://postgres:pswd@localhost?sslmode=disable"
+	PostgresConnStr = "postgres://postgres@localhost?sslmode=disable"
 	PostgresSchema  = "auto_test_schema"
 )
 
