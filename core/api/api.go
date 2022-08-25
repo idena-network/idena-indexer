@@ -241,3 +241,7 @@ func (a *Api) Staking() (types.Staking, error) {
 func (a *Api) Multisig(address string) (types.Multisig, error) {
 	return a.contractHolder.GetMultisigState(address)
 }
+
+func (a *Api) ForkCommitteeSize() uint64 {
+	return uint64(a.onlineIdentities.ForkCommitteeSize())
+}

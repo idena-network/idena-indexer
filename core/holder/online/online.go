@@ -34,6 +34,7 @@ type CurrentOnlineIdentitiesHolder interface {
 	OnlineValidatorsCount() int
 	OnlineValidators() []*types.Validator
 	Staking() types.Staking
+	ForkCommitteeSize() int
 }
 
 type currentOnlineIdentitiesCache struct {
@@ -43,13 +44,14 @@ type currentOnlineIdentitiesCache struct {
 	validators           []*types.Validator
 	onlineValidators     []*types.Validator
 	staking              types.Staking
+	forkCommitteeSize    int
 }
 
 func NewCurrentOnlineIdentitiesCache(appState *appstate.AppState,
 	chain *blockchain.Blockchain,
 	offlineDetector *blockchain.OfflineDetector) CurrentOnlineIdentitiesHolder {
 	cache := &currentOnlineIdentitiesCache{}
-	cache.set(nil, make(map[string]*Identity), 0, nil, nil, types.Staking{})
+	cache.set(nil, make(map[string]*Identity), 0, nil, nil, types.Staking{}, 0)
 	cache.initialize(appState, chain, offlineDetector)
 	return cache
 }
@@ -94,6 +96,10 @@ func (cache *currentOnlineIdentitiesCache) Staking() types.Staking {
 	return cache.staking
 }
 
+func (cache *currentOnlineIdentitiesCache) ForkCommitteeSize() int {
+	return cache.forkCommitteeSize
+}
+
 func (cache *currentOnlineIdentitiesCache) set(
 	identities []*Identity,
 	identitiesPerAddress map[string]*Identity,
@@ -101,6 +107,7 @@ func (cache *currentOnlineIdentitiesCache) set(
 	validators []*types.Validator,
 	onlineValidators []*types.Validator,
 	staking types.Staking,
+	forkCommitteeSize int,
 ) {
 	cache.identities = identities
 	cache.identitiesPerAddress = identitiesPerAddress
@@ -108,6 +115,7 @@ func (cache *currentOnlineIdentitiesCache) set(
 	cache.validators = validators
 	cache.onlineValidators = onlineValidators
 	cache.staking = staking
+	cache.forkCommitteeSize = forkCommitteeSize
 }
 
 func (cache *currentOnlineIdentitiesCache) initialize(appState *appstate.AppState,
@@ -278,7 +286,7 @@ func (updater *currentOnlineIdentitiesCacheUpdater) update() {
 		Weight:             stakeWeight,
 		MinersWeight:       minersStakeWeight,
 		AverageMinerWeight: (averageMinerWeight1 + averageMinerWeight2) / 2.0,
-	})
+	}, appState.ValidatorsCache.ForkCommitteeSize())
 	finishTime := time.Now()
 	updater.log.Debug("Updated", "duration", finishTime.Sub(startTime))
 }

@@ -69,6 +69,8 @@ func (ri *routerInitializer) InitRouter(router *mux.Router) {
 	router.Path(strings.ToLower("/StakingV2")).HandlerFunc(ri.stakingV2)
 
 	router.Path(strings.ToLower("/Multisig/{address}")).HandlerFunc(ri.multisig)
+
+	router.Path(strings.ToLower("/ForkCommittee/Count")).HandlerFunc(ri.forkCommitteeSize)
 }
 
 func (ri *routerInitializer) onlineIdentitiesCount(w http.ResponseWriter, r *http.Request) {
@@ -229,4 +231,9 @@ func (ri *routerInitializer) multisig(w http.ResponseWriter, r *http.Request) {
 	address := mux.Vars(r)["address"]
 	resp, err := ri.api.Multisig(address)
 	WriteResponse(w, resp, err, ri.logger)
+}
+
+func (ri *routerInitializer) forkCommitteeSize(w http.ResponseWriter, r *http.Request) {
+	resp := ri.api.ForkCommitteeSize()
+	WriteResponse(w, resp, nil, ri.logger)
 }
