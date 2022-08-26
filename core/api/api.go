@@ -99,17 +99,19 @@ func convertOnlineIdentity(oi *online.Identity) *types.OnlineIdentity {
 		return nil
 	}
 	res := &types.OnlineIdentity{
-		Address:      oi.Address,
-		LastActivity: oi.LastActivity,
-		Penalty:      oi.Penalty,
-		Online:       oi.Online,
+		Address:        oi.Address,
+		LastActivity:   oi.LastActivity,
+		Penalty:        oi.Penalty,
+		PenaltySeconds: oi.PenaltySeconds,
+		Online:         oi.Online,
 	}
 	if oi.Delegatee != nil {
 		res.Delegetee = &types.OnlineIdentity{
-			Address:      oi.Delegatee.Address,
-			LastActivity: oi.Delegatee.LastActivity,
-			Penalty:      oi.Delegatee.Penalty,
-			Online:       oi.Delegatee.Online,
+			Address:        oi.Delegatee.Address,
+			LastActivity:   oi.Delegatee.LastActivity,
+			Penalty:        oi.Delegatee.Penalty,
+			PenaltySeconds: oi.Delegatee.PenaltySeconds,
+			Online:         oi.Delegatee.Online,
 		}
 	}
 	return res

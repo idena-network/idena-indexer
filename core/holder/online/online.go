@@ -18,11 +18,12 @@ import (
 )
 
 type Identity struct {
-	Address      string
-	LastActivity *time.Time
-	Penalty      decimal.Decimal
-	Online       bool
-	Delegatee    *Identity
+	Address        string
+	LastActivity   *time.Time
+	Penalty        decimal.Decimal
+	PenaltySeconds uint16
+	Online         bool
+	Delegatee      *Identity
 }
 
 type CurrentOnlineIdentitiesHolder interface {
@@ -171,11 +172,12 @@ func (updater *currentOnlineIdentitiesCacheUpdater) update() {
 			lastActivity = &t
 		}
 		return &Identity{
-			Address:      addressStr,
-			LastActivity: lastActivity,
-			Penalty:      blockchain.ConvertToFloat(identity.Penalty),
-			Online:       online,
-			Delegatee:    delegetee,
+			Address:        addressStr,
+			LastActivity:   lastActivity,
+			Penalty:        blockchain.ConvertToFloat(identity.Penalty),
+			PenaltySeconds: identity.PenaltySeconds(),
+			Online:         online,
+			Delegatee:      delegetee,
 		}
 	}
 
@@ -195,12 +197,13 @@ func (updater *currentOnlineIdentitiesCacheUpdater) update() {
 			lastActivity = &t
 		}
 		return &types.Validator{
-			Address:      conversion.ConvertAddress(address),
-			Size:         size,
-			Online:       appState.ValidatorsCache.IsOnlineIdentity(address),
-			LastActivity: lastActivity,
-			Penalty:      blockchain.ConvertToFloat(identity.Penalty),
-			IsPool:       isPool,
+			Address:        conversion.ConvertAddress(address),
+			Size:           size,
+			Online:         appState.ValidatorsCache.IsOnlineIdentity(address),
+			LastActivity:   lastActivity,
+			Penalty:        blockchain.ConvertToFloat(identity.Penalty),
+			PenaltySeconds: identity.PenaltySeconds(),
+			IsPool:         isPool,
 		}
 	}
 

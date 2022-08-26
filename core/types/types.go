@@ -6,20 +6,22 @@ import (
 )
 
 type OnlineIdentity struct {
-	Address      string          `json:"address"`
-	LastActivity *time.Time      `json:"lastActivity"`
-	Penalty      decimal.Decimal `json:"penalty"`
-	Online       bool            `json:"online"`
-	Delegetee    *OnlineIdentity `json:"delegatee,omitempty"`
+	Address        string          `json:"address"`
+	LastActivity   *time.Time      `json:"lastActivity"`
+	Penalty        decimal.Decimal `json:"penalty"`
+	PenaltySeconds uint16          `json:"penaltySeconds"`
+	Online         bool            `json:"online"`
+	Delegetee      *OnlineIdentity `json:"delegatee,omitempty"`
 }
 
 type Validator struct {
-	Address      string          `json:"address"`
-	Size         uint32          `json:"size"`
-	Online       bool            `json:"online"`
-	LastActivity *time.Time      `json:"lastActivity"`
-	Penalty      decimal.Decimal `json:"penalty"`
-	IsPool       bool            `json:"isPool"`
+	Address        string          `json:"address"`
+	Size           uint32          `json:"size"`
+	Online         bool            `json:"online"`
+	LastActivity   *time.Time      `json:"lastActivity"`
+	Penalty        decimal.Decimal `json:"penalty"`
+	PenaltySeconds uint16          `json:"penaltySeconds"`
+	IsPool         bool            `json:"isPool"`
 }
 
 type UpgradeVotes struct {
