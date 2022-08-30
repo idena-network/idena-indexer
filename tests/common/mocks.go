@@ -145,3 +145,18 @@ func (t *TestUpgradesVotingHolder) Get() []*upgrade.Votes {
 	}
 	return res
 }
+
+type OracleVotingToProlongDetector struct {
+	f func(contractAddress common.Address, appState *appstate.AppState, head *types.Header, config *config.Config) bool
+}
+
+func (d *OracleVotingToProlongDetector) SetFunc(f func(contractAddress common.Address, appState *appstate.AppState, head *types.Header, config *config.Config) bool) {
+	d.f = f
+}
+
+func (d *OracleVotingToProlongDetector) CanBeProlonged(contractAddress common.Address, appState *appstate.AppState, head *types.Header, config *config.Config) bool {
+	if d.f == nil {
+		return false
+	}
+	return d.f(contractAddress, appState, head, config)
+}

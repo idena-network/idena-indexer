@@ -4,6 +4,8 @@ import (
 	"github.com/idena-network/idena-go/blockchain/types"
 	"github.com/idena-network/idena-go/common"
 	"github.com/idena-network/idena-go/common/eventbus"
+	"github.com/idena-network/idena-go/config"
+	"github.com/idena-network/idena-go/core/appstate"
 	"github.com/idena-network/idena-go/core/state"
 	"github.com/idena-network/idena-go/crypto"
 	"github.com/idena-network/idena-go/tests"
@@ -2082,4 +2084,123 @@ func Test_OracleVotingContractCallStartBigMinPayment(t *testing.T) {
 
 	require.Nil(t, applyBlock(bus, block, appState))
 	statsCollector.CompleteCollecting()
+}
+
+func Test_OracleVotingContractCallProlongationWithEmptyStartBlock(t *testing.T) {
+
+	test := func(switchToVotingState bool) {
+		detector := &testCommon.OracleVotingToProlongDetector{}
+
+		ctx := testCommon.InitIndexer2(testCommon.Options{
+			ClearDb:                       true,
+			Schema:                        testCommon.PostgresSchema,
+			ScriptsPathPrefix:             "..",
+			OracleVotingToProlongDetector: detector,
+		})
+		db, listener, bus := ctx.DbConnector, ctx.Listener, ctx.EventBus
+		defer listener.Destroy()
+
+		appState := listener.NodeCtx().AppState
+		respondentKey, _ := crypto.GenerateKey()
+		respondentAddress := crypto.PubkeyToAddress(respondentKey.PublicKey)
+		addr2 := tests.GetRandAddr()
+		appState.State.SetState(respondentAddress, state.Verified)
+		appState.State.SetPubKey(respondentAddress, []byte{0x1, 0x2})
+		appState.State.SetState(addr2, state.Verified)
+		appState.State.SetPubKey(addr2, []byte{0x2, 0x3})
+
+		// Deploy contract
+		startTime := time.Now().UTC()
+		contractAddress := tests.GetRandAddr()
+		deployOracleVotingContracts(t, listener, bus, startTime, contractAddress, tests.GetRandAddr())
+
+		statsCollector := listener.StatsCollector()
+		// Start voting
+		statsCollector.EnableCollecting()
+		height := uint64(3)
+		block := buildBlock(height)
+		tx := &types.Transaction{AccountNonce: 4, To: &contractAddress}
+		statsCollector.BeginApplyingTx(tx, appState)
+		var startBlock uint64
+		if switchToVotingState {
+			startBlock = 6
+		} else {
+			startBlock = 5
+		}
+		statsCollector.AddOracleVotingCallStart(1, startBlock, 2, nil, []byte{0x2, 0x3}, 50, 100)
+		statsCollector.AddTxReceipt(&types.TxReceipt{Success: true, TxHash: tx.Hash(), ContractAddress: contractAddress}, appState)
+		statsCollector.BeginTxBalanceUpdate(tx, appState)
+		appState.State.AddBalance(contractAddress, big.NewInt(54321000))
+		statsCollector.CompleteBalanceUpdate(appState)
+		statsCollector.CompleteApplyingTx(appState)
+		block.Body.Transactions = append(block.Body.Transactions, tx)
+		require.Nil(t, applyBlock(bus, block, appState))
+		statsCollector.CompleteCollecting()
+
+		// Send vote proof
+		statsCollector.EnableCollecting()
+		height = uint64(4)
+		block = buildBlock(height)
+		tx, _ = types.SignTx(&types.Transaction{AccountNonce: 5, To: &contractAddress}, respondentKey)
+		statsCollector.BeginApplyingTx(tx, appState)
+		statsCollector.AddOracleVotingCallVoteProof([]byte{0x3, 0x4}, pUint64(999), false)
+		statsCollector.AddTxReceipt(&types.TxReceipt{Success: true, TxHash: tx.Hash(), ContractAddress: contractAddress}, appState)
+		statsCollector.BeginTxBalanceUpdate(tx, appState)
+		appState.State.SetBalance(respondentAddress, big.NewInt(2000))
+		appState.State.AddBalance(contractAddress, big.NewInt(3000))
+		statsCollector.CompleteBalanceUpdate(appState)
+		statsCollector.CompleteApplyingTx(appState)
+		block.Body.Transactions = append(block.Body.Transactions, tx)
+		require.Nil(t, applyBlock(bus, block, appState))
+		statsCollector.CompleteCollecting()
+
+		sortedOvContracts, err := testCommon.GetSortedOracleVotingContracts(db)
+		require.Nil(t, err)
+		prevSortKey := sortedOvContracts[0].SortKey
+		require.NotNil(t, prevSortKey)
+
+		// Switch to CanBeProlonged state
+		statsCollector.EnableCollecting()
+		height = uint64(5)
+		detector.SetFunc(func(contractAddress common.Address, appState *appstate.AppState, head *types.Header, config *config.Config) bool {
+			return head.Height() == height
+		})
+		block = buildBlock(height)
+		require.Nil(t, applyBlock(bus, block, appState))
+		statsCollector.CompleteCollecting()
+
+		sortedOvContracts, err = testCommon.GetSortedOracleVotingContracts(db)
+		require.Nil(t, err)
+		require.Equal(t, 2, len(sortedOvContracts))
+		require.Equal(t, 6, sortedOvContracts[0].State)
+
+		// Send prolongation with empty start block (prolongation due to new epoch)
+		statsCollector.EnableCollecting()
+		height = uint64(6)
+		block = buildBlock(height)
+		tx, _ = types.SignTx(&types.Transaction{AccountNonce: 6, To: &contractAddress}, respondentKey)
+		statsCollector.BeginApplyingTx(tx, appState)
+		newEpochWithoutGrowth := byte(2)
+		statsCollector.AddOracleVotingCallProlongation(nil, 7890, []byte{0x4, 0x5}, 999, 999, &newEpochWithoutGrowth, pUint64(9999))
+		statsCollector.AddTxReceipt(&types.TxReceipt{Success: true, TxHash: tx.Hash(), ContractAddress: contractAddress}, appState)
+		statsCollector.CompleteApplyingTx(appState)
+		block.Body.Transactions = append(block.Body.Transactions, tx)
+		require.Nil(t, applyBlock(bus, block, appState))
+		statsCollector.CompleteCollecting()
+
+		sortedOvContracts, err = testCommon.GetSortedOracleVotingContracts(db)
+		require.Nil(t, err)
+		require.Equal(t, 2, len(sortedOvContracts))
+		if switchToVotingState {
+			require.Equal(t, 1, sortedOvContracts[0].State)
+			require.NotNil(t, sortedOvContracts[0].SortKey)
+			require.Equal(t, *prevSortKey, *sortedOvContracts[0].SortKey)
+		} else {
+			require.Equal(t, 3, sortedOvContracts[0].State)
+			require.Nil(t, sortedOvContracts[0].SortKey)
+		}
+	}
+
+	test(true)
+	test(false)
 }

@@ -247,6 +247,7 @@ func initIndexer(config *config.Config, txMemPool transaction.MemPool) (*indexer
 			indexerEventBus,
 			config.TreeSnapshotDir,
 			dbAccessor,
+			indexer.NewOracleVotingToProlongDetector(),
 		),
 		listener, contractsMemPool, upgradesVoting
 }

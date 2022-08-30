@@ -56,22 +56,23 @@ var (
 )
 
 type Indexer struct {
-	enabled                     bool
-	listener                    incoming.Listener
-	memPoolIndexer              *mempool.Indexer
-	db                          db.Accessor
-	restorer                    *restore.Restorer
-	state                       *indexerState
-	secondaryStorage            *runtime.SecondaryStorage
-	restore                     bool
-	pm                          monitoring.PerformanceMonitor
-	flipLoader                  flip.Loader
-	firstBlockHeight            uint64
-	firstBlockHeightInitialized bool
-	upgradeVotingHistoryCtx     *upgradeVotingHistoryCtx
-	eventBus                    eventbus.Bus
-	treeSnapshotDir             string
-	actualOracleVotingsLoader   voting.ActualOracleVotingsLoader
+	enabled                       bool
+	listener                      incoming.Listener
+	memPoolIndexer                *mempool.Indexer
+	db                            db.Accessor
+	restorer                      *restore.Restorer
+	state                         *indexerState
+	secondaryStorage              *runtime.SecondaryStorage
+	restore                       bool
+	pm                            monitoring.PerformanceMonitor
+	flipLoader                    flip.Loader
+	firstBlockHeight              uint64
+	firstBlockHeightInitialized   bool
+	upgradeVotingHistoryCtx       *upgradeVotingHistoryCtx
+	eventBus                      eventbus.Bus
+	treeSnapshotDir               string
+	actualOracleVotingsLoader     voting.ActualOracleVotingsLoader
+	oracleVotingToProlongDetector OracleVotingToProlongDetector
 }
 
 type upgradeVotingHistoryCtx struct {
@@ -121,20 +122,22 @@ func NewIndexer(
 	eventBus eventbus.Bus,
 	treeSnapshotDir string,
 	actualOracleVotingsLoader voting.ActualOracleVotingsLoader,
+	oracleVotingToProlongDetector OracleVotingToProlongDetector,
 ) *Indexer {
 	return &Indexer{
-		enabled:                   enabled,
-		listener:                  listener,
-		memPoolIndexer:            mempoolIndexer,
-		db:                        dbAccessor,
-		restorer:                  restorer,
-		secondaryStorage:          secondaryStorage,
-		restore:                   restoreInitially,
-		pm:                        pm,
-		flipLoader:                flipLoader,
-		eventBus:                  eventBus,
-		treeSnapshotDir:           treeSnapshotDir,
-		actualOracleVotingsLoader: actualOracleVotingsLoader,
+		enabled:                       enabled,
+		listener:                      listener,
+		memPoolIndexer:                mempoolIndexer,
+		db:                            dbAccessor,
+		restorer:                      restorer,
+		secondaryStorage:              secondaryStorage,
+		restore:                       restoreInitially,
+		pm:                            pm,
+		flipLoader:                    flipLoader,
+		eventBus:                      eventBus,
+		treeSnapshotDir:               treeSnapshotDir,
+		actualOracleVotingsLoader:     actualOracleVotingsLoader,
+		oracleVotingToProlongDetector: oracleVotingToProlongDetector,
 		upgradeVotingHistoryCtx: &upgradeVotingHistoryCtx{
 			holder:               upgradesVotingHolder,
 			shortHistoryItems:    upgradeVotingShortHistoryItems,
@@ -452,7 +455,7 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) (*result
 		return epochResult.Identities
 	}(), ctx.prevStateReadOnly, ctx.newStateReadOnly)
 
-	oracleVotingsToProlong := detectOracleVotingsToProlong(indexer.state.actualOracleVotingHolder.contracts, ctx.newStateReadOnly, incomingBlock.Header, indexer.listener.NodeCtx().Blockchain.Config())
+	oracleVotingsToProlong := detectOracleVotingsToProlong(indexer.oracleVotingToProlongDetector, indexer.state.actualOracleVotingHolder.contracts, ctx.newStateReadOnly, incomingBlock.Header, indexer.listener.NodeCtx().Blockchain.Config())
 
 	dbData := &db.Data{
 		Epoch:                                    epoch,

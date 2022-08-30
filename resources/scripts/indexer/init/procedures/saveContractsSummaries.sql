@@ -77,19 +77,40 @@ CREATE OR REPLACE PROCEDURE apply_prolongation_on_sorted_contracts(p_block_heigh
 AS
 $$
 DECLARE
-    SOVC_STATE_VOTING CONSTANT smallint = 1;
-    l_voting_duration          bigint;
-    l_balance                  numeric;
-    l_estimated_oracle_reward  numeric;
-    l_sort_key                 text;
+    SOVC_STATE_VOTING   CONSTANT smallint = 1;
+    SOVC_STATE_COUNTING CONSTANT smallint = 3;
+    l_voting_duration            bigint;
+    l_balance                    numeric;
+    l_estimated_oracle_reward    numeric;
+    l_sort_key                   text;
+    l_counting_block_cur             bigint;
+    l_new_state                  smallint;
+    l_counting_block_new             bigint;
 BEGIN
-
     if p_start_block is not null then
+        l_new_state = SOVC_STATE_VOTING;
+
         SELECT voting_duration
         INTO l_voting_duration
         FROM oracle_voting_contracts
         WHERE contract_tx_id = p_contract_tx_id;
 
+        l_counting_block_new = p_start_block + l_voting_duration;
+
+    else
+        SELECT counting_block
+        INTO l_counting_block_cur
+        FROM sorted_oracle_voting_contracts
+        WHERE contract_tx_id = p_contract_tx_id;
+
+        if l_counting_block_cur > p_block_height then
+            l_new_state = SOVC_STATE_VOTING;
+        else
+            l_new_state = SOVC_STATE_COUNTING;
+        end if;
+    end if;
+
+    if l_new_state = SOVC_STATE_VOTING then
         SELECT balance
         INTO l_balance
         FROM balances
@@ -97,17 +118,13 @@ BEGIN
         l_balance = coalesce(l_balance, 0);
         l_estimated_oracle_reward = calculate_estimated_oracle_reward(l_balance, p_contract_tx_id);
         l_sort_key = calculate_oracle_voting_contract_sort_key(l_estimated_oracle_reward, p_contract_tx_id);
-
-        call update_sorted_oracle_voting_contract_committees(p_block_height, p_contract_tx_id, null, l_sort_key,
-                                                             SOVC_STATE_VOTING, p_prolongation_tx_id, null);
-
-        call update_sorted_oracle_voting_contracts(p_block_height, p_contract_tx_id, l_sort_key, SOVC_STATE_VOTING,
-                                                   p_prolongation_tx_id, p_start_block + l_voting_duration, p_epoch);
-    else
-
-        call update_sorted_oracle_voting_contracts(p_block_height, p_contract_tx_id, null, null, null, null, p_epoch);
-
     end if;
+
+    call update_sorted_oracle_voting_contract_committees(p_block_height, p_contract_tx_id, null, l_sort_key,
+                                                         l_new_state, p_prolongation_tx_id, null);
+
+    call update_sorted_oracle_voting_contracts(p_block_height, p_contract_tx_id, l_sort_key, l_new_state,
+                                               p_prolongation_tx_id, l_counting_block_new, p_epoch);
 
 END
 $$;

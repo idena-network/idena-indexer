@@ -84,6 +84,7 @@ func InitIndexer(
 		indexerEventBus,
 		"",
 		dbAccessor,
+		indexer.NewOracleVotingToProlongDetector(),
 	)
 	testIndexer.Start()
 	return dbConnector, testIndexer, listener, dbAccessor, nodeEventBus
@@ -100,6 +101,7 @@ type Options struct {
 	UpgradeVotingShortHistoryItems    *int
 	UpgradeVotingShortHistoryMinShift *int
 	NodeConfig                        *config2.Config
+	OracleVotingToProlongDetector     indexer.OracleVotingToProlongDetector
 }
 
 type IndexerCtx struct {
@@ -125,6 +127,9 @@ func InitIndexer2(opt Options) *IndexerCtx {
 	}
 	if opt.NodeConfig.Consensus == nil {
 		opt.NodeConfig.Consensus = &config2.ConsensusConf{}
+	}
+	if opt.OracleVotingToProlongDetector == nil {
+		opt.OracleVotingToProlongDetector = indexer.NewOracleVotingToProlongDetector()
 	}
 
 	initLog()
@@ -173,6 +178,7 @@ func InitIndexer2(opt Options) *IndexerCtx {
 		indexerEventBus,
 		"",
 		dbAccessor,
+		opt.OracleVotingToProlongDetector,
 	)
 	testIndexer.Start()
 	return &IndexerCtx{
