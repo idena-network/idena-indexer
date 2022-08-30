@@ -209,6 +209,7 @@ func (updater *currentOnlineIdentitiesCacheUpdater) update() {
 
 	var stakeWeight, minersStakeWeight float64
 	var minerStakeWeights []float64
+	var maxMinerStakeWeight float64
 	calculateStakeWeight := func(stake *big.Int) float64 {
 		stakeF, _ := blockchain.ConvertToFloat(stake).Float64()
 		return math.Pow(stakeF, 0.9)
@@ -224,6 +225,9 @@ func (updater *currentOnlineIdentitiesCacheUpdater) update() {
 			if appState.ValidatorsCache.IsOnlineIdentity(address) || identity.Delegatee() != nil && appState.ValidatorsCache.IsOnlineIdentity(*identity.Delegatee()) {
 				minersStakeWeight += weight
 				minerStakeWeights = addToSorted(minerStakeWeights, weight)
+				if weight > maxMinerStakeWeight {
+					maxMinerStakeWeight = weight
+				}
 			}
 		}
 		if validator := buildValidator(address, identity); validator != nil {
@@ -289,6 +293,7 @@ func (updater *currentOnlineIdentitiesCacheUpdater) update() {
 		Weight:             stakeWeight,
 		MinersWeight:       minersStakeWeight,
 		AverageMinerWeight: (averageMinerWeight1 + averageMinerWeight2) / 2.0,
+		MaxMinerWeight:     maxMinerStakeWeight,
 	}, appState.ValidatorsCache.ForkCommitteeSize())
 	finishTime := time.Now()
 	updater.log.Debug("Updated", "duration", finishTime.Sub(startTime))
