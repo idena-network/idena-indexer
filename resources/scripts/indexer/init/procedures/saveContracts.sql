@@ -87,7 +87,7 @@ BEGIN
                                                           termination_timestamp, total_reward, stake)
             VALUES (l_tx_id, 0, 0, null, null, null, l_item.stake);
 
-            INSERT INTO oracle_voting_contract_authors_and_open_voters (deploy_or_vote_tx_id, contract_tx_id, address_id)
+            INSERT INTO oracle_voting_contract_authors_and_voters (deploy_or_vote_tx_id, contract_tx_id, address_id)
             VALUES (l_tx_id, l_tx_id, l_author_address_id);
         end loop;
 END
@@ -202,6 +202,10 @@ BEGIN
                                                              null, null, null,
                                                              0, l_secret_votes_count, null);
             end if;
+
+            INSERT INTO oracle_voting_contract_authors_and_voters (deploy_or_vote_tx_id, contract_tx_id, address_id)
+            VALUES (l_tx_id, l_contract_tx_id, l_address_id)
+            ON CONFLICT DO NOTHING;
         end loop;
 END
 $$;
@@ -215,7 +219,6 @@ DECLARE
     l_item                 tp_oracle_voting_contract_call_vote;
     l_tx_id                bigint;
     l_contract_address_id  bigint;
-    l_sender_address_id    bigint;
     l_contract_tx_id       bigint;
     l_delegatee_address_id bigint;
     l_option_all_votes     bigint;
@@ -227,8 +230,8 @@ BEGIN
         loop
             l_item = p_items[i];
 
-            SELECT id, "to", "from"
-            INTO l_tx_id, l_contract_address_id, l_sender_address_id
+            SELECT id, "to"
+            INTO l_tx_id, l_contract_address_id
             FROM transactions
             WHERE lower(hash) = lower(l_item.tx_hash);
 
@@ -275,9 +278,6 @@ BEGIN
                 end if;
             end if;
 
-            INSERT INTO oracle_voting_contract_authors_and_open_voters (deploy_or_vote_tx_id, contract_tx_id, address_id)
-            VALUES (l_tx_id, l_contract_tx_id, l_sender_address_id)
-            ON CONFLICT DO NOTHING;
         end loop;
 END
 $$;

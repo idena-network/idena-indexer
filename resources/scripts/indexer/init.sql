@@ -3379,7 +3379,7 @@ BEGIN
                                            WHERE block_height = p_block_height
                                              AND flag = 'ValidationFinished'));
 
-    DELETE FROM oracle_voting_contract_authors_and_open_voters WHERE deploy_or_vote_tx_id >= l_min_tx_id_to_delete;
+    DELETE FROM oracle_voting_contract_authors_and_voters WHERE deploy_or_vote_tx_id >= l_min_tx_id_to_delete;
 
     delete
     from flips_queue
