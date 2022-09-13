@@ -6,11 +6,11 @@ import (
 	"github.com/idena-network/idena-indexer/db"
 )
 
-func convertDelegateesEpochRewards(delegateesEpochRewards map[common.Address]*stats.DelegateeEpochRewards) []db.DelegateeEpochRewards {
+func convertDelegateesEpochRewards(delegateesEpochRewards map[common.Address]*stats.DelegateeEpochRewards) *delegateeEpochRewardsWrapper {
+	res := newDelegateeEpochRewardsWrapper(len(delegateesEpochRewards))
 	if len(delegateesEpochRewards) == 0 {
-		return nil
+		return res
 	}
-	res := make([]db.DelegateeEpochRewards, 0, len(delegateesEpochRewards))
 	for delegatee, incomingDelegateeEpochRewards := range delegateesEpochRewards {
 		delegateeEpochReward := db.DelegateeEpochRewards{
 			Address: delegatee,
@@ -42,7 +42,7 @@ func convertDelegateesEpochRewards(delegateesEpochRewards map[common.Address]*st
 				delegateeEpochReward.DelegatorRewards = append(delegateeEpochReward.DelegatorRewards, delegatorEpochRewards)
 			}
 		}
-		res = append(res, delegateeEpochReward)
+		res.append(delegateeEpochReward)
 	}
 	return res
 }

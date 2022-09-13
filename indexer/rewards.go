@@ -11,14 +11,14 @@ import (
 	"math/big"
 )
 
-func (indexer *Indexer) detectEpochRewards(block *types.Block) (*db.EpochRewards, map[common.Address]struct{}, []db.DelegateeEpochRewards) {
+func (indexer *Indexer) detectEpochRewards(block *types.Block) (*db.EpochRewards, map[common.Address]struct{}, *delegateeEpochRewardsWrapper) {
 	if !block.Header.Flags().HasFlag(types.ValidationFinished) {
-		return nil, nil, nil
+		return nil, nil, newDelegateeEpochRewardsWrapper(0)
 	}
 
 	rewardsStats := indexer.statsHolder().GetStats().RewardsStats
 	if rewardsStats == nil {
-		return nil, nil, nil
+		return nil, nil, newDelegateeEpochRewardsWrapper(0)
 	}
 
 	epochRewards := &db.EpochRewards{}

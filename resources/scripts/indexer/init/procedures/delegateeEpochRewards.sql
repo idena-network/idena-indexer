@@ -25,7 +25,7 @@ BEGIN
                                                             invitations2_balance, invitations3_balance,
                                                             saved_invites_balance, saved_invites_win_balance,
                                                             reports_balance, candidate_balance, staking_balance,
-                                                            delegators)
+                                                            delegators, penalized_delegators)
             VALUES (p_epoch, l_delegatee_address_id, (l_delegation_reward ->> 'total')::numeric,
                     (l_delegation_reward ->> 'validation')::numeric, (l_delegation_reward ->> 'flips')::numeric,
                     (l_delegation_reward ->> 'invitations')::numeric, (l_delegation_reward ->> 'invitations2')::numeric,
@@ -35,35 +35,41 @@ BEGIN
                     (l_delegation_reward ->> 'reports')::numeric,
                     (l_delegation_reward ->> 'candidate')::numeric,
                     (l_delegation_reward ->> 'staking')::numeric,
-                    jsonb_array_length(l_item -> 'delegatorRewards'));
+                    (case
+                         when (l_item -> 'delegatorRewards') is null then 0
+                         else jsonb_array_length(l_item -> 'delegatorRewards') end),
+                    (l_item ->> 'penalizedDelegators')::integer);
 
-            for j in 0..jsonb_array_length(l_item -> 'delegatorRewards') - 1
-                loop
-                    l_delegator_rewqard = l_item -> 'delegatorRewards' ->> j;
-                    l_delegator_address_id =
-                            get_address_id_or_insert(p_block_height, (l_delegator_rewqard ->> 'address')::text);
-                    l_delegation_reward = l_delegator_rewqard -> 'totalReward';
+            if (l_item -> 'delegatorRewards') is not null then
+                for j in 0..jsonb_array_length(l_item -> 'delegatorRewards') - 1
+                    loop
+                        l_delegator_rewqard = l_item -> 'delegatorRewards' ->> j;
+                        l_delegator_address_id =
+                                get_address_id_or_insert(p_block_height, (l_delegator_rewqard ->> 'address')::text);
+                        l_delegation_reward = l_delegator_rewqard -> 'totalReward';
 
-                    INSERT INTO delegatee_validation_rewards (epoch, delegatee_address_id, delegator_address_id,
-                                                              total_balance,
-                                                              validation_balance, flips_balance, invitations_balance,
-                                                              invitations2_balance, invitations3_balance,
-                                                              saved_invites_balance, saved_invites_win_balance,
-                                                              candidate_balance, staking_balance,
-                                                              reports_balance)
-                    VALUES (p_epoch, l_delegatee_address_id, l_delegator_address_id,
-                            (l_delegation_reward ->> 'total')::numeric,
-                            (l_delegation_reward ->> 'validation')::numeric,
-                            (l_delegation_reward ->> 'flips')::numeric,
-                            (l_delegation_reward ->> 'invitations')::numeric,
-                            (l_delegation_reward ->> 'invitations2')::numeric,
-                            (l_delegation_reward ->> 'invitations3')::numeric,
-                            (l_delegation_reward ->> 'savedInvites')::numeric,
-                            (l_delegation_reward ->> 'savedInvitesWin')::numeric,
-                            (l_delegation_reward ->> 'candidate')::numeric,
-                            (l_delegation_reward ->> 'staking')::numeric,
-                            (l_delegation_reward ->> 'reports')::numeric);
-                end loop;
+                        INSERT INTO delegatee_validation_rewards (epoch, delegatee_address_id, delegator_address_id,
+                                                                  total_balance,
+                                                                  validation_balance, flips_balance,
+                                                                  invitations_balance,
+                                                                  invitations2_balance, invitations3_balance,
+                                                                  saved_invites_balance, saved_invites_win_balance,
+                                                                  candidate_balance, staking_balance,
+                                                                  reports_balance)
+                        VALUES (p_epoch, l_delegatee_address_id, l_delegator_address_id,
+                                (l_delegation_reward ->> 'total')::numeric,
+                                (l_delegation_reward ->> 'validation')::numeric,
+                                (l_delegation_reward ->> 'flips')::numeric,
+                                (l_delegation_reward ->> 'invitations')::numeric,
+                                (l_delegation_reward ->> 'invitations2')::numeric,
+                                (l_delegation_reward ->> 'invitations3')::numeric,
+                                (l_delegation_reward ->> 'savedInvites')::numeric,
+                                (l_delegation_reward ->> 'savedInvitesWin')::numeric,
+                                (l_delegation_reward ->> 'candidate')::numeric,
+                                (l_delegation_reward ->> 'staking')::numeric,
+                                (l_delegation_reward ->> 'reports')::numeric);
+                    end loop;
+            end if;
         end loop;
 END
 $$;

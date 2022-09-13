@@ -45,7 +45,6 @@ func Test_nonIdentityReward(t *testing.T) {
 	statsCollector.AddValidationReward(rewardedAddress, addr, 1, big.NewInt(1000), big.NewInt(200))
 	statsCollector.SetTotalReportsReward(new(big.Int), new(big.Int))
 	appState.State.IncEpoch()
-	appState.State.ClearFlips(addr)
 	height++
 	block = buildBlock(height)
 	block.Header.ProposedHeader.Flags = types2.ValidationFinished

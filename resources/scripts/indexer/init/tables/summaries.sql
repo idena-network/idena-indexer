@@ -125,6 +125,7 @@ CREATE TABLE IF NOT EXISTS delegatee_total_validation_rewards
     candidate_balance         numeric(30, 18),
     staking_balance           numeric(30, 18),
     delegators                integer         NOT NULL,
+    penalized_delegators      integer         NOT NULL,
     CONSTRAINT delegatee_total_validation_rewards_pkey PRIMARY KEY (epoch, delegatee_address_id)
 );
 CREATE INDEX IF NOT EXISTS delegatee_total_validation_rewards_api_idx1 on delegatee_total_validation_rewards (epoch, total_balance desc, delegatee_address_id);

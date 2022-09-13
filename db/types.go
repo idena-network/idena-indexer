@@ -735,9 +735,10 @@ type RemovedTransitiveDelegation struct {
 }
 
 type DelegateeEpochRewards struct {
-	Address          common.Address
-	TotalRewards     []DelegationEpochReward
-	DelegatorRewards []DelegatorEpochReward
+	Address             common.Address
+	TotalRewards        []DelegationEpochReward
+	DelegatorRewards    []DelegatorEpochReward
+	PenalizedDelegators uint32
 }
 
 type DelegatorEpochReward struct {

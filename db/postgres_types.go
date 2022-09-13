@@ -963,9 +963,10 @@ type removedTransitiveDelegation struct {
 }
 
 type delegateeEpochRewards struct {
-	Address          string                 `json:"address"`
-	TotalReward      delegationEpochReward  `json:"totalReward"`
-	DelegatorRewards []delegatorEpochReward `json:"delegatorRewards"`
+	Address             string                 `json:"address"`
+	TotalReward         delegationEpochReward  `json:"totalReward"`
+	DelegatorRewards    []delegatorEpochReward `json:"delegatorRewards,omitempty"`
+	PenalizedDelegators uint32                 `json:"penalizedDelegators"`
 }
 
 type delegatorEpochReward struct {
@@ -1244,8 +1245,9 @@ func getEpochResultData(epochResult *EpochResult) *epochResultData {
 		res.DelegateesEpochRewards = make([]delegateeEpochRewards, 0, len(delegateesEpochRewards))
 		for _, incomingItem := range delegateesEpochRewards {
 			item := delegateeEpochRewards{
-				Address:     conversion.ConvertAddress(incomingItem.Address),
-				TotalReward: convertDelegationEpochRewards(incomingItem.TotalRewards),
+				Address:             conversion.ConvertAddress(incomingItem.Address),
+				TotalReward:         convertDelegationEpochRewards(incomingItem.TotalRewards),
+				PenalizedDelegators: incomingItem.PenalizedDelegators,
 			}
 			if len(incomingItem.DelegatorRewards) > 0 {
 				item.DelegatorRewards = make([]delegatorEpochReward, 0, len(incomingItem.DelegatorRewards))

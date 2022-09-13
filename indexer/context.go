@@ -34,3 +34,31 @@ func (collector *conversionCollector) getAddresses() []db.Address {
 	}
 	return addresses
 }
+
+type delegateeEpochRewardsWrapper struct {
+	rewards            []db.DelegateeEpochRewards
+	indexesByDelegatee map[common.Address]int
+}
+
+func newDelegateeEpochRewardsWrapper(capacity int) *delegateeEpochRewardsWrapper {
+	return &delegateeEpochRewardsWrapper{
+		rewards:            make([]db.DelegateeEpochRewards, 0, capacity),
+		indexesByDelegatee: make(map[common.Address]int, capacity),
+	}
+}
+
+func (w *delegateeEpochRewardsWrapper) append(item db.DelegateeEpochRewards) {
+	w.indexesByDelegatee[item.Address] = len(w.rewards)
+	w.rewards = append(w.rewards, item)
+}
+
+func (w *delegateeEpochRewardsWrapper) incPenalizedDelegators(delegatee common.Address) {
+	if i, ok := w.indexesByDelegatee[delegatee]; ok {
+		w.rewards[i].PenalizedDelegators++
+	} else {
+		w.append(db.DelegateeEpochRewards{
+			Address:             delegatee,
+			PenalizedDelegators: 1,
+		})
+	}
+}

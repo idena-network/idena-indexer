@@ -2238,6 +2238,7 @@ type DelegateeTotalValidationReward struct {
 	SavedInvitesWinBalance *decimal.Decimal
 	ReportsBalance         *decimal.Decimal
 	Delegators             int
+	PenalizedDelegators    int
 }
 
 func GetDelegateeTotalValidationRewards(db *sql.DB) ([]DelegateeTotalValidationReward, error) {
@@ -2252,7 +2253,8 @@ func GetDelegateeTotalValidationRewards(db *sql.DB) ([]DelegateeTotalValidationR
        t.saved_invites_balance,
        t.saved_invites_win_balance,
        t.reports_balance,
-       t.delegators
+       t.delegators,
+       t.penalized_delegators
 from delegatee_total_validation_rewards t
          join addresses a on a.id = t.delegatee_address_id
 order by epoch, delegatee_address_id`)
@@ -2277,6 +2279,7 @@ order by epoch, delegatee_address_id`)
 			&savedInvitesWinBalance,
 			&reportsBalance,
 			&item.Delegators,
+			&item.PenalizedDelegators,
 		)
 		if validationBalance.Valid {
 			item.ValidationBalance = &validationBalance.Decimal

@@ -927,6 +927,19 @@ func (indexer *Indexer) detectEpochResult(block *types.Block, ctx *conversionCon
 	godAddress := ctx.prevStateReadOnly.State.GodAddress()
 	newEpoch := ctx.newStateReadOnly.State.Epoch()
 	epochRewards, validationRewardsAddresses, delegateesEpochRewards := indexer.detectEpochRewards(block)
+
+	isPenalized := func(addr common.Address, shardId common.ShardId) bool {
+		rewardsStats := indexer.statsHolder().GetStats().RewardsStats
+		if rewardsStats == nil || rewardsStats.ValidationResults == nil {
+			return false
+		}
+		if vr := rewardsStats.ValidationResults[shardId]; vr != nil {
+			_, penalized := vr.BadAuthors[addr]
+			return penalized
+		}
+		return false
+	}
+
 	ctx.prevStateReadOnly.State.IterateOverIdentities(func(addr common.Address, prevStateIdentity state.Identity) {
 		shardId := prevStateIdentity.ShiftedShardId()
 		convertedAddress := conversion.ConvertAddress(addr)
@@ -941,7 +954,11 @@ func (indexer *Indexer) detectEpochResult(block *types.Block, ctx *conversionCon
 		convertedIdentity.MadeFlips = ctx.prevStateReadOnly.State.GetMadeFlips(addr)
 		convertedIdentity.NextEpochInvites = ctx.newStateReadOnly.State.GetInvites(addr)
 		if prevStateIdentity.Delegatee() != nil {
-			convertedIdentity.DelegateeAddress = conversion.ConvertAddress(*prevStateIdentity.Delegatee())
+			delegatee := *prevStateIdentity.Delegatee()
+			convertedIdentity.DelegateeAddress = conversion.ConvertAddress(delegatee)
+			if isPenalized(addr, shardId) {
+				delegateesEpochRewards.incPenalizedDelegators(delegatee)
+			}
 		}
 		validationShardStats := validationStats.Shards[shardId]
 		var identityStats *statsTypes.IdentityStats
@@ -1101,7 +1118,7 @@ func (indexer *Indexer) detectEpochResult(block *types.Block, ctx *conversionCon
 		MinScoreForInvite:         minScoreForInvite,
 		RewardsBounds:             rewardsBounds.getResult(),
 		ReportedFlips:             reportedFlips,
-		DelegateesEpochRewards:    delegateesEpochRewards,
+		DelegateesEpochRewards:    delegateesEpochRewards.rewards,
 		ValidationRewardSummaries: validationRewardsSummaries,
 	}
 }
