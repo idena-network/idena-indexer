@@ -149,12 +149,12 @@ AS
 $$
 DECLARE
     l_address_id  bigint;
-    l_balance_in  bigint;
-    l_balance_out bigint;
-    l_stake_in    bigint;
-    l_stake_out   bigint;
-    l_penalty_in  bigint;
-    l_penalty_out bigint;
+    l_balance_in  numeric;
+    l_balance_out numeric;
+    l_stake_in    numeric;
+    l_stake_out   numeric;
+    l_penalty_in  numeric;
+    l_penalty_out numeric;
 BEGIN
     SELECT address_id, balance_in, balance_out, stake_in, stake_out, penalty_in, penalty_out
     INTO l_address_id, l_balance_in , l_balance_out, l_stake_in , l_stake_out , l_penalty_in , l_penalty_out
@@ -177,5 +177,92 @@ BEGIN
     end if;
 
     DELETE FROM balance_update_summaries_changes WHERE change_id = p_change_id;
+END
+$$;
+
+CREATE OR REPLACE PROCEDURE update_mining_reward_summary(p_block_height bigint,
+                                                         p_balance_update tp_balance_update)
+    LANGUAGE 'plpgsql'
+AS
+$$
+DECLARE
+    PROPOSER_REASON                     CONSTANT smallint = 2;
+    COMMITTEE_REASON                    CONSTANT smallint = 3;
+    CHANGE_TYPE_MINING_REWARD_SUMMARIES CONSTANT smallint = 6;
+    l_epoch                                      smallint;
+    l_address_id                                 bigint;
+    l_amount                                     numeric;
+    l_burnt                                      numeric;
+    l_prev_amount                                numeric;
+    l_prev_burnt                                 numeric;
+    l_change_id                                  bigint;
+BEGIN
+
+    if p_balance_update.reason <> COMMITTEE_REASON and p_balance_update.reason <> PROPOSER_REASON then
+        return;
+    end if;
+
+    l_burnt = (coalesce(p_balance_update.penalty_old, 0) - coalesce(p_balance_update.penalty_new, 0)) +
+              coalesce(p_balance_update.penalty_payment, 0);
+    l_amount = sum(p_balance_update.balance_new - p_balance_update.balance_old + p_balance_update.stake_new -
+                   p_balance_update.stake_old + l_burnt);
+    l_address_id = get_address_id_or_insert(p_block_height, p_balance_update.address);
+    SELECT epoch INTO l_epoch FROM blocks WHERE height = p_block_height;
+
+    SELECT amount, burnt
+    INTO l_prev_amount, l_prev_burnt
+    FROM mining_reward_summaries
+    WHERE address_id = l_address_id
+      AND epoch = l_epoch;
+
+    if l_prev_amount is null then
+        INSERT INTO mining_reward_summaries (address_id, epoch, amount, burnt)
+        VALUES (l_address_id, l_epoch, l_amount, l_burnt);
+    else
+        UPDATE mining_reward_summaries
+        SET amount = amount + l_amount,
+            burnt  = burnt + l_burnt
+        WHERE address_id = l_address_id
+          AND epoch = l_epoch;
+    end if;
+
+    INSERT INTO changes (block_height, "type")
+    VALUES (p_block_height, CHANGE_TYPE_MINING_REWARD_SUMMARIES)
+    RETURNING id INTO l_change_id;
+
+    INSERT INTO mining_reward_summaries_changes (change_id, address_id, epoch, amount, burnt)
+    VALUES (l_change_id, l_address_id, l_epoch, l_prev_amount, l_prev_burnt);
+END
+$$;
+
+CREATE OR REPLACE PROCEDURE reset_mining_reward_summaries_changes(p_change_id bigint)
+    LANGUAGE 'plpgsql'
+AS
+$$
+DECLARE
+    l_address_id bigint;
+    l_epoch      smallint;
+    l_amount     numeric;
+    l_burnt      numeric;
+BEGIN
+    SELECT address_id, epoch, amount, burnt
+    INTO l_address_id, l_epoch, l_amount, l_burnt
+    FROM mining_reward_summaries_changes
+    WHERE change_id = p_change_id;
+
+    if l_amount is null then
+        DELETE
+        FROM mining_reward_summaries
+        WHERE address_id = l_address_id
+          AND epoch = l_epoch;
+    else
+        UPDATE mining_reward_summaries
+        SET amount = l_amount,
+            burnt  = l_burnt
+        WHERE address_id = l_address_id
+          AND epoch = l_epoch;
+    end if;
+
+    DELETE FROM mining_reward_summaries_changes WHERE change_id = p_change_id;
 END
 $$;

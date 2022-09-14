@@ -1542,6 +1542,9 @@ ON CONFLICT DO NOTHING;
 INSERT INTO dic_change_types
 VALUES (5, 'balance_update_summaries')
 ON CONFLICT DO NOTHING;
+INSERT INTO dic_change_types
+VALUES (6, 'mining_reward_summaries')
+ON CONFLICT DO NOTHING;
 
 CREATE SEQUENCE IF NOT EXISTS changes_id_seq
     INCREMENT 1
@@ -2615,6 +2618,7 @@ BEGIN
             end if;
 
             call update_balance_update_summary(p_block_height, l_balance_update);
+            call update_mining_reward_summary(p_block_height, l_balance_update);
         end loop;
 END
 $BODY$;

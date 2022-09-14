@@ -159,6 +159,86 @@ func GetBalanceUpdateSummariesChanges(db *sql.DB) ([]BalanceUpdateSummariesChang
 	return res, nil
 }
 
+type MiningRewardSummary struct {
+	Address string
+	Epoch   uint16
+	Amount  decimal.Decimal
+	Burnt   decimal.Decimal
+}
+
+func GetMiningRewardSummaries(db *sql.DB) ([]MiningRewardSummary, error) {
+	rows, err := db.Query(`select a.address, 
+       t.epoch, 
+       t.amount,
+       t.burnt 
+       from mining_reward_summaries t 
+           join addresses a on a.id=t.address_id order by t.address_id`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var res []MiningRewardSummary
+	for rows.Next() {
+		item := MiningRewardSummary{}
+		err := rows.Scan(
+			&item.Address,
+			&item.Epoch,
+			&item.Amount,
+			&item.Burnt,
+		)
+		if err != nil {
+			return nil, err
+		}
+		res = append(res, item)
+	}
+	return res, nil
+}
+
+type MiningRewardSummariesChange struct {
+	ChangeId int
+	Address  string
+	Epoch    uint16
+	Amount   *decimal.Decimal
+	Burnt    *decimal.Decimal
+}
+
+func GetMiningRewardSummariesChanges(db *sql.DB) ([]MiningRewardSummariesChange, error) {
+	rows, err := db.Query(`select t.change_id,
+       a.address, 
+       t.epoch, 
+       t.amount,
+       t.burnt 
+       from mining_reward_summaries_changes t 
+           join addresses a on a.id=t.address_id order by t.address_id`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var res []MiningRewardSummariesChange
+	for rows.Next() {
+		item := MiningRewardSummariesChange{}
+		var amount, burnt NullDecimal
+		err := rows.Scan(
+			&item.ChangeId,
+			&item.Address,
+			&item.Epoch,
+			&amount,
+			&burnt,
+		)
+		if err != nil {
+			return nil, err
+		}
+		if amount.Valid {
+			item.Amount = &amount.Decimal
+		}
+		if burnt.Valid {
+			item.Burnt = &burnt.Decimal
+		}
+		res = append(res, item)
+	}
+	return res, nil
+}
+
 type BalanceUpdate struct {
 	Address              string
 	BalanceOld           decimal.Decimal

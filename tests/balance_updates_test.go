@@ -245,6 +245,7 @@ func Test_complexCommitteeRewardBalanceUpdates3blocks(t *testing.T) {
 	statsCollector.SetCommitteeRewardShare(dna(6))
 	addProposerReward(statsCollector, addr1, dna(10), dna(5), appState)
 	addCommitteeReward(statsCollector, addr1, dna(2), dna(1), appState)
+	appState.State.IncEpoch()
 	applyBlockWithHeight(bus, 13, appState)
 	statsCollector.CompleteCollecting()
 
@@ -270,6 +271,7 @@ func Test_complexCommitteeRewardBalanceUpdates3blocks(t *testing.T) {
 	require.Nil(t, err)
 	require.Len(t, summaries, 2)
 	for _, summary := range summaries {
+		require.True(t, summary.Address == addr1.Hex() || summary.Address == addr2.Hex())
 		if summary.Address == addr1.Hex() {
 			require.Equal(t, dna(164), blockchain.ConvertToInt(summary.BalanceIn))
 			require.Equal(t, dna(0), blockchain.ConvertToInt(summary.BalanceOut))
@@ -291,6 +293,30 @@ func Test_complexCommitteeRewardBalanceUpdates3blocks(t *testing.T) {
 	require.Nil(t, err)
 	require.Len(t, summariesChanges, 5)
 
+	miningRewardSummaries, err := testCommon.GetMiningRewardSummaries(dbConnector)
+	require.Nil(t, err)
+	require.Len(t, miningRewardSummaries, 3)
+	for _, summary := range miningRewardSummaries {
+		require.True(t, summary.Address == addr1.Hex() || summary.Address == addr2.Hex())
+		if summary.Address == addr1.Hex() {
+			require.True(t, summary.Epoch == 0 || summary.Epoch == 1)
+			if summary.Epoch == 0 {
+				require.Equal(t, dna(93), blockchain.ConvertToInt(summary.Amount))
+			} else {
+				require.Equal(t, dna(3), blockchain.ConvertToInt(summary.Amount))
+			}
+			require.Equal(t, dna(0), blockchain.ConvertToInt(summary.Burnt))
+		}
+		if summary.Address == addr2.Hex() {
+			require.Equal(t, dna(3), blockchain.ConvertToInt(summary.Amount))
+			require.Equal(t, dna(0), blockchain.ConvertToInt(summary.Burnt))
+		}
+	}
+
+	miningRewardSummariesChanges, err := testCommon.GetMiningRewardSummariesChanges(dbConnector)
+	require.Nil(t, err)
+	require.Len(t, miningRewardSummariesChanges, 5)
+
 	// When
 	err = dbAccessor.ResetTo(12)
 
@@ -308,6 +334,7 @@ func Test_complexCommitteeRewardBalanceUpdates3blocks(t *testing.T) {
 	require.Nil(t, err)
 	require.Len(t, summaries, 2)
 	for _, summary := range summaries {
+		require.True(t, summary.Address == addr1.Hex() || summary.Address == addr2.Hex())
 		if summary.Address == addr1.Hex() {
 			require.Equal(t, dna(150), blockchain.ConvertToInt(summary.BalanceIn))
 			require.Equal(t, dna(0), blockchain.ConvertToInt(summary.BalanceOut))
@@ -328,6 +355,26 @@ func Test_complexCommitteeRewardBalanceUpdates3blocks(t *testing.T) {
 	summariesChanges, err = testCommon.GetBalanceUpdateSummariesChanges(dbConnector)
 	require.Nil(t, err)
 	require.Len(t, summariesChanges, 2)
+
+	miningRewardSummaries, err = testCommon.GetMiningRewardSummaries(dbConnector)
+	require.Nil(t, err)
+	require.Len(t, miningRewardSummaries, 2)
+	for _, summary := range miningRewardSummaries {
+		require.True(t, summary.Address == addr1.Hex() || summary.Address == addr2.Hex())
+		if summary.Address == addr1.Hex() {
+			require.Equal(t, dna(75), blockchain.ConvertToInt(summary.Amount))
+			require.Equal(t, dna(0), blockchain.ConvertToInt(summary.Burnt))
+			require.Equal(t, uint16(0), summary.Epoch)
+		}
+		if summary.Address == addr2.Hex() {
+			require.Equal(t, dna(3), blockchain.ConvertToInt(summary.Amount))
+			require.Equal(t, dna(0), blockchain.ConvertToInt(summary.Burnt))
+		}
+	}
+
+	miningRewardSummariesChanges, err = testCommon.GetMiningRewardSummariesChanges(dbConnector)
+	require.Nil(t, err)
+	require.Len(t, miningRewardSummariesChanges, 2)
 }
 
 func Test_complexCommitteeRewardBalanceUpdates6blocks(t *testing.T) {

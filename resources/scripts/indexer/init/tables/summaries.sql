@@ -122,7 +122,7 @@ CREATE TABLE IF NOT EXISTS delegatee_total_validation_rewards
     saved_invites_balance     numeric(30, 18),
     saved_invites_win_balance numeric(30, 18),
     reports_balance           numeric(30, 18),
-    candidate_balance        numeric(30, 18),
+    candidate_balance         numeric(30, 18),
     staking_balance           numeric(30, 18),
     delegators                integer         NOT NULL,
     CONSTRAINT delegatee_total_validation_rewards_pkey PRIMARY KEY (epoch, delegatee_address_id)
@@ -144,7 +144,7 @@ CREATE TABLE IF NOT EXISTS delegatee_validation_rewards
     saved_invites_balance     numeric(30, 18),
     saved_invites_win_balance numeric(30, 18),
     reports_balance           numeric(30, 18),
-    candidate_balance        numeric(30, 18),
+    candidate_balance         numeric(30, 18),
     staking_balance           numeric(30, 18),
     CONSTRAINT delegatee_validation_rewards_pkey PRIMARY KEY (epoch, delegatee_address_id, delegator_address_id)
 );
@@ -174,4 +174,28 @@ CREATE TABLE IF NOT EXISTS validation_reward_summaries
     staking_missed            numeric(30, 18),
     staking_missed_reason     smallint,
     CONSTRAINT validation_reward_summaries_pkey PRIMARY KEY (epoch, address_id)
+);
+
+CREATE TABLE IF NOT EXISTS mining_reward_summaries
+(
+    address_id bigint          NOT NULL,
+    epoch      smallint        NOT NULL,
+    amount     numeric(30, 18) NOT NULL,
+    burnt      numeric(30, 18) NOT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS mining_reward_summaries_pkey ON mining_reward_summaries (address_id, epoch desc);
+
+CREATE TABLE IF NOT EXISTS mining_reward_summaries_changes
+(
+    change_id  bigint   NOT NULL,
+    address_id bigint   NOT NULL,
+    epoch      smallint NOT NULL,
+    amount     numeric(30, 18),
+    burnt      numeric(30, 18),
+    CONSTRAINT mining_reward_summaries_changes_pkey PRIMARY KEY (change_id),
+    CONSTRAINT mining_reward_summaries_changes_change_id_fkey FOREIGN KEY (change_id)
+        REFERENCES changes (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE
 );
