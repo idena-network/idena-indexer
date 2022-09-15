@@ -14,6 +14,11 @@ type OnlineIdentity struct {
 	Delegetee      *OnlineIdentity `json:"delegatee,omitempty"`
 }
 
+type Pool struct {
+	TotalStake          decimal.Decimal `json:"totalStake" swaggertype:"string"`
+	TotalValidatedStake decimal.Decimal `json:"totalValidatedStake" swaggertype:"string"`
+}
+
 type Validator struct {
 	Address        string          `json:"address"`
 	Size           uint32          `json:"size"`

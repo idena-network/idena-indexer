@@ -1,6 +1,7 @@
 package api
 
 import (
+	"github.com/idena-network/idena-go/blockchain"
 	"github.com/idena-network/idena-go/common"
 	"github.com/idena-network/idena-go/common/hexutil"
 	"github.com/idena-network/idena-go/crypto"
@@ -115,6 +116,24 @@ func convertOnlineIdentity(oi *online.Identity) *types.OnlineIdentity {
 		}
 	}
 	return res
+}
+
+func (a *Api) GetPool(address string) *types.Pool {
+	pool := a.onlineIdentities.GetPool(address)
+	if pool == nil {
+		return nil
+	}
+	return convertPool(pool)
+}
+
+func convertPool(v *online.Pool) *types.Pool {
+	if v == nil {
+		return nil
+	}
+	return &types.Pool{
+		TotalStake:          blockchain.ConvertToFloat(v.TotalStake),
+		TotalValidatedStake: blockchain.ConvertToFloat(v.TotalValidatedStake),
+	}
 }
 
 func (a *Api) SignatureAddress(value, signature string) (string, error) {

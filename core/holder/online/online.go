@@ -26,6 +26,11 @@ type Identity struct {
 	Delegatee      *Identity
 }
 
+type Pool struct {
+	TotalStake          *big.Int
+	TotalValidatedStake *big.Int
+}
+
 type CurrentOnlineIdentitiesHolder interface {
 	GetAll() []*Identity
 	Get(address string) *Identity
@@ -36,6 +41,7 @@ type CurrentOnlineIdentitiesHolder interface {
 	OnlineValidators() []*types.Validator
 	Staking() types.Staking
 	ForkCommitteeSize() int
+	GetPool(address string) *Pool
 }
 
 type currentOnlineIdentitiesCache struct {
@@ -46,13 +52,14 @@ type currentOnlineIdentitiesCache struct {
 	onlineValidators     []*types.Validator
 	staking              types.Staking
 	forkCommitteeSize    int
+	poolsPerAddress      map[string]*Pool
 }
 
 func NewCurrentOnlineIdentitiesCache(appState *appstate.AppState,
 	chain *blockchain.Blockchain,
 	offlineDetector *blockchain.OfflineDetector) CurrentOnlineIdentitiesHolder {
 	cache := &currentOnlineIdentitiesCache{}
-	cache.set(nil, make(map[string]*Identity), 0, nil, nil, types.Staking{}, 0)
+	cache.set(nil, make(map[string]*Identity), 0, nil, nil, types.Staking{}, 0, make(map[string]*Pool))
 	cache.initialize(appState, chain, offlineDetector)
 	return cache
 }
@@ -101,6 +108,10 @@ func (cache *currentOnlineIdentitiesCache) ForkCommitteeSize() int {
 	return cache.forkCommitteeSize
 }
 
+func (cache *currentOnlineIdentitiesCache) GetPool(address string) *Pool {
+	return cache.poolsPerAddress[strings.ToLower(address)]
+}
+
 func (cache *currentOnlineIdentitiesCache) set(
 	identities []*Identity,
 	identitiesPerAddress map[string]*Identity,
@@ -109,6 +120,7 @@ func (cache *currentOnlineIdentitiesCache) set(
 	onlineValidators []*types.Validator,
 	staking types.Staking,
 	forkCommitteeSize int,
+	poolsPerAddress map[string]*Pool,
 ) {
 	cache.identities = identities
 	cache.identitiesPerAddress = identitiesPerAddress
@@ -117,6 +129,7 @@ func (cache *currentOnlineIdentitiesCache) set(
 	cache.onlineValidators = onlineValidators
 	cache.staking = staking
 	cache.forkCommitteeSize = forkCommitteeSize
+	cache.poolsPerAddress = poolsPerAddress
 }
 
 func (cache *currentOnlineIdentitiesCache) initialize(appState *appstate.AppState,
@@ -156,7 +169,7 @@ func (updater *currentOnlineIdentitiesCacheUpdater) update() {
 
 	activityMap := updater.offlineDetector.GetActivityMap()
 	var onlineCount int
-	poolsByAddress := make(map[common.Address]*Identity)
+	delegateesByAddress := make(map[common.Address]*Identity)
 	var validators, onlineValidators []*types.Validator
 
 	buildIdentity := func(address common.Address, identity state.Identity, pOnline *bool, delegetee *Identity) *Identity {
@@ -214,6 +227,7 @@ func (updater *currentOnlineIdentitiesCacheUpdater) update() {
 		stakeF, _ := blockchain.ConvertToFloat(stake).Float64()
 		return math.Pow(stakeF, 0.9)
 	}
+	poolsByAddress := make(map[string]*Pool)
 	appState.State.IterateOverIdentities(func(address common.Address, identity state.Identity) {
 		if identity.State.NewbieOrBetter() {
 			stake := identity.Stake
@@ -239,9 +253,31 @@ func (updater *currentOnlineIdentitiesCacheUpdater) update() {
 		var delegatee *Identity
 		if identity.Delegatee() != nil {
 			delegeteeAddr := *identity.Delegatee()
-			if delegatee = poolsByAddress[delegeteeAddr]; delegatee == nil {
+			if delegatee = delegateesByAddress[delegeteeAddr]; delegatee == nil {
 				delegatee = buildIdentity(delegeteeAddr, appState.State.GetIdentity(delegeteeAddr), nil, nil)
-				poolsByAddress[delegeteeAddr] = delegatee
+				delegateesByAddress[delegeteeAddr] = delegatee
+			}
+			if identity.Stake != nil {
+				poolKey := strings.ToLower(delegeteeAddr.Hex())
+				pool := poolsByAddress[poolKey]
+				if pool == nil {
+					pool = &Pool{
+						TotalStake:          new(big.Int),
+						TotalValidatedStake: new(big.Int),
+					}
+					poolsByAddress[poolKey] = pool
+					delegateeIdentity := appState.State.GetIdentity(delegeteeAddr)
+					if delegateeIdentity.Stake != nil {
+						pool.TotalStake.Add(pool.TotalStake, delegateeIdentity.Stake)
+						if delegateeIdentity.State.NewbieOrBetter() {
+							pool.TotalValidatedStake.Add(pool.TotalValidatedStake, delegateeIdentity.Stake)
+						}
+					}
+				}
+				pool.TotalStake.Add(pool.TotalStake, identity.Stake)
+				if identity.State.NewbieOrBetter() {
+					pool.TotalValidatedStake.Add(pool.TotalValidatedStake, identity.Stake)
+				}
 			}
 		}
 		online := appState.ValidatorsCache.IsOnlineIdentity(address)
@@ -252,11 +288,11 @@ func (updater *currentOnlineIdentitiesCacheUpdater) update() {
 				onlineCount++
 			}
 		}
-		if identity.State != state.Newbie && identity.State != state.Verified && identity.State != state.Human {
+		if !identity.State.NewbieOrBetter() {
 			return
 		}
 		var onlineIdentity *Identity
-		if onlineIdentity = poolsByAddress[address]; onlineIdentity == nil {
+		if onlineIdentity = delegateesByAddress[address]; onlineIdentity == nil {
 			onlineIdentity = buildIdentity(address, identity, &online, delegatee)
 		}
 		identities = append(identities, onlineIdentity)
@@ -294,7 +330,10 @@ func (updater *currentOnlineIdentitiesCacheUpdater) update() {
 		MinersWeight:       minersStakeWeight,
 		AverageMinerWeight: (averageMinerWeight1 + averageMinerWeight2) / 2.0,
 		MaxMinerWeight:     maxMinerStakeWeight,
-	}, appState.ValidatorsCache.ForkCommitteeSize())
+	},
+		appState.ValidatorsCache.ForkCommitteeSize(),
+		poolsByAddress,
+	)
 	finishTime := time.Now()
 	updater.log.Debug("Updated", "duration", finishTime.Sub(startTime))
 }
