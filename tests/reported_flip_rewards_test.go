@@ -32,7 +32,7 @@ func Test_reportedFlipRewards(t *testing.T) {
 	reporter2 := tests.GetRandAddr()
 	appState.State.SetState(reporter2, state.Verified)
 
-	appState.Precommit(true)
+	appState.Precommit()
 	height++
 	require.Nil(t, appState.CommitAt(height))
 	require.Nil(t, appState.Initialize(height))

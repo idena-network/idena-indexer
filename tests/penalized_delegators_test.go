@@ -32,7 +32,7 @@ func Test_penalizedDelegators(t *testing.T) {
 	appState.State.SetDelegatee(penalizedAddress1, pool1)
 	appState.State.SetDelegatee(penalizedAddress2, pool1)
 	appState.State.SetDelegatee(penalizedAddress3, pool2)
-	appState.Precommit(true)
+	appState.Precommit()
 	height++
 	require.Nil(t, appState.CommitAt(height))
 	require.Nil(t, appState.Initialize(height))

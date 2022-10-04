@@ -611,24 +611,8 @@ func (c *statsCollector) addMiningReward(addr common.Address, balance *big.Int, 
 	return res
 }
 
-func (c *statsCollector) BeforeSetPenalty(addr common.Address, amount *big.Int, seconds uint16, appState *appstate.AppState) {
-	c.addChargedPenalty(addr, amount)
+func (c *statsCollector) BeforeSetPenalty(addr common.Address, seconds uint16, appState *appstate.AppState) {
 	c.addChargedPenaltySeconds(addr, seconds)
-}
-
-func (c *statsCollector) addChargedPenalty(addr common.Address, amount *big.Int) {
-	if amount == nil || amount.Sign() != 1 {
-		return
-	}
-	c.initChargedPenaltiesByAddr()
-	c.stats.ChargedPenaltiesByAddr[addr] = new(big.Int).Set(amount)
-}
-
-func (c *statsCollector) initChargedPenaltiesByAddr() {
-	if c.stats.ChargedPenaltiesByAddr != nil {
-		return
-	}
-	c.stats.ChargedPenaltiesByAddr = make(map[common.Address]*big.Int)
 }
 
 func (c *statsCollector) addChargedPenaltySeconds(addr common.Address, value uint16) {

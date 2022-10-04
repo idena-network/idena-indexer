@@ -26,7 +26,7 @@ func Test_complex(t *testing.T) {
 	addr := crypto.PubkeyToAddress(key.PublicKey)
 	appState := listener.NodeCtx().AppState
 	appState.State.SetState(addr, state.Verified)
-	appState.Precommit(true)
+	appState.Precommit()
 	height++
 	require.Nil(t, appState.CommitAt(height))
 	require.Nil(t, appState.Initialize(height))

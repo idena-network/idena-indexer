@@ -17,7 +17,7 @@ func Test_transactionRaw(t *testing.T) {
 	var height uint64
 	key, _ := crypto.GenerateKey()
 	appState := listener.NodeCtx().AppState
-	appState.Precommit(true)
+	appState.Precommit()
 	height++
 	require.Nil(t, appState.CommitAt(height))
 	require.Nil(t, appState.Initialize(height))

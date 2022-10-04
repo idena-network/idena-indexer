@@ -244,9 +244,11 @@ type BalanceUpdate struct {
 	BalanceOld           decimal.Decimal
 	StakeOld             decimal.Decimal
 	PenaltyOld           *decimal.Decimal
+	PenaltySecondsOld    *uint16
 	BalanceNew           decimal.Decimal
 	StakeNew             decimal.Decimal
 	PenaltyNew           *decimal.Decimal
+	PenaltySecondsNew    *uint16
 	Reason               db.BalanceUpdateReason
 	BlockHeight          int
 	TxId                 *int
@@ -260,9 +262,11 @@ func GetBalanceUpdates(db *sql.DB) ([]BalanceUpdate, error) {
        bu.balance_old, 
        bu.stake_old,
        bu.penalty_old,
+       bu.penalty_seconds_old,
        bu.balance_new, 
        bu.stake_new,
        bu.penalty_new,
+       bu.penalty_seconds_new,
        bu.reason,
        bu.block_height,
        bu.tx_id,
@@ -278,7 +282,7 @@ func GetBalanceUpdates(db *sql.DB) ([]BalanceUpdate, error) {
 	var res []BalanceUpdate
 	for rows.Next() {
 		item := BalanceUpdate{}
-		var txId, lastBlockHeight, blocksCount sql.NullInt32
+		var txId, lastBlockHeight, blocksCount, penaltySecondsOld, penaltySecondsNew sql.NullInt32
 		var committeeRewardShare NullDecimal
 		var penaltyOld, penaltyNew NullDecimal
 		err := rows.Scan(
@@ -286,9 +290,11 @@ func GetBalanceUpdates(db *sql.DB) ([]BalanceUpdate, error) {
 			&item.BalanceOld,
 			&item.StakeOld,
 			&penaltyOld,
+			&penaltySecondsOld,
 			&item.BalanceNew,
 			&item.StakeNew,
 			&penaltyNew,
+			&penaltySecondsNew,
 			&item.Reason,
 			&item.BlockHeight,
 			&txId,
@@ -316,6 +322,14 @@ func GetBalanceUpdates(db *sql.DB) ([]BalanceUpdate, error) {
 		}
 		if penaltyNew.Valid {
 			item.PenaltyNew = &penaltyNew.Decimal
+		}
+		if penaltySecondsOld.Valid {
+			v := uint16(penaltySecondsOld.Int32)
+			item.PenaltySecondsOld = &v
+		}
+		if penaltySecondsNew.Valid {
+			v := uint16(penaltySecondsNew.Int32)
+			item.PenaltySecondsNew = &v
 		}
 		if err != nil {
 			return nil, err

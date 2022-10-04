@@ -93,7 +93,7 @@ func deployOracleVotingContracts(t *testing.T, listener incoming.Listener, bus e
 
 	var height uint64
 	height++
-	appState.Precommit(true)
+	appState.Precommit()
 	require.Nil(t, appState.CommitAt(height))
 	require.Nil(t, appState.Initialize(height))
 
@@ -2025,7 +2025,7 @@ func Test_OracleVotingContractDeployBigMinPaymentAndOracleRewardFund(t *testing.
 
 	var height uint64
 	height++
-	appState.Precommit(true)
+	appState.Precommit()
 	require.Nil(t, appState.CommitAt(height))
 	require.Nil(t, appState.Initialize(height))
 

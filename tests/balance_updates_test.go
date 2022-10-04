@@ -25,7 +25,7 @@ func Test_committeeRewardZeroBlocksCount(t *testing.T) {
 	addr := tests.GetRandAddr()
 	appState := listener.NodeCtx().AppState
 	appState.State.SetState(addr, state.Verified)
-	appState.Precommit(true)
+	appState.Precommit()
 	require.Nil(t, appState.CommitAt(1))
 	require.Nil(t, appState.Initialize(1))
 
@@ -33,7 +33,6 @@ func Test_committeeRewardZeroBlocksCount(t *testing.T) {
 
 	// When
 	statsCollector.EnableCollecting()
-	statsCollector.SetCommitteeRewardShare(dna(10))
 	addCommitteeReward(statsCollector, addr, dna(4), dna(1), appState)
 	applyBlockWithHeight(bus, 2, appState)
 	statsCollector.CompleteCollecting()
@@ -42,7 +41,6 @@ func Test_committeeRewardZeroBlocksCount(t *testing.T) {
 	updates, err := testCommon.GetBalanceUpdates(dbConnector)
 	require.Nil(t, err)
 	require.Equal(t, 1, len(updates))
-	require.Equal(t, dna(10), blockchain.ConvertToInt(*updates[0].CommitteeRewardShare))
 	require.Equal(t, 1, *updates[0].BlocksCount)
 	require.Equal(t, dna(4), blockchain.ConvertToInt(updates[0].BalanceNew))
 	require.Equal(t, dna(1), blockchain.ConvertToInt(updates[0].StakeNew))
@@ -55,7 +53,6 @@ func Test_committeeRewardZeroBlocksCount(t *testing.T) {
 	applyBlockWithHeight(bus, 3, appState)
 	statsCollector.CompleteCollecting()
 	statsCollector.EnableCollecting()
-	statsCollector.SetCommitteeRewardShare(dna(10))
 	addCommitteeReward(statsCollector, addr, dna(4), dna(1), appState)
 	applyBlockWithHeight(bus, 4, appState)
 	statsCollector.CompleteCollecting()
@@ -72,7 +69,6 @@ func Test_committeeRewardZeroBlocksCount(t *testing.T) {
 
 	// When
 	statsCollector.EnableCollecting()
-	statsCollector.SetCommitteeRewardShare(dna(11))
 	addCommitteeReward(statsCollector, addr, dna(5), dna(2), appState)
 	applyBlockWithHeight(bus, 5, appState)
 	statsCollector.CompleteCollecting()
@@ -80,14 +76,14 @@ func Test_committeeRewardZeroBlocksCount(t *testing.T) {
 	// Then
 	updates, err = testCommon.GetBalanceUpdates(dbConnector)
 	require.Nil(t, err)
-	require.Equal(t, 2, len(updates))
-	require.Equal(t, 1, *updates[1].BlocksCount)
-	require.Equal(t, 5, updates[1].BlockHeight)
-	require.Equal(t, 5, *updates[1].LastBlockHeight)
-	require.Equal(t, dna(8), blockchain.ConvertToInt(updates[1].BalanceOld))
-	require.Equal(t, dna(2), blockchain.ConvertToInt(updates[1].StakeOld))
-	require.Equal(t, dna(13), blockchain.ConvertToInt(updates[1].BalanceNew))
-	require.Equal(t, dna(4), blockchain.ConvertToInt(updates[1].StakeNew))
+	require.Equal(t, 1, len(updates))
+	require.Equal(t, 3, *updates[0].BlocksCount)
+	require.Equal(t, 2, updates[0].BlockHeight)
+	require.Equal(t, 5, *updates[0].LastBlockHeight)
+	require.Equal(t, dna(0), blockchain.ConvertToInt(updates[0].BalanceOld))
+	require.Equal(t, dna(0), blockchain.ConvertToInt(updates[0].StakeOld))
+	require.Equal(t, dna(13), blockchain.ConvertToInt(updates[0].BalanceNew))
+	require.Equal(t, dna(4), blockchain.ConvertToInt(updates[0].StakeNew))
 }
 
 func Test_changeCommitteeRewardBlocksCount(t *testing.T) {
@@ -96,7 +92,7 @@ func Test_changeCommitteeRewardBlocksCount(t *testing.T) {
 	addr := tests.GetRandAddr()
 	appState := listener.NodeCtx().AppState
 	appState.State.SetState(addr, state.Verified)
-	appState.Precommit(true)
+	appState.Precommit()
 	require.Nil(t, appState.CommitAt(1))
 	require.Nil(t, appState.Initialize(1))
 
@@ -105,7 +101,6 @@ func Test_changeCommitteeRewardBlocksCount(t *testing.T) {
 	// When
 	for i := 0; i < 5; i++ {
 		statsCollector.EnableCollecting()
-		statsCollector.SetCommitteeRewardShare(dna(1))
 		addCommitteeReward(statsCollector, addr, dna(1), nil, appState)
 		height := uint64(2 + i)
 		applyBlockWithHeight(bus, height, appState)
@@ -163,7 +158,7 @@ func Test_complexCommitteeRewardBalanceUpdates3blocks(t *testing.T) {
 	appState := listener.NodeCtx().AppState
 	appState.State.SetState(addr1, state.Verified)
 	appState.State.SetState(addr2, state.Newbie)
-	appState.Precommit(true)
+	appState.Precommit()
 	require.Nil(t, appState.CommitAt(1))
 	require.Nil(t, appState.Initialize(1))
 
@@ -171,7 +166,6 @@ func Test_complexCommitteeRewardBalanceUpdates3blocks(t *testing.T) {
 
 	// When
 	statsCollector.EnableCollecting()
-	statsCollector.SetCommitteeRewardShare(dna(5))
 	addProposerReward(statsCollector, addr1, dna(10), dna(5), appState)
 	addCommitteeReward(statsCollector, addr1, dna(2), dna(1), appState)
 	applyBlockWithHeight(bus, 2, appState)
@@ -182,46 +176,39 @@ func Test_complexCommitteeRewardBalanceUpdates3blocks(t *testing.T) {
 	statsCollector.CompleteCollecting()
 
 	statsCollector.EnableCollecting()
-	statsCollector.SetCommitteeRewardShare(dna(5))
 	addCommitteeReward(statsCollector, addr1, dna(2), dna(1), appState)
 	addCommitteeReward(statsCollector, addr2, dna(2), dna(1), appState)
 	applyBlockWithHeight(bus, 4, appState)
 	statsCollector.CompleteCollecting()
 
 	statsCollector.EnableCollecting()
-	statsCollector.SetCommitteeRewardShare(dna(5))
 	addEpochReward(statsCollector, addr2, dna(100), dna(50), appState)
 	addCommitteeReward(statsCollector, addr1, dna(2), dna(1), appState)
 	applyBlockWithHeight(bus, 5, appState)
 	statsCollector.CompleteCollecting()
 
 	statsCollector.EnableCollecting()
-	statsCollector.SetCommitteeRewardShare(dna(5))
 	addCommitteeReward(statsCollector, addr1, dna(2), dna(1), appState)
 	applyBlockWithHeight(bus, 6, appState)
 	statsCollector.CompleteCollecting()
 
 	// New committee reward share
 	statsCollector.EnableCollecting()
-	statsCollector.SetCommitteeRewardShare(dna(6))
 	addCommitteeReward(statsCollector, addr1, dna(2), dna(1), appState)
 	applyBlockWithHeight(bus, 7, appState)
 	statsCollector.CompleteCollecting()
 
 	statsCollector.EnableCollecting()
-	statsCollector.SetCommitteeRewardShare(dna(6))
 	addCommitteeReward(statsCollector, addr1, dna(2), dna(1), appState)
 	applyBlockWithHeight(bus, 8, appState)
 	statsCollector.CompleteCollecting()
 
 	statsCollector.EnableCollecting()
-	statsCollector.SetCommitteeRewardShare(dna(6))
 	addCommitteeReward(statsCollector, addr1, dna(2), dna(1), appState)
 	applyBlockWithHeight(bus, 9, appState)
 	statsCollector.CompleteCollecting()
 
 	statsCollector.EnableCollecting()
-	statsCollector.SetCommitteeRewardShare(dna(6))
 	addEpochReward(statsCollector, addr1, dna(100), dna(50), appState)
 	addProposerReward(statsCollector, addr1, dna(10), dna(5), appState)
 	addCommitteeReward(statsCollector, addr1, dna(2), dna(1), appState)
@@ -229,20 +216,17 @@ func Test_complexCommitteeRewardBalanceUpdates3blocks(t *testing.T) {
 	statsCollector.CompleteCollecting()
 
 	statsCollector.EnableCollecting()
-	statsCollector.SetCommitteeRewardShare(dna(6))
 	addCommitteeReward(statsCollector, addr1, dna(2), dna(1), appState)
 	applyBlockWithHeight(bus, 11, appState)
 	statsCollector.CompleteCollecting()
 
 	statsCollector.EnableCollecting()
-	statsCollector.SetCommitteeRewardShare(dna(6))
 	addProposerReward(statsCollector, addr1, dna(10), dna(5), appState)
 	addCommitteeReward(statsCollector, addr1, dna(2), dna(1), appState)
 	applyBlockWithHeight(bus, 12, appState)
 	statsCollector.CompleteCollecting()
 
 	statsCollector.EnableCollecting()
-	statsCollector.SetCommitteeRewardShare(dna(6))
 	addProposerReward(statsCollector, addr1, dna(10), dna(5), appState)
 	addCommitteeReward(statsCollector, addr1, dna(2), dna(1), appState)
 	appState.State.IncEpoch()
@@ -250,7 +234,6 @@ func Test_complexCommitteeRewardBalanceUpdates3blocks(t *testing.T) {
 	statsCollector.CompleteCollecting()
 
 	statsCollector.EnableCollecting()
-	statsCollector.SetCommitteeRewardShare(dna(6))
 	addCommitteeReward(statsCollector, addr1, dna(2), dna(1), appState)
 	applyBlockWithHeight(bus, 14, appState)
 	statsCollector.CompleteCollecting()
@@ -258,11 +241,11 @@ func Test_complexCommitteeRewardBalanceUpdates3blocks(t *testing.T) {
 	// Then
 	updates, err := testCommon.GetBalanceUpdates(dbConnector)
 	require.Nil(t, err)
-	require.Equal(t, 12, len(updates))
-	require.Equal(t, 1, *updates[9].BlocksCount)
-	require.Equal(t, 12, updates[9].BlockHeight)
-	require.Equal(t, 2, *updates[11].BlocksCount)
-	require.Equal(t, 13, updates[11].BlockHeight)
+	require.Equal(t, 11, len(updates))
+	require.Equal(t, 1, *updates[8].BlocksCount)
+	require.Equal(t, 12, updates[8].BlockHeight)
+	require.Equal(t, 2, *updates[10].BlocksCount)
+	require.Equal(t, 13, updates[10].BlockHeight)
 	committeeUpdates, err := testCommon.GetCommitteeRewardBalanceUpdates(dbConnector)
 	require.Nil(t, err)
 	require.Equal(t, 3, len(committeeUpdates))
@@ -324,8 +307,8 @@ func Test_complexCommitteeRewardBalanceUpdates3blocks(t *testing.T) {
 	require.Nil(t, err)
 	updates, err = testCommon.GetBalanceUpdates(dbConnector)
 	require.Nil(t, err)
-	require.Equal(t, 10, len(updates))
-	require.Equal(t, 1, *updates[9].BlocksCount)
+	require.Equal(t, 9, len(updates))
+	require.Equal(t, 1, *updates[8].BlocksCount)
 	committeeUpdates, err = testCommon.GetCommitteeRewardBalanceUpdates(dbConnector)
 	require.Nil(t, err)
 	require.Equal(t, 1, len(committeeUpdates))
@@ -386,7 +369,7 @@ func Test_complexCommitteeRewardBalanceUpdates6blocks(t *testing.T) {
 	appState := listener.NodeCtx().AppState
 	appState.State.SetState(addr1, state.Verified)
 	appState.State.SetState(addr2, state.Newbie)
-	appState.Precommit(true)
+	appState.Precommit()
 	require.Nil(t, appState.CommitAt(1))
 	require.Nil(t, appState.Initialize(1))
 
@@ -394,7 +377,6 @@ func Test_complexCommitteeRewardBalanceUpdates6blocks(t *testing.T) {
 
 	// When
 	statsCollector.EnableCollecting()
-	statsCollector.SetCommitteeRewardShare(dna(5))
 	addProposerReward(statsCollector, addr1, dna(10), dna(5), appState)
 	addCommitteeReward(statsCollector, addr1, dna(2), dna(1), appState)
 	applyBlockWithHeight(bus, 2, appState)
@@ -405,46 +387,39 @@ func Test_complexCommitteeRewardBalanceUpdates6blocks(t *testing.T) {
 	statsCollector.CompleteCollecting()
 
 	statsCollector.EnableCollecting()
-	statsCollector.SetCommitteeRewardShare(dna(5))
 	addCommitteeReward(statsCollector, addr1, dna(2), dna(1), appState)
 	addCommitteeReward(statsCollector, addr2, dna(2), dna(1), appState)
 	applyBlockWithHeight(bus, 4, appState)
 	statsCollector.CompleteCollecting()
 
 	statsCollector.EnableCollecting()
-	statsCollector.SetCommitteeRewardShare(dna(5))
 	addEpochReward(statsCollector, addr2, dna(100), dna(50), appState)
 	addCommitteeReward(statsCollector, addr1, dna(2), dna(1), appState)
 	applyBlockWithHeight(bus, 5, appState)
 	statsCollector.CompleteCollecting()
 
 	statsCollector.EnableCollecting()
-	statsCollector.SetCommitteeRewardShare(dna(5))
 	addCommitteeReward(statsCollector, addr1, dna(2), dna(1), appState)
 	applyBlockWithHeight(bus, 6, appState)
 	statsCollector.CompleteCollecting()
 
 	// New committee reward share
 	statsCollector.EnableCollecting()
-	statsCollector.SetCommitteeRewardShare(dna(6))
 	addCommitteeReward(statsCollector, addr1, dna(2), dna(1), appState)
 	applyBlockWithHeight(bus, 7, appState)
 	statsCollector.CompleteCollecting()
 
 	statsCollector.EnableCollecting()
-	statsCollector.SetCommitteeRewardShare(dna(6))
 	addCommitteeReward(statsCollector, addr1, dna(2), dna(1), appState)
 	applyBlockWithHeight(bus, 8, appState)
 	statsCollector.CompleteCollecting()
 
 	statsCollector.EnableCollecting()
-	statsCollector.SetCommitteeRewardShare(dna(6))
 	addCommitteeReward(statsCollector, addr1, dna(2), dna(1), appState)
 	applyBlockWithHeight(bus, 9, appState)
 	statsCollector.CompleteCollecting()
 
 	statsCollector.EnableCollecting()
-	statsCollector.SetCommitteeRewardShare(dna(6))
 	addEpochReward(statsCollector, addr1, dna(100), dna(50), appState)
 	addProposerReward(statsCollector, addr1, dna(10), dna(5), appState)
 	addCommitteeReward(statsCollector, addr1, dna(2), dna(1), appState)
@@ -452,27 +427,23 @@ func Test_complexCommitteeRewardBalanceUpdates6blocks(t *testing.T) {
 	statsCollector.CompleteCollecting()
 
 	statsCollector.EnableCollecting()
-	statsCollector.SetCommitteeRewardShare(dna(6))
 	addCommitteeReward(statsCollector, addr1, dna(2), dna(1), appState)
 	applyBlockWithHeight(bus, 11, appState)
 	statsCollector.CompleteCollecting()
 
 	statsCollector.EnableCollecting()
-	statsCollector.SetCommitteeRewardShare(dna(6))
 	addProposerReward(statsCollector, addr1, dna(10), dna(5), appState)
 	addCommitteeReward(statsCollector, addr1, dna(2), dna(1), appState)
 	applyBlockWithHeight(bus, 12, appState)
 	statsCollector.CompleteCollecting()
 
 	statsCollector.EnableCollecting()
-	statsCollector.SetCommitteeRewardShare(dna(6))
 	addProposerReward(statsCollector, addr1, dna(10), dna(5), appState)
 	addCommitteeReward(statsCollector, addr1, dna(2), dna(1), appState)
 	applyBlockWithHeight(bus, 13, appState)
 	statsCollector.CompleteCollecting()
 
 	statsCollector.EnableCollecting()
-	statsCollector.SetCommitteeRewardShare(dna(6))
 	addCommitteeReward(statsCollector, addr1, dna(2), dna(1), appState)
 	applyBlockWithHeight(bus, 14, appState)
 	statsCollector.CompleteCollecting()
@@ -480,11 +451,11 @@ func Test_complexCommitteeRewardBalanceUpdates6blocks(t *testing.T) {
 	// Then
 	updates, err := testCommon.GetBalanceUpdates(dbConnector)
 	require.Nil(t, err)
-	require.Equal(t, 12, len(updates))
-	require.Equal(t, 1, *updates[9].BlocksCount)
-	require.Equal(t, 12, updates[9].BlockHeight)
-	require.Equal(t, 2, *updates[11].BlocksCount)
-	require.Equal(t, 13, updates[11].BlockHeight)
+	require.Equal(t, 11, len(updates))
+	require.Equal(t, 1, *updates[8].BlocksCount)
+	require.Equal(t, 12, updates[8].BlockHeight)
+	require.Equal(t, 2, *updates[10].BlocksCount)
+	require.Equal(t, 13, updates[10].BlockHeight)
 	committeeUpdates, err := testCommon.GetCommitteeRewardBalanceUpdates(dbConnector)
 	require.Nil(t, err)
 	require.Equal(t, 6, len(committeeUpdates))
@@ -496,14 +467,14 @@ func Test_complexCommitteeRewardBalanceUpdates6blocks(t *testing.T) {
 	require.Nil(t, err)
 	updates, err = testCommon.GetBalanceUpdates(dbConnector)
 	require.Nil(t, err)
-	require.Equal(t, 8, len(updates))
-	require.Equal(t, 1, *updates[7].BlocksCount)
-	require.Equal(t, 10, updates[7].BlockHeight)
-	require.Equal(t, 10, *updates[7].LastBlockHeight)
-	require.Equal(t, dna(134), blockchain.ConvertToInt(updates[7].BalanceOld))
-	require.Equal(t, dna(67), blockchain.ConvertToInt(updates[7].StakeOld))
-	require.Equal(t, dna(136), blockchain.ConvertToInt(updates[7].BalanceNew))
-	require.Equal(t, dna(68), blockchain.ConvertToInt(updates[7].StakeNew))
+	require.Equal(t, 7, len(updates))
+	require.Equal(t, 1, *updates[6].BlocksCount)
+	require.Equal(t, 10, updates[6].BlockHeight)
+	require.Equal(t, 10, *updates[6].LastBlockHeight)
+	require.Equal(t, dna(134), blockchain.ConvertToInt(updates[6].BalanceOld))
+	require.Equal(t, dna(67), blockchain.ConvertToInt(updates[6].StakeOld))
+	require.Equal(t, dna(136), blockchain.ConvertToInt(updates[6].BalanceNew))
+	require.Equal(t, dna(68), blockchain.ConvertToInt(updates[6].StakeNew))
 	committeeUpdates, err = testCommon.GetCommitteeRewardBalanceUpdates(dbConnector)
 	require.Nil(t, err)
 	require.Equal(t, 2, len(committeeUpdates))
@@ -518,7 +489,7 @@ func Test_reset(t *testing.T) {
 	appState := listener.NodeCtx().AppState
 	appState.State.SetState(addr1, state.Verified)
 	appState.State.SetState(addr2, state.Human)
-	appState.Precommit(true)
+	appState.Precommit()
 	require.Nil(t, appState.CommitAt(1))
 	require.Nil(t, appState.Initialize(1))
 
@@ -526,38 +497,32 @@ func Test_reset(t *testing.T) {
 
 	// When
 	statsCollector.EnableCollecting()
-	statsCollector.SetCommitteeRewardShare(dna(5))
 	addCommitteeReward(statsCollector, addr1, dna(2), dna(1), appState)
 	applyBlockWithHeight(bus, 2, appState)
 	statsCollector.CompleteCollecting()
 
 	statsCollector.EnableCollecting()
-	statsCollector.SetCommitteeRewardShare(dna(5))
 	addCommitteeReward(statsCollector, addr2, dna(2000), dna(1000), appState)
 	applyBlockWithHeight(bus, 3, appState)
 	statsCollector.CompleteCollecting()
 
 	statsCollector.EnableCollecting()
-	statsCollector.SetCommitteeRewardShare(dna(5))
 	addCommitteeReward(statsCollector, addr1, dna(2), dna(1), appState)
 	applyBlockWithHeight(bus, 4, appState)
 	statsCollector.CompleteCollecting()
 
 	statsCollector.EnableCollecting()
-	statsCollector.SetCommitteeRewardShare(dna(5))
 	addCommitteeReward(statsCollector, addr1, dna(2), dna(1), appState)
 	applyBlockWithHeight(bus, 5, appState)
 	statsCollector.CompleteCollecting()
 
 	statsCollector.EnableCollecting()
-	statsCollector.SetCommitteeRewardShare(dna(5))
 	addCommitteeReward(statsCollector, addr1, dna(2), dna(1), appState)
 	addProposerReward(statsCollector, addr1, dna(200), dna(100), appState)
 	applyBlockWithHeight(bus, 6, appState)
 	statsCollector.CompleteCollecting()
 
 	statsCollector.EnableCollecting()
-	statsCollector.SetCommitteeRewardShare(dna(5))
 	addCommitteeReward(statsCollector, addr1, dna(2), dna(1), appState)
 	applyBlockWithHeight(bus, 7, appState)
 	statsCollector.CompleteCollecting()
@@ -600,7 +565,7 @@ func Test_penalty(t *testing.T) {
 	addr := tests.GetRandAddr()
 	appState := listener.NodeCtx().AppState
 	appState.State.SetState(addr, state.Verified)
-	appState.Precommit(true)
+	appState.Precommit()
 	require.Nil(t, appState.CommitAt(1))
 	require.Nil(t, appState.Initialize(1))
 
@@ -608,26 +573,22 @@ func Test_penalty(t *testing.T) {
 
 	// When
 	statsCollector.EnableCollecting()
-	statsCollector.SetCommitteeRewardShare(dna(10))
 	addCommitteeReward(statsCollector, addr, dna(4), dna(1), appState)
 	applyBlockWithHeight(bus, 2, appState)
 	statsCollector.CompleteCollecting()
 
 	statsCollector.EnableCollecting()
-	statsCollector.SetCommitteeRewardShare(dna(10))
 	addCommitteeReward(statsCollector, addr, dna(4), dna(1), appState)
-	setPenalty(statsCollector, addr, dna(777), appState)
+	setPenalty(statsCollector, addr, 777, appState)
 	applyBlockWithHeight(bus, 3, appState)
 	statsCollector.CompleteCollecting()
 
 	statsCollector.EnableCollecting()
-	statsCollector.SetCommitteeRewardShare(dna(10))
 	addCommitteeReward(statsCollector, addr, dna(4), dna(1), appState)
 	applyBlockWithHeight(bus, 4, appState)
 	statsCollector.CompleteCollecting()
 
 	statsCollector.EnableCollecting()
-	statsCollector.SetCommitteeRewardShare(dna(10))
 	addCommitteeReward(statsCollector, addr, dna(4), dna(1), appState)
 	applyBlockWithHeight(bus, 5, appState)
 	statsCollector.CompleteCollecting()
@@ -643,10 +604,14 @@ func Test_penalty(t *testing.T) {
 	require.Equal(t, 4, len(updates))
 	require.Equal(t, db.PenaltyReason, updates[1].Reason)
 	require.Nil(t, updates[1].PenaltyOld)
-	require.Equal(t, dna(777), blockchain.ConvertToInt(*updates[1].PenaltyNew))
+	require.Nil(t, updates[1].PenaltySecondsOld)
+	require.Nil(t, updates[1].PenaltyNew)
+	require.Equal(t, uint16(777), *updates[1].PenaltySecondsNew)
 	require.Equal(t, db.EpochPenaltyResetReason, updates[3].Reason)
-	require.Equal(t, dna(777), blockchain.ConvertToInt(*updates[3].PenaltyOld))
+	require.Nil(t, updates[3].PenaltyOld)
+	require.Equal(t, uint16(777), *updates[3].PenaltySecondsOld)
 	require.Nil(t, updates[3].PenaltyNew)
+	require.Nil(t, updates[3].PenaltySecondsNew)
 }
 
 func dna(amount int) *big.Int {
@@ -661,7 +626,7 @@ func addProposerReward(
 	appState *appstate.AppState,
 ) {
 	collector.BeginProposerRewardBalanceUpdate(addr, addr, nil, appState)
-	updateBalanceAndComplete(collector, addr, balance, stake, appState.State.GetPenalty(addr), appState)
+	updateBalanceAndComplete(collector, addr, balance, stake, appState.State.GetPenaltySeconds(addr), appState)
 }
 
 func addCommitteeReward(
@@ -672,17 +637,17 @@ func addCommitteeReward(
 	appState *appstate.AppState,
 ) {
 	collector.BeginCommitteeRewardBalanceUpdate(addr, addr, nil, appState)
-	updateBalanceAndComplete(collector, addr, balance, stake, appState.State.GetPenalty(addr), appState)
+	updateBalanceAndComplete(collector, addr, balance, stake, appState.State.GetPenaltySeconds(addr), appState)
 }
 
 func setPenalty(
 	collector collector.StatsCollector,
 	addr common.Address,
-	penalty *big.Int,
+	penaltySeconds uint16,
 	appState *appstate.AppState,
 ) {
 	collector.BeginPenaltyBalanceUpdate(addr, appState)
-	updateBalanceAndComplete(collector, addr, appState.State.GetBalance(addr), appState.State.GetStakeBalance(addr), penalty, appState)
+	updateBalanceAndComplete(collector, addr, appState.State.GetBalance(addr), appState.State.GetStakeBalance(addr), penaltySeconds, appState)
 }
 
 func setEpochPenaltyReset(
@@ -691,7 +656,7 @@ func setEpochPenaltyReset(
 	appState *appstate.AppState,
 ) {
 	collector.BeginEpochPenaltyResetBalanceUpdate(addr, appState)
-	updateBalanceAndComplete(collector, addr, appState.State.GetBalance(addr), appState.State.GetStakeBalance(addr), nil, appState)
+	updateBalanceAndComplete(collector, addr, appState.State.GetBalance(addr), appState.State.GetStakeBalance(addr), 0, appState)
 }
 
 func addEpochReward(
@@ -702,7 +667,7 @@ func addEpochReward(
 	appState *appstate.AppState,
 ) {
 	collector.BeginEpochRewardBalanceUpdate(addr, addr, appState)
-	updateBalanceAndComplete(collector, addr, balance, stake, nil, appState)
+	updateBalanceAndComplete(collector, addr, balance, stake, 0, appState)
 }
 
 func updateBalanceAndComplete(
@@ -710,7 +675,7 @@ func updateBalanceAndComplete(
 	addr common.Address,
 	balance *big.Int,
 	stake *big.Int,
-	penalty *big.Int,
+	penaltySeconds uint16,
 	appState *appstate.AppState,
 ) {
 	if balance != nil {
@@ -719,14 +684,14 @@ func updateBalanceAndComplete(
 	if stake != nil {
 		appState.State.AddStake(addr, stake)
 	}
-	appState.State.SetPenalty(addr, penalty, 0)
+	appState.State.SetPenaltySeconds(addr, penaltySeconds)
 	collector.CompleteBalanceUpdate(appState)
 }
 
 func applyBlockWithHeight(bus eventbus.Bus, height uint64, appState *appstate.AppState) error {
 	block := buildBlock(height)
-	appState.Precommit(true)
-	if err := appState.Commit(block, true); err != nil {
+	appState.Precommit()
+	if err := appState.Commit(block); err != nil {
 		return err
 	}
 	bus.Publish(&events.NewBlockEvent{
@@ -736,8 +701,8 @@ func applyBlockWithHeight(bus eventbus.Bus, height uint64, appState *appstate.Ap
 }
 
 func applyBlock(bus eventbus.Bus, block *types2.Block, appState *appstate.AppState) error {
-	appState.Precommit(true)
-	if err := appState.Commit(block, true); err != nil {
+	appState.Precommit()
+	if err := appState.Commit(block); err != nil {
 		return err
 	}
 	appState.ValidatorsCache.Load()

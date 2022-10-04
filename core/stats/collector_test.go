@@ -37,7 +37,7 @@ func TestStatsCollector_PenaltyBalanceUpdate(t *testing.T) {
 	c.CompleteCollecting()
 	c.EnableCollecting()
 	c.BeginPenaltyBalanceUpdate(addr, appState)
-	appState.State.SetPenalty(addr, big.NewInt(1), 0)
+	appState.State.SetPenaltySeconds(addr, 1)
 	c.CompleteBalanceUpdate(appState)
 	// then
 	require.Equal(t, 0, len(c.pending.balanceUpdates))
@@ -46,14 +46,14 @@ func TestStatsCollector_PenaltyBalanceUpdate(t *testing.T) {
 	require.Equal(t, addr, c.stats.BalanceUpdates[0].Address)
 	require.Equal(t, db2.PenaltyReason, c.stats.BalanceUpdates[0].Reason)
 	require.Nil(t, c.stats.BalanceUpdates[0].TxHash)
-	require.Nil(t, c.stats.BalanceUpdates[0].PenaltyOld)
-	require.Equal(t, big.NewInt(1), c.stats.BalanceUpdates[0].PenaltyNew)
+	require.Zero(t, c.stats.BalanceUpdates[0].PenaltySecondsOld)
+	require.Equal(t, uint16(1), c.stats.BalanceUpdates[0].PenaltySecondsNew)
 
 	// when
 	c.CompleteCollecting()
 	c.EnableCollecting()
 	c.BeginPenaltyBalanceUpdate(addr, appState)
-	appState.State.SetPenalty(addr, big.NewInt(2), 0)
+	appState.State.SetPenaltySeconds(addr, 2)
 	c.CompleteBalanceUpdate(appState)
 	// then
 	require.Equal(t, 0, len(c.pending.balanceUpdates))
@@ -62,8 +62,8 @@ func TestStatsCollector_PenaltyBalanceUpdate(t *testing.T) {
 	require.Equal(t, addr, c.stats.BalanceUpdates[0].Address)
 	require.Equal(t, db2.PenaltyReason, c.stats.BalanceUpdates[0].Reason)
 	require.Nil(t, c.stats.BalanceUpdates[0].TxHash)
-	require.Equal(t, big.NewInt(1), c.stats.BalanceUpdates[0].PenaltyOld)
-	require.Equal(t, big.NewInt(2), c.stats.BalanceUpdates[0].PenaltyNew)
+	require.Equal(t, uint16(1), c.stats.BalanceUpdates[0].PenaltySecondsOld)
+	require.Equal(t, uint16(2), c.stats.BalanceUpdates[0].PenaltySecondsNew)
 
 	// when
 	c.CompleteCollecting()
@@ -78,7 +78,7 @@ func TestStatsCollector_PenaltyBalanceUpdate(t *testing.T) {
 	require.Equal(t, addr, c.stats.BalanceUpdates[0].Address)
 	require.Equal(t, db2.EpochPenaltyResetReason, c.stats.BalanceUpdates[0].Reason)
 	require.Nil(t, c.stats.BalanceUpdates[0].TxHash)
-	require.Equal(t, big.NewInt(2), c.stats.BalanceUpdates[0].PenaltyOld)
+	require.Equal(t, uint16(2), c.stats.BalanceUpdates[0].PenaltySecondsOld)
 	require.Nil(t, c.stats.BalanceUpdates[0].PenaltyNew)
 }
 
@@ -102,7 +102,7 @@ func TestStatsCollector_ProposerRewardBalanceUpdate(t *testing.T) {
 	c.BeginProposerRewardBalanceUpdate(addr, addr, nil, appState)
 	appState.State.SetBalance(addr, big.NewInt(12))
 	appState.State.AddStake(addr, big.NewInt(2))
-	appState.State.SetPenalty(addr, big.NewInt(3), 0)
+	appState.State.SetPenaltySeconds(addr, 3)
 	c.CompleteBalanceUpdate(appState)
 	// then
 	require.Equal(t, 0, len(c.pending.balanceUpdates))
@@ -116,7 +116,7 @@ func TestStatsCollector_ProposerRewardBalanceUpdate(t *testing.T) {
 	require.Nil(t, c.stats.BalanceUpdates[0].PenaltyOld)
 	require.Equal(t, big.NewInt(12), c.stats.BalanceUpdates[0].BalanceNew)
 	require.Equal(t, big.NewInt(2), c.stats.BalanceUpdates[0].StakeNew)
-	require.Equal(t, big.NewInt(3), c.stats.BalanceUpdates[0].PenaltyNew)
+	require.Equal(t, uint16(3), c.stats.BalanceUpdates[0].PenaltySecondsNew)
 
 	// when
 	c.CompleteCollecting()
@@ -725,7 +725,7 @@ func TestStatsCollector_contractBalanceUpdate(t *testing.T) {
 
 	appState.State.SetBalance(sender, big.NewInt(1))
 	appState.State.AddStake(address2, big.NewInt(2))
-	appState.State.SetPenalty(address2, big.NewInt(3), 0)
+	appState.State.SetPenaltySeconds(address2, 3)
 
 	tx := tests.GetFullTx(1, 1, key, types.SendTx, nil, nil, nil)
 	c.BeginApplyingTx(tx, appState)
@@ -771,8 +771,8 @@ func TestStatsCollector_contractBalanceUpdate(t *testing.T) {
 	bu := findContractBalanceUpdate(address2)
 	require.Equal(t, big.NewInt(0), bu.BalanceOld)
 	require.Equal(t, big.NewInt(200), bu.BalanceNew)
-	require.Equal(t, big.NewInt(3), bu.PenaltyOld)
-	require.Equal(t, big.NewInt(3), bu.PenaltyNew)
+	require.Equal(t, uint16(3), bu.PenaltySecondsOld)
+	require.Equal(t, uint16(3), bu.PenaltySecondsNew)
 	require.Equal(t, big.NewInt(2), bu.StakeOld)
 	require.Equal(t, big.NewInt(2), bu.StakeNew)
 	require.Equal(t, tx.Hash(), *bu.TxHash)

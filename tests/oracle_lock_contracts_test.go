@@ -110,7 +110,7 @@ func deployOracleLockContracts(t *testing.T, listener incoming.Listener, bus eve
 
 	var height uint64
 	height++
-	appState.Precommit(true)
+	appState.Precommit()
 	require.Nil(t, appState.CommitAt(height))
 	require.Nil(t, appState.Initialize(height))
 

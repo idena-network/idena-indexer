@@ -44,7 +44,7 @@ func Test_delegation(t *testing.T) {
 	var block *types2.Block
 
 	height = 1
-	appState.Precommit(true)
+	appState.Precommit()
 	require.Nil(t, appState.CommitAt(height))
 	require.Nil(t, appState.Initialize(height))
 
