@@ -1436,7 +1436,7 @@ func (c *statsCollector) AddOracleLockTermination(dest common.Address) {
 
 func (c *statsCollector) AddRefundableOracleLockDeploy(contractAddress common.Address, oracleVotingAddress common.Address,
 	value byte, successAddress common.Address, successAddressErr error, failAddress common.Address, failAddressErr error,
-	refundDelay, depositDeadline uint64, oracleVotingFee byte, state byte, sum *big.Int) {
+	refundDelay, depositDeadline uint64, oracleVotingFeeOld byte, oracleVotingFee uint64, state byte, sum *big.Int) {
 	tx := c.pending.tx.tx
 	var successAddressP *common.Address
 	if successAddressErr == nil {
@@ -1456,6 +1456,7 @@ func (c *statsCollector) AddRefundableOracleLockDeploy(contractAddress common.Ad
 		FailAddress:         failAddressP,
 		RefundDelay:         refundDelay,
 		DepositDeadline:     depositDeadline,
+		OracleVotingFeeOld:  oracleVotingFeeOld,
 		OracleVotingFee:     oracleVotingFee,
 	}
 }

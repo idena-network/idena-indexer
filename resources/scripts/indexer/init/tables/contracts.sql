@@ -359,6 +359,7 @@ CREATE TABLE IF NOT EXISTS refundable_oracle_lock_contracts
     refund_delay             bigint   NOT NULL,
     deposit_deadline         bigint   NOT NULL,
     oracle_voting_fee        smallint NOT NULL,
+    oracle_voting_fee_new    integer,
     CONSTRAINT refundable_oracle_lock_contracts_pkey PRIMARY KEY (contract_tx_id),
     CONSTRAINT refundable_oracle_lock_contracts_contract_tx_id_fkey FOREIGN KEY (contract_tx_id)
         REFERENCES contracts (tx_id) MATCH SIMPLE

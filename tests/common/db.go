@@ -1635,10 +1635,11 @@ type RefundableOracleLockContract struct {
 	RefundDelay         int
 	DepositDeadline     int
 	OracleVotingFee     int
+	OracleVotingFeeNew  int
 }
 
 func GetRefundableOracleLockContracts(db *sql.DB) ([]RefundableOracleLockContract, error) {
-	rows, err := db.Query(`select t.contract_tx_id, a1.address, t.value, a2.address, a3.address, t.refund_delay, t.deposit_deadline, t.oracle_voting_fee from refundable_oracle_lock_contracts t
+	rows, err := db.Query(`select t.contract_tx_id, a1.address, t.value, a2.address, a3.address, t.refund_delay, t.deposit_deadline, t.oracle_voting_fee, t.oracle_voting_fee_new from refundable_oracle_lock_contracts t
     join addresses a1 on a1.id=t.oracle_voting_address_id
     left join addresses a2 on a2.id=t.success_address_id
     left join addresses a3 on a3.id=t.fail_address_id
@@ -1659,6 +1660,7 @@ order by contract_tx_id`)
 			&item.RefundDelay,
 			&item.DepositDeadline,
 			&item.OracleVotingFee,
+			&item.OracleVotingFeeNew,
 		)
 		if err != nil {
 			return nil, err

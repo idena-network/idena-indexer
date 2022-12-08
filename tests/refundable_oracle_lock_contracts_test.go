@@ -47,7 +47,8 @@ func Test_RefundableOracleLockContractDeployWithExistingAddresses(t *testing.T) 
 	require.Equal(t, failAddress.Hex(), *olContracts[0].FailAddress)
 	require.Equal(t, 7, olContracts[0].RefundDelay)
 	require.Equal(t, 8, olContracts[0].DepositDeadline)
-	require.Equal(t, 9, olContracts[0].OracleVotingFee)
+	require.Equal(t, 0, olContracts[0].OracleVotingFee)
+	require.Equal(t, 9, olContracts[0].OracleVotingFeeNew)
 
 	txReceipts, err := testCommon.GetTxReceipts(db)
 	require.Nil(t, err)
@@ -93,7 +94,8 @@ func Test_RefundableOracleLockContractDeployWithNotExistingAddresses(t *testing.
 	require.Equal(t, failAddress.Hex(), *olContracts[0].FailAddress)
 	require.Equal(t, 7, olContracts[0].RefundDelay)
 	require.Equal(t, 8, olContracts[0].DepositDeadline)
-	require.Equal(t, 9, olContracts[0].OracleVotingFee)
+	require.Equal(t, 0, olContracts[0].OracleVotingFee)
+	require.Equal(t, 9, olContracts[0].OracleVotingFeeNew)
 
 	txReceipts, err := testCommon.GetTxReceipts(db)
 	require.Nil(t, err)
@@ -139,7 +141,8 @@ func Test_RefundableOracleLockContractDeployWithoutAddresses(t *testing.T) {
 	require.Nil(t, olContracts[0].FailAddress)
 	require.Equal(t, 7, olContracts[0].RefundDelay)
 	require.Equal(t, 8, olContracts[0].DepositDeadline)
-	require.Equal(t, 9, olContracts[0].OracleVotingFee)
+	require.Equal(t, 0, olContracts[0].OracleVotingFee)
+	require.Equal(t, 9, olContracts[0].OracleVotingFeeNew)
 
 	txReceipts, err := testCommon.GetTxReceipts(db)
 	require.Nil(t, err)
@@ -189,7 +192,7 @@ func deployRefundableOracleLockContracts(t *testing.T, listener incoming.Listene
 	tx := &types.Transaction{AccountNonce: 1}
 	statsCollector.BeginApplyingTx(tx, appState)
 	statsCollector.AddRefundableOracleLockDeploy(addr1, oracleVotingAddress, 2, sa, saErr,
-		fa, faErr, 7, 8, 9, 10, big.NewInt(789000))
+		fa, faErr, 7, 8, 0, 9, 10, big.NewInt(789000))
 	statsCollector.AddContractStake(new(big.Int).SetUint64(12300))
 	statsCollector.AddTxReceipt(&types.TxReceipt{Success: true, TxHash: tx.Hash(), GasUsed: 11, GasCost: big.NewInt(1100), ContractAddress: addr1}, appState)
 	statsCollector.CompleteApplyingTx(appState)
@@ -199,7 +202,7 @@ func deployRefundableOracleLockContracts(t *testing.T, listener incoming.Listene
 	tx = &types.Transaction{AccountNonce: 2}
 	statsCollector.BeginApplyingTx(tx, appState)
 	statsCollector.AddRefundableOracleLockDeploy(addr2, oracleVotingAddress, 3, sa, saErr,
-		fa, faErr, 17, 18, 19, 110, big.NewInt(1789000))
+		fa, faErr, 17, 18, 0, 19, 110, big.NewInt(1789000))
 	statsCollector.AddContractStake(new(big.Int).SetUint64(12300))
 	statsCollector.AddTxReceipt(&types.TxReceipt{Success: false, TxHash: tx.Hash(), Error: errors.New("error message")}, appState)
 	statsCollector.CompleteApplyingTx(appState)

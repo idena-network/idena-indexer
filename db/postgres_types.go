@@ -374,7 +374,7 @@ func (v *RefundableOracleLockContract) Value() (driver.Value, error) {
 	if v.FailAddress != nil {
 		failAddress = conversion.ConvertAddress(*v.FailAddress)
 	}
-	return fmt.Sprintf("(%v,%v,%v,%v,%v,%v,%v,%v,%v,%v)",
+	return fmt.Sprintf("(%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v)",
 		conversion.ConvertHash(v.TxHash),
 		conversion.ConvertAddress(v.ContractAddress),
 		blockchain.ConvertToFloat(v.Stake),
@@ -384,6 +384,7 @@ func (v *RefundableOracleLockContract) Value() (driver.Value, error) {
 		failAddress,
 		v.RefundDelay,
 		v.DepositDeadline,
+		v.OracleVotingFeeOld,
 		v.OracleVotingFee,
 	), nil
 }

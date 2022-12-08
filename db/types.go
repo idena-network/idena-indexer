@@ -577,7 +577,8 @@ type RefundableOracleLockContract struct {
 	FailAddress         *common.Address
 	RefundDelay         uint64
 	DepositDeadline     uint64
-	OracleVotingFee     byte
+	OracleVotingFeeOld  byte
+	OracleVotingFee     uint64
 }
 
 type RefundableOracleLockContractCallDeposit struct {

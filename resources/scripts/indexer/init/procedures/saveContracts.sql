@@ -629,9 +629,9 @@ BEGIN
             INSERT INTO refundable_oracle_lock_contracts (contract_tx_id, oracle_voting_address_id, value,
                                                           success_address_id,
                                                           fail_address_id, refund_delay, deposit_deadline,
-                                                          oracle_voting_fee)
+                                                          oracle_voting_fee, oracle_voting_fee_new)
             VALUES (l_tx_id, l_oracle_voting_address_id, l_item.value, l_success_address_id, l_fail_address_id,
-                    l_item.refund_delay, l_item.deposit_deadline, l_item.oracle_voting_fee);
+                    l_item.refund_delay, l_item.deposit_deadline, l_item.oracle_voting_fee, l_item.oracle_voting_fee_new);
         end loop;
 END
 $$;

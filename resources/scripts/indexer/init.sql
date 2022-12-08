@@ -2288,7 +2288,8 @@ $$
             fail_address          text,
             refund_delay          bigint,
             deposit_deadline      bigint,
-            oracle_voting_fee     smallint
+            oracle_voting_fee     smallint,
+            oracle_voting_fee_new integer
         );
     EXCEPTION
         WHEN duplicate_object THEN null;
