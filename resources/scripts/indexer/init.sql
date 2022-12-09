@@ -2127,7 +2127,8 @@ $$
             owner_deposit          numeric,
             oracle_reward_fund     numeric,
             refund_recipient       text,
-            hash                   text
+            hash                   text,
+            network_size           bigint
         );
     EXCEPTION
         WHEN duplicate_object THEN null;

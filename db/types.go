@@ -477,6 +477,7 @@ type OracleVotingContract struct {
 	OracleRewardFund     *big.Int
 	RefundRecipient      *common.Address
 	Hash                 []byte
+	NetworkSize          uint64
 }
 
 type OracleVotingContractCallStart struct {
@@ -487,6 +488,7 @@ type OracleVotingContractCallStart struct {
 	VotingMinPayment *big.Int
 	VrfSeed          []byte
 	Committee        []common.Address
+	CommitteeSize    uint64
 }
 
 type OracleVotingContractCallVoteProof struct {
@@ -527,6 +529,7 @@ type OracleVotingContractCallProlongation struct {
 	EpochWithoutGrowth *byte
 	ProlongVoteCount   *uint64
 	Committee          []common.Address
+	CommitteeSize      uint64
 }
 
 type OracleVotingContractCallAddStake struct {

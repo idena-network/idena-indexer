@@ -199,7 +199,7 @@ func (v *OracleVotingContract) Value() (driver.Value, error) {
 	if v.RefundRecipient != nil {
 		refundRecipient = conversion.ConvertAddress(*v.RefundRecipient)
 	}
-	return fmt.Sprintf("(%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v)",
+	return fmt.Sprintf("(%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v)",
 		conversion.ConvertHash(v.TxHash),
 		conversion.ConvertAddress(v.ContractAddress),
 		blockchain.ConvertToFloat(v.Stake),
@@ -217,6 +217,7 @@ func (v *OracleVotingContract) Value() (driver.Value, error) {
 		negativeIfNil(v.OracleRewardFund),
 		refundRecipient,
 		hex.EncodeToString(v.Hash),
+		v.NetworkSize,
 	), nil
 }
 
@@ -228,6 +229,7 @@ type oracleVotingContractCallStart struct {
 	VotingMinPayment *string  `json:"votingMinPayment,omitempty"`
 	VrfSeed          bytes    `json:"vrfSeed"`
 	Committee        []string `json:"committee,omitempty"`
+	CommitteeSize    uint64   `json:"committeeSize"`
 }
 
 func (v *OracleVotingContractCallStart) Value() (driver.Value, error) {
@@ -236,6 +238,7 @@ func (v *OracleVotingContractCallStart) Value() (driver.Value, error) {
 	res.State = v.State
 	res.StartHeight = v.StartHeight
 	res.Epoch = v.Epoch
+	res.CommitteeSize = v.CommitteeSize
 	if v.VotingMinPayment != nil {
 		s := blockchain.ConvertToFloat(v.VotingMinPayment).String()
 		res.VotingMinPayment = &s
@@ -297,6 +300,7 @@ type oracleVotingContractCallProlongation struct {
 	EpochWithoutGrowth *byte    `json:"epochWithoutGrowth"`
 	ProlongVoteCount   *uint64  `json:"prolongVoteCount"`
 	Committee          []string `json:"committee,omitempty"`
+	CommitteeSize      uint64   `json:"committeeSize"`
 }
 
 func (v *OracleVotingContractCallProlongation) Value() (driver.Value, error) {
@@ -307,6 +311,7 @@ func (v *OracleVotingContractCallProlongation) Value() (driver.Value, error) {
 	res.VrfSeed = v.VrfSeed
 	res.EpochWithoutGrowth = v.EpochWithoutGrowth
 	res.ProlongVoteCount = v.ProlongVoteCount
+	res.CommitteeSize = v.CommitteeSize
 	if len(v.Committee) > 0 {
 		res.Committee = make([]string, len(v.Committee))
 		for i, addr := range v.Committee {

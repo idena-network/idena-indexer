@@ -69,12 +69,13 @@ BEGIN
             INSERT INTO oracle_voting_contracts (contract_tx_id, start_time, voting_duration,
                                                  voting_min_payment, fact, public_voting_duration, winner_threshold,
                                                  quorum, committee_size, owner_fee, state,
-                                                 owner_deposit, oracle_reward_fund, refund_recipient_address_id, hash)
+                                                 owner_deposit, oracle_reward_fund, refund_recipient_address_id, hash,
+                                                 network_size)
             VALUES (l_tx_id, l_item.start_time, l_item.voting_duration, l_voting_min_payment,
                     decode(l_item.fact, 'hex'), l_item.public_voting_duration, l_item.winner_threshold, l_item.quorum,
                     l_item.committee_size, l_item.owner_fee, l_item.state,
                     null_if_negative_numeric(l_item.owner_deposit), l_oracle_reward_fund,
-                    l_refund_recipient_address_id, decode(l_item.hash, 'hex'));
+                    l_refund_recipient_address_id, decode(l_item.hash, 'hex'), l_item.network_size);
 
             l_estimated_oracle_reward = calculate_estimated_oracle_reward(0, l_tx_id);
             INSERT INTO sorted_oracle_voting_contracts (contract_tx_id, author_address_id, sort_key, state, state_tx_id,
@@ -109,6 +110,7 @@ DECLARE
     l_voting_duration               bigint;
     l_epoch                         bigint;
     l_voting_min_payment            numeric;
+    l_committee_size                bigint;
 BEGIN
     for i in 1..cardinality(p_items)
         loop
@@ -125,15 +127,16 @@ BEGIN
             WHERE contract_address_id = l_contract_address_id;
 
             l_start_block_height = (l_item ->> 'startBlockHeight')::bigint;
+            l_committee_size = (l_item ->> 'committeeSize')::bigint;
             l_epoch = (l_item ->> 'epoch')::bigint;
             l_voting_min_payment = null_if_negative_numeric((l_item ->> 'votingMinPayment')::numeric);
             if l_voting_min_payment is not null and l_voting_min_payment > MAX_VOTING_MIN_PAYMENT then
                 l_voting_min_payment = MAX_VOTING_MIN_PAYMENT;
             end if;
             INSERT INTO oracle_voting_contract_call_starts (call_tx_id, ov_contract_tx_id, start_block_height, epoch,
-                                                            voting_min_payment, vrf_seed, state)
+                                                            voting_min_payment, vrf_seed, state, committee_size)
             VALUES (l_tx_id, l_contract_tx_id, l_start_block_height, l_epoch, l_voting_min_payment,
-                    decode(l_item ->> 'vrfSeed', 'hex'), (l_item ->> 'state')::smallint);
+                    decode(l_item ->> 'vrfSeed', 'hex'), (l_item ->> 'state')::smallint, l_committee_size);
 
             SELECT voting_duration
             INTO l_voting_duration
@@ -339,6 +342,7 @@ DECLARE
     l_epoch                bigint;
     l_epoch_without_growth smallint;
     l_prolong_vote_count   bigint;
+    l_committee_size       bigint;
 BEGIN
     for i in 1..cardinality(p_items)
         loop
@@ -358,11 +362,12 @@ BEGIN
             l_epoch = (l_item ->> 'epoch')::bigint;
             l_epoch_without_growth = (l_item ->> 'epochWithoutGrowth')::smallint;
             l_prolong_vote_count = (l_item ->> 'prolongVoteCount')::bigint;
+            l_committee_size = (l_item ->> 'committeeSize')::bigint;
 
             INSERT INTO oracle_voting_contract_call_prolongations (call_tx_id, ov_contract_tx_id, epoch, start_block,
-                                                                   vrf_seed, epoch_without_growth, prolong_vote_count)
+                                                                   vrf_seed, epoch_without_growth, prolong_vote_count, committee_size)
             VALUES (l_tx_id, l_contract_tx_id, l_epoch, l_start_block_height,
-                    decode(l_item ->> 'vrfSeed', 'hex'), l_epoch_without_growth, l_prolong_vote_count);
+                    decode(l_item ->> 'vrfSeed', 'hex'), l_epoch_without_growth, l_prolong_vote_count, l_committee_size);
 
             call apply_prolongation_on_sorted_contracts(p_block_height, l_tx_id, l_contract_tx_id, l_start_block_height,
                                                         l_epoch);

@@ -591,6 +591,7 @@ type OracleVotingContract struct {
 	OracleRewardFund     *decimal.Decimal
 	RefundRecipient      *string
 	Hash                 []byte
+	NetworkSize          int
 }
 
 func GetOracleVotingContracts(db *sql.DB) ([]OracleVotingContract, error) {
@@ -609,7 +610,8 @@ select ovc.contract_tx_id,
        ovc.owner_deposit,
        ovc.oracle_reward_fund,
        a.address refund_recipient,
-       ovc.hash
+       ovc.hash,
+       ovc.network_size
 from oracle_voting_contracts ovc
          left join addresses a on a.id = ovc.refund_recipient_address_id
 order by ovc.contract_tx_id`)
@@ -638,6 +640,7 @@ order by ovc.contract_tx_id`)
 			&oracleRewardFund,
 			&refundRecipient,
 			&item.Hash,
+			&item.NetworkSize,
 		)
 		if err != nil {
 			return nil, err
@@ -892,6 +895,7 @@ type OracleVotingContractCallStart struct {
 	VotingMinPayment *decimal.Decimal
 	VrfSeed          []byte
 	State            int
+	CommitteeSize    int
 }
 
 func GetOracleVotingContractCallStarts(db *sql.DB) ([]OracleVotingContractCallStart, error) {
@@ -912,6 +916,7 @@ func GetOracleVotingContractCallStarts(db *sql.DB) ([]OracleVotingContractCallSt
 			&votingMinPayment,
 			&item.VrfSeed,
 			&item.State,
+			&item.CommitteeSize,
 		)
 		if err != nil {
 			return nil, err
@@ -1073,6 +1078,7 @@ type OracleVotingContractCallProlongation struct {
 	VrfSeed            []byte
 	EpochWithoutGrowth *int
 	ProlongVoteCount   *int
+	CommitteeSize      int
 }
 
 func GetOracleVotingContractCallProlongations(db *sql.DB) ([]OracleVotingContractCallProlongation, error) {
@@ -1093,6 +1099,7 @@ func GetOracleVotingContractCallProlongations(db *sql.DB) ([]OracleVotingContrac
 			&item.VrfSeed,
 			&epochWithoutGrowth,
 			&prolongVoteCount,
+			&item.CommitteeSize,
 		)
 		if err != nil {
 			return nil, err

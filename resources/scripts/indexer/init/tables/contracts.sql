@@ -118,6 +118,7 @@ CREATE TABLE IF NOT EXISTS oracle_voting_contracts
     oracle_reward_fund          numeric(48, 18),
     refund_recipient_address_id bigint,
     hash                        bytea,
+    network_size                bigint,
     CONSTRAINT fec_pkey PRIMARY KEY (contract_tx_id),
     CONSTRAINT fec_contract_tx_id_fkey FOREIGN KEY (contract_tx_id)
         REFERENCES contracts (tx_id) MATCH SIMPLE
@@ -134,6 +135,7 @@ CREATE TABLE IF NOT EXISTS oracle_voting_contract_call_starts
     voting_min_payment numeric(48, 18),
     vrf_seed           bytea,
     state              smallint NOT NULL,
+    committee_size     bigint,
     CONSTRAINT oracle_voting_contract_call_starts_pkey PRIMARY KEY (call_tx_id),
     CONSTRAINT oracle_voting_contract_call_starts_call_tx_id_fkey FOREIGN KEY (call_tx_id)
         REFERENCES transactions (id) MATCH SIMPLE
@@ -223,6 +225,7 @@ CREATE TABLE IF NOT EXISTS oracle_voting_contract_call_prolongations
     vrf_seed             bytea,
     epoch_without_growth smallint,
     prolong_vote_count   bigint,
+    committee_size       bigint,
     CONSTRAINT oracle_voting_contract_call_prolongations_pkey PRIMARY KEY (call_tx_id),
     CONSTRAINT oracle_voting_contract_call_prolongations_call_tx_fkey FOREIGN KEY (call_tx_id)
         REFERENCES transactions (id) MATCH SIMPLE

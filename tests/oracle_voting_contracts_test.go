@@ -108,7 +108,7 @@ func deployOracleVotingContracts(t *testing.T, listener incoming.Listener, bus e
 	refundRecipient := addr1
 	statsCollector.BeginApplyingTx(tx, appState)
 	statsCollector.AddOracleVotingDeploy(addr1, uint64(startTime.Unix()), new(big.Int).SetUint64(23400), []byte{0x1, 0x2},
-		0, 1, 2, 3, 4, 5, 7, new(big.Int).SetUint64(3000), new(big.Int).SetUint64(4000), &refundRecipient, []byte{0x3, 0x4})
+		0, 1, 2, 3, 4, 5, 6, 7, new(big.Int).SetUint64(3000), new(big.Int).SetUint64(4000), &refundRecipient, []byte{0x3, 0x4})
 	statsCollector.AddContractStake(new(big.Int).SetUint64(12300))
 	statsCollector.AddTxReceipt(&types.TxReceipt{Success: true, TxHash: tx.Hash(), GasUsed: 11, GasCost: big.NewInt(1100), ContractAddress: addr1, Method: "deploy1"}, appState)
 	statsCollector.CompleteApplyingTx(appState)
@@ -119,7 +119,7 @@ func deployOracleVotingContracts(t *testing.T, listener incoming.Listener, bus e
 	tx = &types.Transaction{AccountNonce: 2, Type: types.DeployContractTx}
 	statsCollector.BeginApplyingTx(tx, appState)
 	statsCollector.AddOracleVotingDeploy(failedContractAddress, uint64(startTime.Unix()), new(big.Int).SetUint64(23400), []byte{0x1, 0x2},
-		0, 1, 2, 3, 4, 5, 7, nil, nil, nil, nil)
+		0, 1, 2, 3, 4, 5, 6, 7, nil, nil, nil, nil)
 	statsCollector.AddContractStake(new(big.Int).SetUint64(12300))
 	statsCollector.AddTxReceipt(&types.TxReceipt{Success: false, TxHash: tx.Hash(), Error: errors.New("error message"), Method: "deploy2"}, appState)
 	statsCollector.CompleteApplyingTx(appState)
@@ -129,7 +129,7 @@ func deployOracleVotingContracts(t *testing.T, listener incoming.Listener, bus e
 	tx = &types.Transaction{AccountNonce: 3, Type: types.DeployContractTx}
 	statsCollector.BeginApplyingTx(tx, appState)
 	statsCollector.AddOracleVotingDeploy(addr2, uint64(startTime.Unix()), nil, []byte{},
-		0, 11, 12, 13, 14, 15, 17, nil, nil, nil, nil)
+		0, 11, 12, 13, 14, 15, 16, 17, nil, nil, nil, nil)
 	statsCollector.AddContractStake(new(big.Int).SetUint64(12300))
 	statsCollector.AddTxReceipt(&types.TxReceipt{Success: true, TxHash: tx.Hash(), GasUsed: 33, GasCost: big.NewInt(3300), ContractAddress: addr2, Method: "deploy3"}, appState)
 	statsCollector.CompleteApplyingTx(appState)
@@ -266,10 +266,12 @@ func Test_OracleVotingContractCallStart(t *testing.T) {
 	require.Equal(t, []byte{0x2, 0x3}, starts[0].VrfSeed)
 	require.Equal(t, 123, starts[0].StartBlockHeight)
 	require.Equal(t, 2, starts[0].Epoch)
+	require.Equal(t, 45, starts[0].CommitteeSize)
 	require.Equal(t, "0.0000000000000001", starts[1].VotingMinPayment.String())
 	require.Equal(t, []byte{0x3, 0x4}, starts[1].VrfSeed)
 	require.Equal(t, 234, starts[1].StartBlockHeight)
 	require.Equal(t, 3, starts[1].ContractTxId)
+	require.Equal(t, 50, starts[1].CommitteeSize)
 
 	balanceUpdates, err := testCommon.GetBalanceUpdates(db)
 	require.Nil(t, err)
@@ -1202,7 +1204,7 @@ func Test_OracleVotingContractCallProlongation(t *testing.T) {
 	statsCollector.BeginApplyingTx(tx, appState)
 	startBlock := uint64(7)
 	newEpochWithoutGrowth := byte(2)
-	statsCollector.AddOracleVotingCallProlongation(&startBlock, 7890, []byte{0x4, 0x5}, 999, 999, &newEpochWithoutGrowth, pUint64(9999))
+	statsCollector.AddOracleVotingCallProlongation(&startBlock, 7890, []byte{0x4, 0x5}, 0, 999, 999, &newEpochWithoutGrowth, pUint64(9999))
 	statsCollector.AddTxReceipt(&types.TxReceipt{Success: true, TxHash: tx.Hash(), ContractAddress: contractAddress}, appState)
 	statsCollector.CompleteApplyingTx(appState)
 	block.Body.Transactions = append(block.Body.Transactions, tx)
@@ -1254,7 +1256,7 @@ func Test_OracleVotingContractCallProlongationWithoutStartBlock(t *testing.T) {
 	tx, _ := types.SignTx(&types.Transaction{AccountNonce: 4, To: &contractAddress}, respondentKey)
 	statsCollector.BeginApplyingTx(tx, appState)
 	newEpochWithoutGrowth := byte(2)
-	statsCollector.AddOracleVotingCallProlongation(nil, 7890, []byte{0x4, 0x5}, 999, 999, &newEpochWithoutGrowth, pUint64(9999))
+	statsCollector.AddOracleVotingCallProlongation(nil, 7890, []byte{0x4, 0x5}, 0, 999, 999, &newEpochWithoutGrowth, pUint64(9999))
 	statsCollector.AddTxReceipt(&types.TxReceipt{Success: true, TxHash: tx.Hash(), ContractAddress: contractAddress}, appState)
 	statsCollector.CompleteApplyingTx(appState)
 	block.Body.Transactions = append(block.Body.Transactions, tx)
@@ -1507,7 +1509,7 @@ func Test_OracleVotingContractSetNewCommitteeAndSwitchToCountingState(t *testing
 	tx, _ = types.SignTx(&types.Transaction{AccountNonce: 5, To: &contractAddress}, respondentKey)
 	statsCollector.BeginApplyingTx(tx, appState)
 	newEpochWithoutGrowth := byte(0)
-	statsCollector.AddOracleVotingCallProlongation(&height, 1000, []byte{0x5, 0x6}, 50, 100, &newEpochWithoutGrowth, pUint64(9999))
+	statsCollector.AddOracleVotingCallProlongation(&height, 1000, []byte{0x5, 0x6}, 0, 100, 50, &newEpochWithoutGrowth, pUint64(9999))
 	statsCollector.AddTxReceipt(&types.TxReceipt{Success: true, TxHash: tx.Hash(), ContractAddress: contractAddress}, appState)
 
 	statsCollector.CompleteApplyingTx(appState)
@@ -2041,7 +2043,7 @@ func Test_OracleVotingContractDeployBigMinPaymentAndOracleRewardFund(t *testing.
 	require.True(t, ok)
 	oracleRewardFund := new(big.Int).Set(minPayment)
 	statsCollector.AddOracleVotingDeploy(contractAddress1, uint64(startTime.Unix()), minPayment, []byte{0x1, 0x2},
-		0, 1, 2, 3, 4, 5, 7, nil, oracleRewardFund, nil, nil)
+		0, 1, 2, 3, 4, 5, 6, 7, nil, oracleRewardFund, nil, nil)
 	statsCollector.AddContractStake(new(big.Int).SetUint64(12300))
 	statsCollector.AddTxReceipt(&types.TxReceipt{Success: true, TxHash: tx.Hash(), GasUsed: 11, GasCost: big.NewInt(1100), ContractAddress: contractAddress1, Method: "deploy1"}, appState)
 	statsCollector.CompleteApplyingTx(appState)
@@ -2181,7 +2183,7 @@ func Test_OracleVotingContractCallProlongationWithEmptyStartBlock(t *testing.T) 
 		tx, _ = types.SignTx(&types.Transaction{AccountNonce: 6, To: &contractAddress}, respondentKey)
 		statsCollector.BeginApplyingTx(tx, appState)
 		newEpochWithoutGrowth := byte(2)
-		statsCollector.AddOracleVotingCallProlongation(nil, 7890, []byte{0x4, 0x5}, 999, 999, &newEpochWithoutGrowth, pUint64(9999))
+		statsCollector.AddOracleVotingCallProlongation(nil, 7890, []byte{0x4, 0x5}, 0, 999, 999, &newEpochWithoutGrowth, pUint64(9999))
 		statsCollector.AddTxReceipt(&types.TxReceipt{Success: true, TxHash: tx.Hash(), ContractAddress: contractAddress}, appState)
 		statsCollector.CompleteApplyingTx(appState)
 		block.Body.Transactions = append(block.Body.Transactions, tx)

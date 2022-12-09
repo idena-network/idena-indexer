@@ -1271,7 +1271,7 @@ func (c *statsCollector) AddContractTerminationBurntCoins(address common.Address
 }
 
 func (c *statsCollector) AddOracleVotingDeploy(contractAddress common.Address, startTime uint64, votingMinPayment *big.Int,
-	fact []byte, state byte, votingDuration, publicVotingDuration uint64, winnerThreshold, quorum byte, committeeSize uint64,
+	fact []byte, state byte, votingDuration, publicVotingDuration uint64, winnerThreshold, quorum byte, committeeSize, networkSize uint64,
 	ownerFee byte, ownerDeposit, oracleRewardFund *big.Int, refundRecipient *common.Address, hash []byte) {
 	tx := c.pending.tx.tx
 	c.pending.tx.oracleVotingContractDeploy = &db.OracleVotingContract{
@@ -1292,6 +1292,7 @@ func (c *statsCollector) AddOracleVotingDeploy(contractAddress common.Address, s
 		OracleRewardFund:     oracleRewardFund,
 		RefundRecipient:      refundRecipient,
 		Hash:                 hash,
+		NetworkSize:          networkSize,
 	}
 }
 
@@ -1305,6 +1306,7 @@ func (c *statsCollector) AddOracleVotingCallStart(state byte, startBlock uint64,
 		Epoch:            epoch,
 		VotingMinPayment: votingMinPayment,
 		VrfSeed:          vrfSeed,
+		CommitteeSize:    committeeSize,
 	}
 	c.pending.tx.oracleVotingCommitteeStartCtx = &oracleVotingCommitteeStartCtx{
 		committeeSize: committeeSize,
@@ -1356,7 +1358,7 @@ func (c *statsCollector) AddOracleVotingCallFinish(state byte, result *byte, fun
 	}
 }
 
-func (c *statsCollector) AddOracleVotingCallProlongation(startBlock *uint64, epoch uint16, vrfSeed []byte, committeeSize, networkSize uint64,
+func (c *statsCollector) AddOracleVotingCallProlongation(startBlock *uint64, epoch uint16, vrfSeed []byte, committeeSize, networkSize, newCommitteeSize uint64,
 	newEpochWithoutGrowth *byte, newProlongVoteCount *uint64) {
 	tx := c.pending.tx.tx
 	c.pending.tx.oracleVotingContractCallProlongation = &db.OracleVotingContractCallProlongation{
@@ -1366,9 +1368,10 @@ func (c *statsCollector) AddOracleVotingCallProlongation(startBlock *uint64, epo
 		EpochWithoutGrowth: newEpochWithoutGrowth,
 		ProlongVoteCount:   newProlongVoteCount,
 		VrfSeed:            vrfSeed,
+		CommitteeSize:      newCommitteeSize,
 	}
 	c.pending.tx.oracleVotingCommitteeStartCtx = &oracleVotingCommitteeStartCtx{
-		committeeSize: committeeSize,
+		committeeSize: newCommitteeSize,
 		networkSize:   int(networkSize),
 	}
 }
