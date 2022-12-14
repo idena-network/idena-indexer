@@ -10,9 +10,10 @@ DECLARE
     l_item                                        jsonb;
     l_address_id                                  bigint;
     l_validation_reward_summary                   jsonb;
-    l_candidate_reward_summary                   jsonb;
+    l_candidate_reward_summary                    jsonb;
     l_staking_reward_summary                      jsonb;
     l_flips_reward_summary                        jsonb;
+    l_extra_flips_reward_summary                  jsonb;
     l_invitations_reward_summary                  jsonb;
     l_reports_reward_summary                      jsonb;
     l_invitations                                 numeric;
@@ -32,13 +33,15 @@ BEGIN
             l_candidate_reward_summary = l_item -> 'candidate';
             l_staking_reward_summary = l_item -> 'staking';
             l_flips_reward_summary = l_item -> 'flips';
+            l_extra_flips_reward_summary = l_item -> 'extraFlips';
             l_invitations_reward_summary = l_item -> 'invitations';
             l_reports_reward_summary = l_item -> 'reports';
 
             l_invitations = (l_invitations_reward_summary ->> 'earned')::numeric;
             l_invitations_missed_reason = (l_invitations_reward_summary ->> 'missedReason')::smallint;
             l_invitations_missed =
-                    calculate_invitations_missed_reward(p_epoch, l_address_id, l_invitations, p_invitations_share);
+                    calculate_invitations_missed_reward(p_epoch, l_address_id, l_invitations, p_invitations_share,
+                                                        (l_item ->> 'prevStake')::numeric);
             if l_invitations_missed_reason is not null and l_invitations_missed is null or l_invitations_missed = 0 then
                 l_invitations_missed_reason = null;
             end if;
@@ -51,7 +54,8 @@ BEGIN
                                                      invitations, invitations_missed, invitations_missed_reason,
                                                      reports, reports_missed, reports_missed_reason,
                                                      candidate, candidate_missed, candidate_missed_reason,
-                                                     staking, staking_missed, staking_missed_reason)
+                                                     staking, staking_missed, staking_missed_reason,
+                                                     extra_flips, extra_flips_missed, extra_flips_missed_reason)
             VALUES (p_epoch, l_address_id,
                     null_if_zero((l_validation_reward_summary ->> 'earned')::numeric),
                     null_if_zero((l_validation_reward_summary ->> 'missed')::numeric),
@@ -70,7 +74,10 @@ BEGIN
                     (l_candidate_reward_summary ->> 'missedReason')::smallint,
                     null_if_zero((l_staking_reward_summary ->> 'earned')::numeric),
                     null_if_zero((l_staking_reward_summary ->> 'missed')::numeric),
-                    (l_staking_reward_summary ->> 'missedReason')::smallint);
+                    (l_staking_reward_summary ->> 'missedReason')::smallint,
+                    null_if_zero((l_extra_flips_reward_summary ->> 'earned')::numeric),
+                    null_if_zero((l_extra_flips_reward_summary ->> 'missed')::numeric),
+                    (l_extra_flips_reward_summary ->> 'missedReason')::smallint);
 
         end loop;
 END
@@ -79,7 +86,8 @@ $$;
 CREATE OR REPLACE FUNCTION calculate_invitations_missed_reward(p_epoch bigint,
                                                                p_address_id bigint,
                                                                p_reward numeric,
-                                                               p_reward_share numeric)
+                                                               p_reward_share numeric,
+                                                               p_stake numeric)
     RETURNS numeric
     LANGUAGE 'plpgsql'
 AS
@@ -90,7 +98,8 @@ DECLARE
     l_epoch_available_invites smallint;
     l_max_reward              numeric;
     l_missed_reward           numeric;
-    l_reward_coef             smallint;
+    l_reward_coef             double precision;
+    l_stake_weight            double precision;
 BEGIN
     l_start_epoch = p_epoch - 3;
     if l_start_epoch < 0 then
@@ -98,6 +107,7 @@ BEGIN
     end if;
     l_epoch_available_invites = 0;
     l_max_reward = 0;
+    l_stake_weight = coalesce(p_stake, 0) ^ 0.9;
     for l_record in SELECT ei.address_state_id, ei.epoch, ei.next_epoch_invites
                     FROM epoch_identities ei
                              JOIN address_states s ON s.id = ei.address_state_id AND s.address_id = p_address_id
@@ -106,14 +116,14 @@ BEGIN
                     ORDER BY ei.epoch
         loop
             if l_record.epoch > p_epoch - 3 then
-                l_reward_coef = 3;
+                l_reward_coef = 0.2;
                 if l_record.epoch = p_epoch - 1 then
-                    l_reward_coef = l_reward_coef * 3;
+                    l_reward_coef = 0.5;
                 end if;
                 if l_record.epoch = p_epoch - 2 then
-                    l_reward_coef = l_reward_coef * 6;
+                    l_reward_coef = 0.8;
                 end if;
-                l_max_reward = l_max_reward + l_reward_coef * p_reward_share * l_epoch_available_invites;
+                l_max_reward = l_max_reward + l_stake_weight * l_reward_coef * p_reward_share * l_epoch_available_invites;
             end if;
             l_epoch_available_invites = l_record.next_epoch_invites;
         end loop;

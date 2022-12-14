@@ -25,6 +25,8 @@ const (
 	ReportedFlips     RewardType = 9
 	Staking           RewardType = 10
 	Candidate         RewardType = 11
+	ExtraFlips        RewardType = 12
+	Invitee           RewardType = 13
 )
 
 type Stats struct {
@@ -35,7 +37,7 @@ type Stats struct {
 	OriginalFinalCommittee                   map[common.Address]struct{}
 	PoolFinalCommittee                       map[common.Address]struct{}
 	ChargedPenaltiesByAddr                   map[common.Address]*big.Int
-	ChargedPenaltySecondsByAddr              map[common.Address]uint16
+	ChargedPenaltySecondsByAddr              map[common.Address]Penalty
 	BurntCoins                               *big.Int
 	BurntCoinsByAddr                         map[common.Address][]*db.BurntCoins
 	MintedCoins                              *big.Int
@@ -89,6 +91,7 @@ type RewardsStats struct {
 	Staking                              *big.Int
 	Candidate                            *big.Int
 	Flips                                *big.Int
+	FlipsExtra                           *big.Int
 	Reports                              *big.Int
 	Invitations                          *big.Int
 	FoundationPayouts                    *big.Int
@@ -97,14 +100,18 @@ type RewardsStats struct {
 	StakingShare                         *big.Int
 	CandidateShare                       *big.Int
 	FlipsShare                           *big.Int
+	FlipsExtraShare                      *big.Int
 	ReportsShare                         *big.Int
 	InvitationsShare                     *big.Int
 	Rewards                              []*RewardStats
 	DelegateesEpochRewards               map[common.Address]*DelegateeEpochRewards
 	AgesByAddress                        map[string]uint16
 	StakedAmountsByAddress               map[string]*big.Int
+	FailedStakedAmountsByAddress         map[string]*big.Int
 	RewardedFlipCids                     []string
+	RewardedExtraFlipCids                []string
 	RewardedInvites                      []*db.RewardedInvite
+	RewardedInvitees                     []*db.RewardedInvitee
 	SavedInviteRewardsCountByAddrAndType map[common.Address]map[RewardType]uint8
 	ReportedFlipRewards                  []*db.ReportedFlipReward
 	TotalRewardsByAddr                   map[common.Address]*big.Int
@@ -142,4 +149,9 @@ type MiningReward struct {
 	Stake       *big.Int
 	StakeWeight *big.Float
 	Proposer    bool
+}
+
+type Penalty struct {
+	Seconds       uint16
+	InheritedFrom *common.Address
 }

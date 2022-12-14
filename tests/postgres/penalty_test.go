@@ -50,6 +50,51 @@ func Test_penalty(t *testing.T) {
 	require.Nil(t, err)
 }
 
+func Test_penaltySeconds(t *testing.T) {
+	_, dbAccessor := common.InitDefaultPostgres(filepath.Join("..", ".."))
+	address1 := tests.GetRandAddr()
+	address2 := tests.GetRandAddr()
+	address3 := tests.GetRandAddr()
+
+	// When
+	data := createBaseData()
+	data.Addresses = []db.Address{{Address: address1.Hex()}, {Address: address3.Hex()}}
+	data.Penalties = []db.Penalty{
+		{Seconds: 1000, Address: address1.Hex()},
+	}
+	err := dbAccessor.Save(data)
+	// Then
+	require.Nil(t, err)
+
+	// When
+	data = createBaseData()
+	data.Block = createBlock(2)
+	data.Penalties = []db.Penalty{
+		{Seconds: 2000, Address: address1.Hex(), InheritedFrom: address2.Hex()},
+	}
+	err = dbAccessor.Save(data)
+	// Then
+	require.Nil(t, err)
+
+	// When
+	data = createBaseData()
+	data.Block = createBlock(3)
+	data.Penalties = []db.Penalty{
+		{Seconds: 3000, Address: address1.Hex(), InheritedFrom: address2.Hex()},
+		{Seconds: 4000, Address: address3.Hex()},
+	}
+	err = dbAccessor.Save(data)
+	// Then
+	require.Nil(t, err)
+
+	// When
+	data = createBaseData()
+	data.Block = createBlock(4)
+	err = dbAccessor.Save(data)
+	// Then
+	require.Nil(t, err)
+}
+
 func Test_PenaltyWithNotPaidPreviousOne(t *testing.T) {
 	_, dbAccessor := common.InitDefaultPostgres(filepath.Join("..", ".."))
 	address := tests.GetRandAddr()

@@ -672,7 +672,7 @@ CREATE TABLE IF NOT EXISTS sorted_oracle_voting_contracts
         ON UPDATE NO ACTION
         ON DELETE NO ACTION
 );
-CREATE INDEX IF NOT EXISTS sovc_voting_idx ON sorted_oracle_voting_contracts (counting_block) WHERE state = 1;
+CREATE INDEX IF NOT EXISTS sovc_voting_idx ON sorted_oracle_voting_contracts (counting_block) WHERE state in (1, 6);
 CREATE INDEX IF NOT EXISTS ovc_api_idx_1 ON sorted_oracle_voting_contracts (author_address_id, sort_key desc, state) where state in (0, 1);
 CREATE INDEX IF NOT EXISTS ovc_api_idx_2 ON sorted_oracle_voting_contracts (author_address_id, state_tx_id desc, state);
 CREATE INDEX IF NOT EXISTS ovc_api_idx_3 ON sorted_oracle_voting_contracts (sort_key desc, state) where state in (0, 1);

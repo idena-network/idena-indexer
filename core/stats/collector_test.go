@@ -872,19 +872,19 @@ func TestStatsCollector_AddRewardsWithDelegatee(t *testing.T) {
 	c.AddValidationReward(delegatee1, delegator3, 3, new(big.Int).SetInt64(5), new(big.Int).SetInt64(6))
 	c.AddValidationReward(delegatee2, delegator4, 4, new(big.Int).SetInt64(7), new(big.Int).SetInt64(8))
 
-	c.AddFlipsReward(delegatee1, delegatee1, big.NewInt(9), big.NewInt(10), []*types.FlipToReward{
+	c.AddFlipsBasicReward(delegatee1, delegatee1, big.NewInt(9), big.NewInt(10), []*types.FlipToReward{
 		{[]byte{0x1}, types.GradeA},
 	})
-	c.AddFlipsReward(delegatee1, delegator1, big.NewInt(9), big.NewInt(10), []*types.FlipToReward{
+	c.AddFlipsBasicReward(delegatee1, delegator1, big.NewInt(9), big.NewInt(10), []*types.FlipToReward{
 		{[]byte{0x1}, types.GradeA},
 	})
-	c.AddFlipsReward(delegatee1, delegator2, big.NewInt(11), big.NewInt(12), []*types.FlipToReward{
+	c.AddFlipsBasicReward(delegatee1, delegator2, big.NewInt(11), big.NewInt(12), []*types.FlipToReward{
 		{[]byte{0x1}, types.GradeA},
 	})
-	c.AddFlipsReward(delegatee1, delegator3, big.NewInt(13), big.NewInt(14), []*types.FlipToReward{
+	c.AddFlipsBasicReward(delegatee1, delegator3, big.NewInt(13), big.NewInt(14), []*types.FlipToReward{
 		{[]byte{0x1}, types.GradeA},
 	})
-	c.AddFlipsReward(delegatee2, delegator4, big.NewInt(15), big.NewInt(16), []*types.FlipToReward{
+	c.AddFlipsBasicReward(delegatee2, delegator4, big.NewInt(15), big.NewInt(16), []*types.FlipToReward{
 		{[]byte{0x1}, types.GradeA},
 	})
 
@@ -958,22 +958,22 @@ func TestStatsCollector_AddFlipsReward(t *testing.T) {
 
 	addr1, addr2, addr3, addr4, addr5 := tests.GetRandAddr(), tests.GetRandAddr(), tests.GetRandAddr(), tests.GetRandAddr(), tests.GetRandAddr()
 
-	c.AddFlipsReward(addr1, addr1, nil, nil, nil)
-	c.AddFlipsReward(addr5, addr5, nil, nil, nil)
+	c.AddFlipsBasicReward(addr1, addr1, nil, nil, nil)
+	c.AddFlipsBasicReward(addr5, addr5, nil, nil, nil)
 
 	cid1, _ := cid.Parse("bafkreiar6xq6j4ok5pfxaagtec7jwq6fdrdntkrkzpitqenmz4cyj6qswa")
 	cid2, _ := cid.Parse("bafkreifyajvupl2o22zwnkec22xrtwgieovymdl7nz5uf25aqv7lsguova")
 	cid3, _ := cid.Parse("bafkreihcvhijrwwts3xl3zufbi2mjng5gltc7ojw2syue7zyritkq3gbii")
 
-	c.AddFlipsReward(addr2, addr1, big.NewInt(1), big.NewInt(2), []*types.FlipToReward{
+	c.AddFlipsBasicReward(addr2, addr1, big.NewInt(1), big.NewInt(2), []*types.FlipToReward{
 		{cid1.Bytes(), types.GradeA},
 		{cid2.Bytes(), types.GradeB},
 	})
-	c.AddFlipsReward(addr2, addr2, big.NewInt(3), big.NewInt(4), []*types.FlipToReward{
+	c.AddFlipsBasicReward(addr2, addr2, big.NewInt(3), big.NewInt(4), []*types.FlipToReward{
 		{cid3.Bytes(), types.GradeC},
 	})
-	c.AddFlipsReward(addr3, addr3, big.NewInt(4), big.NewInt(5), nil)
-	c.AddFlipsReward(addr2, addr4, big.NewInt(6), big.NewInt(7), nil)
+	c.AddFlipsBasicReward(addr3, addr3, big.NewInt(4), big.NewInt(5), nil)
+	c.AddFlipsBasicReward(addr2, addr4, big.NewInt(6), big.NewInt(7), nil)
 
 	require.Len(t, c.stats.RewardsStats.RewardedFlipCids, 3)
 	require.Equal(t, cid1.String(), c.stats.RewardsStats.RewardedFlipCids[0])
@@ -1006,6 +1006,62 @@ func TestStatsCollector_AddFlipsReward(t *testing.T) {
 	require.Zero(t, find(addr4).Balance.Cmp(big.NewInt(6)))
 	require.Zero(t, find(addr4).Stake.Cmp(big.NewInt(7)))
 	require.Equal(t, Flips, find(addr4).Type)
+}
+
+func TestStatsCollector_AddFlipsExtraReward(t *testing.T) {
+	c := &statsCollector{}
+	c.EnableCollecting()
+
+	addr1, addr2, addr3, addr4, addr5 := tests.GetRandAddr(), tests.GetRandAddr(), tests.GetRandAddr(), tests.GetRandAddr(), tests.GetRandAddr()
+
+	c.AddFlipsExtraReward(addr1, addr1, nil, nil, nil)
+	c.AddFlipsExtraReward(addr5, addr5, nil, nil, nil)
+
+	cid1, _ := cid.Parse("bafkreiar6xq6j4ok5pfxaagtec7jwq6fdrdntkrkzpitqenmz4cyj6qswa")
+	cid2, _ := cid.Parse("bafkreifyajvupl2o22zwnkec22xrtwgieovymdl7nz5uf25aqv7lsguova")
+	cid3, _ := cid.Parse("bafkreihcvhijrwwts3xl3zufbi2mjng5gltc7ojw2syue7zyritkq3gbii")
+
+	c.AddFlipsExtraReward(addr2, addr1, big.NewInt(1), big.NewInt(2), []*types.FlipToReward{
+		{cid1.Bytes(), types.GradeA},
+		{cid2.Bytes(), types.GradeB},
+	})
+	c.AddFlipsExtraReward(addr2, addr2, big.NewInt(3), big.NewInt(4), []*types.FlipToReward{
+		{cid3.Bytes(), types.GradeC},
+	})
+	c.AddFlipsExtraReward(addr3, addr3, big.NewInt(4), big.NewInt(5), nil)
+	c.AddFlipsExtraReward(addr2, addr4, big.NewInt(6), big.NewInt(7), nil)
+
+	require.Len(t, c.stats.RewardsStats.RewardedExtraFlipCids, 3)
+	require.Equal(t, cid1.String(), c.stats.RewardsStats.RewardedExtraFlipCids[0])
+	require.Equal(t, cid2.String(), c.stats.RewardsStats.RewardedExtraFlipCids[1])
+	require.Equal(t, cid3.String(), c.stats.RewardsStats.RewardedExtraFlipCids[2])
+
+	require.Len(t, c.stats.RewardsStats.Rewards, 4)
+
+	find := func(address common.Address) *RewardStats {
+		for _, item := range c.stats.RewardsStats.Rewards {
+			if address == item.Address {
+				return item
+			}
+		}
+		return nil
+	}
+
+	require.Zero(t, find(addr1).Balance.Cmp(big.NewInt(1)))
+	require.Zero(t, find(addr1).Stake.Cmp(big.NewInt(2)))
+	require.Equal(t, ExtraFlips, find(addr1).Type)
+
+	require.Zero(t, find(addr2).Balance.Cmp(big.NewInt(3)))
+	require.Zero(t, find(addr2).Stake.Cmp(big.NewInt(4)))
+	require.Equal(t, ExtraFlips, find(addr2).Type)
+
+	require.Zero(t, find(addr3).Balance.Cmp(big.NewInt(4)))
+	require.Zero(t, find(addr3).Stake.Cmp(big.NewInt(5)))
+	require.Equal(t, ExtraFlips, find(addr3).Type)
+
+	require.Zero(t, find(addr4).Balance.Cmp(big.NewInt(6)))
+	require.Zero(t, find(addr4).Stake.Cmp(big.NewInt(7)))
+	require.Equal(t, ExtraFlips, find(addr4).Type)
 }
 
 func TestStatsCollector_AddReportedFlipsReward(t *testing.T) {

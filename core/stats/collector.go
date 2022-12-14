@@ -207,10 +207,16 @@ func (c *statsCollector) SetTotalCandidateReward(amount *big.Int, share *big.Int
 	c.stats.RewardsStats.CandidateShare = share
 }
 
-func (c *statsCollector) SetTotalFlipsReward(amount *big.Int, share *big.Int) {
+func (c *statsCollector) SetTotalFlipsBasicReward(amount *big.Int, share *big.Int) {
 	c.initRewardStats()
 	c.stats.RewardsStats.Flips = amount
 	c.stats.RewardsStats.FlipsShare = share
+}
+
+func (c *statsCollector) SetTotalFlipsExtraReward(amount *big.Int, share *big.Int) {
+	c.initRewardStats()
+	c.stats.RewardsStats.FlipsExtra = amount
+	c.stats.RewardsStats.FlipsExtraShare = share
 }
 
 func (c *statsCollector) SetTotalReportsReward(amount *big.Int, share *big.Int) {
@@ -279,13 +285,24 @@ func (c *statsCollector) AddStakingReward(balanceDest, stakeDest common.Address,
 	c.addAddrTotalReward(baseRewardRecipient, balance, stake)
 }
 
-func (c *statsCollector) AddFlipsReward(balanceDest, stakeDest common.Address, balance, stake *big.Int, flipsToReward []*types.FlipToReward) {
+func (c *statsCollector) AddFlipsBasicReward(balanceDest, stakeDest common.Address, balance, stake *big.Int, flipsToReward []*types.FlipToReward) {
 	baseRewardRecipient := stakeDest
 	c.addReward(baseRewardRecipient, balance, stake, Flips)
 	if balanceDest != stakeDest {
 		c.addDelegateeReward(stakeDest, balanceDest, balance, nil, Flips)
 	}
 	c.addRewardedFlips(flipsToReward)
+
+	c.addAddrTotalReward(baseRewardRecipient, balance, stake)
+}
+
+func (c *statsCollector) AddFlipsExtraReward(balanceDest, stakeDest common.Address, balance, stake *big.Int, flipsToReward []*types.FlipToReward) {
+	baseRewardRecipient := stakeDest
+	c.addReward(baseRewardRecipient, balance, stake, ExtraFlips)
+	if balanceDest != stakeDest {
+		c.addDelegateeReward(stakeDest, balanceDest, balance, nil, ExtraFlips)
+	}
+	c.addRewardedExtraFlips(flipsToReward)
 
 	c.addAddrTotalReward(baseRewardRecipient, balance, stake)
 }
@@ -298,6 +315,17 @@ func (c *statsCollector) addRewardedFlips(flipsToReward []*types.FlipToReward) {
 	for _, rewardedFlip := range flipsToReward {
 		flipCid, _ := cid.Parse(rewardedFlip.Cid)
 		c.stats.RewardsStats.RewardedFlipCids = append(c.stats.RewardsStats.RewardedFlipCids, flipCid.String())
+	}
+}
+
+func (c *statsCollector) addRewardedExtraFlips(flipsToReward []*types.FlipToReward) {
+	if len(flipsToReward) == 0 {
+		return
+	}
+	c.initRewardStats()
+	for _, rewardedFlip := range flipsToReward {
+		flipCid, _ := cid.Parse(rewardedFlip.Cid)
+		c.stats.RewardsStats.RewardedExtraFlipCids = append(c.stats.RewardsStats.RewardedExtraFlipCids, flipCid.String())
 	}
 }
 
@@ -340,6 +368,20 @@ func (c *statsCollector) getFlipCid(shardId common.ShardId, flipIdx int) ([]byte
 		return nil, false
 	}
 	return validationShardStats.FlipCids[flipIdx], true
+}
+
+func (c *statsCollector) AddInviteeReward(addr common.Address, stake *big.Int, age uint16, txHash common.Hash, epochHeight uint32) {
+	c.addReward(addr, nil, stake, Invitee)
+	c.addRewardedInvitee(txHash, epochHeight)
+	c.addAddrTotalReward(addr, nil, stake)
+}
+
+func (c *statsCollector) addRewardedInvitee(txHash common.Hash, epochHeight uint32) {
+	c.initRewardStats()
+	c.stats.RewardsStats.RewardedInvitees = append(c.stats.RewardsStats.RewardedInvitees, &db.RewardedInvitee{
+		TxHash:      conversion.ConvertHash(txHash),
+		EpochHeight: epochHeight,
+	})
 }
 
 func (c *statsCollector) AddInvitationsReward(balanceDest, stakeDest common.Address, balance *big.Int, stake *big.Int, age uint16,
@@ -413,6 +455,12 @@ func (c *statsCollector) addReward(addr common.Address, balance *big.Int, stake 
 	if (balance == nil || balance.Sign() == 0) && (stake == nil || stake.Sign() == 0) {
 		return
 	}
+	if balance == nil {
+		balance = new(big.Int)
+	}
+	if stake == nil {
+		stake = new(big.Int)
+	}
 	c.initRewardStats()
 	rewardsStats := &RewardStats{
 		Address: addr,
@@ -457,7 +505,7 @@ func (c *statsCollector) addAddrTotalReward(addr common.Address, balance, stake 
 func (c *statsCollector) increaseEpochRewardIfExists(rewardsStats *RewardStats) bool {
 	if rewardsStats.Type != Invitations && rewardsStats.Type != Invitations2 && rewardsStats.Type != Invitations3 &&
 		rewardsStats.Type != SavedInvite && rewardsStats.Type != SavedInviteWin && rewardsStats.Type != ReportedFlips &&
-		rewardsStats.Type != Flips && rewardsStats.Type != Validation {
+		rewardsStats.Type != Flips && rewardsStats.Type != ExtraFlips && rewardsStats.Type != Validation {
 		return false
 	}
 	if c.pending.epochRewardsByTypeAndAddr == nil {
@@ -527,6 +575,17 @@ func (c *statsCollector) addDelegateeReward(delegator, delegatee common.Address,
 	}
 	delegatorEpochReward.Balance.Add(delegatorEpochReward.Balance, balance)
 	delegatorEpochReward.Stake.Add(delegatorEpochReward.Stake, stake)
+}
+
+func (c *statsCollector) AddNonValidatedStake(addr common.Address, amount *big.Int) {
+	if amount == nil {
+		return
+	}
+	c.initRewardStats()
+	if c.stats.RewardsStats.FailedStakedAmountsByAddress == nil {
+		c.stats.RewardsStats.FailedStakedAmountsByAddress = make(map[string]*big.Int)
+	}
+	c.stats.RewardsStats.FailedStakedAmountsByAddress[conversion.ConvertAddress(addr)] = new(big.Int).Set(amount)
 }
 
 func (c *statsCollector) AddProposerReward(balanceDest, stakeDest common.Address, balance, stake *big.Int, stakeWeight *big.Float) {
@@ -611,23 +670,26 @@ func (c *statsCollector) addMiningReward(addr common.Address, balance *big.Int, 
 	return res
 }
 
-func (c *statsCollector) BeforeSetPenalty(addr common.Address, seconds uint16, appState *appstate.AppState) {
-	c.addChargedPenaltySeconds(addr, seconds)
+func (c *statsCollector) BeforeSetPenalty(addr common.Address, seconds uint16, inheritedFrom *common.Address, appState *appstate.AppState) {
+	c.addChargedPenaltySeconds(addr, seconds, inheritedFrom)
 }
 
-func (c *statsCollector) addChargedPenaltySeconds(addr common.Address, value uint16) {
+func (c *statsCollector) addChargedPenaltySeconds(addr common.Address, value uint16, inheritedFrom *common.Address) {
 	if value == 0 {
 		return
 	}
 	c.initChargedPenaltySecondsByAddr()
-	c.stats.ChargedPenaltySecondsByAddr[addr] = value
+	c.stats.ChargedPenaltySecondsByAddr[addr] = Penalty{
+		Seconds:       value,
+		InheritedFrom: inheritedFrom,
+	}
 }
 
 func (c *statsCollector) initChargedPenaltySecondsByAddr() {
 	if c.stats.ChargedPenaltySecondsByAddr != nil {
 		return
 	}
-	c.stats.ChargedPenaltySecondsByAddr = make(map[common.Address]uint16)
+	c.stats.ChargedPenaltySecondsByAddr = make(map[common.Address]Penalty)
 }
 
 func (c *statsCollector) AddMintedCoins(amount *big.Int) {

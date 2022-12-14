@@ -174,6 +174,9 @@ CREATE TABLE IF NOT EXISTS validation_reward_summaries
     staking                   numeric(30, 18),
     staking_missed            numeric(30, 18),
     staking_missed_reason     smallint,
+    extra_flips               numeric(30, 18),
+    extra_flips_missed        numeric(30, 18),
+    extra_flips_missed_reason smallint,
     CONSTRAINT validation_reward_summaries_pkey PRIMARY KEY (epoch, address_id)
 );
 

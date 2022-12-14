@@ -83,9 +83,9 @@ DECLARE
     l_balance                    numeric;
     l_estimated_oracle_reward    numeric;
     l_sort_key                   text;
-    l_counting_block_cur             bigint;
+    l_counting_block_cur         bigint;
     l_new_state                  smallint;
-    l_counting_block_new             bigint;
+    l_counting_block_new         bigint;
 BEGIN
     if p_start_block is not null then
         l_new_state = SOVC_STATE_VOTING;
@@ -571,13 +571,14 @@ CREATE OR REPLACE PROCEDURE apply_block_on_sorted_contracts(p_height bigint,
 AS
 $$
 DECLARE
-    SOVC_STATE_VOTING   CONSTANT smallint = 1;
-    SOVC_STATE_COUNTING CONSTANT smallint = 3;
-    l_rec                        record;
+    SOVC_STATE_VOTING           CONSTANT smallint = 1;
+    SOVC_STATE_COUNTING         CONSTANT smallint = 3;
+    SOVC_STATE_CAN_BE_PROLONGED CONSTANT smallint = 6;
+    l_rec                                record;
 BEGIN
     for l_rec in SELECT contract_tx_id
                  FROM sorted_oracle_voting_contracts
-                 WHERE state = SOVC_STATE_VOTING
+                 WHERE state in (SOVC_STATE_VOTING, SOVC_STATE_CAN_BE_PROLONGED)
                    AND p_height = counting_block
         loop
             call update_sorted_oracle_voting_contract_state(p_height, l_rec.contract_tx_id,

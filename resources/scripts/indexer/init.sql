@@ -213,6 +213,12 @@ ON CONFLICT DO NOTHING;
 INSERT INTO dic_epoch_reward_types
 VALUES (11, 'Candidate')
 ON CONFLICT DO NOTHING;
+INSERT INTO dic_epoch_reward_types
+VALUES (12, 'ExtraFlips')
+ON CONFLICT DO NOTHING;
+INSERT INTO dic_epoch_reward_types
+VALUES (13, 'Invitee')
+ON CONFLICT DO NOTHING;
 
 CREATE TABLE IF NOT EXISTS dic_bad_author_reasons
 (
@@ -1055,11 +1061,12 @@ ALTER SEQUENCE penalties_id_seq
 
 CREATE TABLE IF NOT EXISTS penalties
 (
-    id              bigint          NOT NULL DEFAULT nextval('penalties_id_seq'::regclass),
-    address_id      bigint          NOT NULL,
-    penalty         numeric(30, 18) NOT NULL,
-    block_height    bigint          NOT NULL,
-    penalty_seconds smallint,
+    id                        bigint          NOT NULL DEFAULT nextval('penalties_id_seq'::regclass),
+    address_id                bigint          NOT NULL,
+    penalty                   numeric(30, 18) NOT NULL,
+    block_height              bigint          NOT NULL,
+    penalty_seconds           smallint,
+    inherited_from_address_id bigint,
     CONSTRAINT penalties_pkey PRIMARY KEY (id),
     CONSTRAINT penalties_address_id_fkey FOREIGN KEY (address_id)
         REFERENCES addresses (id) MATCH SIMPLE
@@ -1099,6 +1106,8 @@ CREATE TABLE IF NOT EXISTS total_rewards
     candidate         numeric(30, 18),
     staking_share     numeric(30, 18),
     candidate_share   numeric(30, 18),
+    flips_extra       numeric(30, 18),
+    flips_extra_share numeric(30, 18),
     CONSTRAINT total_rewards_pkey PRIMARY KEY (epoch),
     CONSTRAINT total_rewards_epoch_fkey FOREIGN KEY (epoch)
         REFERENCES epochs (epoch) MATCH SIMPLE
@@ -1154,6 +1163,7 @@ CREATE TABLE IF NOT EXISTS reward_staked_amounts
 (
     ei_address_state_id bigint          NOT NULL,
     amount              numeric(30, 18) NOT NULL,
+    failed              boolean,
     CONSTRAINT reward_staked_amounts_pkey PRIMARY KEY (ei_address_state_id)
 );
 
@@ -1343,6 +1353,7 @@ CREATE TABLE IF NOT EXISTS become_offline_txs
 CREATE TABLE IF NOT EXISTS rewarded_flips
 (
     flip_tx_id bigint NOT NULL,
+    extra      boolean,
     CONSTRAINT rewarded_flips_pkey PRIMARY KEY (flip_tx_id),
     CONSTRAINT rewarded_flips_flip_tx_id_fkey FOREIGN KEY (flip_tx_id)
         REFERENCES flips (tx_id) MATCH SIMPLE
@@ -1369,6 +1380,14 @@ CREATE TABLE IF NOT EXISTS rewarded_invitations
         REFERENCES dic_epoch_reward_types (id) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION
+);
+
+CREATE TABLE IF NOT EXISTS rewarded_invitees
+(
+    invite_tx_id bigint   NOT NULL,
+    block_height bigint   NOT NULL,
+    epoch_height integer,
+    CONSTRAINT rewarded_invitees_pkey PRIMARY KEY (invite_tx_id, block_height)
 );
 
 CREATE TABLE IF NOT EXISTS saved_invite_rewards
@@ -1875,6 +1894,7 @@ $$
             staking           numeric(30, 18),
             candidate         numeric(30, 18),
             flips             numeric(30, 18),
+            flips_extra       numeric(30, 18),
             invitations       numeric(30, 18),
             foundation        numeric(30, 18),
             zero_wallet       numeric(30, 18),
@@ -1882,6 +1902,7 @@ $$
             staking_share     numeric(30, 18),
             candidate_share   numeric(30, 18),
             flips_share       numeric(30, 18),
+            flips_extra_share numeric(30, 18),
             invitations_share numeric(30, 18),
             reports           numeric(30, 18),
             reports_share     numeric(30, 18)
@@ -2031,6 +2052,19 @@ $$
         (
             tx_hash      character(66),
             reward_type  smallint,
+            epoch_height integer
+        );
+    EXCEPTION
+        WHEN duplicate_object THEN null;
+    END
+$$;
+
+DO
+$$
+    BEGIN
+        CREATE TYPE tp_rewarded_invitee AS
+        (
+            tx_hash      character(66),
             epoch_height integer
         );
     EXCEPTION
@@ -3685,6 +3719,10 @@ BEGIN
 
     delete
     from rewarded_invitations
+    where block_height > p_block_height;
+
+    delete
+    from rewarded_invitees
     where block_height > p_block_height;
 
     delete

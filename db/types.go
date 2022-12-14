@@ -144,21 +144,29 @@ type Data struct {
 }
 
 type EpochRewards struct {
-	BadAuthors             []*BadAuthor
-	Total                  *TotalRewards
-	ValidationRewards      []*Reward
-	FundRewards            []*Reward
-	AgesByAddress          map[string]uint16
-	StakedAmountsByAddress map[string]*big.Int
-	RewardedFlipCids       []string
-	RewardedInvitations    []*RewardedInvite
-	SavedInviteRewards     []*SavedInviteRewards
-	ReportedFlipRewards    []*ReportedFlipReward
+	BadAuthors                   []*BadAuthor
+	Total                        *TotalRewards
+	ValidationRewards            []*Reward
+	FundRewards                  []*Reward
+	AgesByAddress                map[string]uint16
+	StakedAmountsByAddress       map[string]*big.Int
+	FailedStakedAmountsByAddress map[string]*big.Int
+	RewardedFlipCids             []string
+	RewardedExtraFlipCids        []string
+	RewardedInvitations          []*RewardedInvite
+	RewardedInvitees             []*RewardedInvitee
+	SavedInviteRewards           []*SavedInviteRewards
+	ReportedFlipRewards          []*ReportedFlipReward
 }
 
 type RewardedInvite struct {
 	TxHash      string
 	Type        byte
+	EpochHeight uint32
+}
+
+type RewardedInvitee struct {
+	TxHash      string
 	EpochHeight uint32
 }
 
@@ -181,6 +189,7 @@ type TotalRewards struct {
 	Staking           decimal.Decimal
 	Candidate         decimal.Decimal
 	Flips             decimal.Decimal
+	FlipsExtra        decimal.Decimal
 	Reports           decimal.Decimal
 	Invitations       decimal.Decimal
 	FoundationPayouts decimal.Decimal
@@ -189,6 +198,7 @@ type TotalRewards struct {
 	StakingShare      decimal.Decimal
 	CandidateShare    decimal.Decimal
 	FlipsShare        decimal.Decimal
+	FlipsExtraShare   decimal.Decimal
 	ReportsShare      decimal.Decimal
 	InvitationsShare  decimal.Decimal
 }
@@ -390,9 +400,10 @@ type AddressFlipCid struct {
 }
 
 type Penalty struct {
-	Address string
-	Penalty decimal.Decimal
-	Seconds uint16
+	Address       string
+	Penalty       decimal.Decimal
+	Seconds       uint16
+	InheritedFrom string
 }
 
 type Birthday struct {
@@ -757,8 +768,10 @@ type DelegationEpochReward struct {
 
 type ValidationRewardSummaries struct {
 	Address     string
+	PrevStake   *big.Int
 	Validation  ValidationRewardSummary
 	Flips       ValidationRewardSummary
+	ExtraFlips  ValidationRewardSummary
 	Invitations ValidationRewardSummary
 	Reports     ValidationRewardSummary
 	Candidate   ValidationRewardSummary

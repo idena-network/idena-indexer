@@ -100,12 +100,13 @@ func (v *TotalRewards) Value() (driver.Value, error) {
 	if v == nil {
 		return nil, nil
 	}
-	return fmt.Sprintf("(%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v)",
+	return fmt.Sprintf("(%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v)",
 		v.Total,
 		v.Validation,
 		v.Staking,
 		v.Candidate,
 		v.Flips,
+		v.FlipsExtra,
 		v.Invitations,
 		v.FoundationPayouts,
 		v.ZeroWalletFund,
@@ -113,6 +114,7 @@ func (v *TotalRewards) Value() (driver.Value, error) {
 		v.StakingShare,
 		v.CandidateShare,
 		v.FlipsShare,
+		v.FlipsExtraShare,
 		v.InvitationsShare,
 		v.Reports,
 		v.ReportsShare,
@@ -132,6 +134,13 @@ func (v *RewardedInvite) Value() (driver.Value, error) {
 	return fmt.Sprintf("(%v,%v,%v)",
 		v.TxHash,
 		v.Type,
+		v.EpochHeight,
+	), nil
+}
+
+func (v *RewardedInvitee) Value() (driver.Value, error) {
+	return fmt.Sprintf("(%v,%v)",
+		v.TxHash,
 		v.EpochHeight,
 	), nil
 }
@@ -1214,10 +1223,12 @@ type rewardBounds struct {
 
 type validationRewardSummaries struct {
 	Address     string                  `json:"address"`
+	PrevStake   decimal.Decimal         `json:"prevStake"`
 	Validation  validationRewardSummary `json:"validation"`
 	Candidate   validationRewardSummary `json:"candidate"`
 	Staking     validationRewardSummary `json:"staking"`
 	Flips       validationRewardSummary `json:"flips"`
+	ExtraFlips  validationRewardSummary `json:"extraFlips"`
 	Invitations validationRewardSummary `json:"invitations"`
 	Reports     validationRewardSummary `json:"reports"`
 }
@@ -1273,10 +1284,12 @@ func getEpochResultData(epochResult *EpochResult) *epochResultData {
 		for _, incomingItem := range validationRewardsSummaries {
 			item := validationRewardSummaries{
 				Address:     incomingItem.Address,
+				PrevStake:   blockchain.ConvertToFloat(incomingItem.PrevStake),
 				Validation:  convertValidationRewardSummary(incomingItem.Validation),
 				Candidate:   convertValidationRewardSummary(incomingItem.Candidate),
 				Staking:     convertValidationRewardSummary(incomingItem.Staking),
 				Flips:       convertValidationRewardSummary(incomingItem.Flips),
+				ExtraFlips:  convertValidationRewardSummary(incomingItem.ExtraFlips),
 				Invitations: convertValidationRewardSummary(incomingItem.Invitations),
 				Reports:     convertValidationRewardSummary(incomingItem.Reports),
 			}

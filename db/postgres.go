@@ -231,8 +231,8 @@ func (a *postgresAccessor) saveEpochResult(
 		return nil
 	}
 	var identitiesArray, flipsToSolveArray, answersArray, statesArray, badAuthors, totalRewards, validationRewards,
-		rewardAges, fundRewards, rewardedFlipCids, rewardedInvitations, savedInviteRewards,
-		reportedFlipRewards, rewardStakedAmounts interface {
+		rewardAges, fundRewards, rewardedFlipCids, rewardedExtraFlipCids, rewardedInvitations, savedInviteRewards,
+		reportedFlipRewards, rewardStakedAmounts, rewardFailedStakedAmounts, rewardedInvitees interface {
 		driver.Valuer
 	}
 	var shortAnswerCountsByAddr, longAnswerCountsByAdds, wrongWordsFlipsCountsByAddr map[string]int
@@ -249,11 +249,14 @@ func (a *postgresAccessor) saveEpochResult(
 		validationRewards = pq.Array(epochRewards.ValidationRewards)
 		rewardAges = getRewardAgesArray(epochRewards.AgesByAddress)
 		rewardStakedAmounts = getRewardStakedAmountsArray(epochRewards.StakedAmountsByAddress)
+		rewardFailedStakedAmounts = getRewardStakedAmountsArray(epochRewards.FailedStakedAmountsByAddress)
 		fundRewards = pq.Array(epochRewards.FundRewards)
 		rewardedFlipCids = pq.Array(epochRewards.RewardedFlipCids)
+		rewardedExtraFlipCids = pq.Array(epochRewards.RewardedExtraFlipCids)
 		rewardedInvitations = pq.Array(epochRewards.RewardedInvitations)
 		savedInviteRewards = pq.Array(epochRewards.SavedInviteRewards)
 		reportedFlipRewards = pq.Array(epochRewards.ReportedFlipRewards)
+		rewardedInvitees = pq.Array(epochRewards.RewardedInvitees)
 	}
 	data := getEpochResultData(epochResult)
 	if _, err := tx.Exec(
@@ -271,13 +274,16 @@ func (a *postgresAccessor) saveEpochResult(
 		validationRewards,
 		rewardAges,
 		rewardStakedAmounts,
+		rewardFailedStakedAmounts,
 		fundRewards,
 		rewardedFlipCids,
+		rewardedExtraFlipCids,
 		rewardedInvitations,
 		savedInviteRewards,
 		reportedFlipRewards,
 		epochResult.FailedValidation,
 		epochResult.MinScoreForInvite,
+		rewardedInvitees,
 		data,
 	); err != nil {
 		return errors.Wrap(err, "unable to save epoch result")
@@ -533,7 +539,7 @@ func (a *postgresAccessor) savePenalty(ctx *context, penalty *Penalty) error {
 	if penalty == nil {
 		return nil
 	}
-	_, err := ctx.tx.Exec(a.getQuery(insertPenaltyQuery), penalty.Address, penalty.Penalty, penalty.Seconds, ctx.blockHeight)
+	_, err := ctx.tx.Exec(a.getQuery(insertPenaltyQuery), penalty.Address, penalty.Penalty, penalty.Seconds, penalty.InheritedFrom, ctx.blockHeight)
 	return errors.Wrapf(err, "unable to save penalty")
 }
 

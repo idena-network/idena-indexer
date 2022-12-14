@@ -298,7 +298,7 @@ func Test_complex(t *testing.T) {
 
 	delegatee := tests.GetRandAddr()
 	statsCollector.AddValidationReward(delegatee, addr, 100, new(big.Int).SetUint64(200), new(big.Int).SetUint64(100))
-	statsCollector.AddFlipsReward(delegatee, addr, new(big.Int).SetUint64(400), new(big.Int).SetUint64(300), nil)
+	statsCollector.AddFlipsBasicReward(delegatee, addr, new(big.Int).SetUint64(400), new(big.Int).SetUint64(300), nil)
 	rewardedInvitationTxHash := deleteFlipTx.Hash()
 	statsCollector.AddInvitationsReward(delegatee, addr, new(big.Int).SetUint64(600), new(big.Int).SetUint64(500), 2, &rewardedInvitationTxHash, 99, false)
 

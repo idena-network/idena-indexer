@@ -24,6 +24,8 @@ const (
 	missedRewardReasonMissedValidation    = byte(3)
 	missedRewardReasonMissedNotAllFlips   = byte(4)
 	missedRewardReasonMissedNotAllReports = byte(5)
+
+	requiredFlips = 3
 )
 
 type validationRewardSummariesCalculator struct {
@@ -36,6 +38,7 @@ type validationRewardSummariesCalculator struct {
 	rewardedReportedFlipsByAddr          map[string]map[string]struct{}
 	flipsWithReportConsensusByRespondent map[common.Address][]string
 	rewardedFlips                        map[string]struct{}
+	rewardedExtraFlips                   map[string]struct{}
 }
 
 func newValidationRewardSummariesCalculator(
@@ -94,11 +97,15 @@ func (c *validationRewardSummariesCalculator) init() {
 	}
 	c.flipsWithReportConsensusByRespondent = flipsWithReportConsensusByRespondent
 
-	rewardedFlips := make(map[string]struct{}, len(c.rewardsStats.RewardedFlipCids))
-	for _, rewardedFlip := range c.rewardsStats.RewardedFlipCids {
-		rewardedFlips[rewardedFlip] = struct{}{}
+	convertRewardedFlips := func(cids []string) map[string]struct{} {
+		res := make(map[string]struct{}, len(cids))
+		for _, flipCid := range cids {
+			res[flipCid] = struct{}{}
+		}
+		return res
 	}
-	c.rewardedFlips = rewardedFlips
+	c.rewardedFlips = convertRewardedFlips(c.rewardsStats.RewardedFlipCids)
+	c.rewardedExtraFlips = convertRewardedFlips(c.rewardsStats.RewardedExtraFlipCids)
 }
 
 func (c *validationRewardSummariesCalculator) calculateValidationRewardSummaries(
@@ -153,6 +160,7 @@ func (c *validationRewardSummariesCalculator) calculateValidationRewardSummaries
 			missedValidation = goodAuthor.Missed
 		}
 	}
+
 	flips := calculateFlipsRewardSummary(
 		rewardsByType[stats.Flips],
 		c.rewardsStats.FlipsShare,
@@ -161,6 +169,17 @@ func (c *validationRewardSummariesCalculator) calculateValidationRewardSummaries
 		c.rewardedFlips,
 		penalized,
 		missedValidation,
+	)
+
+	extraFlips := calculateExtraFlipsRewardSummary(
+		rewardsByType[stats.ExtraFlips],
+		c.rewardsStats.FlipsExtraShare,
+		availableFlips,
+		identityFlips,
+		c.rewardedExtraFlips,
+		penalized,
+		missedValidation,
+		prevStake,
 	)
 
 	invitations := calculateInvitationsRewardSummary(rewardsByType, penalized)
@@ -186,10 +205,12 @@ func (c *validationRewardSummariesCalculator) calculateValidationRewardSummaries
 
 	return db.ValidationRewardSummaries{
 		Address:     convertedAddress,
+		PrevStake:   prevStake,
 		Validation:  validation,
 		Candidate:   candidate,
 		Staking:     staking,
 		Flips:       flips,
+		ExtraFlips:  extraFlips,
 		Invitations: invitations,
 		Reports:     reports,
 	}
@@ -272,6 +293,11 @@ func calculateCandidateRewardSummary(
 	}
 }
 
+func stakeWeight(amount *big.Int) float32 {
+	stakeF, _ := blockchain.ConvertToFloat(amount).Float64()
+	return float32(math.Pow(stakeF, 0.9))
+}
+
 func calculateStakingRewardSummary(
 	reward *big.Int,
 	newState state.IdentityState,
@@ -286,9 +312,8 @@ func calculateStakingRewardSummary(
 	var missed *big.Int
 	var missedReason byte
 	if share != nil && stake != nil && stake.Sign() > 0 && (!newState.NewbieOrBetter() || penalized) {
-		stakeF, _ := blockchain.ConvertToFloat(stake).Float64()
-		weight := math.Pow(stakeF, 0.9)
-		missed = math2.ToInt(decimal.NewFromBigInt(share, 0).Mul(decimal.NewFromFloat(weight)))
+		weight := stakeWeight(stake)
+		missed = math2.ToInt(decimal.NewFromBigInt(share, 0).Mul(decimal.NewFromFloat32(weight)))
 		if missed.Sign() > 0 {
 			if penalized {
 				missedReason = missedRewardReasonPenalty
@@ -320,7 +345,45 @@ func calculateFlipsRewardSummary(
 	}
 	var missed *big.Int
 	if share != nil && availableFlips > 0 {
-		missed = new(big.Int).Mul(share, new(big.Int).SetUint64(uint64(availableFlips-rewardedFlipsCnt)))
+		missed = new(big.Int).Mul(share, new(big.Int).SetUint64(uint64(requiredFlips-rewardedFlipsCnt)))
+	}
+	var missedReason byte
+	if missed != nil && missed.Sign() > 0 {
+		if penalized {
+			missedReason = missedRewardReasonPenalty
+		} else if missedValidation {
+			missedReason = missedRewardReasonMissedValidation
+		} else {
+			missedReason = missedRewardReasonMissedNotAllFlips
+		}
+	}
+	return db.ValidationRewardSummary{
+		Earned:       earned,
+		Missed:       missed,
+		MissedReason: missedRewardReasonOrNil(missedReason),
+	}
+}
+
+func calculateExtraFlipsRewardSummary(
+	reward *big.Int,
+	share *big.Int,
+	availableFlips uint8,
+	identityFlips []state.IdentityFlip,
+	rewardedExtraFlips map[string]struct{},
+	penalized bool,
+	missedValidation bool,
+	stake *big.Int,
+) db.ValidationRewardSummary {
+	rewardedFlipsCnt := getRewardedFlips(identityFlips, rewardedExtraFlips)
+	var earned *big.Int
+	if reward != nil {
+		earned = new(big.Int).Set(reward)
+	}
+	var missed *big.Int
+	if share != nil && stake != nil && stake.Sign() > 0 && availableFlips > requiredFlips {
+		weight := stakeWeight(stake)
+		flipReward := math2.ToInt(decimal.NewFromBigInt(share, 0).Mul(decimal.NewFromFloat32(weight)))
+		missed = new(big.Int).Mul(flipReward, new(big.Int).SetUint64(uint64(availableFlips-requiredFlips-rewardedFlipsCnt)))
 	}
 	var missedReason byte
 	if missed != nil && missed.Sign() > 0 {

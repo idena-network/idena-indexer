@@ -11,13 +11,16 @@ CREATE OR REPLACE PROCEDURE save_epoch_result(p_epoch bigint,
                                               p_validation_rewards tp_epoch_reward[],
                                               p_ages tp_reward_age[],
                                               p_staked_amounts tp_reward_staked_amount[],
+                                              p_failed_staked_amounts tp_reward_staked_amount[],
                                               p_fund_rewards tp_epoch_reward[],
                                               p_rewarded_flip_cids text[],
+                                              p_rewarded_extra_flip_cids text[],
                                               p_rewarded_invitations tp_rewarded_invitation[],
                                               p_saved_invite_rewards tp_saved_invite_rewards[],
                                               p_reported_flip_rewards tp_reported_flip_reward[],
                                               p_failed_validation boolean,
                                               p_min_score_for_invite real,
+                                              p_rewarded_invitees tp_rewarded_invitee[],
                                               p_data jsonb)
     LANGUAGE 'plpgsql'
 AS
@@ -66,11 +69,14 @@ BEGIN
     select clock_timestamp() into l_start;
     call save_epoch_rewards(p_epoch, p_height, p_bad_authors, p_total, p_validation_rewards, p_ages,
                             p_staked_amounts,
+                            p_failed_staked_amounts,
                             p_fund_rewards,
                             p_rewarded_flip_cids,
+                            p_rewarded_extra_flip_cids,
                             p_rewarded_invitations,
                             p_saved_invite_rewards,
-                            p_reported_flip_rewards);
+                            p_reported_flip_rewards,
+                            p_rewarded_invitees);
     select clock_timestamp() into l_end;
     call log_performance('save_epoch_rewards', l_start, l_end);
 
@@ -324,11 +330,14 @@ CREATE OR REPLACE PROCEDURE save_epoch_rewards(p_epoch bigint,
                                                p_validation_rewards tp_epoch_reward[],
                                                p_ages tp_reward_age[],
                                                p_staked_amounts tp_reward_staked_amount[],
+                                               p_failed_staked_amounts tp_reward_staked_amount[],
                                                p_fund_rewards tp_epoch_reward[],
                                                p_rewarded_flip_cids text[],
+                                               p_rewarded_extra_flip_cids text[],
                                                p_rewarded_invitations tp_rewarded_invitation[],
                                                p_saved_invite_rewards tp_saved_invite_rewards[],
-                                               p_reported_flip_rewards tp_reported_flip_reward[])
+                                               p_reported_flip_rewards tp_reported_flip_reward[],
+                                               p_rewarded_invitees tp_rewarded_invitee[])
     LANGUAGE 'plpgsql'
 AS
 $BODY$
@@ -366,10 +375,17 @@ BEGIN
 
     select clock_timestamp() into l_start;
     if p_staked_amounts is not null then
-        call save_reward_staked_amounts(p_staked_amounts);
+        call save_reward_staked_amounts(p_staked_amounts, false);
     end if;
     select clock_timestamp() into l_end;
     call log_performance('save_reward_staked_amounts', l_start, l_end);
+
+    select clock_timestamp() into l_start;
+    if p_failed_staked_amounts is not null then
+        call save_reward_staked_amounts(p_failed_staked_amounts, true);
+    end if;
+    select clock_timestamp() into l_end;
+    call log_performance('save_reward_failed_staked_amounts', l_start, l_end);
 
     select clock_timestamp() into l_start;
     if p_fund_rewards is not null then
@@ -380,10 +396,17 @@ BEGIN
 
     select clock_timestamp() into l_start;
     if p_rewarded_flip_cids is not null then
-        call save_rewarded_flips(p_rewarded_flip_cids);
+        call save_rewarded_flips(p_rewarded_flip_cids, false);
     end if;
     select clock_timestamp() into l_end;
     call log_performance('save_rewarded_flips', l_start, l_end);
+
+    select clock_timestamp() into l_start;
+    if p_rewarded_extra_flip_cids is not null then
+        call save_rewarded_flips(p_rewarded_extra_flip_cids, true);
+    end if;
+    select clock_timestamp() into l_end;
+    call log_performance('save_rewarded_extra_flips', l_start, l_end);
 
     select clock_timestamp() into l_start;
     if p_rewarded_invitations is not null then
@@ -391,6 +414,13 @@ BEGIN
     end if;
     select clock_timestamp() into l_end;
     call log_performance('save_rewarded_invitations', l_start, l_end);
+
+    select clock_timestamp() into l_start;
+    if p_rewarded_invitees is not null then
+        call save_rewarded_invitees(p_block_height, p_rewarded_invitees);
+    end if;
+    select clock_timestamp() into l_end;
+    call log_performance('save_rewarded_invitees', l_start, l_end);
 
     select clock_timestamp() into l_start;
     if p_saved_invite_rewards is not null then
@@ -435,11 +465,13 @@ BEGIN
     insert into total_rewards (epoch,
                                total, validation,
                                flips,
+                               flips_extra,
                                invitations,
                                foundation,
                                zero_wallet,
                                validation_share,
                                flips_share,
+                               flips_extra_share,
                                invitations_share,
                                reports,
                                reports_share,
@@ -451,11 +483,13 @@ BEGIN
             p_total.total,
             p_total.validation,
             p_total.flips,
+            p_total.flips_extra,
             p_total.invitations,
             p_total.foundation,
             p_total.zero_wallet,
             p_total.validation_share,
             p_total.flips_share,
+            p_total.flips_extra_share,
             p_total.invitations_share,
             p_total.reports,
             p_total.reports_share,
@@ -506,7 +540,7 @@ BEGIN
 END
 $BODY$;
 
-CREATE OR REPLACE PROCEDURE save_reward_staked_amounts(p_items tp_reward_staked_amount[])
+CREATE OR REPLACE PROCEDURE save_reward_staked_amounts(p_items tp_reward_staked_amount[], p_failed boolean)
     LANGUAGE 'plpgsql'
 AS
 $BODY$
@@ -516,11 +550,11 @@ BEGIN
     for i in 1..cardinality(p_items)
         loop
             l_item := p_items[i];
-            INSERT INTO reward_staked_amounts (ei_address_state_id, amount)
+            INSERT INTO reward_staked_amounts (ei_address_state_id, amount, failed)
             VALUES ((SELECT address_state_id
                      FROM cur_epoch_identities
                      WHERE lower(address) = lower(l_item.address)),
-                    l_item.amount);
+                    l_item.amount, case when p_failed then true end);
         end loop;
 END
 $BODY$;
@@ -545,7 +579,7 @@ BEGIN
 END
 $BODY$;
 
-CREATE OR REPLACE PROCEDURE save_rewarded_flips(p_rewarded_flip_cids text[])
+CREATE OR REPLACE PROCEDURE save_rewarded_flips(p_rewarded_flip_cids text[], p_extra boolean)
     LANGUAGE 'plpgsql'
 AS
 $BODY$
@@ -558,8 +592,8 @@ BEGIN
             if l_flip_tx_id is null then
                 continue;
             end if;
-            insert into rewarded_flips (flip_tx_id)
-            values (l_flip_tx_id);
+            insert into rewarded_flips (flip_tx_id, extra)
+            values (l_flip_tx_id, case when p_extra then true end);
         end loop;
 END
 $BODY$;
@@ -588,6 +622,30 @@ BEGIN
         end loop;
 END
 $BODY$;
+
+CREATE OR REPLACE PROCEDURE save_rewarded_invitees(p_block_height bigint,
+                                                   p_rewarded_invitees tp_rewarded_invitee[])
+    LANGUAGE 'plpgsql'
+AS
+$$
+DECLARE
+    l_rewarded_invitee tp_rewarded_invitee;
+    l_invite_tx_id        bigint;
+BEGIN
+    for i in 1..cardinality(p_rewarded_invitees)
+        loop
+            l_rewarded_invitee = p_rewarded_invitees[i];
+            select id into l_invite_tx_id from transactions where lower(hash) = lower(l_rewarded_invitee.tx_hash);
+            if l_invite_tx_id is null then
+                continue;
+            end if;
+            insert into rewarded_invitees (invite_tx_id, block_height, epoch_height)
+            values (l_invite_tx_id,
+                    p_block_height,
+                    l_rewarded_invitee.epoch_height);
+        end loop;
+END
+$$;
 
 CREATE OR REPLACE PROCEDURE save_saved_invite_rewards(p_saved_invite_rewards tp_saved_invite_rewards[])
     LANGUAGE 'plpgsql'

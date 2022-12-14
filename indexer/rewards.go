@@ -30,8 +30,11 @@ func (indexer *Indexer) detectEpochRewards(block *types.Block) (*db.EpochRewards
 	epochRewards.Total = convertTotalRewards(rewardsStats)
 	epochRewards.AgesByAddress = rewardsStats.AgesByAddress
 	epochRewards.StakedAmountsByAddress = rewardsStats.StakedAmountsByAddress
+	epochRewards.FailedStakedAmountsByAddress = rewardsStats.FailedStakedAmountsByAddress
 	epochRewards.RewardedFlipCids = rewardsStats.RewardedFlipCids
+	epochRewards.RewardedExtraFlipCids = rewardsStats.RewardedExtraFlipCids
 	epochRewards.RewardedInvitations = rewardsStats.RewardedInvites
+	epochRewards.RewardedInvitees = rewardsStats.RewardedInvitees
 	epochRewards.SavedInviteRewards = convertSavedInviteRewards(rewardsStats.SavedInviteRewardsCountByAddrAndType)
 	epochRewards.ReportedFlipRewards = rewardsStats.ReportedFlipRewards
 
@@ -61,6 +64,7 @@ func convertTotalRewards(rewardsStats *stats.RewardsStats) *db.TotalRewards {
 		Staking:           blockchain.ConvertToFloat(rewardsStats.Staking),
 		Candidate:         blockchain.ConvertToFloat(rewardsStats.Candidate),
 		Flips:             blockchain.ConvertToFloat(rewardsStats.Flips),
+		FlipsExtra:        blockchain.ConvertToFloat(rewardsStats.FlipsExtra),
 		Reports:           blockchain.ConvertToFloat(rewardsStats.Reports),
 		Invitations:       blockchain.ConvertToFloat(rewardsStats.Invitations),
 		FoundationPayouts: blockchain.ConvertToFloat(rewardsStats.FoundationPayouts),
@@ -69,6 +73,7 @@ func convertTotalRewards(rewardsStats *stats.RewardsStats) *db.TotalRewards {
 		StakingShare:      blockchain.ConvertToFloat(rewardsStats.StakingShare),
 		CandidateShare:    blockchain.ConvertToFloat(rewardsStats.CandidateShare),
 		FlipsShare:        blockchain.ConvertToFloat(rewardsStats.FlipsShare),
+		FlipsExtraShare:   blockchain.ConvertToFloat(rewardsStats.FlipsExtraShare),
 		ReportsShare:      blockchain.ConvertToFloat(rewardsStats.ReportsShare),
 		InvitationsShare:  blockchain.ConvertToFloat(rewardsStats.InvitationsShare),
 	}
