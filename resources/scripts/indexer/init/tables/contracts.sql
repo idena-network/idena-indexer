@@ -418,6 +418,7 @@ CREATE TABLE IF NOT EXISTS refundable_oracle_lock_contract_call_pushes
         ON UPDATE NO ACTION
         ON DELETE NO ACTION
 );
+CREATE INDEX IF NOT EXISTS rol_contract_call_pushes_api_idx ON refundable_oracle_lock_contract_call_pushes (ol_contract_tx_id) WHERE coalesce(refund_block, 0) > 0;
 
 CREATE TABLE IF NOT EXISTS refundable_oracle_lock_contract_call_refunds
 (
