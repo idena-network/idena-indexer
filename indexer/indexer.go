@@ -1053,6 +1053,7 @@ func (indexer *Indexer) detectEpochResult(block *types.Block, ctx *conversionCon
 				newIdentityState,
 				convertedIdentity.AvailableFlips,
 				prevStateIdentity.Stake,
+				indexer.listener.Config().Consensus.EnableUpgrade10,
 			)
 			validationRewardsSummaries = append(validationRewardsSummaries, validationRewardSummaries)
 		}

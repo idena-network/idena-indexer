@@ -19,10 +19,12 @@ DECLARE
     l_invitations                                 numeric;
     l_invitations_missed                          numeric;
     l_invitations_missed_reason                   smallint;
+    l_enable_upgrade_10                           boolean;
 BEGIN
     if p_items is null then
         return;
     end if;
+    l_enable_upgrade_10 = (select exists(select * from blocks where coalesce(upgrade, 0) > 0 and upgrade = 10));
     for i in 0..jsonb_array_length(p_items) - 1
         loop
             l_item = (p_items ->> i)::jsonb;
@@ -39,9 +41,14 @@ BEGIN
 
             l_invitations = (l_invitations_reward_summary ->> 'earned')::numeric;
             l_invitations_missed_reason = (l_invitations_reward_summary ->> 'missedReason')::smallint;
-            l_invitations_missed =
-                    calculate_invitations_missed_reward(p_epoch, l_address_id, l_invitations, p_invitations_share,
-                                                        (l_item ->> 'prevStake')::numeric);
+            if l_enable_upgrade_10 then
+                l_invitations_missed =
+                        calculate_invitations_missed_reward(p_epoch, l_address_id, l_invitations, p_invitations_share,
+                                                            (l_item ->> 'prevStake')::numeric);
+            else
+                l_invitations_missed =
+                        calculate_invitations_missed_reward_old(p_epoch, l_address_id, l_invitations, p_invitations_share);
+            end if;
             if l_invitations_missed_reason is not null and l_invitations_missed is null or l_invitations_missed = 0 then
                 l_invitations_missed_reason = null;
             end if;
@@ -80,6 +87,55 @@ BEGIN
                     (l_extra_flips_reward_summary ->> 'missedReason')::smallint);
 
         end loop;
+END
+$$;
+
+CREATE OR REPLACE FUNCTION calculate_invitations_missed_reward_old(p_epoch bigint,
+                                                                   p_address_id bigint,
+                                                                   p_reward numeric,
+                                                                   p_reward_share numeric)
+    RETURNS numeric
+    LANGUAGE 'plpgsql'
+AS
+$$
+DECLARE
+    l_start_epoch             bigint;
+    l_record                  record;
+    l_epoch_available_invites smallint;
+    l_max_reward              numeric;
+    l_missed_reward           numeric;
+    l_reward_coef             smallint;
+BEGIN
+    l_start_epoch = p_epoch - 3;
+    if l_start_epoch < 0 then
+        l_start_epoch = 0;
+    end if;
+    l_epoch_available_invites = 0;
+    l_max_reward = 0;
+    for l_record in SELECT ei.address_state_id, ei.epoch, ei.next_epoch_invites
+                    FROM epoch_identities ei
+                             JOIN address_states s ON s.id = ei.address_state_id AND s.address_id = p_address_id
+                    WHERE ei.epoch >= l_start_epoch
+                      AND ei.epoch <= p_epoch
+                    ORDER BY ei.epoch
+        loop
+            if l_record.epoch > p_epoch - 3 then
+                l_reward_coef = 3;
+                if l_record.epoch = p_epoch - 1 then
+                    l_reward_coef = l_reward_coef * 3;
+                end if;
+                if l_record.epoch = p_epoch - 2 then
+                    l_reward_coef = l_reward_coef * 6;
+                end if;
+                l_max_reward = l_max_reward + l_reward_coef * p_reward_share * l_epoch_available_invites;
+            end if;
+            l_epoch_available_invites = l_record.next_epoch_invites;
+        end loop;
+    l_missed_reward = l_max_reward - coalesce(p_reward, 0);
+    if l_missed_reward < 0 then
+        l_missed_reward = 0;
+    end if;
+    return l_missed_reward;
 END
 $$;
 

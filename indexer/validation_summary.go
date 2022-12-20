@@ -117,6 +117,7 @@ func (c *validationRewardSummariesCalculator) calculateValidationRewardSummaries
 	newState state.IdentityState,
 	availableFlips uint8,
 	prevStake *big.Int,
+	enableUpgrade10 bool,
 ) db.ValidationRewardSummaries {
 	if !c.initialized {
 		c.init()
@@ -169,6 +170,7 @@ func (c *validationRewardSummariesCalculator) calculateValidationRewardSummaries
 		c.rewardedFlips,
 		penalized,
 		missedValidation,
+		enableUpgrade10,
 	)
 
 	extraFlips := calculateExtraFlipsRewardSummary(
@@ -337,6 +339,7 @@ func calculateFlipsRewardSummary(
 	rewardedFlips map[string]struct{},
 	penalized bool,
 	missedValidation bool,
+	enableUpgrade10 bool,
 ) db.ValidationRewardSummary {
 	rewardedFlipsCnt := getRewardedFlips(identityFlips, rewardedFlips)
 	var earned *big.Int
@@ -345,7 +348,11 @@ func calculateFlipsRewardSummary(
 	}
 	var missed *big.Int
 	if share != nil && availableFlips > 0 {
-		missed = new(big.Int).Mul(share, new(big.Int).SetUint64(uint64(requiredFlips-rewardedFlipsCnt)))
+		if enableUpgrade10 {
+			missed = new(big.Int).Mul(share, new(big.Int).SetUint64(uint64(requiredFlips-rewardedFlipsCnt)))
+		} else {
+			missed = new(big.Int).Mul(share, new(big.Int).SetUint64(uint64(availableFlips-rewardedFlipsCnt)))
+		}
 	}
 	var missedReason byte
 	if missed != nil && missed.Sign() > 0 {
