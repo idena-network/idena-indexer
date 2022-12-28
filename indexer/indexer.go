@@ -910,6 +910,9 @@ func (indexer *Indexer) detectEpochResult(block *types.Block, ctx *conversionCon
 		vrsCalculator = newValidationRewardSummariesCalculator(
 			indexer.statsHolder().GetStats().RewardsStats,
 			validationStats,
+			ctx.prevStateReadOnly,
+			block.Height(),
+			indexer.listener.Config().Consensus,
 		)
 	}
 	memPoolFlipKeysToMigrate := indexer.getMemPoolFlipKeysToMigrate(ctx.prevStateReadOnly.State.Epoch())
@@ -1044,6 +1047,24 @@ func (indexer *Indexer) detectEpochResult(block *types.Block, ctx *conversionCon
 			} else {
 				potentialValidationRewardAge = newEpoch - uint16(convertedIdentity.BirthEpoch)
 			}
+			var inviterStake *big.Int
+			var invitationEpochHeight uint32
+			if prevStateIdentity.Inviter != nil {
+				inviter := *prevStateIdentity.Inviter
+				inviterAddress := inviter.Address
+				inviterIdentity := ctx.prevStateReadOnly.State.GetIdentity(inviterAddress)
+				inviterShard := inviterIdentity.ShiftedShardId()
+				if indexer.statsHolder().GetStats() != nil && indexer.statsHolder().GetStats().RewardsStats != nil {
+					inviterShardValidationStats := indexer.statsHolder().GetStats().RewardsStats.ValidationResults[inviterShard]
+					if inviterShardValidationStats != nil {
+						inviterValidationResult := inviterShardValidationStats.GoodInviters[inviterAddress]
+						if inviterValidationResult != nil && inviterValidationResult.PayInvitationReward {
+							invitationEpochHeight = inviter.EpochHeight
+							inviterStake = ctx.prevStateReadOnly.State.GetStakeBalance(inviterAddress)
+						}
+					}
+				}
+			}
 			validationRewardSummaries := vrsCalculator.calculateValidationRewardSummaries(
 				addr,
 				shardId,
@@ -1053,7 +1074,8 @@ func (indexer *Indexer) detectEpochResult(block *types.Block, ctx *conversionCon
 				newIdentityState,
 				convertedIdentity.AvailableFlips,
 				prevStateIdentity.Stake,
-				indexer.listener.Config().Consensus.EnableUpgrade10,
+				inviterStake,
+				invitationEpochHeight,
 			)
 			validationRewardsSummaries = append(validationRewardsSummaries, validationRewardSummaries)
 		}

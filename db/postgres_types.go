@@ -1001,6 +1001,10 @@ type delegationEpochReward struct {
 	Reports         *decimal.Decimal `json:"reports,omitempty"`
 	Candidate       *decimal.Decimal `json:"candidate,omitempty"`
 	Staking         *decimal.Decimal `json:"staking,omitempty"`
+	ExtraFlips      *decimal.Decimal `json:"extraFlips,omitempty"`
+	Invitee1        *decimal.Decimal `json:"invitee1,omitempty"`
+	Invitee2        *decimal.Decimal `json:"invitee2,omitempty"`
+	Invitee3        *decimal.Decimal `json:"invitee3,omitempty"`
 }
 
 func getData(
@@ -1081,6 +1085,10 @@ const (
 	reportedFlips  byte = 9
 	staking        byte = 10
 	candidate      byte = 11
+	extraFlips     byte = 12
+	invitee1       byte = 13
+	invitee2       byte = 14
+	invitee3       byte = 15
 )
 
 func convertDelegationEpochRewards(items []DelegationEpochReward) delegationEpochReward {
@@ -1113,6 +1121,14 @@ func convertDelegationEpochRewards(items []DelegationEpochReward) delegationEpoc
 			res.Candidate = &balance
 		case staking:
 			res.Staking = &balance
+		case extraFlips:
+			res.ExtraFlips = &balance
+		case invitee1:
+			res.Invitee1 = &balance
+		case invitee2:
+			res.Invitee2 = &balance
+		case invitee3:
+			res.Invitee3 = &balance
 		}
 	}
 	res.Total = blockchain.ConvertToFloat(total)
@@ -1231,6 +1247,7 @@ type validationRewardSummaries struct {
 	ExtraFlips  validationRewardSummary `json:"extraFlips"`
 	Invitations validationRewardSummary `json:"invitations"`
 	Reports     validationRewardSummary `json:"reports"`
+	Invitee     validationRewardSummary `json:"invitee"`
 }
 
 type validationRewardSummary struct {
@@ -1292,6 +1309,7 @@ func getEpochResultData(epochResult *EpochResult) *epochResultData {
 				ExtraFlips:  convertValidationRewardSummary(incomingItem.ExtraFlips),
 				Invitations: convertValidationRewardSummary(incomingItem.Invitations),
 				Reports:     convertValidationRewardSummary(incomingItem.Reports),
+				Invitee:     convertValidationRewardSummary(incomingItem.Invitee),
 			}
 			res.ValidationRewardsSummaries = append(res.ValidationRewardsSummaries, item)
 		}

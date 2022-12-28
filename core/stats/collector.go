@@ -371,9 +371,23 @@ func (c *statsCollector) getFlipCid(shardId common.ShardId, flipIdx int) ([]byte
 }
 
 func (c *statsCollector) AddInviteeReward(addr common.Address, stake *big.Int, age uint16, txHash common.Hash, epochHeight uint32) {
-	c.addReward(addr, nil, stake, Invitee)
+	rewardType := determineInviteeRewardType(age)
+	c.addReward(addr, nil, stake, rewardType)
 	c.addRewardedInvitee(txHash, epochHeight)
 	c.addAddrTotalReward(addr, nil, stake)
+}
+
+func determineInviteeRewardType(age uint16) RewardType {
+	switch age {
+	case 1:
+		return Invitee1
+	case 2:
+		return Invitee2
+	case 3:
+		return Invitee3
+	default:
+		panic(fmt.Sprintf("no invitee reward type for age %v", age))
+	}
 }
 
 func (c *statsCollector) addRewardedInvitee(txHash common.Hash, epochHeight uint32) {

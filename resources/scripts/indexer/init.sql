@@ -219,6 +219,12 @@ ON CONFLICT DO NOTHING;
 INSERT INTO dic_epoch_reward_types
 VALUES (13, 'Invitee')
 ON CONFLICT DO NOTHING;
+INSERT INTO dic_epoch_reward_types
+VALUES (14, 'Invitee2')
+ON CONFLICT DO NOTHING;
+INSERT INTO dic_epoch_reward_types
+VALUES (15, 'Invitee3')
+ON CONFLICT DO NOTHING;
 
 CREATE TABLE IF NOT EXISTS dic_bad_author_reasons
 (

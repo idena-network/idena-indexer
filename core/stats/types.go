@@ -26,7 +26,9 @@ const (
 	Staking           RewardType = 10
 	Candidate         RewardType = 11
 	ExtraFlips        RewardType = 12
-	Invitee           RewardType = 13
+	Invitee1          RewardType = 13
+	Invitee2          RewardType = 14
+	Invitee3          RewardType = 15
 )
 
 type Stats struct {

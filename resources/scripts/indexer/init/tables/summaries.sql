@@ -126,6 +126,10 @@ CREATE TABLE IF NOT EXISTS delegatee_total_validation_rewards
     staking_balance           numeric(30, 18),
     delegators                integer         NOT NULL,
     penalized_delegators      integer         NOT NULL,
+    extra_flips_balance       numeric(30, 18),
+    invitee1_balance          numeric(30, 18),
+    invitee2_balance          numeric(30, 18),
+    invitee3_balance          numeric(30, 18),
     CONSTRAINT delegatee_total_validation_rewards_pkey PRIMARY KEY (epoch, delegatee_address_id)
 );
 CREATE INDEX IF NOT EXISTS delegatee_total_validation_rewards_api_idx1 on delegatee_total_validation_rewards (epoch, total_balance desc, delegatee_address_id);
@@ -147,6 +151,10 @@ CREATE TABLE IF NOT EXISTS delegatee_validation_rewards
     reports_balance           numeric(30, 18),
     candidate_balance         numeric(30, 18),
     staking_balance           numeric(30, 18),
+    extra_flips_balance       numeric(30, 18),
+    invitee1_balance          numeric(30, 18),
+    invitee2_balance          numeric(30, 18),
+    invitee3_balance          numeric(30, 18),
     CONSTRAINT delegatee_validation_rewards_pkey PRIMARY KEY (epoch, delegatee_address_id, delegator_address_id)
 );
 CREATE INDEX IF NOT EXISTS delegatee_validation_rewards_api_idx1 on delegatee_validation_rewards (epoch, delegatee_address_id, total_balance desc, delegator_address_id);
@@ -177,6 +185,9 @@ CREATE TABLE IF NOT EXISTS validation_reward_summaries
     extra_flips               numeric(30, 18),
     extra_flips_missed        numeric(30, 18),
     extra_flips_missed_reason smallint,
+    invitee                   numeric(30, 18),
+    invitee_missed            numeric(30, 18),
+    invitee_missed_reason     smallint,
     CONSTRAINT validation_reward_summaries_pkey PRIMARY KEY (epoch, address_id)
 );
 

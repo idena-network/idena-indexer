@@ -16,6 +16,7 @@ DECLARE
     l_extra_flips_reward_summary                  jsonb;
     l_invitations_reward_summary                  jsonb;
     l_reports_reward_summary                      jsonb;
+    l_invitee_reward_summary                      jsonb;
     l_invitations                                 numeric;
     l_invitations_missed                          numeric;
     l_invitations_missed_reason                   smallint;
@@ -38,6 +39,7 @@ BEGIN
             l_extra_flips_reward_summary = l_item -> 'extraFlips';
             l_invitations_reward_summary = l_item -> 'invitations';
             l_reports_reward_summary = l_item -> 'reports';
+            l_invitee_reward_summary = l_item -> 'invitee';
 
             l_invitations = (l_invitations_reward_summary ->> 'earned')::numeric;
             l_invitations_missed_reason = (l_invitations_reward_summary ->> 'missedReason')::smallint;
@@ -62,7 +64,8 @@ BEGIN
                                                      reports, reports_missed, reports_missed_reason,
                                                      candidate, candidate_missed, candidate_missed_reason,
                                                      staking, staking_missed, staking_missed_reason,
-                                                     extra_flips, extra_flips_missed, extra_flips_missed_reason)
+                                                     extra_flips, extra_flips_missed, extra_flips_missed_reason,
+                                                     invitee, invitee_missed, invitee_missed_reason)
             VALUES (p_epoch, l_address_id,
                     null_if_zero((l_validation_reward_summary ->> 'earned')::numeric),
                     null_if_zero((l_validation_reward_summary ->> 'missed')::numeric),
@@ -84,7 +87,10 @@ BEGIN
                     (l_staking_reward_summary ->> 'missedReason')::smallint,
                     null_if_zero((l_extra_flips_reward_summary ->> 'earned')::numeric),
                     null_if_zero((l_extra_flips_reward_summary ->> 'missed')::numeric),
-                    (l_extra_flips_reward_summary ->> 'missedReason')::smallint);
+                    (l_extra_flips_reward_summary ->> 'missedReason')::smallint,
+                    null_if_zero((l_invitee_reward_summary ->> 'earned')::numeric),
+                    null_if_zero((l_invitee_reward_summary ->> 'missed')::numeric),
+                    (l_invitee_reward_summary ->> 'missedReason')::smallint);
 
         end loop;
 END
@@ -179,7 +185,8 @@ BEGIN
                 if l_record.epoch = p_epoch - 2 then
                     l_reward_coef = 0.8;
                 end if;
-                l_max_reward = l_max_reward + l_stake_weight * l_reward_coef * p_reward_share * l_epoch_available_invites;
+                l_max_reward =
+                            l_max_reward + l_stake_weight * l_reward_coef * p_reward_share * l_epoch_available_invites;
             end if;
             l_epoch_available_invites = l_record.next_epoch_invites;
         end loop;

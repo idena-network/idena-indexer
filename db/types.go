@@ -776,6 +776,7 @@ type ValidationRewardSummaries struct {
 	Reports     ValidationRewardSummary
 	Candidate   ValidationRewardSummary
 	Staking     ValidationRewardSummary
+	Invitee     ValidationRewardSummary
 }
 
 type ValidationRewardSummary struct {
