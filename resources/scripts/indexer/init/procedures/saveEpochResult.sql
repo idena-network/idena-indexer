@@ -121,6 +121,11 @@ BEGIN
     select clock_timestamp() into l_end;
     call log_performance('update_flips_queue', l_start, l_end);
 
+--     select clock_timestamp() into l_start;
+--     DELETE FROM latest_activation_txs WHERE epoch < p_epoch - 2;
+--     select clock_timestamp() into l_end;
+--     call log_performance('delete_activation_txs', l_start, l_end);
+
     SET session_replication_role = DEFAULT;
 END
 $BODY$;
@@ -418,6 +423,7 @@ BEGIN
     select clock_timestamp() into l_start;
     if p_rewarded_invitees is not null then
         call save_rewarded_invitees(p_block_height, p_rewarded_invitees);
+--         call save_rewarded_invitees(p_epoch, p_block_height, p_rewarded_invitees);
     end if;
     select clock_timestamp() into l_end;
     call log_performance('save_rewarded_invitees', l_start, l_end);
@@ -630,7 +636,7 @@ AS
 $$
 DECLARE
     l_rewarded_invitee tp_rewarded_invitee;
-    l_invite_tx_id        bigint;
+    l_invite_tx_id     bigint;
 BEGIN
     for i in 1..cardinality(p_rewarded_invitees)
         loop
@@ -646,6 +652,40 @@ BEGIN
         end loop;
 END
 $$;
+-- CREATE OR REPLACE PROCEDURE save_rewarded_invitees(p_epoch bigint,
+--                                                    p_block_height bigint,
+--                                                    p_rewarded_invitees tp_rewarded_invitee[])
+--     LANGUAGE 'plpgsql'
+-- AS
+-- $$
+-- DECLARE
+--     l_rewarded_invitee   tp_rewarded_invitee;
+--     l_invite_tx_id       bigint;
+--     l_invitee_address_id bigint;
+-- BEGIN
+--     for i in 1..cardinality(p_rewarded_invitees)
+--         loop
+--             l_rewarded_invitee = p_rewarded_invitees[i];
+--             select id into l_invite_tx_id from transactions where lower(hash) = lower(l_rewarded_invitee.tx_hash);
+--             if l_invite_tx_id is null then
+--                 continue;
+--             end if;
+--
+--             SELECT "to"
+--             INTO l_invitee_address_id
+--             FROM activation_txs act
+--                      LEFT JOIN transactions t ON t.id = act.tx_id
+--             WHERE act.invite_tx_id = l_invite_tx_id;
+--
+--             insert into rewarded_invitees (epoch, address_id, invite_tx_id, block_height, epoch_height)
+--             values (p_epoch,
+--                     l_invitee_address_id,
+--                     l_invite_tx_id,
+--                     p_block_height,
+--                     l_rewarded_invitee.epoch_height);
+--         end loop;
+-- END
+-- $$;
 
 CREATE OR REPLACE PROCEDURE save_saved_invite_rewards(p_saved_invite_rewards tp_saved_invite_rewards[])
     LANGUAGE 'plpgsql'

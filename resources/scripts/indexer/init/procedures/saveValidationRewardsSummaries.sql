@@ -20,6 +20,9 @@ DECLARE
     l_invitations                                 numeric;
     l_invitations_missed                          numeric;
     l_invitations_missed_reason                   smallint;
+    l_invitee                                     numeric;
+    l_invitee_missed                              numeric;
+    l_invitee_missed_reason                       smallint;
     l_enable_upgrade_10                           boolean;
 BEGIN
     if p_items is null then
@@ -49,13 +52,25 @@ BEGIN
                                                             (l_item ->> 'prevStake')::numeric);
             else
                 l_invitations_missed =
-                        calculate_invitations_missed_reward_old(p_epoch, l_address_id, l_invitations, p_invitations_share);
+                        calculate_invitations_missed_reward_old(p_epoch, l_address_id, l_invitations,
+                                                                p_invitations_share);
             end if;
             if l_invitations_missed_reason is not null and l_invitations_missed is null or l_invitations_missed = 0 then
                 l_invitations_missed_reason = null;
             end if;
             if l_invitations_missed_reason is null and l_invitations_missed > 0 then
                 l_invitations_missed_reason = MISSED_REWARD_REASON_NOT_ALL_INVITES;
+            end if;
+
+            l_invitee = (l_invitee_reward_summary ->> 'earned')::numeric;
+            l_invitee_missed_reason = (l_invitee_reward_summary ->> 'missedReason')::smallint;
+            l_invitee_missed = null;
+            if coalesce(l_invitee, 0) = 0 then
+                SELECT p_missed, p_missed_reason
+                INTO l_invitee_missed, l_invitee_missed_reason
+                FROM
+                    calculate_invitee_missed_reward(p_epoch, l_address_id, p_invitations_share,
+                                                    l_invitee_missed_reason);
             end if;
 
             INSERT INTO validation_reward_summaries (epoch, address_id, validation, validation_missed,
@@ -88,9 +103,9 @@ BEGIN
                     null_if_zero((l_extra_flips_reward_summary ->> 'earned')::numeric),
                     null_if_zero((l_extra_flips_reward_summary ->> 'missed')::numeric),
                     (l_extra_flips_reward_summary ->> 'missedReason')::smallint,
-                    null_if_zero((l_invitee_reward_summary ->> 'earned')::numeric),
-                    null_if_zero((l_invitee_reward_summary ->> 'missed')::numeric),
-                    (l_invitee_reward_summary ->> 'missedReason')::smallint);
+                    null_if_zero(l_invitee),
+                    null_if_zero(l_invitee_missed),
+                    l_invitee_missed_reason);
 
         end loop;
 END
@@ -195,5 +210,81 @@ BEGIN
         l_missed_reward = 0;
     end if;
     return l_missed_reward;
+END
+$$;
+
+CREATE OR REPLACE FUNCTION calculate_invitee_missed_reward(p_epoch bigint,
+                                                           p_address_id bigint,
+                                                           p_reward_share numeric,
+                                                           inout p_missed_reason smallint,
+                                                           out p_missed numeric)
+    LANGUAGE 'plpgsql'
+AS
+$$
+DECLARE
+    MISSED_REWARD_REASON_INVITER_REPORTED      CONSTANT smallint = 7;
+    MISSED_REWARD_REASON_INVITER_NOT_VALIDATED CONSTANT smallint = 8;
+    MISSED_REWARD_REASON_INVITER_RESET         CONSTANT smallint = 9;
+    l_activation_tx_id                                  bigint;
+    l_activation_epoch                                  integer;
+    l_age                                               smallint;
+    l_inviter_stake_weight                              numeric;
+    l_reward_weight                                     numeric;
+    l_is_inviter_reported                               boolean;
+    l_is_inviter_not_validated                          boolean;
+BEGIN
+
+    SELECT lat.activation_tx_id,
+           lat.epoch,
+           pow(rsa.amount, 0.9),
+           ba.reason is not null    as is_inviter_reported,
+           s.state not in (3, 7, 8) as is_inviter_not_validated
+    INTO l_activation_tx_id, l_activation_epoch, l_inviter_stake_weight, l_is_inviter_reported, l_is_inviter_not_validated
+    FROM latest_activation_txs lat
+             LEFT JOIN activation_txs act ON act.tx_id = lat.activation_tx_id
+             LEFT JOIN transactions invt ON invt.id = act.invite_tx_id
+             LEFT JOIN addresses inva ON inva.id = invt.from
+             LEFT JOIN cur_epoch_identities ei ON lower(ei.address) = lower(inva.address)
+             LEFT JOIN bad_authors ba ON ba.ei_address_state_id = ei.address_state_id
+             LEFT JOIN address_states s ON s.id = ei.address_state_id
+             LEFT JOIN reward_staked_amounts rsa ON rsa.ei_address_state_id = ei.address_state_id
+    WHERE lat.address_id = p_address_id
+    ORDER BY lat.activation_tx_id DESC
+    LIMIT 1;
+
+    p_missed = 0;
+
+    l_age = p_epoch - l_activation_epoch + 1;
+    if l_activation_tx_id is null or l_age > 3 then
+        return;
+    end if;
+
+    if coalesce(l_inviter_stake_weight, 0) = 0 then
+        return;
+    end if;
+
+    l_reward_weight = 0.8;
+    if l_age = 2 then
+        l_reward_weight = 0.5;
+    end if;
+    if l_age = 3 then
+        l_reward_weight = 0.2;
+    end if;
+
+    l_reward_weight = l_reward_weight * l_inviter_stake_weight;
+    p_missed = p_reward_share * l_reward_weight;
+
+    if p_missed > 0 and coalesce(p_missed_reason, 0) = 0 then
+        if l_is_inviter_reported then
+            p_missed_reason = MISSED_REWARD_REASON_INVITER_REPORTED;
+            return;
+        end if;
+
+        if l_is_inviter_not_validated then
+            p_missed_reason = MISSED_REWARD_REASON_INVITER_NOT_VALIDATED;
+            return;
+        end if;
+        p_missed_reason = MISSED_REWARD_REASON_INVITER_RESET;
+    end if;
 END
 $$;

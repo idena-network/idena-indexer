@@ -1319,6 +1319,7 @@ CREATE TABLE IF NOT EXISTS activation_txs
         ON UPDATE NO ACTION
         ON DELETE NO ACTION
 );
+-- CREATE UNIQUE INDEX IF NOT EXISTS activation_txs_for_rewarded_invitee_summary_idx on activation_txs (invite_tx_id);
 
 CREATE TABLE IF NOT EXISTS kill_invitee_txs
 (
@@ -1390,11 +1391,21 @@ CREATE TABLE IF NOT EXISTS rewarded_invitations
 
 CREATE TABLE IF NOT EXISTS rewarded_invitees
 (
-    invite_tx_id bigint   NOT NULL,
-    block_height bigint   NOT NULL,
+    invite_tx_id bigint NOT NULL,
+    block_height bigint NOT NULL,
     epoch_height integer,
     CONSTRAINT rewarded_invitees_pkey PRIMARY KEY (invite_tx_id, block_height)
 );
+-- CREATE TABLE IF NOT EXISTS rewarded_invitees
+-- (
+--     epoch        integer NOT NULL,
+--     address_id   bigint  NOT NULL,
+--     invite_tx_id bigint  NOT NULL,
+--     block_height bigint  NOT NULL,
+--     epoch_height integer,
+--     CONSTRAINT rewarded_invitees_pkey PRIMARY KEY (invite_tx_id, block_height)
+-- );
+-- CREATE UNIQUE INDEX IF NOT EXISTS rewarded_invitees_api_idx on rewarded_invitees (epoch, address_id);
 
 CREATE TABLE IF NOT EXISTS saved_invite_rewards
 (
@@ -3237,8 +3248,11 @@ CREATE OR REPLACE PROCEDURE save_activation_txs(p_activation_txs tp_activation_t
 AS
 $BODY$
 DECLARE
-    l_activation_tx tp_activation_tx;
-    l_invite_tx_id  bigint;
+    l_activation_tx               tp_activation_tx;
+    l_invite_tx_id                bigint;
+    l_activation_tx_id            bigint;
+    l_activation_tx_to_address_id bigint;
+    l_activation_tx_epoch         bigint;
 BEGIN
     for i in 1..cardinality(p_activation_txs)
         loop
@@ -3247,9 +3261,19 @@ BEGIN
             if l_invite_tx_id is null then
                 continue;
             end if;
+
+            SELECT t.id, t."to", b.epoch
+            INTO l_activation_tx_id, l_activation_tx_to_address_id, l_activation_tx_epoch
+            FROM transactions t
+                     LEFT JOIN blocks b ON b.height = t.block_height
+            WHERE lower(t.hash) = lower(l_activation_tx.tx_hash);
+
             insert into activation_txs (tx_id, invite_tx_id, shard_id)
-            values ((select id from transactions where lower(hash) = lower(l_activation_tx.tx_hash)), l_invite_tx_id,
+            values (l_activation_tx_id, l_invite_tx_id,
                     l_activation_tx.shard_id);
+
+            INSERT INTO latest_activation_txs (activation_tx_id, address_id, epoch)
+            VALUES (l_activation_tx_id, l_activation_tx_to_address_id, l_activation_tx_epoch);
         end loop;
 END
 $BODY$;
@@ -3678,6 +3702,8 @@ BEGIN
           (select t.id
            from transactions t
            where t.block_height > p_block_height);
+
+    DELETE FROM latest_activation_txs WHERE activation_tx_id >= l_min_tx_id_to_delete;
 
     delete
     from kill_invitee_txs

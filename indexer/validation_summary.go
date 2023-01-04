@@ -6,7 +6,6 @@ import (
 	"github.com/idena-network/idena-go/common"
 	math2 "github.com/idena-network/idena-go/common/math"
 	"github.com/idena-network/idena-go/config"
-	"github.com/idena-network/idena-go/core/appstate"
 	"github.com/idena-network/idena-go/core/state"
 	statsTypes "github.com/idena-network/idena-go/stats/types"
 	"github.com/idena-network/idena-indexer/core/conversion"
@@ -42,24 +41,17 @@ type validationRewardSummariesCalculator struct {
 	rewardedFlips                        map[string]struct{}
 	rewardedExtraFlips                   map[string]struct{}
 
-	epochDurations  []uint32
 	consensusConfig *config.ConsensusConf
-	appState        *appstate.AppState
-	height          uint64
 }
 
 func newValidationRewardSummariesCalculator(
 	rewardsStats *stats.RewardsStats,
 	validationStats *statsTypes.ValidationStats,
-	appState *appstate.AppState,
-	height uint64,
 	consensusConfig *config.ConsensusConf,
 ) *validationRewardSummariesCalculator {
 	res := &validationRewardSummariesCalculator{
 		rewardsStats:    rewardsStats,
 		validationStats: validationStats,
-		appState:        appState,
-		height:          height,
 		consensusConfig: consensusConfig,
 	}
 	return res
@@ -119,19 +111,6 @@ func (c *validationRewardSummariesCalculator) init() {
 	}
 	c.rewardedFlips = convertRewardedFlips(c.rewardsStats.RewardedFlipCids)
 	c.rewardedExtraFlips = convertRewardedFlips(c.rewardsStats.RewardedExtraFlipCids)
-
-	{
-		var epochDurations []uint32
-		prevEpochBlocks := c.appState.State.PrevEpochBlocks()
-		epochBlock := c.appState.State.EpochBlock()
-		epochBlocks := append(prevEpochBlocks, []uint64{epochBlock, c.height}...)
-		epochDurationsLen := len(epochBlocks) - 1
-		epochDurations = make([]uint32, 0, epochDurationsLen)
-		for i := 0; i < epochDurationsLen; i++ {
-			epochDurations = append(epochDurations, uint32(epochBlocks[i+1]-epochBlocks[i]))
-		}
-		c.epochDurations = epochDurations
-	}
 }
 
 func (c *validationRewardSummariesCalculator) calculateValidationRewardSummaries(
@@ -143,8 +122,6 @@ func (c *validationRewardSummariesCalculator) calculateValidationRewardSummaries
 	newState state.IdentityState,
 	availableFlips uint8,
 	prevStake *big.Int,
-	inviterStake *big.Int,
-	invitationEpochHeight uint32,
 ) db.ValidationRewardSummaries {
 	if !c.initialized {
 		c.init()
@@ -212,7 +189,7 @@ func (c *validationRewardSummariesCalculator) calculateValidationRewardSummaries
 	)
 
 	invitations := calculateInvitationsRewardSummary(rewardsByType, penalized)
-	invitee := calculateInviteeRewardSummary(rewardsByType, penalized, age, inviterStake, invitationEpochHeight, c.epochDurations, c.rewardsStats.InvitationsShare, c.consensusConfig)
+	invitee := calculateInviteeRewardSummary(rewardsByType, penalized, newState)
 
 	convertedAddress := conversion.ConvertAddress(address)
 	reportsShare := c.rewardsStats.ReportsShare
@@ -464,14 +441,10 @@ func calculateInvitationsRewardSummary(identityRewardsByType map[stats.RewardTyp
 func calculateInviteeRewardSummary(
 	identityRewardsByType map[stats.RewardType]*big.Int,
 	penalized bool,
-	age uint16,
-	inviterStake *big.Int,
-	epochHeight uint32,
-	epochDurations []uint32,
-	share *big.Int,
-	consensusConfig *config.ConsensusConf,
+	newState state.IdentityState,
 ) db.ValidationRewardSummary {
-	var earned, missed *big.Int
+
+	var earned *big.Int
 	for _, inviteeRewardType := range inviteeRewardTypes {
 		if reward := identityRewardsByType[inviteeRewardType]; reward != nil {
 			if earned == nil {
@@ -481,58 +454,13 @@ func calculateInviteeRewardSummary(
 		}
 	}
 	var missedReason byte
-	if consensusConfig.EnableUpgrade10 && (age == 1 || age == 2 || age == 3) && (earned == nil || earned.Sign() == 0) && inviterStake != nil && inviterStake.Sign() > 0 {
-
-		getCoefByAge := func(age uint16, consensusConfig *config.ConsensusConf) float32 {
-			switch age {
-			case 1:
-				return consensusConfig.FirstInvitationRewardCoef
-			case 2:
-				return consensusConfig.SecondInvitationRewardCoef
-			case 3:
-				return consensusConfig.ThirdInvitationRewardCoef
-			default:
-				return 0
-			}
-		}
-
-		getInviteeRewardCoef := func(stakeWeight float32, age uint16, epochHeight uint32, epochDurations []uint32, consensusConfig *config.ConsensusConf) float32 {
-			split := func(value float32) float32 {
-				inviter := value * getCoefByAge(age, consensusConfig)
-				invitee := value - inviter
-				return invitee
-			}
-
-			if age == 0 || age > 3 {
-				return 0
-			}
-
-			baseCoef := stakeWeight
-			if len(epochDurations) < int(age) {
-				return split(baseCoef)
-			}
-			epochDuration := epochDurations[len(epochDurations)-int(age)]
-			if epochDuration == 0 {
-				return split(baseCoef)
-			}
-			t := math.Min(float64(epochHeight)/float64(epochDuration), 1.0)
-			return split(baseCoef * float32(1-math.Pow(t, 4)*0.5))
-		}
-
-		stakeWeight := stakeWeight(inviterStake)
-		weight := getInviteeRewardCoef(stakeWeight, age, epochHeight, epochDurations, consensusConfig)
-		missed = math2.ToInt(decimal.NewFromBigInt(share, 0).Mul(decimal.NewFromFloat32(weight)))
-		if missed.Sign() > 0 {
-			if penalized {
-				missedReason = missedRewardReasonPenalty
-			} else {
-				missedReason = missedRewardReasonNotValidated
-			}
-		}
+	if penalized {
+		missedReason = missedRewardReasonPenalty
+	} else if !newState.NewbieOrBetter() {
+		missedReason = missedRewardReasonNotValidated
 	}
 	return db.ValidationRewardSummary{
 		Earned:       earned,
-		Missed:       missed,
 		MissedReason: missedRewardReasonOrNil(missedReason),
 	}
 }

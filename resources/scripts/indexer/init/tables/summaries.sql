@@ -214,3 +214,13 @@ CREATE TABLE IF NOT EXISTS mining_reward_summaries_changes
         ON UPDATE NO ACTION
         ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS latest_activation_txs
+(
+    activation_tx_id bigint  NOT NULL,
+    epoch            integer NOT NULL,
+    address_id       bigint  NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS latest_activation_txs_reset_idx ON latest_activation_txs (activation_tx_id);
+CREATE INDEX IF NOT EXISTS latest_activation_txs_api_idx ON latest_activation_txs (epoch, address_id, activation_tx_id DESC);
+CREATE INDEX IF NOT EXISTS latest_activation_txs_summary_idx ON latest_activation_txs (address_id, activation_tx_id DESC);
