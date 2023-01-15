@@ -4,9 +4,12 @@ import (
 	"fmt"
 	"github.com/idena-network/idena-go/blockchain/types"
 	"github.com/idena-network/idena-go/common/eventbus"
+	config2 "github.com/idena-network/idena-go/config"
 	"github.com/idena-network/idena-go/core/state"
+	"github.com/idena-network/idena-go/database"
 	"github.com/idena-network/idena-go/events"
 	nodeLog "github.com/idena-network/idena-go/log"
+	"github.com/idena-network/idena-go/node"
 	"github.com/idena-network/idena-indexer/config"
 	"github.com/idena-network/idena-indexer/core/api"
 	"github.com/idena-network/idena-indexer/core/flip"
@@ -144,8 +147,9 @@ func initIndexer(config *config.Config, txMemPool transaction.MemPool) (*indexer
 
 	performanceMonitor := initPerformanceMonitor(config.PerformanceMonitor)
 	wordsLoader := words.NewLoader(config.WordsFile)
-	statsCollector := stats.NewStatsCollector(statsCollectorEventBus)
-	listener := incoming.NewListener(config.NodeConfigFile, nodeEventBus, statsCollector, performanceMonitor)
+	nodeConfig := initNodeConfig(config.NodeConfigFile)
+	statsCollector := stats.NewStatsCollector(statsCollectorEventBus, nodeConfig.Consensus)
+	listener := incoming.NewListener(nodeConfig, nodeEventBus, statsCollector, performanceMonitor)
 	var dataTable, dataStateTable string
 	if config.Data != nil && config.Data.Enabled {
 		dataTable, dataStateTable = config.Data.Table, config.Data.StateTable
@@ -258,4 +262,44 @@ func initPerformanceMonitor(config config.PerformanceMonitorConfig) monitoring.P
 		return monitoring.NewEmptyPerformanceMonitor()
 	}
 	return monitoring.NewPerformanceMonitor(config.BlocksToLog, log.New("component", "pm"))
+}
+
+func initNodeConfig(nodeConfigFile string) *config2.Config {
+	cfg, err := config2.MakeConfigFromFile(nodeConfigFile)
+	if err != nil {
+		panic(err)
+	}
+	cfg.P2P.MaxInboundPeers = config2.LowPowerMaxInboundNotOwnShardPeers
+	cfg.P2P.MaxOutboundPeers = config2.LowPowerMaxOutboundNotOwnShardPeers
+	cfg.P2P.MaxInboundOwnShardPeers = config2.LowPowerMaxInboundOwnShardPeers
+	cfg.P2P.MaxOutboundOwnShardPeers = config2.LowPowerMaxOutboundOwnShardPeers
+	cfg.IpfsConf.LowWater = 8
+	cfg.IpfsConf.HighWater = 10
+	cfg.IpfsConf.GracePeriod = "30s"
+	cfg.IpfsConf.ReproviderInterval = "0"
+	cfg.IpfsConf.Routing = "dhtclient"
+	cfg.IpfsConf.PublishPeers = true
+	cfg.Sync.FastSync = false
+	cfg.Mempool.ResetInCeremony = true
+
+	cfgTransform(cfg)
+	return cfg
+}
+
+func cfgTransform(cfg *config2.Config) {
+	db, err := node.OpenDatabase(cfg.DataDir, "idenachain", 16, 16, false)
+	if err != nil {
+		log.Error("Cannot transform consensus config", "err", err)
+		return
+	}
+	defer db.Close()
+	repo := database.NewRepo(db)
+	consVersion := repo.ReadConsensusVersion()
+	if consVersion <= uint32(cfg.Consensus.Version) {
+		return
+	}
+	for v := cfg.Consensus.Version + 1; v <= config2.ConsensusVerson(consVersion); v++ {
+		config2.ApplyConsensusVersion(v, cfg.Consensus)
+		log.Info("Consensus config transformed to", "ver", v)
+	}
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/idena-network/idena-go/common"
 	"github.com/idena-network/idena-go/common/eventbus"
 	"github.com/idena-network/idena-go/common/math"
+	"github.com/idena-network/idena-go/config"
 	"github.com/idena-network/idena-go/core/appstate"
 	"github.com/idena-network/idena-go/core/state"
 	"github.com/idena-network/idena-go/core/validators"
@@ -41,10 +42,11 @@ func init() {
 }
 
 type statsCollector struct {
-	stats        *Stats
-	statsEnabled bool
-	pending      *pending
-	bus          eventbus.Bus
+	stats         *Stats
+	statsEnabled  bool
+	pending       *pending
+	bus           eventbus.Bus
+	consensusConf *config.ConsensusConf
 }
 
 type pending struct {
@@ -145,9 +147,10 @@ type contractBalanceUpdate struct {
 	contractAddress *common.Address
 }
 
-func NewStatsCollector(bus eventbus.Bus) collector.StatsCollector {
+func NewStatsCollector(bus eventbus.Bus, consensusConf *config.ConsensusConf) collector.StatsCollector {
 	return &statsCollector{
-		bus: bus,
+		bus:           bus,
+		consensusConf: consensusConf,
 	}
 }
 
@@ -329,7 +332,12 @@ func (c *statsCollector) AddFlipsBasicReward(balanceDest, stakeDest common.Addre
 	if balanceDest != stakeDest {
 		c.addDelegateeReward(stakeDest, balanceDest, balance, nil, Flips)
 	}
-	c.addRewardedFlips(flipsToReward)
+	if !c.consensusConf.EnableUpgrade11 || len(flipsToReward) <= 3 {
+		c.addRewardedFlips(flipsToReward)
+	} else {
+		c.addRewardedFlips(flipsToReward[:3])
+		c.addRewardedExtraFlips(flipsToReward[3:])
+	}
 
 	c.addAddrTotalReward(baseRewardRecipient, balance, stake)
 }
@@ -340,7 +348,9 @@ func (c *statsCollector) AddFlipsExtraReward(balanceDest, stakeDest common.Addre
 	if balanceDest != stakeDest {
 		c.addDelegateeReward(stakeDest, balanceDest, balance, nil, ExtraFlips)
 	}
-	c.addRewardedExtraFlips(flipsToReward)
+	if !c.consensusConf.EnableUpgrade11 {
+		c.addRewardedExtraFlips(flipsToReward)
+	}
 
 	c.addAddrTotalReward(baseRewardRecipient, balance, stake)
 }

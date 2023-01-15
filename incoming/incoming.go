@@ -9,11 +9,9 @@ import (
 	"github.com/idena-network/idena-go/core/flip"
 	"github.com/idena-network/idena-go/core/mempool"
 	"github.com/idena-network/idena-go/core/upgrade"
-	"github.com/idena-network/idena-go/database"
 	"github.com/idena-network/idena-go/events"
 	"github.com/idena-network/idena-go/node"
 	"github.com/idena-network/idena-go/stats/collector"
-	"github.com/idena-network/idena-indexer/log"
 	"github.com/idena-network/idena-indexer/monitoring"
 )
 
@@ -46,27 +44,8 @@ type listenerImpl struct {
 	handleBlock     func(block *types.Block)
 }
 
-func NewListener(nodeConfigFile string, bus eventbus.Bus, statsCollector collector.StatsCollector, pm monitoring.PerformanceMonitor) Listener {
+func NewListener(cfg *config.Config, bus eventbus.Bus, statsCollector collector.StatsCollector, pm monitoring.PerformanceMonitor) Listener {
 	l := &listenerImpl{}
-
-	cfg, err := config.MakeConfigFromFile(nodeConfigFile)
-	if err != nil {
-		panic(err)
-	}
-	cfg.P2P.MaxInboundPeers = config.LowPowerMaxInboundNotOwnShardPeers
-	cfg.P2P.MaxOutboundPeers = config.LowPowerMaxOutboundNotOwnShardPeers
-	cfg.P2P.MaxInboundOwnShardPeers = config.LowPowerMaxInboundOwnShardPeers
-	cfg.P2P.MaxOutboundOwnShardPeers = config.LowPowerMaxOutboundOwnShardPeers
-	cfg.IpfsConf.LowWater = 8
-	cfg.IpfsConf.HighWater = 10
-	cfg.IpfsConf.GracePeriod = "30s"
-	cfg.IpfsConf.ReproviderInterval = "0"
-	cfg.IpfsConf.Routing = "dhtclient"
-	cfg.IpfsConf.PublishPeers = true
-	cfg.Sync.FastSync = false
-	cfg.Mempool.ResetInCeremony = true
-
-	cfgTransform(cfg)
 
 	pm.Start("Full")
 	pm.Start("Node")
@@ -104,24 +83,6 @@ func NewListener(nodeConfigFile string, bus eventbus.Bus, statsCollector collect
 	l.node = nodeCtx.Node
 
 	return l
-}
-
-func cfgTransform(cfg *config.Config) {
-	db, err := node.OpenDatabase(cfg.DataDir, "idenachain", 16, 16, false)
-	if err != nil {
-		log.Error("Cannot transform consensus config", "err", err)
-		return
-	}
-	defer db.Close()
-	repo := database.NewRepo(db)
-	consVersion := repo.ReadConsensusVersion()
-	if consVersion <= uint32(cfg.Consensus.Version) {
-		return
-	}
-	for v := cfg.Consensus.Version + 1; v <= config.ConsensusVerson(consVersion); v++ {
-		config.ApplyConsensusVersion(v, cfg.Consensus)
-		log.Info("Consensus config transformed to", "ver", v)
-	}
 }
 
 func (l *listenerImpl) AppStateReadonly(height uint64) (*appstate.AppState, error) {

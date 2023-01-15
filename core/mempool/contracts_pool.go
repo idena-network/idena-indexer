@@ -32,7 +32,7 @@ func NewContracts(appState *appstate.AppState, chain *blockchain.Blockchain, nod
 		chain:               chain,
 		nodeConfig:          nodeConfig,
 		logger:              logger,
-		statsCollector:      stats.NewStatsCollector(eventbus.New()),
+		statsCollector:      stats.NewStatsCollector(eventbus.New(), nodeConfig.Consensus),
 		txChan:              make(chan *types.Transaction, 10000),
 		oracleVotingDeploys: make(map[common.Address]map[common.Hash]*db.OracleVotingContract),
 		addressContractTxs:  newAddressContractTxs(),

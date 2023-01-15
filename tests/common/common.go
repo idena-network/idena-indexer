@@ -62,7 +62,7 @@ func InitIndexer(
 		AppState:   appState,
 		Blockchain: chain.Blockchain,
 	}
-	listener := NewTestListener(nodeEventBus, stats.NewStatsCollector(collectorEventBus), appState, nodeCtx, chain.SecStore(), &config2.Config{
+	listener := NewTestListener(nodeEventBus, stats.NewStatsCollector(collectorEventBus, chain.Config().Consensus), appState, nodeCtx, chain.SecStore(), &config2.Config{
 		Consensus: &config2.ConsensusConf{},
 	})
 	restorer := restore.NewRestorer(dbAccessor, appState, chain.Blockchain)
@@ -159,7 +159,7 @@ func InitIndexer2(opt Options) *IndexerCtx {
 	}
 	nodeEventBus := eventbus.New()
 	collectorEventBus := eventbus.New()
-	listener := NewTestListener(nodeEventBus, stats.NewStatsCollector(collectorEventBus), appState, nodeCtx, chain.SecStore(), opt.NodeConfig)
+	listener := NewTestListener(nodeEventBus, stats.NewStatsCollector(collectorEventBus, chain.Config().Consensus), appState, nodeCtx, chain.SecStore(), opt.NodeConfig)
 	restorer := restore.NewRestorer(dbAccessor, appState, chain.Blockchain)
 	upgradesVotingHolder := &TestUpgradesVotingHolder{}
 	indexerEventBus := eventbus.New()
