@@ -602,6 +602,10 @@ func (c *statsCollector) AddNonValidatedStake(addr common.Address, amount *big.I
 	c.stats.RewardsStats.FailedStakedAmountsByAddress[conversion.ConvertAddress(addr)] = new(big.Int).Set(amount)
 }
 
+func (c *statsCollector) AddPenalizedStake(addr common.Address, amount *big.Int) {
+	c.AddNonValidatedStake(addr, amount)
+}
+
 func (c *statsCollector) AddProposerReward(balanceDest, stakeDest common.Address, balance, stake *big.Int, stakeWeight *big.Float) {
 	if balanceDest == stakeDest {
 		c.addMiningReward(balanceDest, balance, stake, stakeWeight, true)
