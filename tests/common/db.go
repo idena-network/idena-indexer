@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"github.com/idena-network/idena-go/common/hexutil"
 	"github.com/idena-network/idena-indexer/db"
+	"github.com/lib/pq"
 	"github.com/shopspring/decimal"
 )
 
@@ -1218,16 +1219,33 @@ func GetOracleVotingContractTerminations(db *sql.DB) ([]OracleVotingContractTerm
 //}
 
 type TxReceipt struct {
-	TxId    int
-	Success bool
-	GasUsed int
-	GasCost string
-	Method  string
-	Error   string
+	TxId            int
+	Success         bool
+	GasUsed         int
+	GasCost         string
+	Method          string
+	Error           string
+	From            string
+	ContractAddress string
+	ActionResult    []byte
 }
 
 func GetTxReceipts(db *sql.DB) ([]TxReceipt, error) {
-	rows, err := db.Query(`select * from tx_receipts order by tx_id`)
+	rows, err := db.Query(`
+select r.tx_id,
+       r.success,
+       r.gas_used,
+       r.gas_cost,
+       r.method,
+       r.error_msg,
+       afrom.address "from",
+       ac.address    contract_address,
+       r.action_result
+from tx_receipts r
+         left join addresses afrom on afrom.id = r."from"
+         left join addresses ac on ac.id = r.contract_address_id
+order by r.tx_id
+`)
 	if err != nil {
 		return nil, err
 	}
@@ -1243,6 +1261,9 @@ func GetTxReceipts(db *sql.DB) ([]TxReceipt, error) {
 			&item.GasCost,
 			&method,
 			&errorMsg,
+			&item.From,
+			&item.ContractAddress,
+			&item.ActionResult,
 		)
 		if err != nil {
 			return nil, err
@@ -1252,6 +1273,36 @@ func GetTxReceipts(db *sql.DB) ([]TxReceipt, error) {
 		}
 		if errorMsg.Valid {
 			item.Error = errorMsg.String
+		}
+		res = append(res, item)
+	}
+	return res, nil
+}
+
+type TxEvent struct {
+	TxId      int
+	Index     int
+	EventName string
+	Data      [][]byte
+}
+
+func GetTxEvents(db *sql.DB) ([]TxEvent, error) {
+	rows, err := db.Query(`select tx_id, idx, event_name, "data" from tx_events order by tx_id, idx`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var res []TxEvent
+	for rows.Next() {
+		item := TxEvent{}
+		err := rows.Scan(
+			&item.TxId,
+			&item.Index,
+			&item.EventName,
+			pq.Array(&item.Data),
+		)
+		if err != nil {
+			return nil, err
 		}
 		res = append(res, item)
 	}

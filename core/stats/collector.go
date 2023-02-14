@@ -4,6 +4,7 @@ import (
 	"fmt"
 	mapset "github.com/deckarep/golang-set"
 	"github.com/idena-network/idena-go/blockchain"
+	"github.com/idena-network/idena-go/blockchain/attachments"
 	"github.com/idena-network/idena-go/blockchain/types"
 	"github.com/idena-network/idena-go/common"
 	"github.com/idena-network/idena-go/common/eventbus"
@@ -63,10 +64,42 @@ type identityInfo struct {
 	state  state.IdentityState
 }
 
+type balanceCachePtr = *map[common.Address]*big.Int
+
+type balanceUpdateCache struct {
+	updates          []*contractBalanceUpdate
+	updatesByAddress map[common.Address]*contractBalanceUpdate
+}
+
+func (cache *balanceUpdateCache) add(txHash common.Hash, address common.Address, getCurrentBalance collector.GetBalanceFunc, newBalance *big.Int, contractAddress *common.Address, appState *appstate.AppState) {
+	var update *contractBalanceUpdate
+	var ok bool
+	if cache.updatesByAddress == nil {
+		cache.updatesByAddress = make(map[common.Address]*contractBalanceUpdate)
+	} else {
+		update, ok = cache.updatesByAddress[address]
+	}
+	update = updateBalanceUpdate(update, txHash, address, getCurrentBalance, newBalance, contractAddress, appState)
+	if !ok {
+		cache.updatesByAddress[address] = update
+		cache.updates = append(cache.updates, update)
+	}
+}
+
+func (cache *balanceUpdateCache) importFrom(external *balanceUpdateCache) {
+	cache.updates = append(cache.updates, external.list()...)
+}
+
+func (cache *balanceUpdateCache) list() []*contractBalanceUpdate {
+	return cache.updates
+}
+
 type pendingTx struct {
 	tx                                      *types.Transaction
-	contractBalanceUpdatesByAddr            map[common.Address]*db.BalanceUpdate
+	contractBalanceUpdateCache              map[balanceCachePtr]*balanceUpdateCache
+	contractBalanceUpdates                  []*contractBalanceUpdate
 	contractBurntCoins                      []*pendingBurntCoins
+	contractDeploy                          *db.Contract
 	oracleVotingContractDeploy              *db.OracleVotingContract
 	oracleVotingContractCallStart           *db.OracleVotingContractCallStart
 	oracleVotingCommitteeStartCtx           *oracleVotingCommitteeStartCtx
@@ -105,6 +138,11 @@ type pendingBurntCoins struct {
 type oracleVotingCommitteeStartCtx struct {
 	committeeSize uint64
 	networkSize   int
+}
+
+type contractBalanceUpdate struct {
+	*db.BalanceUpdate
+	contractAddress *common.Address
 }
 
 func NewStatsCollector(bus eventbus.Bus) collector.StatsCollector {
@@ -841,12 +879,27 @@ func (c *statsCollector) BeginVerifiedStakeTransferBalanceUpdate(addrFrom, addrT
 	}
 }
 
-func (c *statsCollector) BeginTxBalanceUpdate(tx *types.Transaction, appState *appstate.AppState) {
+func (c *statsCollector) BeginTxBalanceUpdate(tx *types.Transaction, appState *appstate.AppState, additionalAddresses ...common.Address) {
 	sender, _ := types.Sender(tx)
 	txHash := tx.Hash()
 	c.addPendingBalanceUpdate(sender, appState, db.TxReason, &txHash, nil)
 	if tx.To != nil && *tx.To != sender {
 		c.addPendingBalanceUpdate(*tx.To, appState, db.TxReason, &txHash, nil)
+	}
+	if len(additionalAddresses) > 0 {
+		addressMap := map[common.Address]struct{}{
+			sender: {},
+		}
+		if tx.To != nil {
+			addressMap[*tx.To] = struct{}{}
+		}
+		for _, address := range additionalAddresses {
+			if _, ok := addressMap[address]; ok {
+				continue
+			}
+			addressMap[address] = struct{}{}
+			c.addPendingBalanceUpdate(address, appState, db.TxReason, &txHash, nil)
+		}
 	}
 }
 
@@ -885,7 +938,7 @@ func (c *statsCollector) BeginEpochPenaltyResetBalanceUpdate(addr common.Address
 
 func (c *statsCollector) BeginIdentityClearingBalanceUpdate(addr common.Address, appState *appstate.AppState) {
 	c.addPendingBalanceUpdate(addr, appState, db.IdentityClearingReason, nil, nil)
-	if stake := c.getStakeIfNotKilled(addr, appState); stake != nil && stake.Sign() > 0 {
+	if stake := getStakeIfNotKilled(addr, appState); stake != nil && stake.Sign() > 0 {
 		c.AddKilledBurntCoins(addr, stake)
 	}
 	if c.stats.KilledInactiveIdentities == nil {
@@ -1101,7 +1154,7 @@ func (c *statsCollector) addPendingBalanceUpdate(
 	txHash *common.Hash,
 	potentialPenaltyPayment *big.Int,
 ) {
-	penaltySecondsOld := c.getPenaltySecondsIfNotKilled(addr, appState)
+	penaltySecondsOld := getPenaltySecondsIfNotKilled(addr, appState)
 	var penaltyPayment *big.Int
 	if potentialPenaltyPayment != nil && penaltySecondsOld > 0 {
 		penaltyPayment = new(big.Int).Set(potentialPenaltyPayment)
@@ -1109,8 +1162,8 @@ func (c *statsCollector) addPendingBalanceUpdate(
 	c.pending.balanceUpdates = append(c.pending.balanceUpdates, &db.BalanceUpdate{
 		Address:           addr,
 		BalanceOld:        appState.State.GetBalance(addr),
-		StakeOld:          c.getStakeIfNotKilled(addr, appState),
-		PenaltyOld:        c.getPenaltyIfNotKilled(addr, appState),
+		StakeOld:          getStakeIfNotKilled(addr, appState),
+		PenaltyOld:        getPenaltyIfNotKilled(addr, appState),
 		PenaltySecondsOld: penaltySecondsOld,
 		PenaltyPayment:    penaltyPayment,
 		Reason:            reason,
@@ -1121,30 +1174,30 @@ func (c *statsCollector) addPendingBalanceUpdate(
 func (c *statsCollector) completeBalanceUpdates(appState *appstate.AppState) []*db.BalanceUpdate {
 	for _, balanceUpdate := range c.pending.balanceUpdates {
 		balanceUpdate.BalanceNew = appState.State.GetBalance(balanceUpdate.Address)
-		balanceUpdate.StakeNew = c.getStakeIfNotKilled(balanceUpdate.Address, appState)
-		balanceUpdate.PenaltyNew = c.getPenaltyIfNotKilled(balanceUpdate.Address, appState)
-		balanceUpdate.PenaltySecondsNew = c.getPenaltySecondsIfNotKilled(balanceUpdate.Address, appState)
+		balanceUpdate.StakeNew = getStakeIfNotKilled(balanceUpdate.Address, appState)
+		balanceUpdate.PenaltyNew = getPenaltyIfNotKilled(balanceUpdate.Address, appState)
+		balanceUpdate.PenaltySecondsNew = getPenaltySecondsIfNotKilled(balanceUpdate.Address, appState)
 	}
 	balanceUpdates := c.pending.balanceUpdates
 	c.pending.balanceUpdates = nil
 	return balanceUpdates
 }
 
-func (c *statsCollector) getStakeIfNotKilled(addr common.Address, appState *appstate.AppState) *big.Int {
+func getStakeIfNotKilled(addr common.Address, appState *appstate.AppState) *big.Int {
 	if appState.State.GetIdentityState(addr) == state.Killed {
 		return common.Big0
 	}
 	return appState.State.GetStakeBalance(addr)
 }
 
-func (c *statsCollector) getPenaltyIfNotKilled(addr common.Address, appState *appstate.AppState) *big.Int {
+func getPenaltyIfNotKilled(addr common.Address, appState *appstate.AppState) *big.Int {
 	if appState.State.GetIdentityState(addr) == state.Killed {
 		return common.Big0
 	}
 	return appState.State.GetIdentity(addr).Penalty // State.GetPenalty is not used since it may add new identity to state
 }
 
-func (c *statsCollector) getPenaltySecondsIfNotKilled(addr common.Address, appState *appstate.AppState) uint16 {
+func getPenaltySecondsIfNotKilled(addr common.Address, appState *appstate.AppState) uint16 {
 	if appState.State.GetIdentityState(addr) == state.Killed {
 		return 0
 	}
@@ -1276,6 +1329,17 @@ func (c *statsCollector) AddTxFee(feeAmount *big.Int) {
 	c.stats.FeesByTxHash[tx.Hash()] = feeAmount
 }
 
+func (c *statsCollector) AddTxGas(tx *types.Transaction, gas uint64) {
+	if c.stats.UsedGasByTxHash == nil {
+		c.stats.UsedGasByTxHash = make(map[common.Hash]uint64)
+	}
+	c.stats.UsedGasByTxHash[tx.Hash()] = gas
+}
+
+func (c *statsCollector) AddBlockGas(gas uint64) {
+	c.stats.BlockGasUsed = gas
+}
+
 func (c *statsCollector) AddContractStake(amount *big.Int) {
 	if amount == nil || amount.Sign() == 0 {
 		return
@@ -1297,33 +1361,62 @@ func (c *statsCollector) AddContractStake(amount *big.Int) {
 	}
 }
 
-func (c *statsCollector) AddContractBalanceUpdate(address common.Address, getCurrentBalance collector.GetBalanceFunc, newBalance *big.Int, appState *appstate.AppState) {
-	if c.pending.tx.contractBalanceUpdatesByAddr == nil {
-		c.pending.tx.contractBalanceUpdatesByAddr = make(map[common.Address]*db.BalanceUpdate)
+func (c *statsCollector) AddContractBalanceUpdate(contractAddress *common.Address, address common.Address, getCurrentBalance collector.GetBalanceFunc, newBalance *big.Int, appState *appstate.AppState, balancesCache balanceCachePtr) {
+	cache := c.getOrPutContractBalanceUpdateCache(balancesCache)
+	cache.add(c.pending.tx.tx.Hash(), address, getCurrentBalance, newBalance, contractAddress, appState)
+}
+
+func (c *statsCollector) getOrPutContractBalanceUpdateCache(balancesCache balanceCachePtr) *balanceUpdateCache {
+	var cache *balanceUpdateCache
+	var ok bool
+	if c.pending.tx.contractBalanceUpdateCache == nil {
+		c.pending.tx.contractBalanceUpdateCache = make(map[balanceCachePtr]*balanceUpdateCache)
+	} else {
+		cache, ok = c.pending.tx.contractBalanceUpdateCache[balancesCache]
 	}
-	balanceUpdate, ok := c.pending.tx.contractBalanceUpdatesByAddr[address]
 	if !ok {
-		txHash := c.pending.tx.tx.Hash()
+		cache = &balanceUpdateCache{}
+		c.pending.tx.contractBalanceUpdateCache[balancesCache] = cache
+	}
+	return cache
+}
+
+func updateBalanceUpdate(balanceUpdate *contractBalanceUpdate, txHash common.Hash, address common.Address, getCurrentBalance collector.GetBalanceFunc, newBalance *big.Int, contractAddress *common.Address, appState *appstate.AppState) *contractBalanceUpdate {
+	if balanceUpdate == nil {
 		var balanceOld *big.Int
 		if b := getCurrentBalance(address); b != nil {
 			balanceOld = new(big.Int).Set(b)
 		}
-		balanceUpdate = &db.BalanceUpdate{
-			Address:           address,
-			BalanceOld:        balanceOld,
-			StakeOld:          c.getStakeIfNotKilled(address, appState),
-			PenaltyOld:        c.getPenaltyIfNotKilled(address, appState),
-			PenaltySecondsOld: c.getPenaltySecondsIfNotKilled(address, appState),
-			PenaltyPayment:    nil,
-			Reason:            db.EmbeddedContractReason,
-			TxHash:            &txHash,
+		balanceUpdate = &contractBalanceUpdate{
+			BalanceUpdate: &db.BalanceUpdate{
+				Address:           address,
+				BalanceOld:        balanceOld,
+				StakeOld:          getStakeIfNotKilled(address, appState),
+				PenaltyOld:        getPenaltyIfNotKilled(address, appState),
+				PenaltySecondsOld: getPenaltySecondsIfNotKilled(address, appState),
+				PenaltyPayment:    nil,
+				Reason:            db.EmbeddedContractReason,
+				TxHash:            &txHash,
+			},
+			contractAddress: contractAddress,
 		}
-		c.pending.tx.contractBalanceUpdatesByAddr[address] = balanceUpdate
 	}
 	balanceUpdate.BalanceNew = newBalance
 	balanceUpdate.StakeNew = balanceUpdate.StakeOld
 	balanceUpdate.PenaltyNew = balanceUpdate.PenaltyOld
 	balanceUpdate.PenaltySecondsNew = balanceUpdate.PenaltySecondsOld
+	return balanceUpdate
+}
+
+func (c *statsCollector) ApplyContractBalanceUpdates(balancesCache, parentBalancesCache balanceCachePtr) {
+	cache := c.getOrPutContractBalanceUpdateCache(balancesCache)
+	delete(c.pending.tx.contractBalanceUpdateCache, balancesCache)
+	if parentBalancesCache != nil {
+		parentCache := c.getOrPutContractBalanceUpdateCache(parentBalancesCache)
+		parentCache.importFrom(cache)
+	} else {
+		c.pending.tx.contractBalanceUpdates = append(c.pending.tx.contractBalanceUpdates, cache.list()...)
+	}
 }
 
 func (c *statsCollector) AddContractBurntCoins(address common.Address, getAmount collector.GetBalanceFunc) {
@@ -1417,7 +1510,7 @@ func (c *statsCollector) AddOracleVotingCallVote(vote byte, salt []byte, newOpti
 		Vote:             vote,
 		Salt:             salt,
 		OptionVotes:      newOptionVotes,
-		OptionAllVotes:   &newOptionAllVotes,
+		OptionAllVotes:   newOptionAllVotes,
 		SecretVotesCount: newSecretVotesCount,
 		Delegatee:        delegatee,
 		Discriminated:    discriminated,
@@ -1665,19 +1758,7 @@ func (c *statsCollector) AddTimeLockTermination(dest common.Address) {
 }
 
 func (c *statsCollector) AddTxReceipt(txReceipt *types.TxReceipt, appState *appstate.AppState) {
-	var errorMsg string
-	if txReceipt.Error != nil {
-		errorMsg = txReceipt.Error.Error()
-	}
-	c.stats.TxReceipts = append(c.stats.TxReceipts, &db.TxReceipt{
-		TxHash:  txReceipt.TxHash,
-		Success: txReceipt.Success,
-		GasUsed: txReceipt.GasUsed,
-		GasCost: txReceipt.GasCost,
-		Method:  txReceipt.Method,
-		Error:   errorMsg,
-	})
-
+	c.stats.TxReceipts = append(c.stats.TxReceipts, txReceipt)
 	sender, _ := types.Sender(c.pending.tx.tx)
 	senderContractTxBalanceUpdate := &db.ContractTxBalanceUpdate{
 		Address:    sender,
@@ -1687,149 +1768,30 @@ func (c *statsCollector) AddTxReceipt(txReceipt *types.TxReceipt, appState *apps
 	updates := []*db.ContractTxBalanceUpdate{senderContractTxBalanceUpdate}
 	var contractCallMethod *db.ContractCallMethod
 	if txReceipt.Success {
-		if c.pending.tx.oracleVotingContractDeploy != nil {
-			c.stats.OracleVotingContracts = append(c.stats.OracleVotingContracts, c.pending.tx.oracleVotingContractDeploy)
+		if isDeployContractCode(c.pending.tx.tx) {
+			c.stats.Contracts = append(c.stats.Contracts, &db.Contract{
+				TxHash:          txReceipt.TxHash,
+				ContractAddress: txReceipt.ContractAddress,
+			})
+		} else {
+			contractCallMethod = c.applyEmbeddedContractTxReceipt(appState)
 		}
-		if c.pending.tx.oracleVotingContractCallStart != nil {
-			callMethod := db.OracleVotingCallStart
-			contractCallMethod = &callMethod
-			oracleVotingContractCallStart := c.pending.tx.oracleVotingContractCallStart
-			ctx := c.pending.tx.oracleVotingCommitteeStartCtx
-			oracleVotingContractCallStart.Committee = c.getOracleVotingCommittee(
-				ctx.committeeSize,
-				ctx.networkSize,
-				oracleVotingContractCallStart.VrfSeed,
-				appState,
-			)
-			c.stats.OracleVotingContractCallStarts = append(c.stats.OracleVotingContractCallStarts, oracleVotingContractCallStart)
-			contractAddress := c.pending.tx.tx.To
-			c.stats.NewActualOracleVotingContracts = append(c.stats.NewActualOracleVotingContracts, *contractAddress)
-		}
-		if c.pending.tx.oracleVotingContractCallVoteProof != nil {
-			callMethod := db.OracleVotingCallVoteProof
-			contractCallMethod = &callMethod
-			c.stats.OracleVotingContractCallVoteProofs = append(c.stats.OracleVotingContractCallVoteProofs, c.pending.tx.oracleVotingContractCallVoteProof)
-		}
-		if c.pending.tx.oracleVotingContractCallVote != nil {
-			callMethod := db.OracleVotingCallVote
-			contractCallMethod = &callMethod
-			c.stats.OracleVotingContractCallVotes = append(c.stats.OracleVotingContractCallVotes, c.pending.tx.oracleVotingContractCallVote)
-		}
-		if c.pending.tx.oracleVotingContractCallFinish != nil {
-			callMethod := db.OracleVotingCallFinish
-			contractCallMethod = &callMethod
-			c.stats.OracleVotingContractCallFinishes = append(c.stats.OracleVotingContractCallFinishes, c.pending.tx.oracleVotingContractCallFinish)
-			contractAddress := c.pending.tx.tx.To
-			c.stats.NewNotActualOracleVotingContracts = append(c.stats.NewNotActualOracleVotingContracts, *contractAddress)
-		}
-		if c.pending.tx.oracleVotingContractCallProlongation != nil {
-			callMethod := db.OracleVotingCallProlong
-			contractCallMethod = &callMethod
-			oracleVotingContractCallProlongation := c.pending.tx.oracleVotingContractCallProlongation
-			ctx := c.pending.tx.oracleVotingCommitteeStartCtx
-			oracleVotingContractCallProlongation.Committee = c.getOracleVotingCommittee(
-				ctx.committeeSize,
-				ctx.networkSize,
-				oracleVotingContractCallProlongation.VrfSeed,
-				appState,
-			)
-			c.stats.OracleVotingContractCallProlongations = append(c.stats.OracleVotingContractCallProlongations, oracleVotingContractCallProlongation)
-			contractAddress := c.pending.tx.tx.To
-			c.stats.NewActualOracleVotingContracts = append(c.stats.NewActualOracleVotingContracts, *contractAddress)
-		}
-		if c.pending.tx.oracleVotingContractCallAddStake != nil {
-			callMethod := db.OracleVotingCallAddStake
-			contractCallMethod = &callMethod
-			c.stats.OracleVotingContractCallAddStakes = append(c.stats.OracleVotingContractCallAddStakes, c.pending.tx.oracleVotingContractCallAddStake)
-		}
-		if c.pending.tx.oracleVotingContractTermination != nil {
-			c.stats.OracleVotingContractTerminations = append(c.stats.OracleVotingContractTerminations, c.pending.tx.oracleVotingContractTermination)
-			contractAddress := c.pending.tx.tx.To
-			c.stats.NewNotActualOracleVotingContracts = append(c.stats.NewNotActualOracleVotingContracts, *contractAddress)
-		}
-		if c.pending.tx.oracleLockContract != nil {
-			c.stats.OracleLockContracts = append(c.stats.OracleLockContracts, c.pending.tx.oracleLockContract)
-		}
-		if c.pending.tx.oracleLockContractCallCheckOracleVoting != nil {
-			callMethod := db.OracleLockCallCheckOracleVoting
-			contractCallMethod = &callMethod
-			c.stats.OracleLockContractCallCheckOracleVotings = append(c.stats.OracleLockContractCallCheckOracleVotings, c.pending.tx.oracleLockContractCallCheckOracleVoting)
-		}
-		if c.pending.tx.oracleLockContractCallPush != nil {
-			callMethod := db.OracleLockCallPush
-			contractCallMethod = &callMethod
-			c.stats.OracleLockContractCallPushes = append(c.stats.OracleLockContractCallPushes, c.pending.tx.oracleLockContractCallPush)
-		}
-		if c.pending.tx.oracleLockContractTermination != nil {
-			c.stats.OracleLockContractTerminations = append(c.stats.OracleLockContractTerminations, c.pending.tx.oracleLockContractTermination)
-		}
-		if c.pending.tx.refundableOracleLockContract != nil {
-			c.stats.RefundableOracleLockContracts = append(c.stats.RefundableOracleLockContracts, c.pending.tx.refundableOracleLockContract)
-		}
-		if c.pending.tx.refundableOracleLockContractCallDeposit != nil {
-			callMethod := db.RefundableOracleLockCallDeposit
-			contractCallMethod = &callMethod
-			c.stats.RefundableOracleLockContractCallDeposits = append(c.stats.RefundableOracleLockContractCallDeposits, c.pending.tx.refundableOracleLockContractCallDeposit)
-		}
-		if c.pending.tx.refundableOracleLockContractCallPush != nil {
-			callMethod := db.RefundableOracleLockCallPush
-			contractCallMethod = &callMethod
-			c.stats.RefundableOracleLockContractCallPushes = append(c.stats.RefundableOracleLockContractCallPushes, c.pending.tx.refundableOracleLockContractCallPush)
-		}
-		if c.pending.tx.refundableOracleLockContractCallRefund != nil {
-			callMethod := db.RefundableOracleLockCallRefund
-			contractCallMethod = &callMethod
-			c.stats.RefundableOracleLockContractCallRefunds = append(c.stats.RefundableOracleLockContractCallRefunds, c.pending.tx.refundableOracleLockContractCallRefund)
-		}
-		if c.pending.tx.refundableOracleLockContractTermination != nil {
-			c.stats.RefundableOracleLockContractTerminations = append(c.stats.RefundableOracleLockContractTerminations, c.pending.tx.refundableOracleLockContractTermination)
-		}
-		if c.pending.tx.multisigContract != nil {
-			c.stats.MultisigContracts = append(c.stats.MultisigContracts, c.pending.tx.multisigContract)
-		}
-		if c.pending.tx.multisigContractCallAdd != nil {
-			callMethod := db.MultisigCallAdd
-			contractCallMethod = &callMethod
-			c.stats.MultisigContractCallAdds = append(c.stats.MultisigContractCallAdds, c.pending.tx.multisigContractCallAdd)
-		}
-		if c.pending.tx.multisigContractCallSend != nil {
-			callMethod := db.MultisigCallSend
-			contractCallMethod = &callMethod
-			c.stats.MultisigContractCallSends = append(c.stats.MultisigContractCallSends, c.pending.tx.multisigContractCallSend)
-		}
-		if c.pending.tx.multisigContractCallPush != nil {
-			callMethod := db.MultisigCallPush
-			contractCallMethod = &callMethod
-			c.stats.MultisigContractCallPushes = append(c.stats.MultisigContractCallPushes, c.pending.tx.multisigContractCallPush)
-		}
-		if c.pending.tx.multisigContractTermination != nil {
-			c.stats.MultisigContractTerminations = append(c.stats.MultisigContractTerminations, c.pending.tx.multisigContractTermination)
-		}
-		if c.pending.tx.timeLockContract != nil {
-			c.stats.TimeLockContracts = append(c.stats.TimeLockContracts, c.pending.tx.timeLockContract)
-		}
-		if c.pending.tx.timeLockContractCallTransfer != nil {
-			callMethod := db.TimeLockCallTransfer
-			contractCallMethod = &callMethod
-			c.stats.TimeLockContractCallTransfers = append(c.stats.TimeLockContractCallTransfers, c.pending.tx.timeLockContractCallTransfer)
-		}
-		if c.pending.tx.timeLockContractTermination != nil {
-			c.stats.TimeLockContractTerminations = append(c.stats.TimeLockContractTerminations, c.pending.tx.timeLockContractTermination)
-		}
-		for _, balanceUpdate := range c.pending.tx.contractBalanceUpdatesByAddr {
-			if !isBalanceOrStakeOrPenaltyChanged(balanceUpdate) {
+
+		for _, balanceUpdate := range c.pending.tx.contractBalanceUpdates {
+			if !isBalanceOrStakeOrPenaltyChanged(balanceUpdate.BalanceUpdate) {
 				continue
 			}
-			c.stats.BalanceUpdates = append(c.stats.BalanceUpdates, balanceUpdate)
+			c.stats.BalanceUpdates = append(c.stats.BalanceUpdates, balanceUpdate.BalanceUpdate)
 			c.afterBalanceUpdate(balanceUpdate.Address)
 			if balanceUpdate.Address == sender {
 				senderContractTxBalanceUpdate.BalanceOld = balanceUpdate.BalanceOld
 				senderContractTxBalanceUpdate.BalanceNew = balanceUpdate.BalanceNew
 			} else {
 				updates = append(updates, &db.ContractTxBalanceUpdate{
-					Address:    balanceUpdate.Address,
-					BalanceOld: balanceUpdate.BalanceOld,
-					BalanceNew: balanceUpdate.BalanceNew,
+					Address:         balanceUpdate.Address,
+					BalanceOld:      balanceUpdate.BalanceOld,
+					BalanceNew:      balanceUpdate.BalanceNew,
+					ContractAddress: balanceUpdate.contractAddress,
 				})
 			}
 		}
@@ -1848,6 +1810,148 @@ func (c *statsCollector) AddTxReceipt(txReceipt *types.TxReceipt, appState *apps
 		})
 	}
 
+}
+
+func (c *statsCollector) applyEmbeddedContractTxReceipt(appState *appstate.AppState) *db.ContractCallMethod {
+	var contractCallMethod *db.ContractCallMethod
+	if c.pending.tx.oracleVotingContractDeploy != nil {
+		c.stats.OracleVotingContracts = append(c.stats.OracleVotingContracts, c.pending.tx.oracleVotingContractDeploy)
+	}
+	if c.pending.tx.oracleVotingContractCallStart != nil {
+		callMethod := db.OracleVotingCallStart
+		contractCallMethod = &callMethod
+		oracleVotingContractCallStart := c.pending.tx.oracleVotingContractCallStart
+		ctx := c.pending.tx.oracleVotingCommitteeStartCtx
+		oracleVotingContractCallStart.Committee = c.getOracleVotingCommittee(
+			ctx.committeeSize,
+			ctx.networkSize,
+			oracleVotingContractCallStart.VrfSeed,
+			appState,
+		)
+		c.stats.OracleVotingContractCallStarts = append(c.stats.OracleVotingContractCallStarts, oracleVotingContractCallStart)
+		contractAddress := c.pending.tx.tx.To
+		c.stats.NewActualOracleVotingContracts = append(c.stats.NewActualOracleVotingContracts, *contractAddress)
+	}
+	if c.pending.tx.oracleVotingContractCallVoteProof != nil {
+		callMethod := db.OracleVotingCallVoteProof
+		contractCallMethod = &callMethod
+		c.stats.OracleVotingContractCallVoteProofs = append(c.stats.OracleVotingContractCallVoteProofs, c.pending.tx.oracleVotingContractCallVoteProof)
+	}
+	if c.pending.tx.oracleVotingContractCallVote != nil {
+		callMethod := db.OracleVotingCallVote
+		contractCallMethod = &callMethod
+		c.stats.OracleVotingContractCallVotes = append(c.stats.OracleVotingContractCallVotes, c.pending.tx.oracleVotingContractCallVote)
+	}
+	if c.pending.tx.oracleVotingContractCallFinish != nil {
+		callMethod := db.OracleVotingCallFinish
+		contractCallMethod = &callMethod
+		c.stats.OracleVotingContractCallFinishes = append(c.stats.OracleVotingContractCallFinishes, c.pending.tx.oracleVotingContractCallFinish)
+		contractAddress := c.pending.tx.tx.To
+		c.stats.NewNotActualOracleVotingContracts = append(c.stats.NewNotActualOracleVotingContracts, *contractAddress)
+	}
+	if c.pending.tx.oracleVotingContractCallProlongation != nil {
+		callMethod := db.OracleVotingCallProlong
+		contractCallMethod = &callMethod
+		oracleVotingContractCallProlongation := c.pending.tx.oracleVotingContractCallProlongation
+		ctx := c.pending.tx.oracleVotingCommitteeStartCtx
+		oracleVotingContractCallProlongation.Committee = c.getOracleVotingCommittee(
+			ctx.committeeSize,
+			ctx.networkSize,
+			oracleVotingContractCallProlongation.VrfSeed,
+			appState,
+		)
+		c.stats.OracleVotingContractCallProlongations = append(c.stats.OracleVotingContractCallProlongations, oracleVotingContractCallProlongation)
+		contractAddress := c.pending.tx.tx.To
+		c.stats.NewActualOracleVotingContracts = append(c.stats.NewActualOracleVotingContracts, *contractAddress)
+	}
+	if c.pending.tx.oracleVotingContractCallAddStake != nil {
+		callMethod := db.OracleVotingCallAddStake
+		contractCallMethod = &callMethod
+		c.stats.OracleVotingContractCallAddStakes = append(c.stats.OracleVotingContractCallAddStakes, c.pending.tx.oracleVotingContractCallAddStake)
+	}
+	if c.pending.tx.oracleVotingContractTermination != nil {
+		c.stats.OracleVotingContractTerminations = append(c.stats.OracleVotingContractTerminations, c.pending.tx.oracleVotingContractTermination)
+		contractAddress := c.pending.tx.tx.To
+		c.stats.NewNotActualOracleVotingContracts = append(c.stats.NewNotActualOracleVotingContracts, *contractAddress)
+	}
+	if c.pending.tx.oracleLockContract != nil {
+		c.stats.OracleLockContracts = append(c.stats.OracleLockContracts, c.pending.tx.oracleLockContract)
+	}
+	if c.pending.tx.oracleLockContractCallCheckOracleVoting != nil {
+		callMethod := db.OracleLockCallCheckOracleVoting
+		contractCallMethod = &callMethod
+		c.stats.OracleLockContractCallCheckOracleVotings = append(c.stats.OracleLockContractCallCheckOracleVotings, c.pending.tx.oracleLockContractCallCheckOracleVoting)
+	}
+	if c.pending.tx.oracleLockContractCallPush != nil {
+		callMethod := db.OracleLockCallPush
+		contractCallMethod = &callMethod
+		c.stats.OracleLockContractCallPushes = append(c.stats.OracleLockContractCallPushes, c.pending.tx.oracleLockContractCallPush)
+	}
+	if c.pending.tx.oracleLockContractTermination != nil {
+		c.stats.OracleLockContractTerminations = append(c.stats.OracleLockContractTerminations, c.pending.tx.oracleLockContractTermination)
+	}
+	if c.pending.tx.refundableOracleLockContract != nil {
+		c.stats.RefundableOracleLockContracts = append(c.stats.RefundableOracleLockContracts, c.pending.tx.refundableOracleLockContract)
+	}
+	if c.pending.tx.refundableOracleLockContractCallDeposit != nil {
+		callMethod := db.RefundableOracleLockCallDeposit
+		contractCallMethod = &callMethod
+		c.stats.RefundableOracleLockContractCallDeposits = append(c.stats.RefundableOracleLockContractCallDeposits, c.pending.tx.refundableOracleLockContractCallDeposit)
+	}
+	if c.pending.tx.refundableOracleLockContractCallPush != nil {
+		callMethod := db.RefundableOracleLockCallPush
+		contractCallMethod = &callMethod
+		c.stats.RefundableOracleLockContractCallPushes = append(c.stats.RefundableOracleLockContractCallPushes, c.pending.tx.refundableOracleLockContractCallPush)
+	}
+	if c.pending.tx.refundableOracleLockContractCallRefund != nil {
+		callMethod := db.RefundableOracleLockCallRefund
+		contractCallMethod = &callMethod
+		c.stats.RefundableOracleLockContractCallRefunds = append(c.stats.RefundableOracleLockContractCallRefunds, c.pending.tx.refundableOracleLockContractCallRefund)
+	}
+	if c.pending.tx.refundableOracleLockContractTermination != nil {
+		c.stats.RefundableOracleLockContractTerminations = append(c.stats.RefundableOracleLockContractTerminations, c.pending.tx.refundableOracleLockContractTermination)
+	}
+	if c.pending.tx.multisigContract != nil {
+		c.stats.MultisigContracts = append(c.stats.MultisigContracts, c.pending.tx.multisigContract)
+	}
+	if c.pending.tx.multisigContractCallAdd != nil {
+		callMethod := db.MultisigCallAdd
+		contractCallMethod = &callMethod
+		c.stats.MultisigContractCallAdds = append(c.stats.MultisigContractCallAdds, c.pending.tx.multisigContractCallAdd)
+	}
+	if c.pending.tx.multisigContractCallSend != nil {
+		callMethod := db.MultisigCallSend
+		contractCallMethod = &callMethod
+		c.stats.MultisigContractCallSends = append(c.stats.MultisigContractCallSends, c.pending.tx.multisigContractCallSend)
+	}
+	if c.pending.tx.multisigContractCallPush != nil {
+		callMethod := db.MultisigCallPush
+		contractCallMethod = &callMethod
+		c.stats.MultisigContractCallPushes = append(c.stats.MultisigContractCallPushes, c.pending.tx.multisigContractCallPush)
+	}
+	if c.pending.tx.multisigContractTermination != nil {
+		c.stats.MultisigContractTerminations = append(c.stats.MultisigContractTerminations, c.pending.tx.multisigContractTermination)
+	}
+	if c.pending.tx.timeLockContract != nil {
+		c.stats.TimeLockContracts = append(c.stats.TimeLockContracts, c.pending.tx.timeLockContract)
+	}
+	if c.pending.tx.timeLockContractCallTransfer != nil {
+		callMethod := db.TimeLockCallTransfer
+		contractCallMethod = &callMethod
+		c.stats.TimeLockContractCallTransfers = append(c.stats.TimeLockContractCallTransfers, c.pending.tx.timeLockContractCallTransfer)
+	}
+	if c.pending.tx.timeLockContractTermination != nil {
+		c.stats.TimeLockContractTerminations = append(c.stats.TimeLockContractTerminations, c.pending.tx.timeLockContractTermination)
+	}
+	return contractCallMethod
+}
+
+func isDeployContractCode(tx *types.Transaction) bool {
+	if tx.Type != types.DeployContractTx {
+		return false
+	}
+	attach := attachments.ParseDeployContractAttachment(tx)
+	return attach != nil && len(attach.Code) > 0
 }
 
 func (c *statsCollector) getOracleVotingCommittee(committeeSize uint64, networkSize int, vrfSeed []byte, appState *appstate.AppState) []common.Address {

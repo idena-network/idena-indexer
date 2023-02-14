@@ -730,15 +730,17 @@ func TestStatsCollector_contractBalanceUpdate(t *testing.T) {
 	tx := tests.GetFullTx(1, 1, key, types.SendTx, nil, nil, nil)
 	c.BeginApplyingTx(tx, appState)
 
-	c.AddContractBalanceUpdate(address2, appState.State.GetBalance, big.NewInt(200), appState)
-	c.AddContractBalanceUpdate(address3, appState.State.GetBalance, big.NewInt(0), appState)
+	balanceCache := make(map[common.Address]*big.Int)
+	c.AddContractBalanceUpdate(nil, address2, appState.State.GetBalance, big.NewInt(200), appState, &balanceCache)
+	c.AddContractBalanceUpdate(nil, address3, appState.State.GetBalance, big.NewInt(0), appState, &balanceCache)
 
-	c.AddContractBalanceUpdate(sender, appState.State.GetBalance, big.NewInt(11), appState)
+	c.AddContractBalanceUpdate(nil, sender, appState.State.GetBalance, big.NewInt(11), appState, &balanceCache)
 	appState.State.SetBalance(sender, big.NewInt(11))
 
 	c.AddContractBurntCoins(address3, func(address common.Address) *big.Int {
 		return big.NewInt(400)
 	})
+	c.ApplyContractBalanceUpdates(&balanceCache, nil)
 	c.AddTxReceipt(&types.TxReceipt{Success: true}, appState)
 
 	c.BeginTxBalanceUpdate(tx, appState)

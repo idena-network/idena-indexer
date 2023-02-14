@@ -321,6 +321,7 @@ CREATE TABLE IF NOT EXISTS blocks
     upgrade                integer,
     pool_validators_count  integer,
     offline_address_id     bigint,
+    used_gas               integer,
     CONSTRAINT blocks_pkey PRIMARY KEY (height),
     CONSTRAINT blocks_epoch_fkey FOREIGN KEY (epoch)
         REFERENCES epochs (epoch) MATCH SIMPLE
@@ -510,6 +511,7 @@ CREATE TABLE IF NOT EXISTS transactions
     fee          numeric(30, 18)                            NOT NULL,
     size         integer                                    NOT NULL,
     nonce        integer                                    NOT NULL,
+    used_gas     integer,
     CONSTRAINT transactions_pkey PRIMARY KEY (id),
     CONSTRAINT transactions_block_height_fkey FOREIGN KEY (block_height)
         REFERENCES blocks (height) MATCH SIMPLE
@@ -2523,23 +2525,6 @@ $$
     END
 $$;
 
-DO
-$$
-    BEGIN
-        CREATE TYPE tp_tx_receipt AS
-        (
-            tx_hash   text,
-            success   boolean,
-            gas_used  bigint,
-            gas_cost  numeric,
-            "method"  text,
-            error_msg text
-        );
-    EXCEPTION
-        WHEN duplicate_object THEN null;
-    END
-$$;
-
 -- PROCEDURE: save_mining_rewards
 
 CREATE OR REPLACE PROCEDURE save_mining_rewards(height bigint, mr tp_mining_reward[])
@@ -2817,6 +2802,19 @@ BEGIN
 END
 $BODY$;
 
+CREATE OR REPLACE FUNCTION limited_text(v text, max_length integer)
+    RETURNS text
+    LANGUAGE 'plpgsql'
+AS
+$$
+BEGIN
+    if v is not null and char_length(v) > max_length then
+        v = substring(v from 1 for max_length);
+    end if;
+    return v;
+END
+$$;
+
 CREATE OR REPLACE FUNCTION save_addrs_and_txs(p_height bigint,
                                               p_changes_blocks_count smallint,
                                               addresses tp_address[],
@@ -2856,7 +2854,6 @@ CREATE OR REPLACE FUNCTION save_addrs_and_txs(p_height bigint,
                                               p_multisig_contract_call_pushes tp_multisig_contract_call_push[],
                                               p_multisig_contract_terminations tp_multisig_contract_termination[],
                                               p_contract_tx_balance_updates jsonb[],
-                                              p_tx_receipts tp_tx_receipt[],
                                               p_data jsonb)
     RETURNS tp_tx_hash_id[]
     LANGUAGE 'plpgsql'
@@ -3051,15 +3048,16 @@ BEGIN
         call save_multisig_contract_terminations(p_height, p_multisig_contract_terminations);
     end if;
 
+    if p_data is not null then
+        call save_contracts(p_height, p_data -> 'contracts');
+    end if;
+
     if p_contract_tx_balance_updates is not null then
         call save_contract_tx_balance_updates(p_height, p_contract_tx_balance_updates);
     end if;
 
-    if p_tx_receipts is not null then
-        call save_tx_receipts(p_tx_receipts);
-    end if;
-
     if p_data is not null then
+        call save_tx_receipts(p_height, p_data -> 'txReceipts');
         call save_delegation_switches(p_height, p_data -> 'delegationSwitches');
         call update_pool_sizes(p_height, p_data -> 'poolSizes');
         call save_upgrades_votes(p_height, p_data -> 'upgradesVotes');
@@ -3120,7 +3118,7 @@ BEGIN
                 end if;
                 SELECT id INTO l_address_id FROM addresses WHERE lower(address) = lower((l_item ->> 'from')::text);
                 INSERT INTO transactions (HASH, BLOCK_HEIGHT, type, "from", "to", AMOUNT, TIPS, MAX_FEE, FEE, SIZE,
-                                          nonce)
+                                          nonce, used_gas)
                 VALUES ((l_item ->> 'hash')::text,
                         p_block_height,
                         l_type,
@@ -3131,7 +3129,8 @@ BEGIN
                         (l_item ->> 'maxFee')::numeric,
                         (l_item ->> 'fee')::numeric,
                         (l_item ->> 'size')::integer,
-                        (l_item ->> 'nonce')::integer)
+                        (l_item ->> 'nonce')::integer,
+                        (l_item ->> 'usedGas')::integer)
                 RETURNING id into l_tx_id;
 
                 INSERT INTO transaction_raws (tx_id, raw) VALUES (l_tx_id, decode((l_item ->> 'raw')::text, 'hex'));

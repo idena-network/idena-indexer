@@ -49,6 +49,7 @@ BEGIN
     DELETE FROM contract_tx_balance_updates WHERE tx_id >= l_tx_id;
     DELETE FROM contracts WHERE tx_id >= l_tx_id;
     DELETE FROM tx_receipts WHERE tx_id >= l_tx_id;
+    DELETE FROM tx_events WHERE tx_id >= l_tx_id;
 END
 $$;
 

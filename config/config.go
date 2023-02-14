@@ -27,6 +27,7 @@ type Config struct {
 	Data                              *DataConfig
 	TreeSnapshotDir                   string
 	VoteCounting                      VoteCountingConfig
+	CheckBalances                     bool
 }
 
 type Api struct {

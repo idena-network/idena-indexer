@@ -20,6 +20,9 @@ ON CONFLICT DO NOTHING;
 INSERT INTO dic_contract_types
 VALUES (5, 'RefundableOracleLock')
 ON CONFLICT DO NOTHING;
+INSERT INTO dic_contract_types
+VALUES (6, 'Contract')
+ON CONFLICT DO NOTHING;
 
 CREATE TABLE IF NOT EXISTS dic_oracle_voting_contract_states
 (
@@ -52,18 +55,30 @@ ON CONFLICT DO NOTHING;
 
 CREATE TABLE IF NOT EXISTS tx_receipts
 (
-    tx_id     bigint          NOT NULL,
-    success   boolean         NOT NULL,
-    gas_used  bigint          NOT NULL,
-    gas_cost  numeric(30, 18) NOT NULL,
-    method    character varying(100),
-    error_msg character varying(50),
+    tx_id               bigint          NOT NULL,
+    success             boolean         NOT NULL,
+    gas_used            bigint          NOT NULL,
+    gas_cost            numeric(30, 18) NOT NULL,
+    method              character varying(100),
+    error_msg           character varying(500),
+    contract_address_id bigint,
+    "from"              bigint,
+    action_result       bytea,
     CONSTRAINT tx_receipts_pkey PRIMARY KEY (tx_id),
     CONSTRAINT tx_receipts_tx_id_fkey FOREIGN KEY (tx_id)
         REFERENCES transactions (id) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION
 );
+
+CREATE TABLE IF NOT EXISTS tx_events
+(
+    tx_id      bigint  NOT NULL,
+    idx        integer NOT NULL,
+    event_name character varying(32),
+    data       bytea[]
+);
+CREATE UNIQUE INDEX IF NOT EXISTS tx_events_pkey ON tx_events (tx_id, idx);
 
 CREATE TABLE IF NOT EXISTS contracts
 (
@@ -86,20 +101,6 @@ CREATE TABLE IF NOT EXISTS contracts
         ON DELETE NO ACTION
 );
 CREATE UNIQUE INDEX IF NOT EXISTS contracts_oracle_voting_address_id_idx ON contracts (contract_address_id);
-
-CREATE TABLE IF NOT EXISTS tx_receipts
-(
-    tx_id     bigint          NOT NULL,
-    success   boolean         NOT NULL,
-    gas_used  bigint          NOT NULL,
-    gas_cost  numeric(30, 18) NOT NULL,
-    error_msg character varying(50),
-    CONSTRAINT tx_receipts_pkey PRIMARY KEY (tx_id),
-    CONSTRAINT tx_receipts_tx_id_fkey FOREIGN KEY (tx_id)
-        REFERENCES transactions (id) MATCH SIMPLE
-        ON UPDATE NO ACTION
-        ON DELETE NO ACTION
-);
 
 CREATE TABLE IF NOT EXISTS oracle_voting_contracts
 (
@@ -621,19 +622,15 @@ CREATE SEQUENCE IF NOT EXISTS contract_tx_balance_updates_id_seq
 
 CREATE TABLE IF NOT EXISTS contract_tx_balance_updates
 (
-    id             bigint NOT NULL DEFAULT nextval('contract_tx_balance_updates_id_seq'::regclass),
-    contract_tx_id bigint NOT NULL,
-    address_id     bigint NOT NULL,
-    contract_type  bigint NOT NULL,
-    tx_id          bigint NOT NULL,
-    call_method    smallint,
-    balance_old    numeric(30, 18),
-    balance_new    numeric(30, 18),
-    CONSTRAINT contract_tx_balance_updates_pkey PRIMARY KEY (tx_id, address_id),
-    CONSTRAINT contract_tx_balance_updates_contract_tx_id_fkey FOREIGN KEY (contract_tx_id)
-        REFERENCES contracts (tx_id) MATCH SIMPLE
-        ON UPDATE NO ACTION
-        ON DELETE NO ACTION,
+    id                  bigint NOT NULL DEFAULT nextval('contract_tx_balance_updates_id_seq'::regclass),
+    contract_tx_id      bigint NOT NULL,
+    address_id          bigint NOT NULL,
+    contract_type       bigint NOT NULL,
+    tx_id               bigint NOT NULL,
+    call_method         smallint,
+    balance_old         numeric(30, 18),
+    balance_new         numeric(30, 18),
+    base_contract_tx_id bigint,
     CONSTRAINT contract_tx_balance_updates_address_id_fkey FOREIGN KEY (address_id)
         REFERENCES addresses (id) MATCH SIMPLE
         ON UPDATE NO ACTION

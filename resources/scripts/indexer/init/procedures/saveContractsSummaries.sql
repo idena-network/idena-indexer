@@ -676,13 +676,15 @@ CREATE OR REPLACE PROCEDURE save_contract_tx_balance_updates(p_block_height bigi
 AS
 $$
 DECLARE
-    l_item           jsonb;
-    l_update         jsonb;
-    l_contract_tx_id bigint;
-    l_contract_type  bigint;
-    l_tx_id          bigint;
-    l_call_method    smallint;
-    l_address_id     bigint;
+    l_item                jsonb;
+    l_update              jsonb;
+    l_base_contract_tx_id bigint;
+    l_base_contract_type  bigint;
+    l_contract_tx_id      bigint;
+    l_contract_type       bigint;
+    l_tx_id               bigint;
+    l_call_method         smallint;
+    l_address_id          bigint;
 BEGIN
     for i in 1..cardinality(p_items)
         loop
@@ -692,7 +694,7 @@ BEGIN
             end if;
 
             SELECT tx_id, "type"
-            INTO l_contract_tx_id, l_contract_type
+            INTO l_base_contract_tx_id, l_base_contract_type
             FROM contracts
             WHERE contract_address_id =
                   (SELECT id FROM addresses WHERE lower(address) = lower((l_item ->> 'contractAddress')::text));
@@ -707,14 +709,26 @@ BEGIN
             for j in 0..jsonb_array_length(l_item -> 'updates') - 1
                 loop
                     l_update = l_item -> 'updates' ->> j;
+                    if l_update ->> 'contractAddress' is not null then
+                        SELECT tx_id, "type"
+                        INTO l_contract_tx_id, l_contract_type
+                        FROM contracts
+                        WHERE contract_address_id =
+                              (SELECT id
+                               FROM addresses
+                               WHERE lower(address) = lower((l_update ->> 'contractAddress')::text));
+                    else
+                        l_contract_tx_id = l_base_contract_tx_id;
+                        l_contract_type = l_base_contract_type;
+                    end if;
 
                     l_address_id = get_address_id_or_insert(p_block_height, (l_update ->> 'address')::text);
 
                     INSERT INTO contract_tx_balance_updates (contract_tx_id, address_id, contract_type, tx_id,
-                                                             call_method, balance_old, balance_new)
+                                                             call_method, balance_old, balance_new, base_contract_tx_id)
                     VALUES (l_contract_tx_id, l_address_id, l_contract_type, l_tx_id, l_call_method,
-                            (l_update ->> 'balanceOld')::numeric,
-                            (l_update ->> 'balanceNew')::numeric);
+                            (l_update ->> 'balanceOld')::numeric, (l_update ->> 'balanceNew')::numeric,
+                            l_base_contract_tx_id);
                 end loop;
         end loop;
 END

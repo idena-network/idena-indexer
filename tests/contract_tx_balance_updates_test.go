@@ -18,6 +18,8 @@ func Test_ContractTxBalanceUpdates(t *testing.T) {
 	appState := listener.NodeCtx().AppState
 	statsCollector := listener.StatsCollector()
 
+	balancesCache := make(map[common.Address]*big.Int)
+
 	addressToUpdateBalance, unknownAddressToUpdateBalance := tests.GetRandAddr(), tests.GetRandAddr()
 	// Add dest address to state
 	appState.State.SetBalance(addressToUpdateBalance, big.NewInt(1))
@@ -43,14 +45,15 @@ func Test_ContractTxBalanceUpdates(t *testing.T) {
 	appState.State.SetBalance(contractAddress, big.NewInt(200))
 	statsCollector.CompleteBalanceUpdate(appState)
 
-	statsCollector.AddContractBalanceUpdate(addressToUpdateBalance, func(address common.Address) *big.Int {
+	statsCollector.AddContractBalanceUpdate(nil, addressToUpdateBalance, func(address common.Address) *big.Int {
 		return big.NewInt(300)
-	}, big.NewInt(400), appState)
-	statsCollector.AddContractBalanceUpdate(senderAddress, func(address common.Address) *big.Int {
+	}, big.NewInt(400), appState, &balancesCache)
+	statsCollector.AddContractBalanceUpdate(nil, senderAddress, func(address common.Address) *big.Int {
 		return big.NewInt(500)
-	}, big.NewInt(600), appState)
+	}, big.NewInt(600), appState, &balancesCache)
 
 	statsCollector.AddOracleVotingCallVote(7, []byte{0x4, 0x5}, nil, 1, nil, nil, nil, nil, false)
+	statsCollector.ApplyContractBalanceUpdates(&balancesCache, nil)
 	statsCollector.AddTxReceipt(&types.TxReceipt{Success: true, TxHash: tx.Hash(), ContractAddress: contractAddress}, appState)
 	statsCollector.CompleteApplyingTx(appState)
 	block.Body.Transactions = append(block.Body.Transactions, tx)
@@ -64,14 +67,15 @@ func Test_ContractTxBalanceUpdates(t *testing.T) {
 	appState.State.SetBalance(contractAddress, big.NewInt(200))
 	statsCollector.CompleteBalanceUpdate(appState)
 
-	statsCollector.AddContractBalanceUpdate(unknownAddressToUpdateBalance, func(address common.Address) *big.Int {
+	statsCollector.AddContractBalanceUpdate(nil, unknownAddressToUpdateBalance, func(address common.Address) *big.Int {
 		return big.NewInt(700)
-	}, big.NewInt(800), appState)
-	statsCollector.AddContractBalanceUpdate(senderAddress, func(address common.Address) *big.Int {
+	}, big.NewInt(800), appState, &balancesCache)
+	statsCollector.AddContractBalanceUpdate(nil, senderAddress, func(address common.Address) *big.Int {
 		return big.NewInt(900)
-	}, big.NewInt(1000), appState)
+	}, big.NewInt(1000), appState, &balancesCache)
 
 	statsCollector.AddOracleVotingTermination(big.NewInt(0), nil, nil)
+	statsCollector.ApplyContractBalanceUpdates(&balancesCache, nil)
 	statsCollector.AddTxReceipt(&types.TxReceipt{Success: true, TxHash: tx.Hash(), ContractAddress: contractAddress}, appState)
 	statsCollector.CompleteApplyingTx(appState)
 	block.Body.Transactions = append(block.Body.Transactions, tx)
@@ -85,9 +89,9 @@ func Test_ContractTxBalanceUpdates(t *testing.T) {
 	appState.State.SetBalance(contractAddress, big.NewInt(200))
 	statsCollector.CompleteBalanceUpdate(appState)
 
-	statsCollector.AddContractBalanceUpdate(senderAddress, func(address common.Address) *big.Int {
+	statsCollector.AddContractBalanceUpdate(nil, senderAddress, func(address common.Address) *big.Int {
 		return big.NewInt(900)
-	}, big.NewInt(1000), appState)
+	}, big.NewInt(1000), appState, &balancesCache)
 
 	statsCollector.AddOracleVotingCallVote(7, []byte{0x4, 0x5}, nil, 1, nil, nil, nil, nil, false)
 
@@ -96,7 +100,7 @@ func Test_ContractTxBalanceUpdates(t *testing.T) {
 	appState.State.SetBalance(senderAddress, big.NewInt(0))
 	appState.State.SetBalance(contractAddress, big.NewInt(0))
 	statsCollector.CompleteBalanceUpdate(appState)
-
+	statsCollector.ApplyContractBalanceUpdates(&balancesCache, nil)
 	statsCollector.AddTxReceipt(&types.TxReceipt{Success: false, TxHash: tx.Hash(), ContractAddress: contractAddress}, appState)
 	statsCollector.CompleteApplyingTx(appState)
 	block.Body.Transactions = append(block.Body.Transactions, tx)

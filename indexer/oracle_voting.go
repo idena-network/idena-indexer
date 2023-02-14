@@ -38,7 +38,7 @@ type oracleVotingToProlongDetectorImpl struct {
 }
 
 func (d *oracleVotingToProlongDetectorImpl) CanBeProlonged(contractAddress common.Address, appState *appstate.AppState, head *types.Header, config *config.Config) bool {
-	vm := vm.NewVmImpl(appState, head, nil, config)
+	vm := vm.NewVmImpl(appState, nil, head, nil, config)
 	from := common.Address{}
 	payload, _ := attachments.CreateCallContractAttachment("prolongVoting").ToBytes()
 	fakeNonce := uint32(1)

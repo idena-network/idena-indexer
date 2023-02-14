@@ -1,19 +1,92 @@
-CREATE OR REPLACE PROCEDURE save_tx_receipts(p_items tp_tx_receipt[])
+CREATE OR REPLACE PROCEDURE save_tx_receipts(p_block_height bigint, p_items jsonb)
     LANGUAGE 'plpgsql'
 AS
 $$
 DECLARE
-    l_item  tp_tx_receipt;
-    l_tx_id bigint;
+    l_item                jsonb;
+    l_tx_id               bigint;
+    l_contract_address_id bigint;
+    l_from                bigint;
+    l_events              jsonb;
+    l_event               jsonb;
+    l_event_idx           integer;
+    l_data                bytea[];
 BEGIN
-    for i in 1..cardinality(p_items)
+    if p_items is null then
+        return;
+    end if;
+    for i in 0..jsonb_array_length(p_items) - 1
         loop
-            l_item = p_items[i];
+            l_item = (p_items ->> i)::jsonb;
 
-            SELECT id INTO l_tx_id FROM transactions WHERE lower(hash) = lower(l_item.tx_hash);
+            SELECT id INTO l_tx_id FROM transactions WHERE lower(hash) = lower((l_item ->> 'txHash')::text);
+            l_contract_address_id = get_address_id_or_insert(p_block_height, (l_item ->> 'contractAddress')::text);
+            l_from = get_address_id_or_insert(p_block_height, (l_item ->> 'from')::text);
 
-            INSERT INTO tx_receipts (tx_id, success, gas_used, gas_cost, "method", error_msg)
-            VALUES (l_tx_id, l_item.success, l_item.gas_used, l_item.gas_cost, l_item.method, l_item.error_msg);
+            INSERT INTO tx_receipts (tx_id, success, gas_used, gas_cost, "method", error_msg, contract_address_id,
+                                     "from", action_result)
+            VALUES (l_tx_id, (l_item ->> 'success')::boolean, (l_item ->> 'gasUsed')::bigint,
+                    (l_item ->> 'gasCost')::numeric, limited_text((l_item ->> 'method')::text, 100),
+                    limited_text((l_item ->> 'error')::text, 500), l_contract_address_id, l_from,
+                    decode(l_item ->> 'actionResult', 'hex'));
+
+            l_events = (l_item -> 'events')::jsonb;
+            if l_events is null then
+                continue;
+            end if;
+            l_event_idx = 0;
+            for j in 0..jsonb_array_length(l_events) - 1
+                loop
+                    l_event = (l_events ->> j)::jsonb;
+
+                    l_data = null;
+                    if l_event -> 'data' is not null then
+                        for k in 0..jsonb_array_length(l_event -> 'data') - 1
+                            loop
+                                if char_length(l_event -> 'data' ->> k) > 0 then
+                                    l_data = array_append(l_data, decode(l_event -> 'data' ->> k, 'hex'));
+                                else
+                                    l_data = array_append(l_data, null);
+                                end if;
+
+                            end loop;
+                    end if;
+
+
+                    INSERT INTO tx_events (tx_id, idx, event_name, "data")
+                    VALUES (l_tx_id, l_event_idx, limited_text((l_event ->> 'eventName')::text, 32), l_data);
+
+                    l_event_idx = l_event_idx + 1;
+
+                end loop;
+
+        end loop;
+END
+$$;
+
+CREATE OR REPLACE PROCEDURE save_contracts(p_block_height bigint, p_items jsonb)
+    LANGUAGE 'plpgsql'
+AS
+$$
+DECLARE
+    CONTRACT_TYPE_CONTRACT CONSTANT smallint = 6;
+    l_item                          jsonb;
+    l_contract_address_id           bigint;
+    l_tx_id                         bigint;
+BEGIN
+    if p_items is null then
+        return;
+    end if;
+    for i in 0..jsonb_array_length(p_items) - 1
+        loop
+            l_item = (p_items ->> i)::jsonb;
+
+            l_contract_address_id = get_address_id_or_insert(p_block_height, (l_item ->> 'contractAddress')::text);
+
+            SELECT id INTO l_tx_id FROM transactions WHERE lower(hash) = lower((l_item ->> 'txHash')::text);
+
+            INSERT INTO contracts (tx_id, contract_address_id, "type", stake)
+            VALUES (l_tx_id, l_contract_address_id, CONTRACT_TYPE_CONTRACT, 0);
         end loop;
 END
 $$;
@@ -365,9 +438,11 @@ BEGIN
             l_committee_size = (l_item ->> 'committeeSize')::bigint;
 
             INSERT INTO oracle_voting_contract_call_prolongations (call_tx_id, ov_contract_tx_id, epoch, start_block,
-                                                                   vrf_seed, epoch_without_growth, prolong_vote_count, committee_size)
+                                                                   vrf_seed, epoch_without_growth, prolong_vote_count,
+                                                                   committee_size)
             VALUES (l_tx_id, l_contract_tx_id, l_epoch, l_start_block_height,
-                    decode(l_item ->> 'vrfSeed', 'hex'), l_epoch_without_growth, l_prolong_vote_count, l_committee_size);
+                    decode(l_item ->> 'vrfSeed', 'hex'), l_epoch_without_growth, l_prolong_vote_count,
+                    l_committee_size);
 
             call apply_prolongation_on_sorted_contracts(p_block_height, l_tx_id, l_contract_tx_id, l_start_block_height,
                                                         l_epoch);
@@ -636,7 +711,8 @@ BEGIN
                                                           fail_address_id, refund_delay, deposit_deadline,
                                                           oracle_voting_fee, oracle_voting_fee_new)
             VALUES (l_tx_id, l_oracle_voting_address_id, l_item.value, l_success_address_id, l_fail_address_id,
-                    l_item.refund_delay, l_item.deposit_deadline, l_item.oracle_voting_fee, l_item.oracle_voting_fee_new);
+                    l_item.refund_delay, l_item.deposit_deadline, l_item.oracle_voting_fee,
+                    l_item.oracle_voting_fee_new);
         end loop;
 END
 $$;

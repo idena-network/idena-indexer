@@ -73,6 +73,7 @@ type Indexer struct {
 	treeSnapshotDir               string
 	actualOracleVotingsLoader     voting.ActualOracleVotingsLoader
 	oracleVotingToProlongDetector OracleVotingToProlongDetector
+	checkBalances                 bool
 }
 
 type upgradeVotingHistoryCtx struct {
@@ -123,6 +124,7 @@ func NewIndexer(
 	treeSnapshotDir string,
 	actualOracleVotingsLoader voting.ActualOracleVotingsLoader,
 	oracleVotingToProlongDetector OracleVotingToProlongDetector,
+	checkBalances bool,
 ) *Indexer {
 	return &Indexer{
 		enabled:                       enabled,
@@ -144,6 +146,7 @@ func NewIndexer(
 			shortHistoryMinShift: upgradeVotingShortHistoryMinShift,
 			queue:                make(chan *upgradesVotesWrapper, 5),
 		},
+		checkBalances: checkBalances,
 	}
 }
 
@@ -284,6 +287,10 @@ func (indexer *Indexer) indexBlock(block *types.Block) {
 		indexer.refreshUpgradeVotingHistorySummaries(res.dbData.UpgradesVotes, block.Height())
 		if err := indexer.makeEpochTreeSnapshot(); err != nil {
 			log.Warn(errors.Wrap(err, "failed to make epoch tree snapshot").Error())
+		}
+
+		if indexer.checkBalances {
+			checkBalances(indexer.listener.AppState(), indexer.db)
 		}
 
 		return
@@ -481,6 +488,7 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) (*result
 		BurntCoinsPerAddr:                        collectorStats.BurntCoinsByAddr,
 		BalanceUpdates:                           collectorStats.BalanceUpdates,
 		CommitteeRewardShare:                     collectorStats.CommitteeRewardShare,
+		Contracts:                                collectorStats.Contracts,
 		OracleVotingContracts:                    collectorStats.OracleVotingContracts,
 		OracleVotingContractCallStarts:           collectorStats.OracleVotingContractCallStarts,
 		OracleVotingContractCallVoteProofs:       collectorStats.OracleVotingContractCallVoteProofs,
@@ -668,6 +676,7 @@ func (indexer *Indexer) convertBlock(
 		FeeRate:                 blockchain.ConvertToFloat(ctx.prevStateReadOnly.State.FeePerGas()),
 		Upgrade:                 upgrade,
 		OfflineAddress:          offlineAddress,
+		GasUsed:                 indexer.statsHolder().GetStats().BlockGasUsed,
 	}, nil
 }
 
@@ -802,17 +811,18 @@ func (indexer *Indexer) convertTransaction(
 	}
 
 	tx := db.Transaction{
-		Type:   convertTxType(incomingTx.Type),
-		Hash:   txHash,
-		From:   from,
-		To:     to,
-		Amount: blockchain.ConvertToFloat(incomingTx.Amount),
-		Tips:   blockchain.ConvertToFloat(incomingTx.Tips),
-		MaxFee: blockchain.ConvertToFloat(incomingTx.MaxFee),
-		Fee:    blockchain.ConvertToFloat(indexer.statsHolder().GetStats().FeesByTxHash[incomingTx.Hash()]),
-		Size:   incomingTx.Size(),
-		Raw:    hex.EncodeToString(txRaw),
-		Nonce:  incomingTx.AccountNonce,
+		Type:    convertTxType(incomingTx.Type),
+		Hash:    txHash,
+		From:    from,
+		To:      to,
+		Amount:  blockchain.ConvertToFloat(incomingTx.Amount),
+		Tips:    blockchain.ConvertToFloat(incomingTx.Tips),
+		MaxFee:  blockchain.ConvertToFloat(incomingTx.MaxFee),
+		Fee:     blockchain.ConvertToFloat(indexer.statsHolder().GetStats().FeesByTxHash[incomingTx.Hash()]),
+		Size:    incomingTx.Size(),
+		Raw:     hex.EncodeToString(txRaw),
+		Nonce:   incomingTx.AccountNonce,
+		UsedGas: indexer.statsHolder().GetStats().UsedGasByTxHash[incomingTx.Hash()],
 	}
 
 	var data interface{}

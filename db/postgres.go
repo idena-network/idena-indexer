@@ -107,6 +107,7 @@ func (a *postgresAccessor) Save(data *Data) error {
 		data.KillInviteeTxs,
 		data.BecomeOnlineTxs,
 		data.BecomeOfflineTxs,
+		data.Contracts,
 		data.OracleVotingContracts,
 		data.OracleVotingContractCallStarts,
 		data.OracleVotingContractCallVoteProofs,
@@ -312,6 +313,7 @@ func (a *postgresAccessor) saveBlock(ctx *context, block Block) error {
 		block.Upgrade,
 		block.OfflineAddress,
 		pq.Array(block.Flags),
+		block.GasUsed,
 	)
 	return err
 }
@@ -380,6 +382,7 @@ func (a *postgresAccessor) saveAddressesAndTransactions(
 	killInviteeTxs []KillInviteeTx,
 	becomeOnlineTxs []string,
 	becomeOfflineTxs []string,
+	contracts []*Contract,
 	oracleVotingContracts []*OracleVotingContract,
 	oracleVotingContractCallStarts []*OracleVotingContractCallStart,
 	oracleVotingContractCallVoteProofs []*OracleVotingContractCallVoteProof,
@@ -421,7 +424,7 @@ func (a *postgresAccessor) saveAddressesAndTransactions(
 	var txHashIds []txHashId
 	data := getData(
 		txs, delegationSwitches, upgradesVotes, poolSizes, minersHistoryItem, removedTransitiveDelegations,
-		epochSummaryUpdate, oracleVotingContractsToProlong)
+		epochSummaryUpdate, oracleVotingContractsToProlong, txReceipts, contracts)
 	err := ctx.tx.QueryRow(a.getQuery(insertAddressesAndTransactionsQuery),
 		ctx.blockHeight,
 		a.changesHistoryBlocksCount,
@@ -462,7 +465,6 @@ func (a *postgresAccessor) saveAddressesAndTransactions(
 		pq.Array(multisigContractCallPushes),
 		pq.Array(multisigContractTerminations),
 		pq.Array(contractTxsBalanceUpdates),
-		pq.Array(txReceipts),
 		data,
 	).Scan(pq.Array(&txHashIds))
 	if err != nil {

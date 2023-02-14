@@ -1,6 +1,7 @@
 package db
 
 import (
+	"github.com/idena-network/idena-go/blockchain/types"
 	"github.com/idena-network/idena-go/common"
 	"github.com/shopspring/decimal"
 	"math/big"
@@ -105,6 +106,7 @@ type Data struct {
 	BurntCoinsPerAddr                        map[common.Address][]*BurntCoins
 	BalanceUpdates                           []*BalanceUpdate
 	CommitteeRewardShare                     *big.Int
+	Contracts                                []*Contract
 	OracleVotingContracts                    []*OracleVotingContract
 	OracleVotingContractCallStarts           []*OracleVotingContractCallStart
 	OracleVotingContractCallVoteProofs       []*OracleVotingContractCallVoteProof
@@ -241,20 +243,22 @@ type Block struct {
 	FeeRate                 decimal.Decimal
 	Upgrade                 *uint32
 	OfflineAddress          *string
+	GasUsed                 uint64
 }
 
 type Transaction struct {
-	Hash   string          `json:"hash"`
-	Type   uint16          `json:"type"`
-	From   string          `json:"from"`
-	To     string          `json:"to"`
-	Amount decimal.Decimal `json:"amount"`
-	Tips   decimal.Decimal `json:"tips"`
-	MaxFee decimal.Decimal `json:"maxFee"`
-	Fee    decimal.Decimal `json:"fee"`
-	Size   int             `json:"size"`
-	Raw    string          `json:"raw"`
-	Nonce  uint32          `json:"nonce"`
+	Hash    string          `json:"hash"`
+	Type    uint16          `json:"type"`
+	From    string          `json:"from"`
+	To      string          `json:"to"`
+	Amount  decimal.Decimal `json:"amount"`
+	Tips    decimal.Decimal `json:"tips"`
+	MaxFee  decimal.Decimal `json:"maxFee"`
+	Fee     decimal.Decimal `json:"fee"`
+	Size    int             `json:"size"`
+	Raw     string          `json:"raw"`
+	Nonce   uint32          `json:"nonce"`
+	UsedGas uint64          `json:"usedGas"`
 
 	Data interface{} `json:"data,omitempty"`
 }
@@ -472,6 +476,11 @@ type EpochResult struct {
 	ValidationRewardSummaries []ValidationRewardSummaries
 }
 
+type Contract struct {
+	TxHash          common.Hash
+	ContractAddress common.Address
+}
+
 type OracleVotingContract struct {
 	TxHash               common.Hash
 	ContractAddress      common.Address
@@ -517,7 +526,7 @@ type OracleVotingContractCallVote struct {
 	Vote             byte
 	Salt             []byte
 	OptionVotes      *uint64
-	OptionAllVotes   *uint64 // TODO make non-pointer after deprecated AddOracleVotingCallVoteOld is removed
+	OptionAllVotes   uint64
 	SecretVotesCount *uint64
 	Delegatee        *common.Address
 	Discriminated    bool
@@ -676,14 +685,7 @@ type TimeLockContractTermination struct {
 	Dest   common.Address
 }
 
-type TxReceipt struct {
-	TxHash  common.Hash
-	Success bool
-	GasUsed uint64
-	GasCost *big.Int
-	Method  string
-	Error   string
-}
+type TxReceipt = types.TxReceipt
 
 type ContractTxBalanceUpdates struct {
 	TxHash             common.Hash
@@ -693,9 +695,10 @@ type ContractTxBalanceUpdates struct {
 }
 
 type ContractTxBalanceUpdate struct {
-	Address    common.Address
-	BalanceOld *big.Int
-	BalanceNew *big.Int
+	Address         common.Address
+	BalanceOld      *big.Int
+	BalanceNew      *big.Int
+	ContractAddress *common.Address
 }
 
 type RewardBounds struct {

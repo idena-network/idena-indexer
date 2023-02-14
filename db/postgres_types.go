@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/idena-network/idena-go/blockchain"
+	"github.com/idena-network/idena-go/blockchain/types"
 	"github.com/idena-network/idena-go/common"
 	"github.com/idena-network/idena-indexer/core/conversion"
 	"github.com/lib/pq"
@@ -60,10 +61,10 @@ func (v *MemPoolFlipKey) Value() (driver.Value, error) {
 	return fmt.Sprintf("(%v,%v)", v.Address, v.Key), nil
 }
 
-func (v Transaction) Value() (driver.Value, error) {
-	return fmt.Sprintf("(%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v)",
-		v.Hash, v.Type, v.From, v.To, v.Amount, v.Tips, v.MaxFee, v.Fee, v.Size, v.Raw, v.Nonce), nil
-}
+//func (v Transaction) Value() (driver.Value, error) {
+//	return fmt.Sprintf("(%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v)",
+//		v.Hash, v.Type, v.From, v.To, v.Amount, v.Tips, v.MaxFee, v.Fee, v.Size, v.Raw, v.Nonce), nil
+//}
 
 func (v ActivationTxTransfer) Value() (driver.Value, error) {
 	return fmt.Sprintf("(%v,%v)", v.TxHash, v.BalanceTransfer), nil
@@ -281,7 +282,7 @@ func (v *OracleVotingContractCallVote) Value() (driver.Value, error) {
 		v.Vote,
 		hex.EncodeToString(v.Salt),
 		negativeIfNilUint64(v.OptionVotes),
-		negativeIfNilUint64(v.OptionAllVotes),
+		v.OptionAllVotes,
 		negativeIfNilUint64(v.SecretVotesCount),
 		delegatee,
 		negativeIfNilByte(v.PrevPoolVote),
@@ -514,9 +515,10 @@ type contractTxBalanceUpdates struct {
 }
 
 type contractTxBalanceUpdate struct {
-	Address    string           `json:"address"`
-	BalanceOld *decimal.Decimal `json:"balanceOld"`
-	BalanceNew *decimal.Decimal `json:"balanceNew"`
+	Address         string           `json:"address"`
+	BalanceOld      *decimal.Decimal `json:"balanceOld"`
+	BalanceNew      *decimal.Decimal `json:"balanceNew"`
+	ContractAddress string           `json:"contractAddress,omitempty"`
 }
 
 func (v *ContractTxBalanceUpdates) Value() (driver.Value, error) {
@@ -535,28 +537,18 @@ func (v *ContractTxBalanceUpdates) Value() (driver.Value, error) {
 			v := blockchain.ConvertToFloat(update.BalanceNew)
 			balanceNew = &v
 		}
+		var contractAddress string
+		if update.ContractAddress != nil {
+			contractAddress = conversion.ConvertAddress(*update.ContractAddress)
+		}
 		res.Updates[i] = &contractTxBalanceUpdate{
-			Address:    conversion.ConvertAddress(update.Address),
-			BalanceOld: balanceOld,
-			BalanceNew: balanceNew,
+			Address:         conversion.ConvertAddress(update.Address),
+			BalanceOld:      balanceOld,
+			BalanceNew:      balanceNew,
+			ContractAddress: contractAddress,
 		}
 	}
 	return json.Marshal(res)
-}
-
-func (v *TxReceipt) Value() (driver.Value, error) {
-	errorMsg := v.Error
-	if len(errorMsg) > 50 {
-		errorMsg = errorMsg[:50]
-	}
-	return fmt.Sprintf("(%v,%v,%v,%v,%v,%v)",
-		conversion.ConvertHash(v.TxHash),
-		v.Success,
-		v.GasUsed,
-		blockchain.ConvertToFloat(v.GasCost),
-		v.Method,
-		errorMsg,
-	), nil
 }
 
 type flipContent struct {
@@ -954,6 +946,8 @@ type data struct {
 	RemovedTransitiveDelegations   []removedTransitiveDelegation `json:"removedTransitiveDelegations,omitempty"`
 	EpochSummaryUpdate             EpochSummaryUpdate            `json:"epochSummaryUpdate,omitempty"`
 	OracleVotingContractsToProlong []string                      `json:"oracleVotingContractsToProlong,omitempty"`
+	TxReceipts                     []txReceipt                   `json:"txReceipts,omitempty"`
+	Contracts                      []contract                    `json:"contracts,omitempty"`
 }
 
 func (v *data) Value() (driver.Value, error) {
@@ -1007,6 +1001,29 @@ type delegationEpochReward struct {
 	Invitee3        *decimal.Decimal `json:"invitee3,omitempty"`
 }
 
+type txReceipt struct {
+	ContractAddress string          `json:"contractAddress"`
+	Success         bool            `json:"success"`
+	GasUsed         uint64          `json:"gasUsed"`
+	GasCost         decimal.Decimal `json:"gasCost"`
+	From            string          `json:"from"`
+	TxHash          string          `json:"txHash"`
+	Error           string          `json:"error,omitempty"`
+	Events          []txEvent       `json:"events,omitempty"`
+	Method          string          `json:"method,omitempty"`
+	ActionResult    bytes           `json:"actionResult,omitempty"`
+}
+
+type contract struct {
+	ContractAddress string `json:"contractAddress"`
+	TxHash          string `json:"txHash"`
+}
+
+type txEvent struct {
+	EventName string  `json:"eventName"`
+	Data      []bytes `json:"data,omitempty"`
+}
+
 func getData(
 	txs []Transaction,
 	delegationSwitches []*DelegationSwitch,
@@ -1016,6 +1033,8 @@ func getData(
 	removedTransitiveDelegations []RemovedTransitiveDelegation,
 	epochSummaryUpdate EpochSummaryUpdate,
 	oracleVotingContractsToProlong []common.Address,
+	txReceipts []*TxReceipt,
+	contracts []*Contract,
 ) *data {
 	res := &data{
 		Txs:                txs,
@@ -1069,6 +1088,69 @@ func getData(
 		res.OracleVotingContractsToProlong = make([]string, 0, len(oracleVotingContractsToProlong))
 		for _, item := range oracleVotingContractsToProlong {
 			res.OracleVotingContractsToProlong = append(res.OracleVotingContractsToProlong, conversion.ConvertAddress(item))
+		}
+	}
+	if len(txReceipts) > 0 {
+		res.TxReceipts = make([]txReceipt, 0, len(txReceipts))
+		for _, item := range txReceipts {
+			res.TxReceipts = append(res.TxReceipts, convertTxReceipt(item))
+		}
+	}
+	if len(contracts) > 0 {
+		res.Contracts = make([]contract, 0, len(contracts))
+		for _, item := range contracts {
+			res.Contracts = append(res.Contracts, convertContract(item))
+		}
+	}
+	return res
+}
+
+func convertTxReceipt(v *types.TxReceipt) txReceipt {
+	var errorMsg string
+	if v.Error != nil {
+		errorMsg = v.Error.Error()
+	}
+
+	return txReceipt{
+		ContractAddress: conversion.ConvertAddress(v.ContractAddress),
+		From:            conversion.ConvertAddress(v.From),
+		TxHash:          conversion.ConvertHash(v.TxHash),
+		Success:         v.Success,
+		GasUsed:         v.GasUsed,
+		GasCost:         blockchain.ConvertToFloat(v.GasCost),
+		Method:          v.Method,
+		Error:           errorMsg,
+		ActionResult:    v.ActionResult,
+		Events:          convertTxEvents(v.Events),
+	}
+}
+
+func convertContract(v *Contract) contract {
+	return contract{
+		ContractAddress: conversion.ConvertAddress(v.ContractAddress),
+		TxHash:          conversion.ConvertHash(v.TxHash),
+	}
+}
+
+func convertTxEvents(events []*types.TxEvent) []txEvent {
+	if events == nil {
+		return nil
+	}
+	res := make([]txEvent, 0, len(events))
+	for _, event := range events {
+		res = append(res, convertTxEvent(event))
+	}
+	return res
+}
+
+func convertTxEvent(event *types.TxEvent) txEvent {
+	res := txEvent{
+		EventName: event.EventName,
+	}
+	if len(event.Data) > 0 {
+		res.Data = make([]bytes, 0, len(event.Data))
+		for _, v := range event.Data {
+			res.Data = append(res.Data, v)
 		}
 	}
 	return res

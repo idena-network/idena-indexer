@@ -51,6 +51,8 @@ type Stats struct {
 	CommitteeRewardShare                     *big.Int
 	IdentityStateChangesByTxHashAndAddress   map[common.Hash]map[common.Address]*IdentityStateChange
 	FeesByTxHash                             map[common.Hash]*big.Int
+	UsedGasByTxHash                          map[common.Hash]uint64
+	Contracts                                []*db.Contract
 	OracleVotingContracts                    []*db.OracleVotingContract
 	OracleVotingContractCallStarts           []*db.OracleVotingContractCallStart
 	OracleVotingContractCallVoteProofs       []*db.OracleVotingContractCallVoteProof
@@ -84,6 +86,7 @@ type Stats struct {
 	RemovedTransitiveDelegations             []db.RemovedTransitiveDelegation
 	EpochSummaryUpdate                       db.EpochSummaryUpdate
 	KilledInactiveIdentities                 map[common.Address]struct{}
+	BlockGasUsed                             uint64
 }
 
 type RewardsStats struct {

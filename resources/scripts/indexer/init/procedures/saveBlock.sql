@@ -11,7 +11,8 @@ CREATE OR REPLACE PROCEDURE save_block(p_height bigint,
                                        p_fee_rate numeric,
                                        p_upgrade integer,
                                        p_offline_address text,
-                                       p_flags text[])
+                                       p_flags text[],
+                                       p_used_gas integer)
     LANGUAGE 'plpgsql'
 AS
 $BODY$
@@ -24,9 +25,10 @@ BEGIN
         SELECT id INTO l_offline_address_id FROM addresses WHERE lower(address) = lower(p_offline_address);
     end if;
     INSERT INTO blocks (height, hash, epoch, timestamp, is_empty, validators_count, pool_validators_count, body_size,
-                        vrf_proposer_threshold, full_size, fee_rate, upgrade, offline_address_id)
+                        vrf_proposer_threshold, full_size, fee_rate, upgrade, offline_address_id, used_gas)
     VALUES (p_height, p_hash, p_epoch, p_timestamp, p_is_empty, p_original_validators_count, p_pool_validators_count,
-            p_body_size, p_vrf_proposer_threshold, p_full_size, p_fee_rate, p_upgrade, l_offline_address_id);
+            p_body_size, p_vrf_proposer_threshold, p_full_size, p_fee_rate, p_upgrade, l_offline_address_id,
+            p_used_gas);
 
     if p_is_empty then
         l_empty_count = 1;

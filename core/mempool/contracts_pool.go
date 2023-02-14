@@ -248,7 +248,7 @@ func (c *contractsImpl) processContractTx(tx *types.Transaction) error {
 	defer statsCollector.CompleteCollecting()
 	statsCollector.BeginApplyingTx(tx, appState)
 	defer statsCollector.CompleteApplyingTx(appState)
-	cvm := vm.NewVmImpl(appState, c.chain.Head, statsCollector, c.nodeConfig)
+	cvm := vm.NewVmImpl(appState, c.chain, c.chain.Head, statsCollector, c.nodeConfig)
 	txReceipt := cvm.Run(tx, nil, -1)
 	c.applyDeployTx(tx.Hash(), txReceipt, appState)
 	c.applyContractTx(tx, txReceipt)

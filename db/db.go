@@ -34,6 +34,10 @@ type Accessor interface {
 
 	ActualOracleVotings() ([]common.Address, error)
 
+	Balances() ([]Balance, error)
+	LatestBalanceUpdates() ([]Balance, error)
+	BalanceUpdateGapCnt() (int, error)
+
 	Destroy()
 	ResetTo(height uint64) error
 }
