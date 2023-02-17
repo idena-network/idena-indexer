@@ -47,7 +47,7 @@ type upgradesVotingCacheUpdater struct {
 func (updater *upgradesVotingCacheUpdater) loop() {
 	for {
 		updater.update()
-		time.Sleep(time.Second * 30)
+		time.Sleep(time.Second * 10)
 	}
 }
 
