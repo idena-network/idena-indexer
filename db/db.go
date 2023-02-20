@@ -37,6 +37,7 @@ type Accessor interface {
 	Balances() ([]Balance, error)
 	LatestBalanceUpdates() ([]Balance, error)
 	BalanceUpdateGapCnt() (int, error)
+	BurntCoinsInconsistencyCnt() (int, error)
 
 	Destroy()
 	ResetTo(height uint64) error

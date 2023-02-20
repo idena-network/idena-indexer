@@ -96,10 +96,48 @@ func (cache *balanceUpdateCache) list() []*contractBalanceUpdate {
 	return cache.updates
 }
 
+type burntCoinsCache struct {
+	coins          []*pendingBurntCoins
+	coinsByAddress map[common.Address]*pendingBurntCoins
+}
+
+func (cache *burntCoinsCache) add(address common.Address, amount *big.Int) {
+	if common.ZeroOrNil(amount) {
+		return
+	}
+	var coins *pendingBurntCoins
+	var ok bool
+	if cache.coinsByAddress == nil {
+		cache.coinsByAddress = make(map[common.Address]*pendingBurntCoins)
+	} else {
+		coins, ok = cache.coinsByAddress[address]
+	}
+	if ok {
+		coins.amount = new(big.Int).Add(coins.amount, amount)
+	} else {
+		coins = &pendingBurntCoins{
+			address: address,
+			amount:  amount,
+			reason:  db.EmbeddedContractReason,
+		}
+		cache.coinsByAddress[address] = coins
+		cache.coins = append(cache.coins, coins)
+	}
+}
+
+func (cache *burntCoinsCache) importFrom(external *burntCoinsCache) {
+	cache.coins = append(cache.coins, external.list()...)
+}
+
+func (cache *burntCoinsCache) list() []*pendingBurntCoins {
+	return cache.coins
+}
+
 type pendingTx struct {
 	tx                                      *types.Transaction
 	contractBalanceUpdateCache              map[balanceCachePtr]*balanceUpdateCache
 	contractBalanceUpdates                  []*contractBalanceUpdate
+	contractBurntCoinsCache                 map[balanceCachePtr]*burntCoinsCache
 	contractBurntCoins                      []*pendingBurntCoins
 	contractDeploy                          *db.Contract
 	oracleVotingContractDeploy              *db.OracleVotingContract
@@ -1427,18 +1465,40 @@ func (c *statsCollector) ApplyContractBalanceUpdates(balancesCache, parentBalanc
 	} else {
 		c.pending.tx.contractBalanceUpdates = append(c.pending.tx.contractBalanceUpdates, cache.list()...)
 	}
+
+	burntCache := c.getOrPutContractBurntCoinsCache(balancesCache)
+	delete(c.pending.tx.contractBurntCoinsCache, balancesCache)
+	if parentBalancesCache != nil {
+		parentCache := c.getOrPutContractBurntCoinsCache(parentBalancesCache)
+		parentCache.importFrom(burntCache)
+	} else {
+		c.pending.tx.contractBurntCoins = append(c.pending.tx.contractBurntCoins, burntCache.list()...)
+	}
 }
 
-func (c *statsCollector) AddContractBurntCoins(address common.Address, getAmount collector.GetBalanceFunc) {
+func (c *statsCollector) AddContractBurntCoins(address common.Address, getAmount collector.GetBalanceFunc, balancesCache balanceCachePtr) {
 	amount := getAmount(address)
-	if amount == nil || amount.Sign() == 0 {
+	if common.ZeroOrNil(amount) {
 		return
 	}
-	c.pending.tx.contractBurntCoins = append(c.pending.tx.contractBurntCoins, &pendingBurntCoins{
-		address: address,
-		amount:  amount,
-		reason:  db.EmbeddedContractReason,
-	})
+	amount = new(big.Int).Set(amount)
+	cache := c.getOrPutContractBurntCoinsCache(balancesCache)
+	cache.add(address, amount)
+}
+
+func (c *statsCollector) getOrPutContractBurntCoinsCache(balancesCache balanceCachePtr) *burntCoinsCache {
+	var cache *burntCoinsCache
+	var ok bool
+	if c.pending.tx.contractBurntCoinsCache == nil {
+		c.pending.tx.contractBurntCoinsCache = make(map[balanceCachePtr]*burntCoinsCache)
+	} else {
+		cache, ok = c.pending.tx.contractBurntCoinsCache[balancesCache]
+	}
+	if !ok {
+		cache = &burntCoinsCache{}
+		c.pending.tx.contractBurntCoinsCache[balancesCache] = cache
+	}
+	return cache
 }
 
 func (c *statsCollector) AddContractTerminationBurntCoins(address common.Address, stake, refund *big.Int) {

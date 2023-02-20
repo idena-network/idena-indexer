@@ -19,8 +19,14 @@ import (
 	"testing"
 )
 
+func newStatsCollector() *statsCollector {
+	res := &statsCollector{}
+	res.consensusConf = blockchain.GetDefaultConsensusConfig()
+	return res
+}
+
 func TestStatsCollector_PenaltyBalanceUpdate(t *testing.T) {
-	c := &statsCollector{}
+	c := newStatsCollector()
 	addr := tests.GetRandAddr()
 	appState, _ := appstate.NewAppState(db.NewMemDB(), eventbus.New())
 
@@ -83,7 +89,7 @@ func TestStatsCollector_PenaltyBalanceUpdate(t *testing.T) {
 }
 
 func TestStatsCollector_ProposerRewardBalanceUpdate(t *testing.T) {
-	c := &statsCollector{}
+	c := newStatsCollector()
 	c.EnableCollecting()
 	addr := tests.GetRandAddr()
 	appState, _ := appstate.NewAppState(db.NewMemDB(), eventbus.New())
@@ -131,7 +137,7 @@ func TestStatsCollector_ProposerRewardBalanceUpdate(t *testing.T) {
 }
 
 func TestStatsCollector_TxBalanceUpdate(t *testing.T) {
-	c := &statsCollector{}
+	c := newStatsCollector()
 	c.EnableCollecting()
 	key, _ := crypto.GenerateKey()
 	sender := crypto.PubkeyToAddress(key.PublicKey)
@@ -198,7 +204,7 @@ func TestStatsCollector_TxBalanceUpdate(t *testing.T) {
 }
 
 func TestStatsCollector_EpochRewardBalanceUpdate(t *testing.T) {
-	c := &statsCollector{}
+	c := newStatsCollector()
 	c.EnableCollecting()
 	addr := tests.GetRandAddr()
 	appState, _ := appstate.NewAppState(db.NewMemDB(), eventbus.New())
@@ -255,7 +261,7 @@ func TestStatsCollector_EpochRewardBalanceUpdate(t *testing.T) {
 }
 
 func TestStatsCollector_EpochRewardBalanceUpdateWithDelegatee(t *testing.T) {
-	c := &statsCollector{}
+	c := newStatsCollector()
 	c.EnableCollecting()
 	delegator, delegatee := tests.GetRandAddr(), tests.GetRandAddr()
 	appState, _ := appstate.NewAppState(db.NewMemDB(), eventbus.New())
@@ -384,7 +390,7 @@ func TestStatsCollector_EpochRewardBalanceUpdateWithDelegatee(t *testing.T) {
 }
 
 func TestStatsCollector_EpochRewardBalanceUpdateWithDelegatee2(t *testing.T) {
-	c := &statsCollector{}
+	c := newStatsCollector()
 	c.EnableCollecting()
 	delegator, delegatee := tests.GetRandAddr(), tests.GetRandAddr()
 
@@ -686,7 +692,7 @@ func TestStatsCollector_EpochRewardBalanceUpdateWithDelegatee2(t *testing.T) {
 }
 
 func TestStatsCollector_DustClearingBalanceUpdate(t *testing.T) {
-	c := &statsCollector{}
+	c := newStatsCollector()
 	c.EnableCollecting()
 	addr := tests.GetRandAddr()
 	appState, _ := appstate.NewAppState(db.NewMemDB(), eventbus.New())
@@ -713,7 +719,7 @@ func TestStatsCollector_DustClearingBalanceUpdate(t *testing.T) {
 }
 
 func TestStatsCollector_contractBalanceUpdate(t *testing.T) {
-	c := &statsCollector{}
+	c := newStatsCollector()
 	c.EnableCollecting()
 
 	appState, _ := appstate.NewAppState(db.NewMemDB(), eventbus.New())
@@ -739,7 +745,7 @@ func TestStatsCollector_contractBalanceUpdate(t *testing.T) {
 
 	c.AddContractBurntCoins(address3, func(address common.Address) *big.Int {
 		return big.NewInt(400)
-	})
+	}, &balanceCache)
 	c.ApplyContractBalanceUpdates(&balanceCache, nil)
 	c.AddTxReceipt(&types.TxReceipt{Success: true}, appState)
 
@@ -801,7 +807,7 @@ func TestStatsCollector_contractBalanceUpdate(t *testing.T) {
 }
 
 func TestStatsCollector_AddValidationReward(t *testing.T) {
-	c := &statsCollector{}
+	c := newStatsCollector()
 	c.EnableCollecting()
 
 	addr1, addr2, addr3, addr4, addr5 := tests.GetRandAddr(), tests.GetRandAddr(), tests.GetRandAddr(), tests.GetRandAddr(), tests.GetRandAddr()
@@ -863,7 +869,7 @@ func TestStatsCollector_AddValidationReward(t *testing.T) {
 }
 
 func TestStatsCollector_AddRewardsWithDelegatee(t *testing.T) {
-	c := &statsCollector{}
+	c := newStatsCollector()
 	c.EnableCollecting()
 
 	delegator1, delegator2, delegator3, delegator4, delegatee1, delegatee2 := tests.GetRandAddr(), tests.GetRandAddr(), tests.GetRandAddr(), tests.GetRandAddr(), tests.GetRandAddr(), tests.GetRandAddr()
@@ -875,19 +881,19 @@ func TestStatsCollector_AddRewardsWithDelegatee(t *testing.T) {
 	c.AddValidationReward(delegatee2, delegator4, 4, new(big.Int).SetInt64(7), new(big.Int).SetInt64(8))
 
 	c.AddFlipsBasicReward(delegatee1, delegatee1, big.NewInt(9), big.NewInt(10), []*types.FlipToReward{
-		{[]byte{0x1}, types.GradeA},
+		{[]byte{0x1}, types.GradeNone, decimal.NewFromInt32(8)},
 	})
 	c.AddFlipsBasicReward(delegatee1, delegator1, big.NewInt(9), big.NewInt(10), []*types.FlipToReward{
-		{[]byte{0x1}, types.GradeA},
+		{[]byte{0x1}, types.GradeNone, decimal.NewFromInt32(8)},
 	})
 	c.AddFlipsBasicReward(delegatee1, delegator2, big.NewInt(11), big.NewInt(12), []*types.FlipToReward{
-		{[]byte{0x1}, types.GradeA},
+		{[]byte{0x1}, types.GradeNone, decimal.NewFromInt32(8)},
 	})
 	c.AddFlipsBasicReward(delegatee1, delegator3, big.NewInt(13), big.NewInt(14), []*types.FlipToReward{
-		{[]byte{0x1}, types.GradeA},
+		{[]byte{0x1}, types.GradeNone, decimal.NewFromInt32(8)},
 	})
 	c.AddFlipsBasicReward(delegatee2, delegator4, big.NewInt(15), big.NewInt(16), []*types.FlipToReward{
-		{[]byte{0x1}, types.GradeA},
+		{[]byte{0x1}, types.GradeNone, decimal.NewFromInt32(8)},
 	})
 
 	c.SetValidation(&types2.ValidationStats{
@@ -955,7 +961,7 @@ func TestStatsCollector_AddRewardsWithDelegatee(t *testing.T) {
 }
 
 func TestStatsCollector_AddFlipsReward(t *testing.T) {
-	c := &statsCollector{}
+	c := newStatsCollector()
 	c.EnableCollecting()
 
 	addr1, addr2, addr3, addr4, addr5 := tests.GetRandAddr(), tests.GetRandAddr(), tests.GetRandAddr(), tests.GetRandAddr(), tests.GetRandAddr()
@@ -968,11 +974,11 @@ func TestStatsCollector_AddFlipsReward(t *testing.T) {
 	cid3, _ := cid.Parse("bafkreihcvhijrwwts3xl3zufbi2mjng5gltc7ojw2syue7zyritkq3gbii")
 
 	c.AddFlipsBasicReward(addr2, addr1, big.NewInt(1), big.NewInt(2), []*types.FlipToReward{
-		{cid1.Bytes(), types.GradeA},
-		{cid2.Bytes(), types.GradeB},
+		{cid1.Bytes(), types.GradeNone, decimal.NewFromInt32(8)},
+		{cid2.Bytes(), types.GradeNone, decimal.NewFromInt32(6)},
 	})
 	c.AddFlipsBasicReward(addr2, addr2, big.NewInt(3), big.NewInt(4), []*types.FlipToReward{
-		{cid3.Bytes(), types.GradeC},
+		{cid3.Bytes(), types.GradeNone, decimal.NewFromInt32(4)},
 	})
 	c.AddFlipsBasicReward(addr3, addr3, big.NewInt(4), big.NewInt(5), nil)
 	c.AddFlipsBasicReward(addr2, addr4, big.NewInt(6), big.NewInt(7), nil)
@@ -1011,7 +1017,7 @@ func TestStatsCollector_AddFlipsReward(t *testing.T) {
 }
 
 func TestStatsCollector_AddFlipsExtraReward(t *testing.T) {
-	c := &statsCollector{}
+	c := newStatsCollector()
 	c.EnableCollecting()
 
 	addr1, addr2, addr3, addr4, addr5 := tests.GetRandAddr(), tests.GetRandAddr(), tests.GetRandAddr(), tests.GetRandAddr(), tests.GetRandAddr()
@@ -1023,13 +1029,28 @@ func TestStatsCollector_AddFlipsExtraReward(t *testing.T) {
 	cid2, _ := cid.Parse("bafkreifyajvupl2o22zwnkec22xrtwgieovymdl7nz5uf25aqv7lsguova")
 	cid3, _ := cid.Parse("bafkreihcvhijrwwts3xl3zufbi2mjng5gltc7ojw2syue7zyritkq3gbii")
 
+	c.AddFlipsBasicReward(addr2, addr1, big.NewInt(1), big.NewInt(2), []*types.FlipToReward{
+		{},
+		{},
+		{},
+		{cid1.Bytes(), types.GradeNone, decimal.NewFromInt32(8)},
+		{cid2.Bytes(), types.GradeNone, decimal.NewFromInt32(6)},
+	})
 	c.AddFlipsExtraReward(addr2, addr1, big.NewInt(1), big.NewInt(2), []*types.FlipToReward{
-		{cid1.Bytes(), types.GradeA},
-		{cid2.Bytes(), types.GradeB},
+		{cid1.Bytes(), types.GradeNone, decimal.NewFromInt32(8)},
+		{cid2.Bytes(), types.GradeNone, decimal.NewFromInt32(6)},
+	})
+
+	c.AddFlipsBasicReward(addr2, addr2, big.NewInt(3), big.NewInt(4), []*types.FlipToReward{
+		{},
+		{},
+		{},
+		{cid3.Bytes(), types.GradeNone, decimal.NewFromInt32(4)},
 	})
 	c.AddFlipsExtraReward(addr2, addr2, big.NewInt(3), big.NewInt(4), []*types.FlipToReward{
-		{cid3.Bytes(), types.GradeC},
+		{cid3.Bytes(), types.GradeNone, decimal.NewFromInt32(4)},
 	})
+
 	c.AddFlipsExtraReward(addr3, addr3, big.NewInt(4), big.NewInt(5), nil)
 	c.AddFlipsExtraReward(addr2, addr4, big.NewInt(6), big.NewInt(7), nil)
 
@@ -1038,11 +1059,11 @@ func TestStatsCollector_AddFlipsExtraReward(t *testing.T) {
 	require.Equal(t, cid2.String(), c.stats.RewardsStats.RewardedExtraFlipCids[1])
 	require.Equal(t, cid3.String(), c.stats.RewardsStats.RewardedExtraFlipCids[2])
 
-	require.Len(t, c.stats.RewardsStats.Rewards, 4)
+	require.Len(t, c.stats.RewardsStats.Rewards, 6)
 
 	find := func(address common.Address) *RewardStats {
 		for _, item := range c.stats.RewardsStats.Rewards {
-			if address == item.Address {
+			if item.Type == ExtraFlips && address == item.Address {
 				return item
 			}
 		}
@@ -1067,7 +1088,7 @@ func TestStatsCollector_AddFlipsExtraReward(t *testing.T) {
 }
 
 func TestStatsCollector_AddReportedFlipsReward(t *testing.T) {
-	c := &statsCollector{}
+	c := newStatsCollector()
 	c.EnableCollecting()
 
 	cid1, _ := cid.Parse("bafkreiar6xq6j4ok5pfxaagtec7jwq6fdrdntkrkzpitqenmz4cyj6qswa")
@@ -1151,7 +1172,7 @@ func TestStatsCollector_AddReportedFlipsReward(t *testing.T) {
 }
 
 func TestStatsCollector_AddInvitationsReward(t *testing.T) {
-	c := &statsCollector{}
+	c := newStatsCollector()
 	c.EnableCollecting()
 
 	addr1, addr2, addr3, addr4, addr5 := tests.GetRandAddr(), tests.GetRandAddr(), tests.GetRandAddr(), tests.GetRandAddr(), tests.GetRandAddr()
@@ -1198,7 +1219,7 @@ func TestStatsCollector_AddInvitationsReward(t *testing.T) {
 }
 
 func TestStatsCollector_AddProposerReward(t *testing.T) {
-	c := &statsCollector{}
+	c := newStatsCollector()
 	c.EnableCollecting()
 
 	addr1, addr2, addr3 := tests.GetRandAddr(), tests.GetRandAddr(), tests.GetRandAddr()
@@ -1232,7 +1253,7 @@ func TestStatsCollector_AddProposerReward(t *testing.T) {
 }
 
 func TestStatsCollector_AddFinalCommitteeReward(t *testing.T) {
-	c := &statsCollector{}
+	c := newStatsCollector()
 	c.EnableCollecting()
 
 	addr1, addr2, addr3 := tests.GetRandAddr(), tests.GetRandAddr(), tests.GetRandAddr()
@@ -1263,7 +1284,7 @@ func TestStatsCollector_AddFinalCommitteeReward(t *testing.T) {
 }
 
 func Test_BeginVerifiedStakeTransferBalanceUpdateAndCompleteBalanceUpdate(t *testing.T) {
-	c := &statsCollector{}
+	c := newStatsCollector()
 	c.EnableCollecting()
 
 	addr1, addr2, addr3 := tests.GetRandAddr(), tests.GetRandAddr(), tests.GetRandAddr()
@@ -1286,7 +1307,7 @@ func Test_BeginVerifiedStakeTransferBalanceUpdateAndCompleteBalanceUpdate(t *tes
 }
 
 func Test_BeginProposerRewardBalanceUpdateAndCompleteBalanceUpdate(t *testing.T) {
-	c := &statsCollector{}
+	c := newStatsCollector()
 	c.EnableCollecting()
 
 	addr1, addr2 := tests.GetRandAddr(), tests.GetRandAddr()
@@ -1321,7 +1342,7 @@ func Test_BeginProposerRewardBalanceUpdateAndCompleteBalanceUpdate(t *testing.T)
 }
 
 func Test_BeginCommitteeRewardBalanceUpdateAndCompleteBalanceUpdate(t *testing.T) {
-	c := &statsCollector{}
+	c := newStatsCollector()
 	c.EnableCollecting()
 
 	addr1, addr2, addr3 := tests.GetRandAddr(), tests.GetRandAddr(), tests.GetRandAddr()
@@ -1344,7 +1365,7 @@ func Test_BeginCommitteeRewardBalanceUpdateAndCompleteBalanceUpdate(t *testing.T
 }
 
 func Test_BeginEpochRewardBalanceUpdateAndCompleteBalanceUpdate(t *testing.T) {
-	c := &statsCollector{}
+	c := newStatsCollector()
 	c.EnableCollecting()
 
 	addr1, addr2, addr3 := tests.GetRandAddr(), tests.GetRandAddr(), tests.GetRandAddr()
@@ -1367,7 +1388,7 @@ func Test_BeginEpochRewardBalanceUpdateAndCompleteBalanceUpdate(t *testing.T) {
 }
 
 func Test_killedPenaltyBurntCoins(t *testing.T) {
-	c := &statsCollector{}
+	c := newStatsCollector()
 	c.EnableCollecting()
 
 	killedAddr1, killedAddr2, killedAddr3, addr1, addr2, addr3 := tests.GetRandAddr(), tests.GetRandAddr(), tests.GetRandAddr(), tests.GetRandAddr(), tests.GetRandAddr(), tests.GetRandAddr()

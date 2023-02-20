@@ -18,13 +18,22 @@ type balanceData struct {
 }
 
 func checkBalances(appState *appstate.AppState, dbAccessor db.Accessor) {
-	gapCnt, err := dbAccessor.BalanceUpdateGapCnt()
+	cnt, err := dbAccessor.BalanceUpdateGapCnt()
 	if err != nil {
 		panic("failed to get balance update gap cnt")
 	}
-	if gapCnt > 0 {
-		panic(fmt.Sprintf("balance update gap cnt: %v", gapCnt))
+	if cnt > 0 {
+		panic(fmt.Sprintf("balance update gap cnt: %v", cnt))
 	}
+
+	cnt, err = dbAccessor.BurntCoinsInconsistencyCnt()
+	if err != nil {
+		panic("failed to get burnt coins inconsistency cnt")
+	}
+	if cnt > 0 {
+		panic(fmt.Sprintf("burnt coins inconsistency cnt: %v", cnt))
+	}
+
 	stateBalancesByAddr := make(map[string]balanceData)
 	appState.State.IterateOverAccounts(func(addr common.Address, account state.Account) {
 		addressStr := strings.ToLower(addr.Hex())
