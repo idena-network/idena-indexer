@@ -35,7 +35,11 @@ func (v *BalanceUpdate) Value() (driver.Value, error) {
 	if v.TxHash != nil {
 		txHash = conversion.ConvertHash(*v.TxHash)
 	}
-	return fmt.Sprintf("(%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v)",
+	var contractAddress string
+	if v.ContractAddress != nil {
+		contractAddress = conversion.ConvertAddress(*v.ContractAddress)
+	}
+	return fmt.Sprintf("(%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v)",
 		conversion.ConvertAddress(v.Address),
 		blockchain.ConvertToFloat(v.BalanceOld),
 		blockchain.ConvertToFloat(v.StakeOld),
@@ -47,7 +51,8 @@ func (v *BalanceUpdate) Value() (driver.Value, error) {
 		v.PenaltySecondsNew,
 		blockchain.ConvertToFloat(v.PenaltyPayment),
 		txHash,
-		v.Reason), nil
+		v.Reason,
+		contractAddress), nil
 }
 
 func (v Birthday) Value() (driver.Value, error) {

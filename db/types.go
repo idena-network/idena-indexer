@@ -36,7 +36,7 @@ const (
 	PenaltyReason                     BalanceUpdateReason = 0x6
 	EpochPenaltyResetReason           BalanceUpdateReason = 0x7
 	DustClearingReason                BalanceUpdateReason = 0x9
-	EmbeddedContractReason            BalanceUpdateReason = 0xA
+	ContractReason                    BalanceUpdateReason = 0xA
 	EmbeddedContractTerminationReason BalanceUpdateReason = 0xB
 	DelegatorEpochRewardReason        BalanceUpdateReason = 0xC
 	DelegateeEpochRewardReason        BalanceUpdateReason = 0xD
@@ -459,6 +459,7 @@ type BalanceUpdate struct {
 	PenaltyPayment    *big.Int
 	TxHash            *common.Hash
 	Reason            BalanceUpdateReason
+	ContractAddress   *common.Address
 }
 
 type EpochResult struct {

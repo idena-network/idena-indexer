@@ -283,7 +283,7 @@ INSERT INTO dic_balance_update_reasons
 VALUES (9, 'DustClearing')
 ON CONFLICT DO NOTHING;
 INSERT INTO dic_balance_update_reasons
-VALUES (10, 'EmbeddedContract')
+VALUES (10, 'Contract')
 ON CONFLICT DO NOTHING;
 INSERT INTO dic_balance_update_reasons
 VALUES (11, 'EmbeddedContractTerm')
@@ -1479,6 +1479,7 @@ CREATE TABLE IF NOT EXISTS balance_updates
     penalty_seconds_old    smallint,
     penalty_seconds_new    smallint,
     penalty_payment        numeric(30, 18),
+    contract_address_id    bigint,
     CONSTRAINT balance_updates_pkey PRIMARY KEY (id),
     CONSTRAINT balance_updates_address_id_fkey FOREIGN KEY (address_id)
         REFERENCES addresses (id) MATCH SIMPLE
@@ -2137,7 +2138,8 @@ $$
             penalty_seconds_new smallint,
             penalty_payment     numeric(30, 18),
             tx_hash             text,
-            reason              smallint
+            reason              smallint,
+            contract_address    text
         );
     EXCEPTION
         WHEN duplicate_object THEN null;
@@ -2615,6 +2617,7 @@ DECLARE
     l_balance_update          tp_balance_update;
     l_tx_id                   bigint;
     l_address_id              bigint;
+    l_contract_address_id     bigint;
 BEGIN
     if p_updates is null then
         return;
@@ -2632,11 +2635,16 @@ BEGIN
                 else
                     l_tx_id = null;
                 end if;
+                if char_length(l_balance_update.contract_address) > 0 then
+                    l_contract_address_id = get_address_id_or_insert(p_block_height, l_balance_update.contract_address);
+                else
+                    l_contract_address_id = null;
+                end if;
                 l_address_id = get_address_id_or_insert(p_block_height, l_balance_update.address);
                 insert into balance_updates (address_id, balance_old, stake_old, penalty_old, penalty_seconds_old,
                                              balance_new, stake_new, penalty_new, penalty_seconds_new, penalty_payment,
                                              reason, block_height, tx_id, last_block_height, committee_reward_share,
-                                             blocks_count)
+                                             blocks_count, contract_address_id)
                 values (l_address_id,
                         l_balance_update.balance_old,
                         l_balance_update.stake_old,
@@ -2652,7 +2660,8 @@ BEGIN
                         l_tx_id,
                         null,
                         null,
-                        null);
+                        null,
+                        l_contract_address_id);
             end if;
 
             call update_balance_update_summary(p_block_height, l_balance_update);

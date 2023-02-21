@@ -759,7 +759,7 @@ func TestStatsCollector_contractBalanceUpdate(t *testing.T) {
 	require.Equal(t, 0, big.NewInt(400).Cmp(c.stats.BurntCoins))
 	require.Equal(t, 1, len(c.stats.BurntCoinsByAddr))
 	require.Equal(t, 1, len(c.stats.BurntCoinsByAddr[address3]))
-	require.Equal(t, db2.EmbeddedContractReason, c.stats.BurntCoinsByAddr[address3][0].Reason)
+	require.Equal(t, db2.ContractReason, c.stats.BurntCoinsByAddr[address3][0].Reason)
 	require.Equal(t, tx.Hash().Hex(), c.stats.BurntCoinsByAddr[address3][0].TxHash)
 	require.Equal(t, "0.0000000000000004", c.stats.BurntCoinsByAddr[address3][0].Amount.String())
 
@@ -769,7 +769,7 @@ func TestStatsCollector_contractBalanceUpdate(t *testing.T) {
 
 	findContractBalanceUpdate := func(address common.Address) *db2.BalanceUpdate {
 		for _, bu := range c.stats.BalanceUpdates {
-			if address == bu.Address && bu.Reason == db2.EmbeddedContractReason {
+			if address == bu.Address && bu.Reason == db2.ContractReason {
 				return bu
 			}
 		}

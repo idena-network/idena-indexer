@@ -118,7 +118,7 @@ func (cache *burntCoinsCache) add(address common.Address, amount *big.Int) {
 		coins = &pendingBurntCoins{
 			address: address,
 			amount:  amount,
-			reason:  db.EmbeddedContractReason,
+			reason:  db.ContractReason,
 		}
 		cache.coinsByAddress[address] = coins
 		cache.coins = append(cache.coins, coins)
@@ -1443,8 +1443,9 @@ func updateBalanceUpdate(balanceUpdate *contractBalanceUpdate, txHash common.Has
 				PenaltyOld:        getPenaltyIfNotKilled(address, appState),
 				PenaltySecondsOld: getPenaltySecondsIfNotKilled(address, appState),
 				PenaltyPayment:    nil,
-				Reason:            db.EmbeddedContractReason,
+				Reason:            db.ContractReason,
 				TxHash:            &txHash,
+				ContractAddress:   contractAddress,
 			},
 			contractAddress: contractAddress,
 		}
