@@ -70,8 +70,14 @@ FROM coins c
              sum(coalesce(balance_new, 0) + coalesce(stake_new, 0) - coalesce(balance_old, 0) -
                  coalesce(stake_old, 0)) diff
       FROM balance_updates
+      WHERE reason <> 3
       GROUP BY block_height) bu ON bu.block_height = c.block_height
-WHERE c.minted - c.burnt <> coalesce(bu.diff, 0) AND c. block_height > 1`
+         LEFT JOIN (SELECT sum(balance + stake) total, block_height
+                    FROM mining_rewards
+                    WHERE not proposer
+                    GROUP BY block_height) comm_rew ON comm_rew.block_height = c.block_height
+WHERE c.minted - c.burnt - coalesce(comm_rew.total, 0) <> coalesce(bu.diff, 0)
+  AND c.block_height > 1`
 	res2, err := cnt(a.db, query2)
 	if err != nil {
 		return 0, err
