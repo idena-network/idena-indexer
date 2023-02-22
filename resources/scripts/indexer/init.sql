@@ -688,6 +688,7 @@ CREATE TABLE IF NOT EXISTS epoch_identities
     shard_id                integer,
     new_shard_id            integer,
     address_id              bigint          NOT NULL,
+    wrong_grade_reason      smallint,
     CONSTRAINT epoch_identities_pkey PRIMARY KEY (address_state_id),
     CONSTRAINT epoch_identities_address_state_id_fkey FOREIGN KEY (address_state_id)
         REFERENCES address_states (id) MATCH SIMPLE
@@ -1843,7 +1844,8 @@ $$
             wrong_words_flips  smallint,
             delegatee_address  character(42),
             shard_id           integer,
-            new_shard_id       integer
+            new_shard_id       integer,
+            wrong_grade_reason smallint
         );
 
         ALTER TYPE tp_epoch_identity

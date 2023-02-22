@@ -19,12 +19,13 @@ import (
 )
 
 const (
-	missedRewardReasonEmpty               = byte(0)
-	missedRewardReasonPenalty             = byte(1)
-	missedRewardReasonNotValidated        = byte(2)
-	missedRewardReasonMissedValidation    = byte(3)
-	missedRewardReasonMissedNotAllFlips   = byte(4)
-	missedRewardReasonMissedNotAllReports = byte(5)
+	missedRewardReasonEmpty            = byte(0)
+	missedRewardReasonPenalty          = byte(1)
+	missedRewardReasonNotValidated     = byte(2)
+	missedRewardReasonMissedValidation = byte(3)
+	missedRewardReasonNotAllFlips      = byte(4)
+	missedRewardReasonNotAllReports    = byte(5)
+	missedRewardReasonIgnoredGrades    = byte(10)
 
 	requiredFlips = 3
 )
@@ -122,6 +123,8 @@ func (c *validationRewardSummariesCalculator) calculateValidationRewardSummaries
 	newState state.IdentityState,
 	availableFlips uint8,
 	prevStake *big.Int,
+	ignoredGrades bool,
+	reportedFlips map[string]struct{},
 ) db.ValidationRewardSummaries {
 	if !c.initialized {
 		c.init()
@@ -206,6 +209,8 @@ func (c *validationRewardSummariesCalculator) calculateValidationRewardSummaries
 		rewardsByType[stats.ReportedFlips],
 		reportsShare,
 		penalized,
+		ignoredGrades,
+		reportedFlips,
 		c.rewardedReportedFlipsByAddr[convertedAddress],
 		c.flipsWithReportConsensusByRespondent[address],
 	)
@@ -367,7 +372,7 @@ func calculateFlipsRewardSummary(
 		} else if missedValidation {
 			missedReason = missedRewardReasonMissedValidation
 		} else {
-			missedReason = missedRewardReasonMissedNotAllFlips
+			missedReason = missedRewardReasonNotAllFlips
 		}
 	}
 	return db.ValidationRewardSummary{
@@ -405,7 +410,7 @@ func calculateExtraFlipsRewardSummary(
 		} else if missedValidation {
 			missedReason = missedRewardReasonMissedValidation
 		} else {
-			missedReason = missedRewardReasonMissedNotAllFlips
+			missedReason = missedRewardReasonNotAllFlips
 		}
 	}
 	return db.ValidationRewardSummary{
@@ -469,6 +474,8 @@ func calculateReportsRewardSummary(
 	reward *big.Int,
 	share *big.Int,
 	penalized bool,
+	ignoredGrades bool,
+	reportedFlips map[string]struct{},
 	rewardedReportedFlips map[string]struct{},
 	flipsWithReportConsensus []string,
 ) db.ValidationRewardSummary {
@@ -477,7 +484,11 @@ func calculateReportsRewardSummary(
 		earned = new(big.Int).Set(reward)
 	}
 	missedReports := 0
+	var hasIgnoredSuccessReport bool
 	for _, flipWithReportConsensus := range flipsWithReportConsensus {
+		if ignoredGrades && !hasIgnoredSuccessReport {
+			_, hasIgnoredSuccessReport = reportedFlips[flipWithReportConsensus]
+		}
 		if _, ok := rewardedReportedFlips[flipWithReportConsensus]; !ok {
 			missedReports++
 		}
@@ -489,8 +500,10 @@ func calculateReportsRewardSummary(
 		if missed.Sign() > 0 {
 			if penalized {
 				missedReason = missedRewardReasonPenalty
+			} else if hasIgnoredSuccessReport {
+				missedReason = missedRewardReasonIgnoredGrades
 			} else {
-				missedReason = missedRewardReasonMissedNotAllReports
+				missedReason = missedRewardReasonNotAllReports
 			}
 		}
 	}

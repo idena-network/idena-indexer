@@ -3,6 +3,7 @@ package db
 import (
 	"github.com/idena-network/idena-go/blockchain/types"
 	"github.com/idena-network/idena-go/common"
+	types2 "github.com/idena-network/idena-go/stats/types"
 	"github.com/shopspring/decimal"
 	"math/big"
 )
@@ -314,6 +315,7 @@ type EpochIdentity struct {
 	DelegateeAddress     string
 	ShardId              common.ShardId
 	NewShardId           common.ShardId
+	WrongGradeReason     types2.WrongGradeReason
 }
 
 type Flip struct {
@@ -464,7 +466,7 @@ type BalanceUpdate struct {
 
 type EpochResult struct {
 	Identities                []EpochIdentity
-	FlipStats                 []FlipStats
+	FlipStats                 []*FlipStats
 	Birthdays                 []Birthday
 	MemPoolFlipKeys           []*MemPoolFlipKey
 	FailedValidation          bool

@@ -883,10 +883,18 @@ func convertAnswer(answer types.Answer) byte {
 	return byte(answer)
 }
 
-func convertStatsAnswers(incomingAnswers []statsTypes.FlipAnswerStats) []db.Answer {
+func convertStatsAnswers(incomingAnswers []statsTypes.FlipAnswerStats, reportedFlipsByAddress map[common.Address]map[string]struct{}, flipCid string) []db.Answer {
 	var answers []db.Answer
 	for _, answer := range incomingAnswers {
 		answers = append(answers, convertStatsAnswer(answer))
+		if reportedFlipsByAddress != nil && answer.Grade == types.GradeReported {
+			flips, ok := reportedFlipsByAddress[answer.Respondent]
+			if !ok {
+				flips = make(map[string]struct{})
+				reportedFlipsByAddress[answer.Respondent] = flips
+			}
+			flips[flipCid] = struct{}{}
+		}
 	}
 	return answers
 }
@@ -926,8 +934,6 @@ func (indexer *Indexer) detectEpochResult(block *types.Block, ctx *conversionCon
 	memPoolFlipKeysToMigrate := indexer.getMemPoolFlipKeysToMigrate(ctx.prevStateReadOnly.State.Epoch())
 	memPoolFlipKeys := memPoolFlipKeysToMigrate
 
-	authorAddressesByFlipCid := make(map[string]string)
-
 	rewardsBounds := &rewardsBounds{}
 
 	var totalRewardsByAddr map[common.Address]*big.Int
@@ -938,6 +944,36 @@ func (indexer *Indexer) detectEpochResult(block *types.Block, ctx *conversionCon
 	godAddress := ctx.prevStateReadOnly.State.GodAddress()
 	newEpoch := ctx.newStateReadOnly.State.Epoch()
 	epochRewards, validationRewardsAddresses, delegateesEpochRewards := indexer.detectEpochRewards(block)
+
+	var flipsStats []*db.FlipStats
+	flipsStatsByCid := make(map[string]*db.FlipStats)
+	flipStatusesMap := make(map[byte]uint64)
+	var reportedFlips uint32
+	reportedFlipsByAddress := make(map[common.Address]map[string]struct{})
+	for _, validationShardStats := range validationStats.Shards {
+		for flipIdx, flipStats := range validationShardStats.FlipsPerIdx {
+			flipCid, err := cid.Parse(validationShardStats.FlipCids[flipIdx])
+			if err != nil {
+				log.Error("Unable to parse flip cid. Skipped.", "b", block.Height(), "idx", flipIdx, "err", err)
+				continue
+			}
+			if flipStats.Grade == types.GradeReported {
+				reportedFlips++
+			}
+			flipCidStr := convertCid(flipCid)
+			flipStats := &db.FlipStats{
+				Cid:          flipCidStr,
+				ShortAnswers: convertStatsAnswers(flipStats.ShortAnswers, nil, flipCidStr),
+				LongAnswers:  convertStatsAnswers(flipStats.LongAnswers, reportedFlipsByAddress, flipCidStr),
+				Status:       convertFlipStatus(ceremony.FlipStatus(flipStats.Status)),
+				Answer:       convertAnswer(flipStats.Answer),
+				Grade:        byte(flipStats.Grade),
+			}
+			flipsStatsByCid[flipStats.Cid] = flipStats
+			flipsStats = append(flipsStats, flipStats)
+			flipStatusesMap[flipStats.Status]++
+		}
+	}
 
 	isPenalized := func(addr common.Address, shardId common.ShardId) bool {
 		rewardsStats := indexer.statsHolder().GetStats().RewardsStats
@@ -973,9 +1009,14 @@ func (indexer *Indexer) detectEpochResult(block *types.Block, ctx *conversionCon
 		}
 		validationShardStats := validationStats.Shards[shardId]
 		var identityStats *statsTypes.IdentityStats
-		var present bool
+		var present, ignoredGrades bool
 		if validationShardStats != nil {
 			identityStats, present = validationShardStats.IdentitiesPerAddr[addr]
+
+			var wrongGradeReason statsTypes.WrongGradeReason
+			if wrongGradeReason, ignoredGrades = validationShardStats.WrongGradeReasons[addr]; ignoredGrades {
+				convertedIdentity.WrongGradeReason = wrongGradeReason
+			}
 		}
 		if validationShardStats != nil && present && identityStats != nil {
 			convertedIdentity.ShortPoint = identityStats.ShortPoint
@@ -1033,7 +1074,9 @@ func (indexer *Indexer) detectEpochResult(block *types.Block, ctx *conversionCon
 				log.Error(fmt.Sprintf("Unable to parse flip cid %v", identityFlip.Cid))
 				continue
 			}
-			authorAddressesByFlipCid[convertCid(flipCid)] = convertedAddress
+			if v, ok := flipsStatsByCid[convertCid(flipCid)]; ok {
+				v.Author = convertedAddress
+			}
 		}
 
 		if totalRewardsByAddr != nil && addr != godAddress {
@@ -1064,6 +1107,8 @@ func (indexer *Indexer) detectEpochResult(block *types.Block, ctx *conversionCon
 				newIdentityState,
 				convertedIdentity.AvailableFlips,
 				prevStateIdentity.Stake,
+				ignoredGrades,
+				reportedFlipsByAddress[addr],
 			)
 			validationRewardsSummaries = append(validationRewardsSummaries, validationRewardSummaries)
 		}
@@ -1077,33 +1122,6 @@ func (indexer *Indexer) detectEpochResult(block *types.Block, ctx *conversionCon
 		})
 	}
 
-	var flipsStats []db.FlipStats
-	flipStatusesMap := make(map[byte]uint64)
-	var reportedFlips uint32
-	for _, validationShardStats := range validationStats.Shards {
-		for flipIdx, flipStats := range validationShardStats.FlipsPerIdx {
-			flipCid, err := cid.Parse(validationShardStats.FlipCids[flipIdx])
-			if err != nil {
-				log.Error("Unable to parse flip cid. Skipped.", "b", block.Height(), "idx", flipIdx, "err", err)
-				continue
-			}
-			if flipStats.Grade == types.GradeReported {
-				reportedFlips++
-			}
-			flipCidStr := convertCid(flipCid)
-			flipStats := db.FlipStats{
-				Author:       authorAddressesByFlipCid[flipCidStr],
-				Cid:          flipCidStr,
-				ShortAnswers: convertStatsAnswers(flipStats.ShortAnswers),
-				LongAnswers:  convertStatsAnswers(flipStats.LongAnswers),
-				Status:       convertFlipStatus(ceremony.FlipStatus(flipStats.Status)),
-				Answer:       convertAnswer(flipStats.Answer),
-				Grade:        byte(flipStats.Grade),
-			}
-			flipsStats = append(flipsStats, flipStats)
-			flipStatusesMap[flipStats.Status]++
-		}
-	}
 	flipStatuses := make([]db.FlipStatusCount, 0, len(flipStatusesMap))
 	for status, count := range flipStatusesMap {
 		flipStatuses = append(flipStatuses, db.FlipStatusCount{

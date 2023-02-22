@@ -716,7 +716,7 @@ func (v postgresFlipsState) Value() (driver.Value, error) {
 	return fmt.Sprintf("(%v,%v,%v,%v)", v.flipCid, v.answer, v.status, v.grade), nil
 }
 
-func getFlipStatsArrays(stats []FlipStats) (answersArray, statesArray interface {
+func getFlipStatsArrays(stats []*FlipStats) (answersArray, statesArray interface {
 	driver.Valuer
 	sql.Scanner
 }, shortAnswerCountsByAddr, longAnswerCountsByAddr, wrongWordsFlipsCountsByAddr map[string]int) {
@@ -781,10 +781,11 @@ type postgresEpochIdentity struct {
 	delegateeAddress string
 	shardId          uint32
 	newShardId       uint32
+	wrongGradeReason uint32
 }
 
 func (v postgresEpochIdentity) Value() (driver.Value, error) {
-	return fmt.Sprintf("(%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v)",
+	return fmt.Sprintf("(%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v)",
 		v.address,
 		v.state,
 		v.shortPoint,
@@ -806,6 +807,7 @@ func (v postgresEpochIdentity) Value() (driver.Value, error) {
 		v.delegateeAddress,
 		v.shardId,
 		v.newShardId,
+		v.wrongGradeReason,
 	), nil
 }
 
@@ -885,6 +887,7 @@ func getEpochIdentitiesArrays(
 			delegateeAddress: identity.DelegateeAddress,
 			shardId:          uint32(identity.ShardId),
 			newShardId:       uint32(identity.NewShardId),
+			wrongGradeReason: uint32(identity.WrongGradeReason),
 		})
 	}
 	return pq.Array(convertedIdentities), pq.Array(convertedFlipsToSolve)

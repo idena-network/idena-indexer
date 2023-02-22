@@ -121,7 +121,7 @@ BEGIN
     select clock_timestamp() into l_end;
     call log_performance('update_flips_queue', l_start, l_end);
 
---     select clock_timestamp() into l_start;
+    --     select clock_timestamp() into l_start;
 --     DELETE FROM latest_activation_txs WHERE epoch < p_epoch - 2;
 --     select clock_timestamp() into l_end;
 --     call log_performance('delete_activation_txs', l_start, l_end);
@@ -203,14 +203,14 @@ BEGIN
                                           total_short_flips, long_point, long_flips, approved, missed, required_flips,
                                           available_flips, made_flips, next_epoch_invites, birth_epoch,
                                           total_validation_reward, short_answers, long_answers, wrong_words_flips,
-                                          delegatee_address_id, shard_id, new_shard_id)
+                                          delegatee_address_id, shard_id, new_shard_id, wrong_grade_reason)
             values (p_epoch, l_address_id, l_state_id, l_identity.short_point, l_identity.short_flips,
                     l_identity.total_short_point,
                     l_identity.total_short_flips, l_identity.long_point, l_identity.long_flips, l_identity.approved,
                     l_identity.missed, l_identity.required_flips, l_identity.available_flips, l_identity.made_flips,
                     l_identity.next_epoch_invites, l_identity.birth_epoch, 0, l_identity.short_answers,
                     l_identity.long_answers, l_identity.wrong_words_flips, l_delegatee_address_id, l_identity.shard_id,
-                    l_identity.new_shard_id);
+                    l_identity.new_shard_id, null_if_zero_smallint(l_identity.wrong_grade_reason));
 
             if l_identity.wrong_words_flips > 0 then
                 CALL update_address_summary(p_address_id => l_address_id,
