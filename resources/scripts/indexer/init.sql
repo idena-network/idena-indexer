@@ -723,6 +723,7 @@ CREATE TABLE IF NOT EXISTS flips
     status              smallint,
     delete_tx_id        bigint,
     grade               smallint,
+    grade_score         real,
     CONSTRAINT flips_pkey PRIMARY KEY (tx_id),
     CONSTRAINT flips_status_block_height_fkey FOREIGN KEY (status_block_height)
         REFERENCES blocks (height) MATCH SIMPLE
@@ -1792,10 +1793,11 @@ $$
     BEGIN
         CREATE TYPE tp_flip_state AS
         (
-            flip_cid character varying(100),
-            answer   smallint,
-            status   smallint,
-            grade    smallint
+            flip_cid   character varying(100),
+            answer     smallint,
+            status     smallint,
+            grade      smallint,
+            grade_score real
         );
     EXCEPTION
         WHEN duplicate_object THEN null;
@@ -3684,7 +3686,8 @@ BEGIN
     set status_block_height=null,
         status=null,
         answer=null,
-        grade=null
+        grade=null,
+        grade_score=null
     where status_block_height > p_block_height;
     update flips
     set delete_tx_id=null

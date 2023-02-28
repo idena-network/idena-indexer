@@ -968,6 +968,7 @@ func (indexer *Indexer) detectEpochResult(block *types.Block, ctx *conversionCon
 				Status:       convertFlipStatus(ceremony.FlipStatus(flipStats.Status)),
 				Answer:       convertAnswer(flipStats.Answer),
 				Grade:        byte(flipStats.Grade),
+				GradeScore:   flipStats.GradeScore,
 			}
 			flipsStatsByCid[flipStats.Cid] = flipStats
 			flipsStats = append(flipsStats, flipStats)

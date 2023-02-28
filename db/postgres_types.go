@@ -706,14 +706,15 @@ func (v postgresAnswer) Value() (driver.Value, error) {
 }
 
 type postgresFlipsState struct {
-	flipCid string
-	answer  byte
-	status  byte
-	grade   byte
+	flipCid    string
+	answer     byte
+	status     byte
+	grade      byte
+	gradeScore float32
 }
 
 func (v postgresFlipsState) Value() (driver.Value, error) {
-	return fmt.Sprintf("(%v,%v,%v,%v)", v.flipCid, v.answer, v.status, v.grade), nil
+	return fmt.Sprintf("(%v,%v,%v,%v,%v)", v.flipCid, v.answer, v.status, v.grade, v.gradeScore), nil
 }
 
 func getFlipStatsArrays(stats []*FlipStats) (answersArray, statesArray interface {
@@ -745,11 +746,13 @@ func getFlipStatsArrays(stats []*FlipStats) (answersArray, statesArray interface
 			convertAndAddAnswer(false, s.Cid, answer)
 			longAnswerCountsByAddr[answer.Address]++
 		}
+		gradeScore, _ := s.GradeScore.Float64()
 		convertedStates = append(convertedStates, postgresFlipsState{
-			flipCid: s.Cid,
-			answer:  s.Answer,
-			status:  s.Status,
-			grade:   s.Grade,
+			flipCid:    s.Cid,
+			answer:     s.Answer,
+			status:     s.Status,
+			grade:      s.Grade,
+			gradeScore: float32(gradeScore),
 		})
 		const gradeReported = 1
 		if s.Grade == byte(gradeReported) {

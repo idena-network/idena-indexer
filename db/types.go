@@ -338,6 +338,7 @@ type FlipStats struct {
 	Status       byte
 	Answer       byte
 	Grade        byte
+	GradeScore   decimal.Decimal
 }
 
 type Answer struct {

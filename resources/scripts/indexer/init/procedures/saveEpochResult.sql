@@ -319,6 +319,7 @@ BEGIN
                 SET STATUS=state.status,
                     ANSWER=state.answer,
                     GRADE=state.grade,
+                    GRADE_SCORE=state.grade_score,
                     STATUS_BLOCK_HEIGHT=block_height
                 WHERE lower(CID) = lower(state.flip_cid);
             end loop;
