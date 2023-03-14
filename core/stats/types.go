@@ -87,6 +87,8 @@ type Stats struct {
 	EpochSummaryUpdate                       db.EpochSummaryUpdate
 	KilledInactiveIdentities                 map[common.Address]struct{}
 	BlockGasUsed                             uint64
+	TokenBalanceUpdates                      []TokenBalance
+	Tokens                                   []db.Token
 }
 
 type RewardsStats struct {

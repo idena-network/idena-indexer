@@ -62,9 +62,12 @@ func InitIndexer(
 		AppState:   appState,
 		Blockchain: chain.Blockchain,
 	}
-	listener := NewTestListener(nodeEventBus, stats.NewStatsCollector(collectorEventBus, chain.Config().Consensus), appState, nodeCtx, chain.SecStore(), &config2.Config{
+	nodeConfig := &config2.Config{
 		Consensus: &config2.ConsensusConf{},
-	})
+	}
+	tokenContractHolder := new(stats.TokenContractHolderImpl)
+	listener := NewTestListener(nodeEventBus, stats.NewStatsCollector(collectorEventBus, chain.Config().Consensus, tokenContractHolder), appState, nodeCtx, chain.SecStore(), nodeConfig)
+	tokenContractHolder.ProvideNodeCtx(nodeCtx, nodeConfig)
 	restorer := restore.NewRestorer(dbAccessor, appState, chain.Blockchain)
 	upgradesVotingHolder := &TestUpgradesVotingHolder{}
 	indexerEventBus := eventbus.New()
@@ -103,6 +106,7 @@ type Options struct {
 	UpgradeVotingShortHistoryMinShift *int
 	NodeConfig                        *config2.Config
 	OracleVotingToProlongDetector     indexer.OracleVotingToProlongDetector
+	TokenContractHolder               stats.TokenContractHolder
 }
 
 type IndexerCtx struct {
@@ -157,9 +161,14 @@ func InitIndexer2(opt Options) *IndexerCtx {
 		AppState:   appState,
 		Blockchain: chain.Blockchain,
 	}
+	if opt.TokenContractHolder == nil {
+		tokenContractHolder := new(stats.TokenContractHolderImpl)
+		tokenContractHolder.ProvideNodeCtx(nodeCtx, chain.Config())
+		opt.TokenContractHolder = tokenContractHolder
+	}
 	nodeEventBus := eventbus.New()
 	collectorEventBus := eventbus.New()
-	listener := NewTestListener(nodeEventBus, stats.NewStatsCollector(collectorEventBus, chain.Config().Consensus), appState, nodeCtx, chain.SecStore(), opt.NodeConfig)
+	listener := NewTestListener(nodeEventBus, stats.NewStatsCollector(collectorEventBus, chain.Config().Consensus, opt.TokenContractHolder), appState, nodeCtx, chain.SecStore(), opt.NodeConfig)
 	restorer := restore.NewRestorer(dbAccessor, appState, chain.Blockchain)
 	upgradesVotingHolder := &TestUpgradesVotingHolder{}
 	indexerEventBus := eventbus.New()

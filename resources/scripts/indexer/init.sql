@@ -1586,6 +1586,9 @@ ON CONFLICT DO NOTHING;
 INSERT INTO dic_change_types
 VALUES (6, 'mining_reward_summaries')
 ON CONFLICT DO NOTHING;
+INSERT INTO dic_change_types
+VALUES (7, 'token_balances')
+ON CONFLICT DO NOTHING;
 
 CREATE SEQUENCE IF NOT EXISTS changes_id_seq
     INCREMENT 1
@@ -3077,6 +3080,8 @@ BEGIN
         call save_miners_history_item(p_height, p_data -> 'minersHistoryItem');
         call save_removed_transitive_delegations(p_height, p_data -> 'removedTransitiveDelegations');
         call save_oracle_voting_contracts_to_prolong(p_height, p_data -> 'oracleVotingContractsToProlong');
+        call save_tokens(p_height, p_data -> 'tokens');
+        call save_token_balance_updates(p_height, p_data -> 'tokenBalanceUpdates');
     end if;
 
     call apply_block_on_sorted_contracts(p_height, p_clear_old_ovc_committees);

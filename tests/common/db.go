@@ -6,6 +6,7 @@ import (
 	"github.com/idena-network/idena-indexer/db"
 	"github.com/lib/pq"
 	"github.com/shopspring/decimal"
+	"math/big"
 )
 
 type NullDecimal struct {
@@ -1189,34 +1190,6 @@ func GetOracleVotingContractTerminations(db *sql.DB) ([]OracleVotingContractTerm
 	}
 	return res, nil
 }
-
-//type OracleVotingContractCommittee struct {
-//	TxId         int
-//	ContractTxId int
-//	Address      string
-//}
-//
-//func GetOracleVotingContractCommittees(db *sql.DB) ([]OracleVotingContractCommittee, error) {
-//	rows, err := db.Query(`select t.tx_id, t.ov_contract_tx_id, a.address from oracle_voting_contract_committees t join addresses a on a.id=t.address_id order by tx_id`)
-//	if err != nil {
-//		return nil, err
-//	}
-//	defer rows.Close()
-//	var res []OracleVotingContractCommittee
-//	for rows.Next() {
-//		item := OracleVotingContractCommittee{}
-//		err := rows.Scan(
-//			&item.TxId,
-//			&item.ContractTxId,
-//			&item.Address,
-//		)
-//		if err != nil {
-//			return nil, err
-//		}
-//		res = append(res, item)
-//	}
-//	return res, nil
-//}
 
 type TxReceipt struct {
 	TxId            int
@@ -2468,6 +2441,64 @@ order by epoch, delegatee_address_id`)
 		if err != nil {
 			return nil, err
 		}
+		res = append(res, item)
+	}
+	return res, nil
+}
+
+type Token struct {
+	ContractAddress string
+}
+
+func Tokens(db *sql.DB) ([]Token, error) {
+	rows, err := db.Query(`select ca.address
+from tokens t
+         left join addresses ca on ca.id = t.contract_address_id`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var res []Token
+	for rows.Next() {
+		item := Token{}
+		err := rows.Scan(
+			&item.ContractAddress,
+		)
+		if err != nil {
+			return nil, err
+		}
+		res = append(res, item)
+	}
+	return res, nil
+}
+
+type TokenBalance struct {
+	ContractAddress string
+	Address         string
+	Balance         *big.Int
+}
+
+func TokenBalances(db *sql.DB) ([]TokenBalance, error) {
+	rows, err := db.Query(`select ca.address, tb.address, tb.balance
+from token_balances tb
+         left join addresses ca on ca.id = tb.contract_address_id`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var res []TokenBalance
+	for rows.Next() {
+		item := TokenBalance{}
+		var balance string
+		err := rows.Scan(
+			&item.ContractAddress,
+			&item.Address,
+			&balance,
+		)
+		if err != nil {
+			return nil, err
+		}
+		item.Balance, _ = new(big.Int).SetString(balance, 10)
 		res = append(res, item)
 	}
 	return res, nil

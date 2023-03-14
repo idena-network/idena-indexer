@@ -525,6 +525,8 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) (*result
 		RemovedTransitiveDelegations:             collectorStats.RemovedTransitiveDelegations,
 		EpochSummaryUpdate:                       collectorStats.EpochSummaryUpdate,
 		OracleVotingContractsToProlong:           oracleVotingsToProlong,
+		Tokens:                                   collectorStats.Tokens,
+		TokenBalanceUpdates:                      collectorStats.TokenBalanceUpdates,
 	}
 	resData := &resultData{
 		totalBalance: totalBalance,

@@ -144,6 +144,8 @@ type Data struct {
 	RemovedTransitiveDelegations             []RemovedTransitiveDelegation
 	EpochSummaryUpdate                       EpochSummaryUpdate
 	OracleVotingContractsToProlong           []common.Address
+	Tokens                                   []Token
+	TokenBalanceUpdates                      []TokenBalance
 }
 
 type EpochRewards struct {
@@ -850,4 +852,17 @@ type BlockProposal struct {
 
 type EpochSummaryUpdate struct {
 	CandidateCountDiff int `json:"candidateCountDiff,omitempty"`
+}
+
+type Token struct {
+	ContractAddress common.Address `json:"contractAddress"`
+	Name            string         `json:"name"`
+	Symbol          string         `json:"symbol"`
+	Decimals        byte           `json:"decimals"`
+}
+
+type TokenBalance struct {
+	ContractAddress common.Address `json:"contractAddress"`
+	Address         common.Address `json:"address"`
+	Balance         *big.Int       `json:"balance"`
 }

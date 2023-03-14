@@ -31,7 +31,9 @@ import (
 	"github.com/idena-network/idena-indexer/log"
 	runtimeMigration "github.com/idena-network/idena-indexer/migration/runtime"
 	runtimeMigrationDb "github.com/idena-network/idena-indexer/migration/runtime/db"
+	"github.com/idena-network/idena-indexer/migration/tokens"
 	"github.com/idena-network/idena-indexer/monitoring"
+	"github.com/pkg/errors"
 	"gopkg.in/urfave/cli.v1"
 	"os"
 	"path/filepath"
@@ -148,8 +150,10 @@ func initIndexer(config *config.Config, txMemPool transaction.MemPool) (*indexer
 	performanceMonitor := initPerformanceMonitor(config.PerformanceMonitor)
 	wordsLoader := words.NewLoader(config.WordsFile)
 	nodeConfig := initNodeConfig(config.NodeConfigFile)
-	statsCollector := stats.NewStatsCollector(statsCollectorEventBus, nodeConfig.Consensus)
+	tokenContractHolder := new(stats.TokenContractHolderImpl)
+	statsCollector := stats.NewStatsCollector(statsCollectorEventBus, nodeConfig.Consensus, tokenContractHolder)
 	listener := incoming.NewListener(nodeConfig, nodeEventBus, statsCollector, performanceMonitor)
+	tokenContractHolder.ProvideNodeCtx(listener.NodeCtx(), nodeConfig)
 	var dataTable, dataStateTable string
 	if config.Data != nil && config.Data.Enabled {
 		dataTable, dataStateTable = config.Data.Table, config.Data.StateTable
@@ -195,7 +199,7 @@ func initIndexer(config *config.Config, txMemPool transaction.MemPool) (*indexer
 	)
 
 	contractsMemPoolLogger := log.New("component", "contractsMemPool")
-	contractsMemPool := mempool.NewContracts(listener.NodeCtx().AppState, listener.NodeCtx().Blockchain, listener.Config(), contractsMemPoolLogger)
+	contractsMemPool := mempool.NewContracts(listener.NodeCtx().AppState, listener.NodeCtx().Blockchain, listener.Config(), contractsMemPoolLogger, tokenContractHolder)
 	contractsMemPoolBus.Subscribe(events.NewTxEventID, func(e eventbus.Event) {
 		newTxEvent := e.(*events.NewTxEvent)
 		if err := contractsMemPool.ProcessTx(newTxEvent.Tx); err != nil {
@@ -233,6 +237,19 @@ func initIndexer(config *config.Config, txMemPool transaction.MemPool) (*indexer
 	if config.Data != nil && config.Data.Enabled {
 		data.StartDataService(indexerEventBus, dbAccessor, log.New("component", "dataEngine"))
 	}
+
+	func() {
+		if listener.NodeCtx().Blockchain.GetHead() == nil {
+			return
+		}
+		appState, err := listener.AppState().ForCheckWithOverwrite(listener.NodeCtx().Blockchain.GetHead().Height())
+		if err != nil {
+			panic(errors.Wrap(err, "failed to initialize app state for token balances"))
+		}
+		if err := tokens.CollectData(config.Postgres.ConnStr, tokenContractHolder, appState); err != nil {
+			panic(errors.Wrap(err, "failed to initialize token balances"))
+		}
+	}()
 
 	enabled := config.Enabled == nil || *config.Enabled
 	return indexer.NewIndexer(

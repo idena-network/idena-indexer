@@ -26,13 +26,13 @@ type Contracts interface {
 	RemoveTx(tx *types.Transaction)
 }
 
-func NewContracts(appState *appstate.AppState, chain *blockchain.Blockchain, nodeConfig *config.Config, logger log.Logger) Contracts {
+func NewContracts(appState *appstate.AppState, chain *blockchain.Blockchain, nodeConfig *config.Config, logger log.Logger, tokenContractHolder stats.TokenContractHolder) Contracts {
 	c := &contractsImpl{
 		appState:            appState,
 		chain:               chain,
 		nodeConfig:          nodeConfig,
 		logger:              logger,
-		statsCollector:      stats.NewStatsCollector(eventbus.New(), nodeConfig.Consensus),
+		statsCollector:      stats.NewStatsCollector(eventbus.New(), nodeConfig.Consensus, tokenContractHolder),
 		txChan:              make(chan *types.Transaction, 10000),
 		oracleVotingDeploys: make(map[common.Address]map[common.Hash]*db.OracleVotingContract),
 		addressContractTxs:  newAddressContractTxs(),

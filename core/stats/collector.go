@@ -42,11 +42,12 @@ func init() {
 }
 
 type statsCollector struct {
-	stats         *Stats
-	statsEnabled  bool
-	pending       *pending
-	bus           eventbus.Bus
-	consensusConf *config.ConsensusConf
+	stats               *Stats
+	statsEnabled        bool
+	pending             *pending
+	bus                 eventbus.Bus
+	consensusConf       *config.ConsensusConf
+	tokenContractHolder TokenContractHolder
 }
 
 type pending struct {
@@ -59,6 +60,8 @@ type pending struct {
 	finalCommitteeRewardsByAddr   map[common.Address]*MiningReward
 	linkedBalanceUpdatesByPrev    map[*db.BalanceUpdate]*db.BalanceUpdate
 	linkedBalanceUpdatesByNext    map[*db.BalanceUpdate]*db.BalanceUpdate
+	tokenDetector                 *tokenDetector
+	tokenBalanceUpdateCollector   *tokenBalanceUpdateCollector
 }
 
 type identityInfo struct {
@@ -185,10 +188,11 @@ type contractBalanceUpdate struct {
 	contractAddress *common.Address
 }
 
-func NewStatsCollector(bus eventbus.Bus, consensusConf *config.ConsensusConf) collector.StatsCollector {
+func NewStatsCollector(bus eventbus.Bus, consensusConf *config.ConsensusConf, tokenContractHolder TokenContractHolder) collector.StatsCollector {
 	return &statsCollector{
-		bus:           bus,
-		consensusConf: consensusConf,
+		bus:                 bus,
+		consensusConf:       consensusConf,
+		tokenContractHolder: tokenContractHolder,
 	}
 }
 
@@ -1829,6 +1833,7 @@ func (c *statsCollector) AddTimeLockTermination(dest common.Address) {
 }
 
 func (c *statsCollector) AddTxReceipt(txReceipt *types.TxReceipt, appState *appstate.AppState) {
+	var deployedContracts []common.Address
 	c.stats.TxReceipts = append(c.stats.TxReceipts, txReceipt)
 	sender, _ := types.Sender(c.pending.tx.tx)
 	senderContractTxBalanceUpdate := &db.ContractTxBalanceUpdate{
@@ -1844,6 +1849,7 @@ func (c *statsCollector) AddTxReceipt(txReceipt *types.TxReceipt, appState *apps
 				TxHash:          txReceipt.TxHash,
 				ContractAddress: txReceipt.ContractAddress,
 			})
+			deployedContracts = append(deployedContracts, txReceipt.ContractAddress)
 		} else {
 			contractCallMethod = c.applyEmbeddedContractTxReceipt(appState)
 		}
@@ -1881,6 +1887,22 @@ func (c *statsCollector) AddTxReceipt(txReceipt *types.TxReceipt, appState *apps
 		})
 	}
 
+	c.collectTokens(deployedContracts, appState)
+	c.collectTokenBalanceUpdates(txReceipt, appState)
+}
+
+func (c *statsCollector) collectTokens(contracts []common.Address, appState *appstate.AppState) {
+	if c.pending.tokenDetector == nil {
+		c.pending.tokenDetector = newTokenDetector(c.tokenContractHolder)
+	}
+	c.stats.Tokens = append(c.stats.Tokens, c.pending.tokenDetector.detectTokens(contracts, appState)...)
+}
+
+func (c *statsCollector) collectTokenBalanceUpdates(txReceipt *types.TxReceipt, appState *appstate.AppState) {
+	if c.pending.tokenBalanceUpdateCollector == nil {
+		c.pending.tokenBalanceUpdateCollector = newTokenBalanceUpdateCollector(c.tokenContractHolder)
+	}
+	c.stats.TokenBalanceUpdates = c.pending.tokenBalanceUpdateCollector.applyTxReceipt(txReceipt, appState)
 }
 
 func (c *statsCollector) applyEmbeddedContractTxReceipt(appState *appstate.AppState) *db.ContractCallMethod {
