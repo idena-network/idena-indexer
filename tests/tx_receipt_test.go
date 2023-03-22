@@ -40,6 +40,7 @@ func Test_tx_receipt(t *testing.T) {
 	require.NoError(t, err)
 	tx := &types.Transaction{AccountNonce: 1, Type: types.DeployContractTx, Payload: payload}
 	statsCollector.BeginApplyingTx(tx, appState)
+	statsCollector.AddWasmContract(contractAddress, []byte{0x1})
 
 	txReceipt := &types.TxReceipt{
 		Success:         true,

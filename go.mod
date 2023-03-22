@@ -11,7 +11,8 @@ require (
 	github.com/golang/protobuf v1.5.2
 	github.com/gorilla/handlers v1.4.2
 	github.com/gorilla/mux v1.8.0
-	github.com/idena-network/idena-go v1.0.1-0.20230222111824-213c6d447f7e
+	github.com/idena-network/idena-go v1.0.2-rc3.0.20230321112824-9cde8fe334f7
+	github.com/idena-network/idena-wasm-binding v0.0.0-20230316114341-246f44fda22f
 	github.com/ipfs/go-cid v0.2.0
 	github.com/ipfs/interface-go-ipfs-core v0.7.0
 	github.com/lib/pq v1.10.3
@@ -88,7 +89,6 @@ require (
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/hashicorp/golang-lru v0.5.4 // indirect
 	github.com/huin/goupnp v1.0.3 // indirect
-	github.com/idena-network/idena-wasm-binding v0.0.0-20230217101707-566cec67e058 // indirect
 	github.com/ipfs/bbloom v0.0.4 // indirect
 	github.com/ipfs/go-bitfield v1.0.0 // indirect
 	github.com/ipfs/go-bitswap v0.9.0 // indirect

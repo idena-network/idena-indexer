@@ -4,7 +4,6 @@ import (
 	"fmt"
 	mapset "github.com/deckarep/golang-set"
 	"github.com/idena-network/idena-go/blockchain"
-	"github.com/idena-network/idena-go/blockchain/attachments"
 	"github.com/idena-network/idena-go/blockchain/types"
 	"github.com/idena-network/idena-go/common"
 	"github.com/idena-network/idena-go/common/eventbus"
@@ -142,7 +141,6 @@ type pendingTx struct {
 	contractBalanceUpdates                  []*contractBalanceUpdate
 	contractBurntCoinsCache                 map[balanceCachePtr]*burntCoinsCache
 	contractBurntCoins                      []*pendingBurntCoins
-	contractDeploy                          *db.Contract
 	oracleVotingContractDeploy              *db.OracleVotingContract
 	oracleVotingContractCallStart           *db.OracleVotingContractCallStart
 	oracleVotingCommitteeStartCtx           *oracleVotingCommitteeStartCtx
@@ -170,6 +168,7 @@ type pendingTx struct {
 	timeLockContractCallTransfer            *db.TimeLockContractCallTransfer
 	timeLockContractTermination             *db.TimeLockContractTermination
 	inviteTxHash                            *common.Hash
+	deployedWasmContracts                   map[common.Address]struct{}
 }
 
 type pendingBurntCoins struct {
@@ -1832,8 +1831,15 @@ func (c *statsCollector) AddTimeLockTermination(dest common.Address) {
 	}
 }
 
+func (c *statsCollector) AddWasmContract(address common.Address, code []byte) {
+	if c.pending.tx.deployedWasmContracts == nil {
+		c.pending.tx.deployedWasmContracts = make(map[common.Address]struct{})
+	}
+	c.pending.tx.deployedWasmContracts[address] = struct{}{}
+}
+
 func (c *statsCollector) AddTxReceipt(txReceipt *types.TxReceipt, appState *appstate.AppState) {
-	var deployedContracts []common.Address
+	var deployedWasmContracts []common.Address
 	c.stats.TxReceipts = append(c.stats.TxReceipts, txReceipt)
 	sender, _ := types.Sender(c.pending.tx.tx)
 	senderContractTxBalanceUpdate := &db.ContractTxBalanceUpdate{
@@ -1844,14 +1850,13 @@ func (c *statsCollector) AddTxReceipt(txReceipt *types.TxReceipt, appState *apps
 	updates := []*db.ContractTxBalanceUpdate{senderContractTxBalanceUpdate}
 	var contractCallMethod *db.ContractCallMethod
 	if txReceipt.Success {
-		if isDeployContractCode(c.pending.tx.tx) {
+		contractCallMethod = c.applyEmbeddedContractTxReceipt(appState)
+		for contractAddress := range c.pending.tx.deployedWasmContracts {
 			c.stats.Contracts = append(c.stats.Contracts, &db.Contract{
-				TxHash:          txReceipt.TxHash,
-				ContractAddress: txReceipt.ContractAddress,
+				TxHash:          c.pending.tx.tx.Hash(),
+				ContractAddress: contractAddress,
 			})
-			deployedContracts = append(deployedContracts, txReceipt.ContractAddress)
-		} else {
-			contractCallMethod = c.applyEmbeddedContractTxReceipt(appState)
+			deployedWasmContracts = append(deployedWasmContracts, contractAddress)
 		}
 
 		for _, balanceUpdate := range c.pending.tx.contractBalanceUpdates {
@@ -1887,7 +1892,7 @@ func (c *statsCollector) AddTxReceipt(txReceipt *types.TxReceipt, appState *apps
 		})
 	}
 
-	c.collectTokens(deployedContracts, appState)
+	c.collectTokens(deployedWasmContracts, appState)
 	c.collectTokenBalanceUpdates(txReceipt, appState)
 }
 
@@ -2037,14 +2042,6 @@ func (c *statsCollector) applyEmbeddedContractTxReceipt(appState *appstate.AppSt
 		c.stats.TimeLockContractTerminations = append(c.stats.TimeLockContractTerminations, c.pending.tx.timeLockContractTermination)
 	}
 	return contractCallMethod
-}
-
-func isDeployContractCode(tx *types.Transaction) bool {
-	if tx.Type != types.DeployContractTx {
-		return false
-	}
-	attach := attachments.ParseDeployContractAttachment(tx)
-	return attach != nil && len(attach.Code) > 0
 }
 
 func (c *statsCollector) getOracleVotingCommittee(committeeSize uint64, networkSize int, vrfSeed []byte, appState *appstate.AppState) []common.Address {

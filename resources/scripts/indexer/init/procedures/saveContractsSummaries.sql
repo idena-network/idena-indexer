@@ -114,7 +114,7 @@ BEGIN
         SELECT balance
         INTO l_balance
         FROM balances
-        WHERE address_id = (SELECT contract_address_id FROM contracts WHERE tx_id = p_contract_tx_id);
+        WHERE address_id = (SELECT contract_address_id FROM contracts WHERE tx_id = p_contract_tx_id AND "type" = 2);
         l_balance = coalesce(l_balance, 0);
         l_estimated_oracle_reward = calculate_estimated_oracle_reward(l_balance, p_contract_tx_id);
         l_sort_key = calculate_oracle_voting_contract_sort_key(l_estimated_oracle_reward, p_contract_tx_id);
@@ -676,15 +676,15 @@ CREATE OR REPLACE PROCEDURE save_contract_tx_balance_updates(p_block_height bigi
 AS
 $$
 DECLARE
-    l_item                jsonb;
-    l_update              jsonb;
-    l_base_contract_tx_id bigint;
-    l_base_contract_type  bigint;
-    l_contract_tx_id      bigint;
-    l_contract_type       bigint;
-    l_tx_id               bigint;
-    l_call_method         smallint;
-    l_address_id          bigint;
+    l_item                     jsonb;
+    l_update                   jsonb;
+    l_base_contract_address_id bigint;
+    l_base_contract_type       bigint;
+    l_contract_address_id      bigint;
+    l_contract_type            bigint;
+    l_tx_id                    bigint;
+    l_call_method              smallint;
+    l_address_id               bigint;
 BEGIN
     for i in 1..cardinality(p_items)
         loop
@@ -693,8 +693,8 @@ BEGIN
                 continue;
             end if;
 
-            SELECT tx_id, "type"
-            INTO l_base_contract_tx_id, l_base_contract_type
+            SELECT contract_address_id, "type"
+            INTO l_base_contract_address_id, l_base_contract_type
             FROM contracts
             WHERE contract_address_id =
                   (SELECT id FROM addresses WHERE lower(address) = lower((l_item ->> 'contractAddress')::text));
@@ -710,25 +710,25 @@ BEGIN
                 loop
                     l_update = l_item -> 'updates' ->> j;
                     if l_update ->> 'contractAddress' is not null then
-                        SELECT tx_id, "type"
-                        INTO l_contract_tx_id, l_contract_type
+                        SELECT contract_address_id, "type"
+                        INTO l_contract_address_id, l_contract_type
                         FROM contracts
                         WHERE contract_address_id =
                               (SELECT id
                                FROM addresses
                                WHERE lower(address) = lower((l_update ->> 'contractAddress')::text));
                     else
-                        l_contract_tx_id = l_base_contract_tx_id;
+                        l_contract_address_id = l_base_contract_address_id;
                         l_contract_type = l_base_contract_type;
                     end if;
 
                     l_address_id = get_address_id_or_insert(p_block_height, (l_update ->> 'address')::text);
-
-                    INSERT INTO contract_tx_balance_updates (contract_tx_id, address_id, contract_type, tx_id,
-                                                             call_method, balance_old, balance_new, base_contract_tx_id)
-                    VALUES (l_contract_tx_id, l_address_id, l_contract_type, l_tx_id, l_call_method,
+                    INSERT INTO contract_tx_balance_updates (contract_address_id, address_id, contract_type, tx_id,
+                                                             call_method, balance_old, balance_new,
+                                                             base_contract_address_id)
+                    VALUES (l_contract_address_id, l_address_id, l_contract_type, l_tx_id, l_call_method,
                             (l_update ->> 'balanceOld')::numeric, (l_update ->> 'balanceNew')::numeric,
-                            l_base_contract_tx_id);
+                            l_base_contract_address_id);
                 end loop;
         end loop;
 END
