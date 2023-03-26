@@ -13,7 +13,7 @@ require (
 	github.com/gorilla/mux v1.8.0
 	github.com/idena-network/idena-go v1.0.2-rc3.0.20230321112824-9cde8fe334f7
 	github.com/idena-network/idena-wasm-binding v0.0.0-20230316114341-246f44fda22f
-	github.com/ipfs/go-cid v0.2.0
+	github.com/ipfs/go-cid v0.3.2
 	github.com/ipfs/interface-go-ipfs-core v0.7.0
 	github.com/lib/pq v1.10.3
 	github.com/mholt/archiver/v3 v3.5.1-0.20210112195346-074da64920d3
@@ -138,7 +138,7 @@ require (
 	github.com/ipfs/kubo v0.15.0 // indirect
 	github.com/ipld/edelweiss v0.1.4 // indirect
 	github.com/ipld/go-codec-dagpb v1.4.1 // indirect
-	github.com/ipld/go-ipld-prime v0.17.0 // indirect
+	github.com/ipld/go-ipld-prime v0.19.0 // indirect
 	github.com/jackpal/go-nat-pmp v1.0.2 // indirect
 	github.com/jbenet/go-temp-err-catcher v0.1.0 // indirect
 	github.com/jbenet/goprocess v0.1.4 // indirect
@@ -196,7 +196,7 @@ require (
 	github.com/multiformats/go-multiaddr-dns v0.3.1 // indirect
 	github.com/multiformats/go-multiaddr-fmt v0.1.0 // indirect
 	github.com/multiformats/go-multibase v0.1.1 // indirect
-	github.com/multiformats/go-multicodec v0.5.0 // indirect
+	github.com/multiformats/go-multicodec v0.6.0 // indirect
 	github.com/multiformats/go-multihash v0.2.1 // indirect
 	github.com/multiformats/go-multistream v0.3.3 // indirect
 	github.com/multiformats/go-varint v0.0.6 // indirect
