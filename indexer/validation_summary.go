@@ -175,6 +175,7 @@ func (c *validationRewardSummariesCalculator) calculateValidationRewardSummaries
 		availableFlips,
 		identityFlips,
 		c.rewardedFlips,
+		c.rewardedExtraFlips,
 		penalized,
 		missedValidation,
 		c.consensusConfig.EnableUpgrade10,
@@ -349,21 +350,19 @@ func calculateFlipsRewardSummary(
 	availableFlips uint8,
 	identityFlips []state.IdentityFlip,
 	rewardedFlips map[string]struct{},
+	rewardedExtraFlips map[string]struct{},
 	penalized bool,
 	missedValidation bool,
 	enableUpgrade10 bool,
 	enableUpgrade11 bool,
 ) db.ValidationRewardSummary {
 	rewardedFlipsCnt := getRewardedFlips(identityFlips, rewardedFlips)
-	var earned *big.Int
-	if reward != nil {
-		earned = new(big.Int).Set(reward)
-	}
 	var missed *big.Int
 	if share != nil && availableFlips > 0 {
 		if enableUpgrade10 && !enableUpgrade11 {
 			missed = new(big.Int).Mul(share, new(big.Int).SetUint64(uint64(requiredFlips-rewardedFlipsCnt)))
 		} else {
+			rewardedFlipsCnt += getRewardedFlips(identityFlips, rewardedExtraFlips)
 			missed = new(big.Int).Mul(share, new(big.Int).SetUint64(uint64(availableFlips-rewardedFlipsCnt)))
 		}
 	}
@@ -376,6 +375,10 @@ func calculateFlipsRewardSummary(
 		} else {
 			missedReason = missedRewardReasonNotAllFlips
 		}
+	}
+	var earned *big.Int
+	if reward != nil {
+		earned = new(big.Int).Set(reward)
 	}
 	return db.ValidationRewardSummary{
 		Earned:       earned,
