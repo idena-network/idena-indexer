@@ -1388,6 +1388,9 @@ func (indexer *Indexer) loadFlips(flipTxs []flipTx) {
 }
 
 func (indexer *Indexer) saveData(data *db.Data) {
+	if data.EpochResult != nil {
+		time.Sleep(time.Second * 30)
+	}
 	for {
 		if err := indexer.db.Save(data); err != nil {
 			log.Error(fmt.Sprintf("Unable to save block %d data: %v", data.Block.Height, err))
