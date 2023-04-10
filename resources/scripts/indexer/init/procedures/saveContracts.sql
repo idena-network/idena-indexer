@@ -73,6 +73,7 @@ DECLARE
     l_item                          jsonb;
     l_contract_address_id           bigint;
     l_tx_id                         bigint;
+    l_contract_code                 bytea;
 BEGIN
     if p_items is null then
         return;
@@ -82,11 +83,12 @@ BEGIN
             l_item = (p_items ->> i)::jsonb;
 
             l_contract_address_id = get_address_id_or_insert(p_block_height, (l_item ->> 'contractAddress')::text);
+            l_contract_code = decode(l_item ->> 'code', 'hex');
 
             SELECT id INTO l_tx_id FROM transactions WHERE lower(hash) = lower((l_item ->> 'txHash')::text);
 
-            INSERT INTO contracts (tx_id, contract_address_id, "type", stake)
-            VALUES (l_tx_id, l_contract_address_id, CONTRACT_TYPE_CONTRACT, 0);
+            INSERT INTO contracts (tx_id, contract_address_id, "type", stake, code)
+            VALUES (l_tx_id, l_contract_address_id, CONTRACT_TYPE_CONTRACT, 0, l_contract_code);
         end loop;
 END
 $$;

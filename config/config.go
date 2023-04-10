@@ -28,6 +28,7 @@ type Config struct {
 	TreeSnapshotDir                   string
 	VoteCounting                      VoteCountingConfig
 	CheckBalances                     bool
+	WasmInfoUrl                       string
 }
 
 type Api struct {

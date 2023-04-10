@@ -1030,6 +1030,7 @@ type txReceipt struct {
 type contract struct {
 	ContractAddress string `json:"contractAddress"`
 	TxHash          string `json:"txHash"`
+	Code            bytes  `json:"code"`
 }
 
 type txEvent struct {
@@ -1146,6 +1147,7 @@ func convertContract(v *Contract) contract {
 	return contract{
 		ContractAddress: conversion.ConvertAddress(v.ContractAddress),
 		TxHash:          conversion.ConvertHash(v.TxHash),
+		Code:            v.Code,
 	}
 }
 

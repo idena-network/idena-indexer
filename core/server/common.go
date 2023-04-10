@@ -24,7 +24,8 @@ type ResponsePage struct {
 } // @Name ResponsePage
 
 type RespError struct {
-	Message string `json:"message"`
+	UserMessage string `json:"userMessage,omitempty"`
+	Message     string `json:"message,omitempty"`
 } // @Name Error
 
 func WriteErrorResponse(w http.ResponseWriter, err error, logger log.Logger) {
@@ -36,17 +37,25 @@ func WriteResponse(w http.ResponseWriter, result interface{}, err error, logger 
 }
 
 func WriteResponsePage(w http.ResponseWriter, result interface{}, continuationToken *string, err error, logger log.Logger) {
+	WriteResponsePageWithUserErr(w, result, continuationToken, nil, err, logger)
+}
+
+func WriteResponseWithUserErr(w http.ResponseWriter, result interface{}, userErr, err error, logger log.Logger) {
+	WriteResponsePageWithUserErr(w, result, nil, userErr, err, logger)
+}
+
+func WriteResponsePageWithUserErr(w http.ResponseWriter, result interface{}, continuationToken *string, userErr, err error, logger log.Logger) {
 	w.Header().Set("Content-Type", "application/json")
-	err = json.NewEncoder(w).Encode(getResponse(result, continuationToken, err))
+	err = json.NewEncoder(w).Encode(getResponse(result, continuationToken, userErr, err))
 	if err != nil {
 		logger.Error(fmt.Sprintf("Unable to write API response: %v", err))
 		return
 	}
 }
 
-func getResponse(result interface{}, continuationToken *string, err error) ResponsePage {
-	if err != nil {
-		return getErrorResponse(err)
+func getResponse(result interface{}, continuationToken *string, userErr, err error) ResponsePage {
+	if userErr != nil || err != nil {
+		return getErrorResponse(userErr, err)
 	}
 	return ResponsePage{
 		Result:            result,
@@ -54,14 +63,22 @@ func getResponse(result interface{}, continuationToken *string, err error) Respo
 	}
 }
 
-func getErrorResponse(err error) ResponsePage {
-	return getErrorMsgResponse(err.Error())
+func getErrorResponse(userErr, err error) ResponsePage {
+	var usrErrMsg, errMsg string
+	if userErr != nil {
+		usrErrMsg = userErr.Error()
+	}
+	if err != nil {
+		errMsg = err.Error()
+	}
+	return getErrorMsgResponse(usrErrMsg, errMsg)
 }
 
-func getErrorMsgResponse(errMsg string) ResponsePage {
+func getErrorMsgResponse(usrErrMsg, errMsg string) ResponsePage {
 	return ResponsePage{
 		Error: &RespError{
-			Message: errMsg,
+			UserMessage: usrErrMsg,
+			Message:     errMsg,
 		},
 	}
 }

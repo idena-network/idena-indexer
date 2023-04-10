@@ -11,6 +11,7 @@ import (
 	nodeLog "github.com/idena-network/idena-go/log"
 	"github.com/idena-network/idena-go/node"
 	"github.com/idena-network/idena-indexer/config"
+	"github.com/idena-network/idena-indexer/contract/verification"
 	"github.com/idena-network/idena-indexer/core/api"
 	"github.com/idena-network/idena-indexer/core/flip"
 	"github.com/idena-network/idena-indexer/core/holder/contract"
@@ -81,8 +82,11 @@ func main() {
 		}
 		appStateHolder := state2.NewAppStateHolder(listener.NodeCtx().AppState, listener.NodeCtx().Blockchain)
 		contractHolder := contract.NewHolder(appStateHolder)
+
+		contractVerifier := initContractVerifier(conf.Postgres.ConnStr, conf.WasmInfoUrl)
+
 		indexerApi := api.NewApi(currentOnlineIdentitiesHolder, upgradesVoting, txMemPool, contractsMemPool,
-			state2.NewHolder(conf.TreeSnapshotDir, log.New("component", "stateHolder")), contractHolder)
+			state2.NewHolder(conf.TreeSnapshotDir, log.New("component", "stateHolder")), contractHolder, contractVerifier)
 		ownRi := server.NewRouterInitializer(indexerApi, apiLogger)
 
 		apiServer := server.NewServer(conf.Api.Port, apiLogger)
@@ -319,4 +323,10 @@ func cfgTransform(cfg *config2.Config) {
 		config2.ApplyConsensusVersion(v, cfg.Consensus)
 		log.Info("Consensus config transformed to", "ver", v)
 	}
+}
+
+func initContractVerifier(postgresConnStr, wasmInfoUrl string) verification.Verifier {
+	verifierDb := verification.NewVerifierPostgres(postgresConnStr)
+	wasmInfo := verification.NewWasmInfo(wasmInfoUrl)
+	return verification.NewVerifier(verifierDb, wasmInfo, log.New("component", "contractVerifier"))
 }

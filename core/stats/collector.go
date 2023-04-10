@@ -168,7 +168,7 @@ type pendingTx struct {
 	timeLockContractCallTransfer            *db.TimeLockContractCallTransfer
 	timeLockContractTermination             *db.TimeLockContractTermination
 	inviteTxHash                            *common.Hash
-	deployedWasmContracts                   map[common.Address]struct{}
+	deployedWasmContracts                   map[common.Address][]byte
 }
 
 type pendingBurntCoins struct {
@@ -1833,9 +1833,9 @@ func (c *statsCollector) AddTimeLockTermination(dest common.Address) {
 
 func (c *statsCollector) AddWasmContract(address common.Address, code []byte) {
 	if c.pending.tx.deployedWasmContracts == nil {
-		c.pending.tx.deployedWasmContracts = make(map[common.Address]struct{})
+		c.pending.tx.deployedWasmContracts = make(map[common.Address][]byte)
 	}
-	c.pending.tx.deployedWasmContracts[address] = struct{}{}
+	c.pending.tx.deployedWasmContracts[address] = code
 }
 
 func (c *statsCollector) AddTxReceipt(txReceipt *types.TxReceipt, appState *appstate.AppState) {
@@ -1851,10 +1851,11 @@ func (c *statsCollector) AddTxReceipt(txReceipt *types.TxReceipt, appState *apps
 	var contractCallMethod *db.ContractCallMethod
 	if txReceipt.Success {
 		contractCallMethod = c.applyEmbeddedContractTxReceipt(appState)
-		for contractAddress := range c.pending.tx.deployedWasmContracts {
+		for contractAddress, code := range c.pending.tx.deployedWasmContracts {
 			c.stats.Contracts = append(c.stats.Contracts, &db.Contract{
 				TxHash:          c.pending.tx.tx.Hash(),
 				ContractAddress: contractAddress,
+				Code:            code,
 			})
 			deployedWasmContracts = append(deployedWasmContracts, contractAddress)
 		}

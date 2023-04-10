@@ -5,6 +5,7 @@ import (
 	"github.com/idena-network/idena-go/common"
 	"github.com/idena-network/idena-go/common/hexutil"
 	"github.com/idena-network/idena-go/crypto"
+	"github.com/idena-network/idena-indexer/contract/verification"
 	"github.com/idena-network/idena-indexer/core/holder/contract"
 	"github.com/idena-network/idena-indexer/core/holder/online"
 	"github.com/idena-network/idena-indexer/core/holder/state"
@@ -24,6 +25,7 @@ type Api struct {
 	contractsMemPool mempool.Contracts
 	stateHolder      state.Holder
 	contractHolder   contract.Holder
+	contractVerifier verification.Verifier
 }
 
 func NewApi(
@@ -33,6 +35,7 @@ func NewApi(
 	contractsMemPool mempool.Contracts,
 	stateHolder state.Holder,
 	contractHolder contract.Holder,
+	contractVerifier verification.Verifier,
 ) *Api {
 	return &Api{
 		onlineIdentities: onlineIdentities,
@@ -41,6 +44,7 @@ func NewApi(
 		contractsMemPool: contractsMemPool,
 		stateHolder:      stateHolder,
 		contractHolder:   contractHolder,
+		contractVerifier: contractVerifier,
 	}
 }
 
@@ -265,4 +269,9 @@ func (a *Api) Multisig(address string) (types.Multisig, error) {
 
 func (a *Api) ForkCommitteeSize() uint64 {
 	return uint64(a.onlineIdentities.ForkCommitteeSize())
+}
+
+func (a *Api) VerifyContract(contractAddress string, data []byte) (usrErr, err error) {
+	address := common.HexToAddress(contractAddress)
+	return a.contractVerifier.Submit(address, data)
 }

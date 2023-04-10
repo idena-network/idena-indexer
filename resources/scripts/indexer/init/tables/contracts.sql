@@ -86,6 +86,7 @@ CREATE TABLE IF NOT EXISTS contracts
     contract_address_id bigint          NOT NULL,
     type                smallint        NOT NULL,
     stake               numeric(30, 18) NOT NULL,
+    code                bytea,
     CONSTRAINT contracts_tx_id_fkey FOREIGN KEY (tx_id)
         REFERENCES transactions (id) MATCH SIMPLE
         ON UPDATE NO ACTION

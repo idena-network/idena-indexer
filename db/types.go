@@ -485,6 +485,7 @@ type EpochResult struct {
 type Contract struct {
 	TxHash          common.Hash
 	ContractAddress common.Address
+	Code            []byte
 }
 
 type OracleVotingContract struct {

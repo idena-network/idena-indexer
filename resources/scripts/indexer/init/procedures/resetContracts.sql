@@ -48,6 +48,12 @@ BEGIN
 
     DELETE FROM contract_tx_balance_updates WHERE tx_id >= l_tx_id;
     DELETE FROM tokens t USING contracts c WHERE c.tx_id >= l_tx_id AND c.contract_address_id = t.contract_address_id;
+
+    DELETE
+    FROM contract_verifications t USING contracts c
+    WHERE c.tx_id >= l_tx_id
+      AND c.contract_address_id = t.contract_address_id;
+
     DELETE FROM contracts WHERE tx_id >= l_tx_id;
     DELETE FROM tx_receipts WHERE tx_id >= l_tx_id;
     DELETE FROM tx_events WHERE tx_id >= l_tx_id;

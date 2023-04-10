@@ -4,6 +4,8 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/idena-network/idena-indexer/core/api"
 	"github.com/idena-network/idena-indexer/log"
+	"github.com/pkg/errors"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -72,6 +74,8 @@ func (ri *routerInitializer) InitRouter(router *mux.Router) {
 	router.Path(strings.ToLower("/Multisig/{address}")).HandlerFunc(ri.multisig)
 
 	router.Path(strings.ToLower("/ForkCommittee/Count")).HandlerFunc(ri.forkCommitteeSize)
+
+	router.Path(strings.ToLower("/Contract/{address}/Verify")).HandlerFunc(ri.verifyContract)
 }
 
 func (ri *routerInitializer) onlineIdentitiesCount(w http.ResponseWriter, r *http.Request) {
@@ -242,4 +246,15 @@ func (ri *routerInitializer) multisig(w http.ResponseWriter, r *http.Request) {
 func (ri *routerInitializer) forkCommitteeSize(w http.ResponseWriter, r *http.Request) {
 	resp := ri.api.ForkCommitteeSize()
 	WriteResponse(w, resp, nil, ri.logger)
+}
+
+func (ri *routerInitializer) verifyContract(w http.ResponseWriter, r *http.Request) {
+	data, err := io.ReadAll(r.Body)
+	if err != nil {
+		WriteResponse(w, nil, errors.Wrap(err, "failed to read request data"), ri.logger)
+		return
+	}
+	address := mux.Vars(r)["address"]
+	usrErr, err := ri.api.VerifyContract(address, data)
+	WriteResponseWithUserErr(w, nil, usrErr, err, ri.logger)
 }
