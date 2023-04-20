@@ -410,11 +410,13 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) (*result
 	}
 	collector := &conversionCollector{
 		addresses:   make(map[string]*db.Address),
-		killedAddrs: make(map[common.Address]struct{}),
+		killedAddrs: make(map[common.Address]killedInfo),
 	}
 	collectorStats := indexer.statsHolder().GetStats()
 	for killed := range collectorStats.KilledInactiveIdentities {
-		collector.killedAddrs[killed] = struct{}{}
+		collector.killedAddrs[killed] = killedInfo{
+			reason: killedReasonInactiveIdentity,
+		}
 	}
 
 	epoch := uint64(prevState.State.Epoch())
@@ -445,12 +447,23 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) (*result
 
 	coins, totalBalance, totalStake := indexer.getCoins(indexer.isFirstBlock(incomingBlock), diff)
 
-	delegationSwitches := detectDelegationSwitches(incomingBlock, ctx.prevStateReadOnly, ctx.newStateReadOnly, collector.killedAddrs, collector.switchDelegationTxs)
+	delegationSwitches, delegationHistoryUpdates := detectDelegationSwitches(incomingBlock, ctx.prevStateReadOnly, ctx.newStateReadOnly, collector.killedAddrs, collector.switchDelegationTxs)
 
 	for _, removedTransitiveDelegation := range collectorStats.RemovedTransitiveDelegations {
 		delegationSwitches = append(delegationSwitches, &db.DelegationSwitch{
 			Delegator: removedTransitiveDelegation.Delegator,
 		})
+
+		{
+			height := incomingBlock.Height()
+			reason := db.UndelegationReasonTransitionRemove
+			delegationHistoryUpdates = append(delegationHistoryUpdates, db.DelegationHistoryUpdate{
+				DelegatorAddress:        removedTransitiveDelegation.Delegator,
+				UndelegationBlockHeight: &height,
+				UndelegationReason:      &reason,
+			})
+		}
+
 	}
 
 	upgradesVotes := detectUpgradeVotes(indexer.upgradeVotingHistoryCtx.holder.Get(), indexer.listener.Config().Consensus.Version)
@@ -527,6 +540,7 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) (*result
 		OracleVotingContractsToProlong:           oracleVotingsToProlong,
 		Tokens:                                   collectorStats.Tokens,
 		TokenBalanceUpdates:                      collectorStats.TokenBalanceUpdates,
+		DelegationHistoryUpdates:                 append(collectorStats.DelegationHistoryUpdates, delegationHistoryUpdates...),
 	}
 	resData := &resultData{
 		totalBalance: totalBalance,
@@ -774,7 +788,10 @@ func (indexer *Indexer) convertTransaction(
 			})
 
 		if senderStateChange.NewState == state.Killed {
-			collector.killedAddrs[sender] = struct{}{}
+			collector.killedAddrs[sender] = killedInfo{
+				reason: killedReasonTx,
+				tx:     incomingTx,
+			}
 		} else {
 			delete(collector.killedAddrs, sender)
 		}
@@ -799,7 +816,10 @@ func (indexer *Indexer) convertTransaction(
 					})
 
 				if recipientStateChange.NewState == state.Killed {
-					collector.killedAddrs[*incomingTx.To] = struct{}{}
+					collector.killedAddrs[*incomingTx.To] = killedInfo{
+						reason: killedReasonTx,
+						tx:     incomingTx,
+					}
 				} else {
 					delete(collector.killedAddrs, *incomingTx.To)
 				}
@@ -1091,7 +1111,9 @@ func (indexer *Indexer) detectEpochResult(block *types.Block, ctx *conversionCon
 		}
 
 		if prevStateIdentity.State != state.Undefined && prevStateIdentity.State != state.Killed && (newIdentityState == state.Killed || newIdentityState == state.Undefined) {
-			collector.killedAddrs[addr] = struct{}{}
+			collector.killedAddrs[addr] = killedInfo{
+				reason: killedReasonValidationFailure,
+			}
 		}
 
 		if vrsCalculator != nil {

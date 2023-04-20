@@ -11,21 +11,29 @@ func detectDelegationSwitches(
 	block *types.Block,
 	prevState *appstate.AppState,
 	newState *appstate.AppState,
-	killedAddrs map[common.Address]struct{},
+	killedAddrs map[common.Address]killedInfo,
 	switchDelegationTxs []*types.Transaction,
-) []*db.DelegationSwitch {
+) ([]*db.DelegationSwitch, []db.DelegationHistoryUpdate) {
 	if block == nil || block.Header == nil || !block.Header.Flags().HasFlag(types.IdentityUpdate) {
-		return nil
+		return nil, nil
 	}
 
 	var res []*db.DelegationSwitch
+	var delegationHistoryUpdates []db.DelegationHistoryUpdate
+	height := block.Height()
 
-	for killedAddr := range killedAddrs {
+	for killedAddr, info := range killedAddrs {
 		prevDelegatee := prevState.State.Delegatee(killedAddr)
 		if prevDelegatee != nil {
 			res = append(res, &db.DelegationSwitch{
 				Delegator: killedAddr,
 			})
+			delegationHistoryUpdate := db.DelegationHistoryUpdate{
+				DelegatorAddress:        killedAddr,
+				UndelegationBlockHeight: &height,
+			}
+			delegationHistoryUpdate.UndelegationReason, delegationHistoryUpdate.UndelegationTx = undelegationReason(info)
+			delegationHistoryUpdates = append(delegationHistoryUpdates, delegationHistoryUpdate)
 		}
 	}
 
@@ -37,6 +45,15 @@ func detectDelegationSwitches(
 		}
 		if delegationSwitch := detectDelegationSwitch(delegation.Delegator, prevState, newState); delegationSwitch != nil {
 			res = append(res, delegationSwitch)
+			delegationHistoryUpdates = append(delegationHistoryUpdates, buildDelegationHistoryUpdate(delegationSwitch, height))
+		} else {
+			reason := db.UndelegationReasonApplyingFailure
+			delegationHistoryUpdates = append(delegationHistoryUpdates, db.DelegationHistoryUpdate{
+				DelegatorAddress:        delegation.Delegator,
+				DelegationBlockHeight:   &height,
+				UndelegationBlockHeight: &height,
+				UndelegationReason:      &reason,
+			})
 		}
 		handledAddrs[delegation.Delegator] = struct{}{}
 	}
@@ -50,10 +67,19 @@ func detectDelegationSwitches(
 		}
 		if delegationSwitch := detectDelegationSwitch(delegator, prevState, newState); delegationSwitch != nil {
 			res = append(res, delegationSwitch)
+			delegationHistoryUpdates = append(delegationHistoryUpdates, buildDelegationHistoryUpdate(delegationSwitch, height))
+		} else if switchDelegationTx.Type == types.DelegateTx {
+			reason := db.UndelegationReasonApplyingFailure
+			delegationHistoryUpdates = append(delegationHistoryUpdates, db.DelegationHistoryUpdate{
+				DelegatorAddress:        delegator,
+				DelegationBlockHeight:   &height,
+				UndelegationBlockHeight: &height,
+				UndelegationReason:      &reason,
+			})
 		}
 	}
 
-	return res
+	return res, delegationHistoryUpdates
 }
 
 func detectDelegationSwitch(delegator common.Address, prevState *appstate.AppState, newState *appstate.AppState) *db.DelegationSwitch {
@@ -153,4 +179,33 @@ func detectPoolSizeUpdates(delegationSwitches []*db.DelegationSwitch, addresses 
 		})
 	}
 	return res
+}
+
+func undelegationReason(info killedInfo) (*db.UndelegationReason, *common.Hash) {
+	switch info.reason {
+	case killedReasonInactiveIdentity:
+		reason := db.UndelegationReasonInactiveIdentity
+		return &reason, nil
+	case killedReasonTx:
+		reason := db.UndelegationReasonTermination
+		hash := info.tx.Hash()
+		return &reason, &hash
+	case killedReasonValidationFailure:
+		reason := db.UndelegationReasonValidationFailure
+		return &reason, nil
+	default:
+		return nil, nil
+	}
+}
+
+func buildDelegationHistoryUpdate(delegationSwitch *db.DelegationSwitch, height uint64) db.DelegationHistoryUpdate {
+	delegationHistoryUpdate := db.DelegationHistoryUpdate{
+		DelegatorAddress: delegationSwitch.Delegator,
+	}
+	if delegationSwitch.Delegatee != nil {
+		delegationHistoryUpdate.DelegationBlockHeight = &height
+	} else {
+		delegationHistoryUpdate.UndelegationBlockHeight = &height
+	}
+	return delegationHistoryUpdate
 }

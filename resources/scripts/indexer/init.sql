@@ -1589,6 +1589,9 @@ ON CONFLICT DO NOTHING;
 INSERT INTO dic_change_types
 VALUES (7, 'token_balances')
 ON CONFLICT DO NOTHING;
+INSERT INTO dic_change_types
+VALUES (8, 'delegation_history')
+ON CONFLICT DO NOTHING;
 
 CREATE SEQUENCE IF NOT EXISTS changes_id_seq
     INCREMENT 1
@@ -1796,10 +1799,10 @@ $$
     BEGIN
         CREATE TYPE tp_flip_state AS
         (
-            flip_cid   character varying(100),
-            answer     smallint,
-            status     smallint,
-            grade      smallint,
+            flip_cid    character varying(100),
+            answer      smallint,
+            status      smallint,
+            grade       smallint,
             grade_score real
         );
     EXCEPTION
@@ -3082,6 +3085,7 @@ BEGIN
         call save_oracle_voting_contracts_to_prolong(p_height, p_data -> 'oracleVotingContractsToProlong');
         call save_tokens(p_height, p_data -> 'tokens');
         call save_token_balance_updates(p_height, p_data -> 'tokenBalanceUpdates');
+        call save_delegation_history_updates(p_height, p_data -> 'delegationHistoryUpdates');
     end if;
 
     call apply_block_on_sorted_contracts(p_height, p_clear_old_ovc_committees);

@@ -181,3 +181,194 @@ BEGIN
         end loop;
 END
 $$;
+
+CREATE OR REPLACE PROCEDURE save_delegation_history_updates(p_block_height bigint,
+                                                            p_items jsonb)
+    LANGUAGE 'plpgsql'
+AS
+$$
+DECLARE
+    l_item                 jsonb;
+    l_delegator_address_id bigint;
+    l_delegation_tx_id     bigint;
+    l_undelegation_tx_id   bigint;
+BEGIN
+    if p_items is null then
+        return;
+    end if;
+    for i in 0..jsonb_array_length(p_items) - 1
+        loop
+            l_item = (p_items ->> i)::jsonb;
+
+            l_delegator_address_id = get_address_id_or_insert(p_block_height, (l_item ->> 'delegatorAddress')::text);
+
+            l_delegation_tx_id = null;
+            if l_item ->> 'delegationTx' is not null then
+                SELECT id
+                INTO l_delegation_tx_id
+                FROM transactions
+                WHERE lower(hash) = lower((l_item ->> 'delegationTx')::text);
+            end if;
+
+            l_undelegation_tx_id = null;
+            if l_item ->> 'undelegationTx' is not null then
+                SELECT id
+                INTO l_undelegation_tx_id
+                FROM transactions
+                WHERE lower(hash) = lower((l_item ->> 'undelegationTx')::text);
+            end if;
+
+            call update_delegation_history(p_block_height, l_delegator_address_id, l_delegation_tx_id,
+                                           (l_item ->> 'delegationBlockHeight')::bigint,
+                                           (l_item ->> 'undelegationReason')::smallint, l_undelegation_tx_id,
+                                           (l_item ->> 'undelegationBlockHeight')::bigint);
+        end loop;
+END
+$$;
+
+CREATE OR REPLACE PROCEDURE update_delegation_history(p_block_height bigint,
+                                                      p_delegator_address_id bigint,
+                                                      p_delegation_tx_id bigint,
+                                                      p_delegation_block_height bigint,
+                                                      p_undelegation_reason smallint,
+                                                      p_undelegation_tx_id bigint,
+                                                      p_undelegation_block_height bigint)
+    LANGUAGE 'plpgsql'
+AS
+$$
+DECLARE
+    CHANGE_TYPE_DELEGATION_HISTORY CONSTANT smallint = 8;
+    l_change_id                             bigint;
+    l_prev_delegation_tx_id                 bigint;
+    l_prev_delegation_block_height          bigint;
+    l_prev_undelegation_reason              smallint;
+    l_prev_undelegation_tx_id               bigint;
+    l_prev_undelegation_block_height        integer;
+    l_prev_is_actual                        boolean;
+BEGIN
+
+    SELECT delegation_tx_id,
+           delegation_block_height,
+           undelegation_reason,
+           undelegation_tx_id,
+           undelegation_block_height,
+           is_actual
+    INTO l_prev_delegation_tx_id,
+        l_prev_delegation_block_height,
+        l_prev_undelegation_reason,
+        l_prev_undelegation_tx_id,
+        l_prev_undelegation_block_height,
+        l_prev_is_actual
+    FROM delegation_history
+    WHERE delegator_address_id = p_delegator_address_id
+      AND is_actual;
+
+    if p_delegation_tx_id is not null then
+        if l_prev_delegation_tx_id is not null then
+            UPDATE delegation_history
+            SET is_actual = null
+            WHERE delegator_address_id = p_delegator_address_id
+              AND is_actual;
+
+            INSERT INTO changes (block_height, "type")
+            VALUES (p_block_height, CHANGE_TYPE_DELEGATION_HISTORY)
+            RETURNING id INTO l_change_id;
+
+            INSERT INTO delegation_history_changes (change_id, delegator_address_id, delegation_tx_id,
+                                                    delegation_block_height, undelegation_reason, undelegation_tx_id,
+                                                    undelegation_block_height, is_actual)
+            VALUES (l_change_id, p_delegator_address_id, l_prev_delegation_tx_id, l_prev_delegation_block_height,
+                    l_prev_undelegation_reason, l_prev_undelegation_tx_id, l_prev_undelegation_block_height,
+                    l_prev_is_actual);
+        end if;
+
+        INSERT INTO delegation_history (delegator_address_id, delegation_tx_id, delegation_block_height,
+                                        undelegation_reason, undelegation_tx_id, undelegation_block_height, is_actual)
+        VALUES (p_delegator_address_id, p_delegation_tx_id, p_delegation_block_height, p_undelegation_reason,
+                p_undelegation_tx_id, p_undelegation_block_height, true);
+
+        INSERT INTO changes (block_height, "type")
+        VALUES (p_block_height, CHANGE_TYPE_DELEGATION_HISTORY)
+        RETURNING id INTO l_change_id;
+
+        INSERT INTO delegation_history_changes (change_id, delegator_address_id, delegation_tx_id)
+        VALUES (l_change_id, p_delegator_address_id, p_delegation_tx_id);
+
+    else
+        if l_prev_delegation_tx_id is not null then
+            UPDATE delegation_history
+            SET delegation_tx_id          = coalesce(p_delegation_tx_id, delegation_tx_id),
+                delegation_block_height   = coalesce(p_delegation_block_height, delegation_block_height),
+                undelegation_reason       = coalesce(p_undelegation_reason, undelegation_reason),
+                undelegation_tx_id        = coalesce(p_undelegation_tx_id, undelegation_tx_id),
+                undelegation_block_height = coalesce(p_undelegation_block_height, undelegation_block_height),
+                is_actual                 = (case
+                                                 when ((coalesce(p_delegation_block_height, delegation_block_height) is null and
+                                                        coalesce(p_undelegation_block_height, undelegation_block_height) is null)
+                                                     or
+                                                       coalesce(p_undelegation_block_height, undelegation_block_height) is not null) and
+                                                      coalesce(p_undelegation_reason, undelegation_reason) is not null
+                                                     then null
+                                                 else true end)
+            WHERE delegator_address_id = p_delegator_address_id
+              AND is_actual;
+
+            INSERT INTO changes (block_height, "type")
+            VALUES (p_block_height, CHANGE_TYPE_DELEGATION_HISTORY)
+            RETURNING id INTO l_change_id;
+
+            INSERT INTO delegation_history_changes (change_id, delegator_address_id, delegation_tx_id,
+                                                    delegation_block_height, undelegation_reason, undelegation_tx_id,
+                                                    undelegation_block_height, is_actual)
+            VALUES (l_change_id, p_delegator_address_id, l_prev_delegation_tx_id, l_prev_delegation_block_height,
+                    l_prev_undelegation_reason, l_prev_undelegation_tx_id, l_prev_undelegation_block_height,
+                    l_prev_is_actual);
+        end if;
+    end if;
+END
+$$;
+
+CREATE OR REPLACE PROCEDURE reset_delegation_history_changes(p_change_id bigint)
+    LANGUAGE 'plpgsql'
+AS
+$$
+DECLARE
+    l_delegator_address_id      bigint;
+    l_delegation_tx_id          bigint;
+    l_delegation_block_height   bigint;
+    l_undelegation_reason       smallint;
+    l_undelegation_tx_id        bigint;
+    l_undelegation_block_height integer;
+    l_is_actual                 boolean;
+BEGIN
+    SELECT delegator_address_id,
+           delegation_tx_id,
+           delegation_block_height,
+           undelegation_reason,
+           undelegation_tx_id,
+           undelegation_block_height,
+           is_actual
+    INTO l_delegator_address_id, l_delegation_tx_id, l_delegation_block_height, l_undelegation_reason, l_undelegation_tx_id, l_undelegation_block_height, l_is_actual
+    FROM delegation_history_changes
+    WHERE change_id = p_change_id;
+
+    if l_delegation_block_height is null AND l_undelegation_reason is null AND l_undelegation_tx_id is null AND
+       l_undelegation_block_height is null AND l_is_actual is null then
+        DELETE
+        FROM delegation_history
+        WHERE delegator_address_id = l_delegator_address_id
+          AND delegation_tx_id = l_delegation_tx_id;
+    else
+        UPDATE delegation_history
+        SET delegation_block_height   = l_delegation_block_height,
+            undelegation_reason       = l_undelegation_reason,
+            undelegation_tx_id        = l_undelegation_tx_id,
+            undelegation_block_height = l_undelegation_block_height,
+            is_actual                 = l_is_actual
+        WHERE delegator_address_id = l_delegator_address_id
+          AND delegation_tx_id = l_delegation_tx_id;
+    end if;
+
+    DELETE FROM token_balances_changes WHERE change_id = p_change_id;
+END
+$$;

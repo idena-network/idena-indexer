@@ -7,6 +7,19 @@ import (
 	"github.com/idena-network/idena-indexer/db"
 )
 
+type killedReason = uint8
+
+const (
+	killedReasonInactiveIdentity  killedReason = 1
+	killedReasonTx                killedReason = 2
+	killedReasonValidationFailure killedReason = 3
+)
+
+type killedInfo struct {
+	reason killedReason
+	tx     *types.Transaction
+}
+
 type conversionContext struct {
 	blockHeight       uint64
 	prevStateReadOnly *appstate.AppState
@@ -23,7 +36,7 @@ type conversionCollector struct {
 	killInviteeTxs      []db.KillInviteeTx
 	becomeOnlineTxs     []string
 	becomeOfflineTxs    []string
-	killedAddrs         map[common.Address]struct{}
+	killedAddrs         map[common.Address]killedInfo
 	switchDelegationTxs []*types.Transaction
 }
 

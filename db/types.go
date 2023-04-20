@@ -19,6 +19,7 @@ type OracleVotingCall = ContractCallMethod
 type OracleLockCall = ContractCallMethod
 type MultisigCall = ContractCallMethod
 type RefundableOracleLockCall = ContractCallMethod
+type UndelegationReason = uint8
 
 const (
 	PenaltyBurntCoins      BurntCoinsReason = 0x0
@@ -62,6 +63,13 @@ const (
 	RefundableOracleLockCallDeposit RefundableOracleLockCall = 0
 	RefundableOracleLockCallPush    RefundableOracleLockCall = 1
 	RefundableOracleLockCallRefund  RefundableOracleLockCall = 2
+
+	UndelegationReasonUndelegation      UndelegationReason = 1
+	UndelegationReasonTermination       UndelegationReason = 2
+	UndelegationReasonValidationFailure UndelegationReason = 3
+	UndelegationReasonTransitionRemove  UndelegationReason = 4
+	UndelegationReasonInactiveIdentity  UndelegationReason = 5
+	UndelegationReasonApplyingFailure   UndelegationReason = 6
 )
 
 type RestoredData struct {
@@ -146,6 +154,7 @@ type Data struct {
 	OracleVotingContractsToProlong           []common.Address
 	Tokens                                   []Token
 	TokenBalanceUpdates                      []TokenBalance
+	DelegationHistoryUpdates                 []DelegationHistoryUpdate
 }
 
 type EpochRewards struct {
@@ -866,4 +875,13 @@ type TokenBalance struct {
 	ContractAddress common.Address `json:"contractAddress"`
 	Address         common.Address `json:"address"`
 	Balance         *big.Int       `json:"balance"`
+}
+
+type DelegationHistoryUpdate struct {
+	DelegatorAddress        common.Address      `json:"delegatorAddress"`
+	DelegationTx            *common.Hash        `json:"delegationTx,omitempty"`
+	DelegationBlockHeight   *uint64             `json:"delegationBlockHeight,omitempty"`
+	UndelegationReason      *UndelegationReason `json:"undelegationReason,omitempty"`
+	UndelegationTx          *common.Hash        `json:"undelegationTx,omitempty"`
+	UndelegationBlockHeight *uint64             `json:"undelegationBlockHeight,omitempty"`
 }

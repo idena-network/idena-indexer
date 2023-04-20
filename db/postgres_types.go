@@ -961,6 +961,7 @@ type data struct {
 	Contracts                      []contract                    `json:"contracts,omitempty"`
 	Tokens                         []Token                       `json:"tokens,omitempty"`
 	TokenBalanceUpdates            []TokenBalance                `json:"tokenBalanceUpdates,omitempty"`
+	DelegationHistoryUpdates       []DelegationHistoryUpdate     `json:"delegationHistoryUpdates,omitempty"`
 }
 
 func (v *data) Value() (driver.Value, error) {
@@ -1051,12 +1052,14 @@ func getData(
 	contracts []*Contract,
 	tokens []Token,
 	tokenBalanceUpdates []TokenBalance,
+	delegationHistoryUpdates []DelegationHistoryUpdate,
 ) *data {
 	res := &data{
-		Txs:                 txs,
-		EpochSummaryUpdate:  epochSummaryUpdate,
-		Tokens:              tokens,
-		TokenBalanceUpdates: tokenBalanceUpdates,
+		Txs:                      txs,
+		EpochSummaryUpdate:       epochSummaryUpdate,
+		Tokens:                   tokens,
+		TokenBalanceUpdates:      tokenBalanceUpdates,
+		DelegationHistoryUpdates: delegationHistoryUpdates,
 	}
 	if len(delegationSwitches) > 0 {
 		res.DelegationSwitches = make([]*delegationSwitch, 0, len(delegationSwitches))

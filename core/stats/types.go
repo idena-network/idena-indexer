@@ -89,6 +89,7 @@ type Stats struct {
 	BlockGasUsed                             uint64
 	TokenBalanceUpdates                      []TokenBalance
 	Tokens                                   []db.Token
+	DelegationHistoryUpdates                 []db.DelegationHistoryUpdate
 }
 
 type RewardsStats struct {

@@ -27,7 +27,7 @@ func Test_detectDelegationSwitches(t *testing.T) {
 			},
 		}
 		// When
-		switches := detectDelegationSwitches(block, prevState, newState, nil, nil)
+		switches, _ := detectDelegationSwitches(block, prevState, newState, nil, nil)
 		// Then
 		require.Nil(t, switches)
 	}
@@ -44,7 +44,7 @@ func Test_detectDelegationSwitches(t *testing.T) {
 			},
 		}
 		// When
-		switches := detectDelegationSwitches(block, prevState, newState, nil, nil)
+		switches, _ := detectDelegationSwitches(block, prevState, newState, nil, nil)
 		// Then
 		require.Nil(t, switches)
 	}
@@ -70,10 +70,10 @@ func Test_detectDelegationSwitches(t *testing.T) {
 		newState.State.SetBirthday(addr5, 5)
 		newState.State.SetDelegatee(addr5, tests.GetRandAddr())
 
-		killedAddrs := make(map[common.Address]struct{})
-		killedAddrs[addr4] = struct{}{}
-		killedAddrs[addr5] = struct{}{}
-		killedAddrs[tests.GetRandAddr()] = struct{}{}
+		killedAddrs := make(map[common.Address]killedInfo)
+		killedAddrs[addr4] = killedInfo{}
+		killedAddrs[addr5] = killedInfo{}
+		killedAddrs[tests.GetRandAddr()] = killedInfo{}
 
 		block := &types.Block{
 			Header: &types.Header{
@@ -84,7 +84,7 @@ func Test_detectDelegationSwitches(t *testing.T) {
 		}
 
 		// When
-		switches := detectDelegationSwitches(block, prevState, newState, killedAddrs, nil)
+		switches, _ := detectDelegationSwitches(block, prevState, newState, killedAddrs, nil)
 
 		// Then
 		require.Len(t, switches, 4)
@@ -157,10 +157,10 @@ func Test_detectDelegationSwitches(t *testing.T) {
 		newState.State.SetBirthday(addr5, 5)
 		newState.State.SetDelegatee(addr5, tests.GetRandAddr())
 
-		killedAddrs := make(map[common.Address]struct{})
-		killedAddrs[addr4] = struct{}{}
-		killedAddrs[addr5] = struct{}{}
-		killedAddrs[tests.GetRandAddr()] = struct{}{}
+		killedAddrs := make(map[common.Address]killedInfo)
+		killedAddrs[addr4] = killedInfo{}
+		killedAddrs[addr5] = killedInfo{}
+		killedAddrs[tests.GetRandAddr()] = killedInfo{}
 
 		block := &types.Block{
 			Header: &types.Header{
@@ -171,7 +171,7 @@ func Test_detectDelegationSwitches(t *testing.T) {
 		}
 
 		// When
-		switches := detectDelegationSwitches(block, prevState, newState, killedAddrs, delegationSwitchTxs)
+		switches, _ := detectDelegationSwitches(block, prevState, newState, killedAddrs, delegationSwitchTxs)
 
 		// Then
 		require.Len(t, switches, 4)

@@ -1325,8 +1325,35 @@ func (c *statsCollector) CompleteApplyingTx(appState *appstate.AppState) {
 
 	c.collectTxSentToContract(appState)
 	c.collectActivationTx(appState)
+	c.collectDelegationHistoryUpdate()
 
 	c.pending.tx = nil
+}
+
+func (c *statsCollector) collectDelegationHistoryUpdate() {
+	tx := c.pending.tx.tx
+	var update *db.DelegationHistoryUpdate
+	if tx.Type == types.DelegateTx {
+		sender, _ := types.Sender(tx)
+		txHash := tx.Hash()
+		update = &db.DelegationHistoryUpdate{
+			DelegatorAddress: sender,
+			DelegationTx:     &txHash,
+		}
+	}
+	if tx.Type == types.UndelegateTx {
+		txHash := tx.Hash()
+		sender, _ := types.Sender(tx)
+		reason := db.UndelegationReasonUndelegation
+		update = &db.DelegationHistoryUpdate{
+			DelegatorAddress:   sender,
+			UndelegationTx:     &txHash,
+			UndelegationReason: &reason,
+		}
+	}
+	if update != nil {
+		c.stats.DelegationHistoryUpdates = append(c.stats.DelegationHistoryUpdates, *update)
+	}
 }
 
 func (c *statsCollector) collectActivationTx(appState *appstate.AppState) {
