@@ -21,7 +21,9 @@ CREATE TABLE IF NOT EXISTS contract_verifications
     contract_address_id bigint   NOT NULL,
     state               smallint NOT NULL,
     state_timestamp     bigint   NOT NULL,
-    "data"              bytea
+    "data"              bytea,
+    file_name           character varying(50),
+    error_message       character varying(200)
 );
 CREATE UNIQUE INDEX IF NOT EXISTS contract_verifications_pkey ON contract_verifications (contract_address_id);
 CREATE INDEX IF NOT EXISTS contract_verifications_pending ON contract_verifications (contract_address_id) WHERE state = 0;

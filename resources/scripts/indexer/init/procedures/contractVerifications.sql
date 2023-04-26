@@ -45,7 +45,8 @@ $$;
 CREATE OR REPLACE PROCEDURE update_contract_verification_state(p_contract_address text,
                                                                p_state smallint,
                                                                p_timestamp bigint,
-                                                               p_data bytea)
+                                                               p_data bytea,
+                                                               p_error_message text)
     LANGUAGE 'plpgsql'
 AS
 $$
@@ -53,7 +54,8 @@ BEGIN
     UPDATE contract_verifications
     SET state           = p_state,
         state_timestamp = p_timestamp,
-        "data"          = p_data
+        "data"          = p_data,
+        error_message   = p_error_message
     WHERE contract_address_id = (SELECT id FROM addresses WHERE lower(address) = lower(p_contract_address));
 END
 $$;

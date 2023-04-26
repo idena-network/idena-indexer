@@ -271,7 +271,7 @@ func (a *Api) ForkCommitteeSize() uint64 {
 	return uint64(a.onlineIdentities.ForkCommitteeSize())
 }
 
-func (a *Api) VerifyContract(contractAddress string, data []byte) (usrErr, err error) {
+func (a *Api) VerifyContract(contractAddress string, data []byte, fileName string) (usrErr, err error) {
 	address := common.HexToAddress(contractAddress)
-	return a.contractVerifier.Submit(address, data)
+	return a.contractVerifier.Submit(address, data, fileName)
 }

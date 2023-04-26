@@ -17,9 +17,9 @@ const (
 )
 
 type VerifierDb interface {
-	SavePendingVerification(contractAddress common.Address, data []byte) (usrErr, err error)
+	SavePendingVerification(contractAddress common.Address, data []byte, fileName string) (usrErr, err error)
 	GetPendingVerification() (*PendingVerification, error)
-	UpdateVerificationState(contractAddress common.Address, state State, data []byte) error
+	UpdateVerificationState(contractAddress common.Address, state State, data []byte, errorMessage *string) error
 }
 
 type PendingVerification struct {
@@ -45,14 +45,15 @@ func NewVerifierPostgres(connStr string) *VerifierPostgres {
 	}
 }
 
-func (vdb *VerifierPostgres) SavePendingVerification(contractAddress common.Address, data []byte) (usrErr, err error) {
-	const query = "SELECT coalesce(save_contract_pending_verification($1, $2, $3), '');"
+func (vdb *VerifierPostgres) SavePendingVerification(contractAddress common.Address, data []byte, fileName string) (usrErr, err error) {
+	const query = "SELECT coalesce(save_contract_pending_verification($1, $2, $3, $4), '');"
 	timestamp := time.Now().UTC().Unix()
 	var userErrorMsg string
 	if err = vdb.db.QueryRow(query,
 		conversion.ConvertAddress(contractAddress),
 		timestamp,
 		data,
+		fileName,
 	).Scan(&userErrorMsg); err != nil {
 		return nil, err
 	}
@@ -87,14 +88,15 @@ FROM contract_verifications cv
 	}
 }
 
-func (vdb *VerifierPostgres) UpdateVerificationState(contractAddress common.Address, state State, data []byte) error {
-	const query = "call update_contract_verification_state($1, $2, $3, $4);"
+func (vdb *VerifierPostgres) UpdateVerificationState(contractAddress common.Address, state State, data []byte, errorMessage *string) error {
+	const query = "call update_contract_verification_state($1, $2, $3, $4, $5);"
 	timestamp := time.Now().UTC().Unix()
 	_, err := vdb.db.Exec(query,
 		conversion.ConvertAddress(contractAddress),
 		state,
 		timestamp,
 		data,
+		errorMessage,
 	)
 	return err
 }

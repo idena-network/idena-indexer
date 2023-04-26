@@ -1,6 +1,7 @@
 package server
 
 import (
+	"fmt"
 	"github.com/gorilla/mux"
 	"github.com/idena-network/idena-indexer/core/api"
 	"github.com/idena-network/idena-indexer/log"
@@ -255,6 +256,7 @@ func (ri *routerInitializer) verifyContract(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	address := mux.Vars(r)["address"]
-	usrErr, err := ri.api.VerifyContract(address, data)
+	fileName := fmt.Sprintf("%v.zip", strings.ToLower(address))
+	usrErr, err := ri.api.VerifyContract(address, data, fileName)
 	WriteResponseWithUserErr(w, nil, usrErr, err, ri.logger)
 }

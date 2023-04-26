@@ -12,7 +12,7 @@ import (
 )
 
 type Verifier interface {
-	Submit(contractAddress common.Address, code []byte) (usrErr, err error)
+	Submit(contractAddress common.Address, code []byte, fileName string) (usrErr, err error)
 }
 
 type verifierImpl struct {
@@ -31,8 +31,8 @@ func NewVerifier(db VerifierDb, info WasmInfo, logger log.Logger) Verifier {
 	return res
 }
 
-func (v *verifierImpl) Submit(contractAddress common.Address, code []byte) (usrErr, err error) {
-	return v.db.SavePendingVerification(contractAddress, code)
+func (v *verifierImpl) Submit(contractAddress common.Address, code []byte, fileName string) (usrErr, err error) {
+	return v.db.SavePendingVerification(contractAddress, code, fileName)
 }
 
 func (v *verifierImpl) loop() {
@@ -63,20 +63,27 @@ func (v *verifierImpl) verifyPendingContract() error {
 	}
 
 	dataHash, verificationErr := v.getDataInfo(verification.Data)
-	if verificationErr == nil && bytes.Compare(codeHash, dataHash) != 0 {
-		verificationErr = errors.Errorf("different hashes, actual: %v, provided: %v", hexutil.Encode(codeHash), hexutil.Encode(dataHash))
+	if verificationErr != nil {
+		v.logger.Warn(fmt.Sprintf("failed to verify contract: %v", err))
+		verificationErr = errors.New("failed to compile")
+	} else if bytes.Compare(codeHash, dataHash) != 0 {
+		v.logger.Warn(fmt.Sprintf("different hashes, actual: %v, provided: %v", hexutil.Encode(codeHash), hexutil.Encode(dataHash)))
+		verificationErr = errors.New("wrong compiled contract hash")
 	}
 
 	verified := verificationErr == nil
 
 	var state State
+	var errorMessage *string
 	if verified {
 		state = StateVerified
 	} else {
 		state = StateFailed
+		v := verificationErr.Error()
+		errorMessage = &v
 	}
 
-	if err := v.db.UpdateVerificationState(verification.Address, state, verification.Data); err != nil {
+	if err := v.db.UpdateVerificationState(verification.Address, state, verification.Data, errorMessage); err != nil {
 		return errors.Wrap(err, "failed to update verification state")
 	}
 
