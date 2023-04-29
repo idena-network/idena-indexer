@@ -1327,6 +1327,7 @@ type epochResultData struct {
 	ReportedFlips              uint32                      `json:"reportedFlips"`
 	DelegateesEpochRewards     []delegateeEpochRewards     `json:"delegateeEpochRewards,omitempty"`
 	ValidationRewardsSummaries []validationRewardSummaries `json:"validationRewardsSummaries,omitempty"`
+	PoolSizeChanges            []*PoolSizeChange           `json:"poolSizeChanges,omitempty"`
 }
 
 func (v *epochResultData) Value() (driver.Value, error) {
@@ -1418,6 +1419,7 @@ func getEpochResultData(epochResult *EpochResult) *epochResultData {
 			res.ValidationRewardsSummaries = append(res.ValidationRewardsSummaries, item)
 		}
 	}
+	res.PoolSizeChanges = epochResult.PoolSizeChanges
 	return res
 }
 

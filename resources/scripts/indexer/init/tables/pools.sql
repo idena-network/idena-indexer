@@ -85,3 +85,14 @@ CREATE TABLE IF NOT EXISTS delegation_history_changes
         ON DELETE CASCADE
 );
 CREATE UNIQUE INDEX IF NOT EXISTS delegation_history_changes_pkey ON delegation_history_changes (change_id);
+
+CREATE TABLE IF NOT EXISTS pool_size_history
+(
+    address_id            bigint   NOT NULL,
+    epoch                 smallint NOT NULL,
+    validation_size       integer  NOT NULL,
+    validation_delegators integer  NOT NULL,
+    end_size              integer  NOT NULL,
+    end_delegators        integer  NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS pool_size_history_pkey ON pool_size_history (address_id, epoch desc);

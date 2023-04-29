@@ -29,6 +29,7 @@ type Config struct {
 	VoteCounting                      VoteCountingConfig
 	CheckBalances                     bool
 	WasmInfoUrl                       string
+	DisableDelegationHistory          bool // TODO temporary flag
 }
 
 type Api struct {

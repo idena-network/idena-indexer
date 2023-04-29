@@ -74,6 +74,7 @@ type Indexer struct {
 	actualOracleVotingsLoader     voting.ActualOracleVotingsLoader
 	oracleVotingToProlongDetector OracleVotingToProlongDetector
 	checkBalances                 bool
+	disableDelegationHistory      bool
 }
 
 type upgradeVotingHistoryCtx struct {
@@ -125,6 +126,7 @@ func NewIndexer(
 	actualOracleVotingsLoader voting.ActualOracleVotingsLoader,
 	oracleVotingToProlongDetector OracleVotingToProlongDetector,
 	checkBalances bool,
+	disableDelegationHistory bool,
 ) *Indexer {
 	return &Indexer{
 		enabled:                       enabled,
@@ -146,7 +148,8 @@ func NewIndexer(
 			shortHistoryMinShift: upgradeVotingShortHistoryMinShift,
 			queue:                make(chan *upgradesVotesWrapper, 5),
 		},
-		checkBalances: checkBalances,
+		checkBalances:            checkBalances,
+		disableDelegationHistory: disableDelegationHistory,
 	}
 }
 
@@ -540,7 +543,9 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) (*result
 		OracleVotingContractsToProlong:           oracleVotingsToProlong,
 		Tokens:                                   collectorStats.Tokens,
 		TokenBalanceUpdates:                      collectorStats.TokenBalanceUpdates,
-		DelegationHistoryUpdates:                 append(collectorStats.DelegationHistoryUpdates, delegationHistoryUpdates...),
+	}
+	if !indexer.disableDelegationHistory {
+		dbData.DelegationHistoryUpdates = append(collectorStats.DelegationHistoryUpdates, delegationHistoryUpdates...)
 	}
 	resData := &resultData{
 		totalBalance: totalBalance,
@@ -945,6 +950,10 @@ func (indexer *Indexer) detectEpochResult(block *types.Block, ctx *conversionCon
 	var identities []db.EpochIdentity
 	var validationRewardsSummaries []db.ValidationRewardSummaries
 	var vrsCalculator *validationRewardSummariesCalculator
+
+	var poolSizeChanges []*db.PoolSizeChange
+	poolSizeChangeByAddress := make(map[common.Address]*db.PoolSizeChange)
+
 	validationStats := indexer.statsHolder().GetStats().ValidationStats
 	if indexer.statsHolder().GetStats().RewardsStats != nil {
 		vrsCalculator = newValidationRewardSummariesCalculator(
@@ -1010,6 +1019,28 @@ func (indexer *Indexer) detectEpochResult(block *types.Block, ctx *conversionCon
 		return false
 	}
 
+	incPoolSize := func(delegatee common.Address, prev bool) {
+		poolSize, ok := poolSizeChangeByAddress[delegatee]
+		if !ok {
+			poolSize = &db.PoolSizeChange{
+				Address: delegatee,
+				Old: db.PoolSize{
+					Size: uint64(ctx.prevStateReadOnly.ValidatorsCache.PoolSize(delegatee)),
+				},
+				New: db.PoolSize{
+					Size: uint64(ctx.newStateReadOnly.ValidatorsCache.PoolSize(delegatee)),
+				},
+			}
+			poolSizeChangeByAddress[delegatee] = poolSize
+			poolSizeChanges = append(poolSizeChanges, poolSize)
+		}
+		if prev {
+			poolSize.Old.TotalDelegated++
+		} else {
+			poolSize.New.TotalDelegated++
+		}
+	}
+
 	ctx.prevStateReadOnly.State.IterateOverIdentities(func(addr common.Address, prevStateIdentity state.Identity) {
 		shardId := prevStateIdentity.ShiftedShardId()
 		convertedAddress := conversion.ConvertAddress(addr)
@@ -1029,7 +1060,14 @@ func (indexer *Indexer) detectEpochResult(block *types.Block, ctx *conversionCon
 			if isPenalized(addr, shardId) {
 				delegateesEpochRewards.incPenalizedDelegators(delegatee)
 			}
+
+			incPoolSize(delegatee, true)
 		}
+
+		if newDelegatee := ctx.newStateReadOnly.State.Delegatee(addr); newDelegatee != nil {
+			incPoolSize(*newDelegatee, false)
+		}
+
 		validationShardStats := validationStats.Shards[shardId]
 		var identityStats *statsTypes.IdentityStats
 		var present, ignoredGrades bool
@@ -1174,6 +1212,7 @@ func (indexer *Indexer) detectEpochResult(block *types.Block, ctx *conversionCon
 		ReportedFlips:             reportedFlips,
 		DelegateesEpochRewards:    delegateesEpochRewards.rewards,
 		ValidationRewardSummaries: validationRewardsSummaries,
+		PoolSizeChanges:           poolSizeChanges,
 	}
 }
 

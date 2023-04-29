@@ -1,16 +1,17 @@
 do
 $$
     declare
-        l_record                 record;
-        l_start_tx_id            bigint;
-        l_finish_tx_id           bigint;
-        l_height                 bigint;
-        l_identity_update_height bigint;
-        l_record_2               record;
-        l_address_id             bigint;
-        l_validation_height      bigint;
-        l_epoch_min_tx_id        bigint;
-        l_epoch_max_tx_id        bigint;
+        l_record                                 record;
+        l_start_tx_id                            bigint;
+        l_finish_tx_id                           bigint;
+        l_height                                 bigint;
+        l_identity_update_height                 bigint;
+        l_record_2                               record;
+        l_address_id                             bigint;
+        l_validation_height                      bigint;
+        l_epoch_min_tx_id                        bigint;
+        l_epoch_max_tx_id                        bigint;
+        L_INACTIVE_IDENTITY_FIRST_EPOCH constant integer = 91;
     begin
         l_start_tx_id = (SELECT min(id) FROM transactions WHERE "type" = 18);
         l_finish_tx_id = (SELECT max(id) FROM transactions);
@@ -136,7 +137,8 @@ $$
                                           FROM epoch_identities ei
                                                    JOIN address_states s ON s.id = ei.address_state_id AND s.state = 0
                                                    JOIN address_states prevs ON prevs.id = s.prev_id AND prevs.state = 0
-                                          WHERE ei.epoch = (SELECT epoch FROM blocks WHERE height = l_validation_height)
+                                          WHERE ei.epoch >= L_INACTIVE_IDENTITY_FIRST_EPOCH
+                                            AND ei.epoch = (SELECT epoch FROM blocks WHERE height = l_validation_height)
                             loop
                                 if not exists(SELECT 1
                                               FROM delegation_history

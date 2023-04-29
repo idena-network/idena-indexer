@@ -101,6 +101,11 @@ BEGIN
                                                p_total.invitations_share);
         select clock_timestamp() into l_end;
         call log_performance('save_validation_rewards_summaries', l_start, l_end);
+
+        select clock_timestamp() into l_start;
+        call save_pool_size_history(p_epoch, p_height, p_data -> 'poolSizeChanges');
+        select clock_timestamp() into l_end;
+        call log_performance('save_pool_size_history', l_start, l_end);
     end if;
 
 
@@ -782,6 +787,30 @@ BEGIN
             l_item = (p_items ->> i)::jsonb;
             INSERT INTO epoch_flip_statuses (epoch, flip_status, count)
             VALUES (p_epoch, (l_item ->> 'status')::smallint, (l_item ->> 'count')::integer);
+        end loop;
+END
+$$;
+
+CREATE OR REPLACE PROCEDURE save_pool_size_history(p_epoch bigint,
+                                                   p_block_height bigint,
+                                                   p_items jsonb)
+    LANGUAGE 'plpgsql'
+AS
+$$
+DECLARE
+    l_item jsonb;
+BEGIN
+    if p_items is null then
+        return;
+    end if;
+    for i in 0..jsonb_array_length(p_items) - 1
+        loop
+            l_item = (p_items ->> i)::jsonb;
+            INSERT INTO pool_size_history (address_id, epoch, validation_size, validation_delegators, end_size,
+                                           end_delegators)
+            VALUES (get_address_id_or_insert(p_block_height, (l_item ->> 'address')::text), p_epoch,
+                    (l_item -> 'old' ->> 'size')::integer, (l_item -> 'old' ->> 'totalDelegated')::integer,
+                    (l_item -> 'new' ->> 'size')::integer, (l_item -> 'new' ->> 'totalDelegated')::integer);
         end loop;
 END
 $$;

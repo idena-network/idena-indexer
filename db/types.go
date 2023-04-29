@@ -81,8 +81,8 @@ type RestoredData struct {
 
 type PoolSize struct {
 	Address        common.Address
-	Size           uint64
-	TotalDelegated uint64
+	Size           uint64 `json:"size"`
+	TotalDelegated uint64 `json:"totalDelegated"`
 }
 
 type Delegation struct {
@@ -489,6 +489,7 @@ type EpochResult struct {
 	ReportedFlips             uint32
 	DelegateesEpochRewards    []DelegateeEpochRewards
 	ValidationRewardSummaries []ValidationRewardSummaries
+	PoolSizeChanges           []*PoolSizeChange
 }
 
 type Contract struct {
@@ -884,4 +885,10 @@ type DelegationHistoryUpdate struct {
 	UndelegationReason      *UndelegationReason `json:"undelegationReason,omitempty"`
 	UndelegationTx          *common.Hash        `json:"undelegationTx,omitempty"`
 	UndelegationBlockHeight *uint64             `json:"undelegationBlockHeight,omitempty"`
+}
+
+type PoolSizeChange struct {
+	Address common.Address `json:"address"`
+	Old     PoolSize       `json:"old"`
+	New     PoolSize       `json:"new"`
 }

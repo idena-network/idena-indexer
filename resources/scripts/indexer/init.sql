@@ -3583,6 +3583,8 @@ BEGIN
     WHERE epoch > l_epoch
        OR NOT l_is_epoch_last_block AND epoch = l_epoch;
 
+    DELETE FROM pool_size_history WHERE epoch > l_epoch OR NOT l_is_epoch_last_block AND epoch = l_epoch;
+
     DELETE FROM address_summaries;
     DELETE FROM balances;
     DELETE FROM birthdays;
