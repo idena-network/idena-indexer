@@ -1,6 +1,7 @@
 CREATE OR REPLACE FUNCTION save_contract_pending_verification(p_contract_address text,
                                                               p_timestamp bigint,
-                                                              p_data bytea)
+                                                              p_data bytea,
+                                                              p_file_name text)
     RETURNS text
     LANGUAGE 'plpgsql'
 AS
@@ -36,8 +37,8 @@ BEGIN
         DELETE FROM contract_verifications WHERE contract_address_id = l_contract_address_id;
     end if;
 
-    INSERT INTO contract_verifications (contract_address_id, state, state_timestamp, "data")
-    VALUES (l_contract_address_id, VERIFICATION_STATE_PENDING, p_timestamp, p_data);
+    INSERT INTO contract_verifications (contract_address_id, state, state_timestamp, "data", file_name)
+    VALUES (l_contract_address_id, VERIFICATION_STATE_PENDING, p_timestamp, p_data, p_file_name);
     return null;
 END
 $$;
