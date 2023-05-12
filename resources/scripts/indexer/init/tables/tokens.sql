@@ -14,7 +14,8 @@ CREATE TABLE IF NOT EXISTS token_balances
     balance             numeric       NOT NULL
 );
 CREATE UNIQUE INDEX IF NOT EXISTS token_balances_pkey ON token_balances (contract_address_id, lower(address));
-CREATE INDEX IF NOT EXISTS token_balances_api_idx1 ON token_balances (lower(address), contract_address_id desc);
+CREATE INDEX IF NOT EXISTS token_balances_api_idx1 ON token_balances (lower(address), contract_address_id DESC);
+CREATE INDEX IF NOT EXISTS token_balances_api_idx2 ON token_balances (contract_address_id, balance DESC, lower(address));
 
 CREATE TABLE IF NOT EXISTS token_balances_changes
 (
