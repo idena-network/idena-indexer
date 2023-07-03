@@ -484,6 +484,7 @@ func (indexer *Indexer) convertIncomingData(incomingBlock *types.Block) (*result
 		Epoch:                                    epoch,
 		PrevStateRoot:                            conversion.ConvertHash(prevState.State.Root()),
 		ValidationTime:                           *big.NewInt(ctx.newStateReadOnly.State.NextValidationTime().Unix()),
+		DiscriminationStakeThreshold:             ctx.newStateReadOnly.State.DiscriminationStakeThreshold(),
 		Block:                                    block,
 		ActivationTxTransfers:                    collectorStats.ActivationTxTransfers,
 		KillTxTransfers:                          collectorStats.KillTxTransfers,

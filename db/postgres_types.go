@@ -269,11 +269,13 @@ func (v *OracleVotingContractCallStart) Value() (driver.Value, error) {
 }
 
 func (v *OracleVotingContractCallVoteProof) Value() (driver.Value, error) {
-	return fmt.Sprintf("(%v,%v,%v,%v)",
+	return fmt.Sprintf("(%v,%v,%v,%v,%v,%v)",
 		conversion.ConvertHash(v.TxHash),
 		hex.EncodeToString(v.VoteHash),
 		negativeIfNilUint64(v.NewSecretVotesCount),
-		v.Discriminated,
+		v.DiscriminatedNewbie,
+		v.DiscriminatedDelegation,
+		v.DiscriminatedStake,
 	), nil
 }
 
@@ -282,7 +284,7 @@ func (v *OracleVotingContractCallVote) Value() (driver.Value, error) {
 	if v.Delegatee != nil && !v.Delegatee.IsEmpty() {
 		delegatee = conversion.ConvertAddress(*v.Delegatee)
 	}
-	return fmt.Sprintf("(%v,%v,%v,%v,%v,%v,%v,%v,%v,%v)",
+	return fmt.Sprintf("(%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v,%v)",
 		conversion.ConvertHash(v.TxHash),
 		v.Vote,
 		hex.EncodeToString(v.Salt),
@@ -292,7 +294,9 @@ func (v *OracleVotingContractCallVote) Value() (driver.Value, error) {
 		delegatee,
 		negativeIfNilByte(v.PrevPoolVote),
 		negativeIfNilUint64(v.PrevOptionVotes),
-		v.Discriminated,
+		v.DiscriminatedNewbie,
+		v.DiscriminatedDelegation,
+		v.DiscriminatedStake,
 	), nil
 }
 

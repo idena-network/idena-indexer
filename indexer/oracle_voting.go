@@ -44,6 +44,6 @@ func (d *oracleVotingToProlongDetectorImpl) CanBeProlonged(contractAddress commo
 	fakeNonce := uint32(1)
 	fakeEpoch := uint16(1)
 	tx := blockchain.BuildTxWithFeeEstimating(appState, from, &contractAddress, types.CallContractTx, decimal.Zero, decimal.Zero, decimal.Zero, fakeNonce, fakeEpoch, payload)
-	receipt := vm.Run(tx, nil, -1)
+	receipt := vm.Run(tx, nil, -1, true)
 	return receipt.Success
 }

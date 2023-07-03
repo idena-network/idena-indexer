@@ -300,9 +300,10 @@ ON CONFLICT DO NOTHING;
 
 CREATE TABLE IF NOT EXISTS epochs
 (
-    epoch           bigint NOT NULL,
-    validation_time bigint NOT NULL,
-    root            character(66),
+    epoch                          bigint NOT NULL,
+    validation_time                bigint NOT NULL,
+    root                           character(66),
+    discrimination_stake_threshold numeric(30, 18),
     CONSTRAINT epochs_pkey PRIMARY KEY (epoch)
 );
 
@@ -2205,10 +2206,12 @@ $$
     BEGIN
         CREATE TYPE tp_oracle_voting_contract_call_vote_proof AS
         (
-            tx_hash            text,
-            vote_hash          text,
-            secret_votes_count bigint,
-            discriminated      boolean
+            tx_hash                  text,
+            vote_hash                text,
+            secret_votes_count       bigint,
+            discriminated_newbie     boolean,
+            discriminated_delegation boolean,
+            discriminated_stake      boolean
         );
     EXCEPTION
         WHEN duplicate_object THEN null;
@@ -2220,16 +2223,18 @@ $$
     BEGIN
         CREATE TYPE tp_oracle_voting_contract_call_vote AS
         (
-            tx_hash            text,
-            vote               smallint,
-            salt               text,
-            option_votes       bigint,
-            option_all_votes   bigint,
-            secret_votes_count bigint,
-            delegatee          text,
-            prev_pool_vote     smallint,
-            prev_option_votes  bigint,
-            discriminated      boolean
+            tx_hash                  text,
+            vote                     smallint,
+            salt                     text,
+            option_votes             bigint,
+            option_all_votes         bigint,
+            secret_votes_count       bigint,
+            delegatee                text,
+            prev_pool_vote           smallint,
+            prev_option_votes        bigint,
+            discriminated_newbie     boolean,
+            discriminated_delegation boolean,
+            discriminated_stake      boolean
         );
     EXCEPTION
         WHEN duplicate_object THEN null;
