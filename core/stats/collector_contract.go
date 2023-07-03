@@ -109,7 +109,7 @@ func (t *TokenContractHolderImpl) call(contractAddress common.Address, method st
 		Payload: payload,
 	}
 	virtualMachine := vm.NewVmImpl(appState, t.nodeCtx.Blockchain, t.nodeCtx.Blockchain.Head, nil, t.cfg)
-	txReceipt := virtualMachine.Run(tx, nil, -1)
+	txReceipt := virtualMachine.Run(tx, nil, -1, true)
 	if !txReceipt.Success {
 		return nil, errors.Wrapf(txReceipt.Error, "failed to call %v", methodNameBalance)
 	}

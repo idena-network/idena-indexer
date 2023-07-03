@@ -95,6 +95,7 @@ type Data struct {
 	Epoch                                    uint64
 	PrevStateRoot                            string
 	ValidationTime                           big.Int
+	DiscriminationStakeThreshold             *big.Int
 	Block                                    Block
 	ActivationTxTransfers                    []ActivationTxTransfer
 	KillTxTransfers                          []KillTxTransfer
@@ -531,24 +532,28 @@ type OracleVotingContractCallStart struct {
 }
 
 type OracleVotingContractCallVoteProof struct {
-	TxHash              common.Hash
-	VoteHash            []byte
-	Votes               uint64
-	NewSecretVotesCount *uint64
-	Discriminated       bool
+	TxHash                  common.Hash
+	VoteHash                []byte
+	Votes                   uint64
+	NewSecretVotesCount     *uint64
+	DiscriminatedNewbie     bool
+	DiscriminatedDelegation bool
+	DiscriminatedStake      bool
 }
 
 type OracleVotingContractCallVote struct {
-	TxHash           common.Hash
-	Vote             byte
-	Salt             []byte
-	OptionVotes      *uint64
-	OptionAllVotes   uint64
-	SecretVotesCount *uint64
-	Delegatee        *common.Address
-	Discriminated    bool
-	PrevPoolVote     *byte
-	PrevOptionVotes  *uint64
+	TxHash                  common.Hash
+	Vote                    byte
+	Salt                    []byte
+	OptionVotes             *uint64
+	OptionAllVotes          uint64
+	SecretVotesCount        *uint64
+	Delegatee               *common.Address
+	DiscriminatedNewbie     bool
+	DiscriminatedDelegation bool
+	DiscriminatedStake      bool
+	PrevPoolVote            *byte
+	PrevOptionVotes         *uint64
 }
 
 type OracleVotingContractCallFinish struct {

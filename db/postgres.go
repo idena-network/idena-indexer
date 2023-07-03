@@ -11,6 +11,7 @@ import (
 	"github.com/lib/pq"
 	_ "github.com/lib/pq"
 	"github.com/pkg/errors"
+	"github.com/shopspring/decimal"
 	"math/big"
 	"sync"
 )
@@ -83,7 +84,7 @@ func (a *postgresAccessor) Save(data *Data) error {
 	ctx := newContext(a, tx, data.Epoch, data.Block.Height)
 
 	a.pm.Start("saveEpoch")
-	if err = a.saveEpoch(ctx, data.Epoch, data.ValidationTime, data.PrevStateRoot); err != nil {
+	if err = a.saveEpoch(ctx, data.Epoch, data.ValidationTime, data.PrevStateRoot, data.DiscriminationStakeThreshold); err != nil {
 		return getResultError(err)
 	}
 	a.pm.Complete("saveEpoch")
@@ -295,8 +296,13 @@ func (a *postgresAccessor) saveEpochResult(
 	return nil
 }
 
-func (a *postgresAccessor) saveEpoch(ctx *context, epoch uint64, validationTime big.Int, root string) error {
-	_, err := ctx.tx.Exec(a.getQuery(insertEpochQuery), epoch, validationTime.Int64(), root)
+func (a *postgresAccessor) saveEpoch(ctx *context, epoch uint64, validationTime big.Int, root string, discriminationStakeThreshold *big.Int) error {
+	var discriminationStakeThresholdD *decimal.Decimal
+	if discriminationStakeThreshold != nil {
+		v := blockchain.ConvertToFloat(discriminationStakeThreshold)
+		discriminationStakeThresholdD = &v
+	}
+	_, err := ctx.tx.Exec(a.getQuery(insertEpochQuery), epoch, validationTime.Int64(), root, discriminationStakeThresholdD)
 	return err
 }
 

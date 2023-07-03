@@ -1588,18 +1588,20 @@ func (c *statsCollector) AddOracleVotingCallStart(state byte, startBlock uint64,
 	}
 }
 
-func (c *statsCollector) AddOracleVotingCallVoteProof(voteHash []byte, newSecretVotesCount *uint64, discriminated bool) {
+func (c *statsCollector) AddOracleVotingCallVoteProof(voteHash []byte, newSecretVotesCount *uint64, discriminationFlags state.DiscriminationFlag) {
 	tx := c.pending.tx.tx
 	c.pending.tx.oracleVotingContractCallVoteProof = &db.OracleVotingContractCallVoteProof{
-		TxHash:              tx.Hash(),
-		VoteHash:            voteHash,
-		NewSecretVotesCount: newSecretVotesCount,
-		Discriminated:       discriminated,
+		TxHash:                  tx.Hash(),
+		VoteHash:                voteHash,
+		NewSecretVotesCount:     newSecretVotesCount,
+		DiscriminatedNewbie:     discriminationFlags.HasFlag(state.DiscriminatedNewbie),
+		DiscriminatedDelegation: discriminationFlags.HasFlag(state.DiscriminatedDelegation),
+		DiscriminatedStake:      discriminationFlags.HasFlag(state.DiscriminatedStake),
 	}
 }
 
 func (c *statsCollector) AddOracleVotingCallVote(vote byte, salt []byte, newOptionVotes *uint64, newOptionAllVotes uint64,
-	newSecretVotesCount *uint64, delegatee *common.Address, prevPoolVote []byte, newPrevOptionVotes *uint64, discriminated bool) {
+	newSecretVotesCount *uint64, delegatee *common.Address, prevPoolVote []byte, newPrevOptionVotes *uint64, discriminationFlags state.DiscriminationFlag) {
 	tx := c.pending.tx.tx
 	var prevPoolVoteByte *byte
 	if prevPoolVote != nil {
@@ -1607,16 +1609,18 @@ func (c *statsCollector) AddOracleVotingCallVote(vote byte, salt []byte, newOpti
 		prevPoolVoteByte = &v
 	}
 	c.pending.tx.oracleVotingContractCallVote = &db.OracleVotingContractCallVote{
-		TxHash:           tx.Hash(),
-		Vote:             vote,
-		Salt:             salt,
-		OptionVotes:      newOptionVotes,
-		OptionAllVotes:   newOptionAllVotes,
-		SecretVotesCount: newSecretVotesCount,
-		Delegatee:        delegatee,
-		Discriminated:    discriminated,
-		PrevPoolVote:     prevPoolVoteByte,
-		PrevOptionVotes:  newPrevOptionVotes,
+		TxHash:                  tx.Hash(),
+		Vote:                    vote,
+		Salt:                    salt,
+		OptionVotes:             newOptionVotes,
+		OptionAllVotes:          newOptionAllVotes,
+		SecretVotesCount:        newSecretVotesCount,
+		Delegatee:               delegatee,
+		DiscriminatedNewbie:     discriminationFlags.HasFlag(state.DiscriminatedNewbie),
+		DiscriminatedDelegation: discriminationFlags.HasFlag(state.DiscriminatedDelegation),
+		DiscriminatedStake:      discriminationFlags.HasFlag(state.DiscriminatedStake),
+		PrevPoolVote:            prevPoolVoteByte,
+		PrevOptionVotes:         newPrevOptionVotes,
 	}
 }
 
